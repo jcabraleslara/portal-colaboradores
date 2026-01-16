@@ -11,19 +11,6 @@ import { ERROR_MESSAGES } from '@/config/constants'
 import { AuthUser, LoginResult, LoginCredentials, ChangePasswordData } from '@/types'
 
 // ========================================
-// TIPOS INTERNOS
-// ========================================
-
-interface UserProfile {
-    identificacion: string
-    primer_nombre: string
-    segundo_nombre: string | null
-    apellidos: string
-    email: string | null
-    rol: string
-}
-
-// ========================================
 // SERVICIO PRINCIPAL
 // ========================================
 

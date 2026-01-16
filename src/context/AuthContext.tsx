@@ -92,7 +92,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     /**
      * Obtener perfil del usuario desde contactos (con caché)
      */
-    const fetchUserProfile = useCallback(async (authUserId: string, email: string) => {
+    const fetchUserProfile = useCallback(async (_authUserId: string, email: string) => {
         // 1. Intentar obtener desde caché
         const cachedProfile = getCachedProfile()
         if (cachedProfile && cachedProfile.email === email) {
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 .single()
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { data: contacto, error } = await Promise.race([queryPromise, timeoutPromise]) as any
+            const { data: contacto } = await Promise.race([queryPromise, timeoutPromise]) as any
 
             // Si no hay contacto, generar un perfil básico
             if (!contacto) {
