@@ -18,12 +18,20 @@ export default defineConfig({
   },
   build: {
     sourcemap: false, // Desactivar en producción por seguridad
+    chunkSizeWarningLimit: 600, // Aumentar límite a 600KB
     rollupOptions: {
       output: {
-        // Code splitting por chunks para mejor carga
+        // Code splitting optimizado por chunks
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
-          supabase: ['@supabase/supabase-js'],
+          // Frameworks core
+          'vendor-react': ['react', 'react-dom'],
+          'vendor-router': ['react-router-dom'],
+          // Supabase (librería pesada)
+          'vendor-supabase': ['@supabase/supabase-js'],
+          // Iconos (muchos componentes)
+          'vendor-icons': ['lucide-react'],
+          // Utilidades CSS
+          'vendor-utils': ['clsx', 'tailwind-merge'],
         },
       },
     },
