@@ -18,7 +18,7 @@ export default defineConfig({
   },
   build: {
     sourcemap: false, // Desactivar en producción por seguridad
-    chunkSizeWarningLimit: 600, // Aumentar límite a 600KB
+    chunkSizeWarningLimit: 800, // Lucide icons es grande (~780KB), es acceptable
     rollupOptions: {
       output: {
         // Code splitting optimizado por chunks
