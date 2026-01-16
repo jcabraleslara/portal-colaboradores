@@ -4,9 +4,34 @@
  */
 
 import { NavLink } from 'react-router-dom'
-import { X, Sparkles } from 'lucide-react'
-import * as Icons from 'lucide-react'
+import {
+    X,
+    Sparkles,
+    Search,
+    ClipboardList,
+    ClipboardCheck,
+    FileText,
+    FileSpreadsheet,
+    RefreshCw,
+    Car,
+    BarChart3,
+    Circle,
+    type LucideIcon
+} from 'lucide-react'
 import { PORTAL_MODULES, ModuleConfig } from '@/config/constants'
+
+// Mapa de iconos específicos (tree-shaking friendly)
+const ICON_MAP: Record<string, LucideIcon> = {
+    Search,
+    ClipboardList,
+    ClipboardCheck,
+    FileText,
+    FileSpreadsheet,
+    RefreshCw,
+    Car,
+    BarChart3,
+    Circle, // Fallback
+}
 
 interface SidebarProps {
     isOpen: boolean
@@ -14,9 +39,8 @@ interface SidebarProps {
 }
 
 // Mapeo dinámico de iconos
-function getIcon(iconName: string) {
-    const IconComponent = Icons[iconName as keyof typeof Icons] as React.ComponentType<{ size?: number; className?: string }>
-    return IconComponent || Icons.Circle
+function getIcon(iconName: string): LucideIcon {
+    return ICON_MAP[iconName] || Circle
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
