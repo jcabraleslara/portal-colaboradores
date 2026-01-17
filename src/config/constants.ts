@@ -12,6 +12,7 @@ export const ROUTES = {
     VALIDACION_DERECHOS: '/validacion-derechos',
     RADICACION_CASOS: '/radicacion-casos',
     GESTION_BACK: '/gestion-back',
+    DIRECTORIO_INSTITUCIONAL: '/directorio-institucional',
     // Módulos futuros (placeholders)
     SOPORTES_FACTURACION: '/soportes-facturacion',
     ANEXO_8: '/anexo-8',
@@ -127,6 +128,14 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'ClipboardCheck',
         enabled: true,
         description: 'Gestionar casos del Back Office',
+    },
+    {
+        id: 'directorio-institucional',
+        name: 'Directorio Institucional',
+        path: ROUTES.DIRECTORIO_INSTITUCIONAL,
+        icon: 'Contact',
+        enabled: true,
+        description: 'Contactos institucionales',
     },
     {
         id: 'soportes-facturacion',

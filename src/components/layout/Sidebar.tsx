@@ -16,6 +16,7 @@ import {
     Car,
     BarChart3,
     Circle,
+    Contact,
     type LucideIcon
 } from 'lucide-react'
 import { PORTAL_MODULES, ModuleConfig } from '@/config/constants'
@@ -30,6 +31,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
     RefreshCw,
     Car,
     BarChart3,
+    Contact,
     Circle, // Fallback
 }
 

@@ -17,6 +17,7 @@ const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'))
 const ValidacionDerechosPage = lazy(() => import('@/features/validacionDerechos/ValidacionDerechosPage'))
 const RadicacionCasosPage = lazy(() => import('@/features/radicacionCasos/RadicacionCasosPage'))
 const GestionBackPage = lazy(() => import('@/features/gestionBack/GestionBackPage'))
+const DirectorioPage = lazy(() => import('@/features/directorioInstitucional/DirectorioPage'))
 const PlaceholderPage = lazy(() => import('@/features/placeholder/PlaceholderPage'))
 
 /**
@@ -132,6 +133,16 @@ export function AppRoutes() {
                     element={
                         <LazyWrapper>
                             <GestionBackPage />
+                        </LazyWrapper>
+                    }
+                />
+
+                {/* Directorio Institucional */}
+                <Route
+                    path={ROUTES.DIRECTORIO_INSTITUCIONAL}
+                    element={
+                        <LazyWrapper>
+                            <DirectorioPage />
                         </LazyWrapper>
                     }
                 />

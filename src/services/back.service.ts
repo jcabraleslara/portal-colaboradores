@@ -18,6 +18,7 @@ import {
     FiltrosCasosBack,
     ConteosCasosBack,
 } from '@/types/back.types'
+import { ragService } from './rag.service'
 
 /**
  * Normalizar texto a mayúsculas sin tildes
@@ -138,6 +139,21 @@ export const backService = {
 
                     // Actualizar el objeto local
                     (insertData as any).soportes = urls
+
+                    // Vectorizar PDFs automáticamente (solo si son PDFs)
+                    // Se ejecuta en background para no bloquear la respuesta
+                    for (const url of urls) {
+                        if (url.toLowerCase().includes('.pdf')) {
+                            ragService.vectorizarPdf(radicado, url)
+                                .then(result => {
+                                    if (result.success) {
+                                        console.log(`[RAG] Vectorización automática completada: ${radicado}`)
+                                    }
+                                })
+                                .catch(err => console.error('[RAG] Error vectorización:', err))
+                        }
+                    }
+
                 } catch (uploadError) {
                     console.error('Error subiendo soportes:', uploadError)
                     // No fallar la radicación por error de upload
@@ -368,11 +384,11 @@ export const backService = {
             if (emailsRadicadores.length > 0) {
                 const { data: contactosData } = await supabase
                     .from('contactos')
-                    .select('email, puesto')
-                    .in('email', emailsRadicadores)
+                    .select('email_personal, puesto')
+                    .in('email_personal', emailsRadicadores)
 
                 if (contactosData) {
-                    cargosMap = new Map(contactosData.map(c => [c.email, c.puesto]))
+                    cargosMap = new Map(contactosData.map(c => [c.email_personal, c.puesto]))
                 }
             }
 
