@@ -13,6 +13,7 @@ export const ROUTES = {
     RADICACION_CASOS: '/radicacion-casos',
     GESTION_BACK: '/gestion-back',
     DIRECTORIO_INSTITUCIONAL: '/directorio-institucional',
+    ADMIN_USUARIOS: '/admin/usuarios',
     // Módulos futuros (placeholders)
     SOPORTES_FACTURACION: '/soportes-facturacion',
     ANEXO_8: '/anexo-8',
@@ -102,6 +103,7 @@ export interface ModuleConfig {
     icon: string
     enabled: boolean
     description?: string
+    requiredRole?: string  // Rol requerido para ver este módulo
 }
 
 export const PORTAL_MODULES: ModuleConfig[] = [
@@ -176,5 +178,14 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'BarChart3',
         enabled: false,
         description: 'En planeación',
+    },
+    {
+        id: 'admin-usuarios',
+        name: 'Administrar Usuarios',
+        path: ROUTES.ADMIN_USUARIOS,
+        icon: 'Users',
+        enabled: true,
+        description: 'Gestión de usuarios del portal',
+        requiredRole: 'superadmin',
     },
 ]

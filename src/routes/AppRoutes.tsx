@@ -19,6 +19,7 @@ const RadicacionCasosPage = lazy(() => import('@/features/radicacionCasos/Radica
 const GestionBackPage = lazy(() => import('@/features/gestionBack/GestionBackPage'))
 const DirectorioPage = lazy(() => import('@/features/directorioInstitucional/DirectorioPage'))
 const PlaceholderPage = lazy(() => import('@/features/placeholder/PlaceholderPage'))
+const AdminUsuariosPage = lazy(() => import('@/features/admin/AdminUsuariosPage'))
 
 /**
  * Componente de protección de rutas
@@ -143,6 +144,16 @@ export function AppRoutes() {
                     element={
                         <LazyWrapper>
                             <DirectorioPage />
+                        </LazyWrapper>
+                    }
+                />
+
+                {/* Administración de Usuarios (solo superadmin) */}
+                <Route
+                    path={ROUTES.ADMIN_USUARIOS}
+                    element={
+                        <LazyWrapper>
+                            <AdminUsuariosPage />
                         </LazyWrapper>
                     }
                 />

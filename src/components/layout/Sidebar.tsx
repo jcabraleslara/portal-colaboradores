@@ -17,9 +17,11 @@ import {
     BarChart3,
     Circle,
     Contact,
+    Users,
     type LucideIcon
 } from 'lucide-react'
 import { PORTAL_MODULES, ModuleConfig } from '@/config/constants'
+import { useAuth } from '@/context/AuthContext'
 
 // Mapa de iconos específicos (tree-shaking friendly)
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -32,6 +34,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
     Car,
     BarChart3,
     Contact,
+    Users,
     Circle, // Fallback
 }
 
@@ -46,6 +49,14 @@ function getIcon(iconName: string): LucideIcon {
 }
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+    const { user } = useAuth()
+
+    // Filtrar módulos según rol del usuario
+    const visibleModules = PORTAL_MODULES.filter(module => {
+        if (!module.requiredRole) return true
+        return (user?.rol as string) === module.requiredRole
+    })
+
     return (
         <>
             {/* Overlay para mobile */}
@@ -84,7 +95,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     </p>
 
                     <div className="space-y-1">
-                        {PORTAL_MODULES.map((module, index) => (
+                        {visibleModules.map((module, index) => (
                             <SidebarItem
                                 key={module.id}
                                 module={module}
