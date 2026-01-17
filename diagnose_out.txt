@@ -1,0 +1,73 @@
+﻿ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+       DIAGN├ôSTICO DE MAPEO SUPABASE <-> AIRTABLE
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+
+
+­ƒöì Analizando: AUD00637
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+node : (node:9068) 
+Warning: Setting the NODE_T
+LS_REJECT_UNAUTHORIZED 
+environment variable to 
+'0' makes TLS connections 
+and HTTPS requests 
+insecure by disabling 
+certificate verification.
+En línea: 1 Carácter: 1
++ node scripts/diagnose_map
+ping.cjs 2>&1 | Out-File 
+-Encoding utf8 diag ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~
+    + CategoryInfo         
+     : NotSpecified: ((no  
+  de:9068) War...e verif   
+ ication.:String) [], R    
+emoteException
+    + FullyQualifiedErrorI 
+   d : NativeCommandError
+ 
+(Use `node 
+--trace-warnings ...` to 
+show where the warning was 
+created)
+  ­ƒôª SUPABASE:
+     Radicado: "AUD00637"
+     ID (c├®dula): "1067939254"
+     Soportes: 1 archivo(s)
+     Origen: Otro
+     URL: https://v5.airtableusercontent.com/v3/u/49/49/1768579200000/HmMsqGEuR4NkstZdDi0C...
+     N├║mero extra├¡do: 637
+
+  ­ƒîÉ AIRTABLE (buscando Radicado = 637):
+     ÔØî No encontrado en Airtable con Radicado = 637
+
+­ƒöì Analizando: AUD00152
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  ­ƒôª SUPABASE:
+     Radicado: "AUD00152"
+     ID (c├®dula): "1065013463"
+     Soportes: 1 archivo(s)
+     Origen: JotForm
+     URL: https://www.jotform.com/uploads/JhonattanCabralesLara/230454880556057/6419645145...
+     N├║mero extra├¡do: 152
+
+  ­ƒîÉ AIRTABLE (buscando Radicado = 152):
+     ÔØî No encontrado en Airtable con Radicado = 152
+
+­ƒöì Analizando: AUD01786
+ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  ­ƒôª SUPABASE:
+     Radicado: "AUD01786"
+     ID (c├®dula): "1068661067"
+     Soportes: 1 archivo(s)
+     Origen: Otro
+     URL: https://v5.airtableusercontent.com/v3/u/49/49/1768579200000/LyvbEk_rjgJakOno30CV...
+     N├║mero extra├¡do: 1786
+
+  ­ƒîÉ AIRTABLE (buscando Radicado = 1786):
+     ÔØî No encontrado en Airtable con Radicado = 1786
+
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ
+                    FIN DIAGN├ôSTICO
+ÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉ

@@ -39,30 +39,39 @@ export const authService = {
             // 0. Limpiar cualquier sesión previa corrupta para evitar bloqueos
             await supabase.auth.signOut()
 
-            // 1. Buscar el contacto por identificación
+            // 1. Buscar el usuario en usuarios_portal por identificación
             // Usamos .then(res => res) para convertir el PostgrestBuilder en una Promise real compatible con withTimeout
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { data: contacto, error: contactoError } = await withTimeout<any>(
+            const { data: usuarioPortal, error: usuarioError } = await withTimeout<any>(
                 supabase
-                    .from('contactos')
-                    .select('identificacion, primer_nombre, segundo_nombre, apellidos, email_institucional, rol')
+                    .from('usuarios_portal')
+                    .select('identificacion, nombre_completo, email_institucional, rol, activo')
                     .eq('identificacion', identificacion)
                     .single()
                     .then(res => res),
-                'buscar_contacto'
+                'buscar_usuario_portal'
             )
 
-            if (contactoError || !contacto) {
-                console.info('Login fallido: contacto no encontrado', { identificacion })
+            if (usuarioError || !usuarioPortal) {
+                console.info('Login fallido: usuario no encontrado en usuarios_portal', { identificacion })
                 return {
                     success: false,
                     error: ERROR_MESSAGES.INVALID_CREDENTIALS,
                 }
             }
 
+            // Validar que el usuario esté activo
+            if (!usuarioPortal.activo) {
+                console.info('Login fallido: usuario desactivado', { identificacion })
+                return {
+                    success: false,
+                    error: 'Tu cuenta ha sido desactivada. Contacta al administrador.',
+                }
+            }
+
             // El email institucional es requerido para Supabase Auth
-            if (!contacto.email_institucional) {
-                console.info('Login fallido: contacto sin email institucional', { identificacion })
+            if (!usuarioPortal.email_institucional) {
+                console.info('Login fallido: usuario sin email institucional', { identificacion })
                 return {
                     success: false,
                     error: 'Este usuario no tiene email institucional configurado. Contacta al administrador.',
@@ -73,7 +82,7 @@ export const authService = {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { data: authData, error: authError } = await withTimeout<any>(
                 supabase.auth.signInWithPassword({
-                    email: contacto.email_institucional,
+                    email: usuarioPortal.email_institucional,
                     password: password,
                 }),
                 'supabase_auth_signin'
@@ -114,21 +123,15 @@ export const authService = {
                 }
             }
 
-            // 3. El rol viene directamente de la tabla contactos
-            const rol = contacto.rol || 'operativo'
+            // 3. El rol viene directamente de la tabla usuarios_portal
+            const rol = usuarioPortal.rol || 'operativo'
             const primerLogin = authData.user.user_metadata?.primer_login !== false
 
-            // 4. Construir objeto de usuario
-            const nombreCompleto = [
-                contacto.primer_nombre,
-                contacto.segundo_nombre,
-                contacto.apellidos,
-            ].filter(Boolean).join(' ')
-
+            // 4. Construir objeto de usuario (nombre ya viene concatenado de usuarios_portal)
             const user: AuthUser = {
-                identificacion: contacto.identificacion,
-                nombreCompleto,
-                email: contacto.email_institucional,
+                identificacion: usuarioPortal.identificacion,
+                nombreCompleto: usuarioPortal.nombre_completo,
+                email: usuarioPortal.email_institucional,
                 rol,
                 primerLogin,
                 ultimoLogin: authData.user.last_sign_in_at

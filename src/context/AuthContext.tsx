@@ -100,54 +100,54 @@ export function AuthProvider({ children }: AuthProviderProps) {
             return cachedProfile
         }
 
-        console.info('🔎 Buscando perfil en tabla contactos para:', email)
+        console.info('🔎 Buscando perfil en tabla usuarios_portal para:', email)
         try {
             // Timeout específico de 5s para no bloquear
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT_CONTACTOS')), 5000)
+                setTimeout(() => reject(new Error('TIMEOUT_USUARIOS_PORTAL')), 5000)
             )
 
             const queryPromise = supabase
-                .from('contactos')
-                .select('identificacion, primer_nombre, segundo_nombre, apellidos, email, rol, last_sign_in_at')
-                .eq('email', email)
+                .from('usuarios_portal')
+                .select('identificacion, nombre_completo, email_institucional, rol, activo, last_sign_in_at')
+                .eq('email_institucional', email)
                 .single()
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { data: contacto } = await Promise.race([queryPromise, timeoutPromise]) as any
+            const { data: usuarioPortal } = await Promise.race([queryPromise, timeoutPromise]) as any
 
-            // Si no hay contacto, generar un perfil básico
-            if (!contacto) {
-                console.warn('⚠️ No se encontró registro en "contactos" o timeout. Usando perfil básico.')
+            // Si no hay usuario o está inactivo, generar un perfil básico
+            if (!usuarioPortal) {
+                console.warn('⚠️ No se encontró registro en "usuarios_portal" o timeout. Usando perfil básico.')
                 const fallbackUser: AuthUser = {
                     identificacion: 'N/A',
                     nombreCompleto: email.split('@')[0],
                     email: email,
                     rol: 'operativo',
                     primerLogin: true,
-                    ultimoLogin: null, // No tenemos history
+                    ultimoLogin: null,
                 }
                 return fallbackUser
             }
 
-            console.info('✅ Perfil encontrado:', contacto.primer_nombre)
+            // Verificar si está activo
+            if (!usuarioPortal.activo) {
+                console.warn('⚠️ Usuario encontrado pero desactivado')
+                return null // Forzar logout
+            }
 
-            const nombreCompleto = [
-                contacto.primer_nombre,
-                contacto.segundo_nombre,
-                contacto.apellidos,
-            ].filter(Boolean).join(' ')
+            console.info('✅ Perfil encontrado:', usuarioPortal.nombre_completo)
 
             // Usar la fecha recuperada de la BD (sesión anterior)
-            const ultimoLogin = contacto.last_sign_in_at
-                ? new Date(contacto.last_sign_in_at)
+            const ultimoLogin = usuarioPortal.last_sign_in_at
+                ? new Date(usuarioPortal.last_sign_in_at)
                 : null
 
             const userProfile: AuthUser = {
-                identificacion: contacto.identificacion,
-                nombreCompleto,
-                email: contacto.email,
-                rol: (contacto.rol || 'operativo') as any,
+                identificacion: usuarioPortal.identificacion,
+                nombreCompleto: usuarioPortal.nombre_completo,
+                email: usuarioPortal.email_institucional,
+                rol: (usuarioPortal.rol || 'operativo') as any,
                 primerLogin: true,
                 ultimoLogin,
             }
@@ -155,9 +155,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             // Actualizar last_sign_in_at al tiempo actual (fire-and-forget)
             // Esto marca el inicio de la sesión ACTUAL, para que en la próxima sea la "anterior"
             supabase
-                .from('contactos')
+                .from('usuarios_portal')
                 .update({ last_sign_in_at: new Date().toISOString() })
-                .eq('email', email)
+                .eq('email_institucional', email)
                 .then(({ error }) => {
                     if (error) console.error('Error actualizando last_sign_in_at:', error)
                 })
