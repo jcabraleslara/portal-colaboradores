@@ -45,7 +45,7 @@ export const authService = {
             const { data: contacto, error: contactoError } = await withTimeout<any>(
                 supabase
                     .from('contactos')
-                    .select('identificacion, primer_nombre, segundo_nombre, apellidos, email, rol')
+                    .select('identificacion, primer_nombre, segundo_nombre, apellidos, email_institucional, rol')
                     .eq('identificacion', identificacion)
                     .single()
                     .then(res => res),
@@ -60,12 +60,12 @@ export const authService = {
                 }
             }
 
-            // El email es requerido para Supabase Auth
-            if (!contacto.email) {
-                console.info('Login fallido: contacto sin email', { identificacion })
+            // El email institucional es requerido para Supabase Auth
+            if (!contacto.email_institucional) {
+                console.info('Login fallido: contacto sin email institucional', { identificacion })
                 return {
                     success: false,
-                    error: 'Este usuario no tiene email configurado. Contacta al administrador.',
+                    error: 'Este usuario no tiene email institucional configurado. Contacta al administrador.',
                 }
             }
 
@@ -73,7 +73,7 @@ export const authService = {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const { data: authData, error: authError } = await withTimeout<any>(
                 supabase.auth.signInWithPassword({
-                    email: contacto.email,
+                    email: contacto.email_institucional,
                     password: password,
                 }),
                 'supabase_auth_signin'
@@ -128,7 +128,7 @@ export const authService = {
             const user: AuthUser = {
                 identificacion: contacto.identificacion,
                 nombreCompleto,
-                email: contacto.email,
+                email: contacto.email_institucional,
                 rol,
                 primerLogin,
                 ultimoLogin: authData.user.last_sign_in_at
