@@ -96,11 +96,14 @@ export interface ContactoUpdate extends Partial<ContactoInput> {
 // CONSTANTES Y COLORES
 // ========================================
 
-export const ROL_LISTA = ['administrador', 'asistencial', 'operativo', 'externo'] as const
+export const ROL_LISTA = ['superadministrador', 'administrador', 'gerencia', 'auditor', 'asistencial', 'operativo', 'externo'] as const
 export type Rol = typeof ROL_LISTA[number]
 
 export const ROL_COLORES: Record<string, { bg: string; text: string; border: string }> = {
+    'superadministrador': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
     'administrador': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+    'gerencia': { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
+    'auditor': { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
     'asistencial': { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
     'operativo': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
     'externo': { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' },
