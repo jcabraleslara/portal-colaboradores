@@ -1,11 +1,13 @@
 /**
  * Modal para crear un nuevo usuario del portal
  * Solo accesible para superadmin
+ * Utiliza el endpoint serverless /api/create-user
  */
 
 import { useState } from 'react'
 import { X, User, Mail, Key, Shield, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
-import { usuariosPortalService, UsuarioPortal, CreateUserData } from '@/services/usuariosPortal.service'
+import { UsuarioPortal, CreateUserData } from '@/services/usuariosPortal.service'
+import { supabase } from '@/config/supabase.config'
 
 interface CreateUserModalProps {
     onClose: () => void
@@ -52,20 +54,41 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
         setIsSubmitting(true)
         setError(null)
 
-        // Crear en usuarios_portal
-        const { data, error: createError } = await usuariosPortalService.create(formData)
+        try {
+            // Obtener el token de sesión actual
+            const { data: { session } } = await supabase.auth.getSession()
+            if (!session?.access_token) {
+                setError('No hay sesión activa. Por favor, inicia sesión nuevamente.')
+                setIsSubmitting(false)
+                return
+            }
 
-        if (createError) {
-            setError(createError)
-            setIsSubmitting(false)
-            return
-        }
+            // Llamar al API serverless
+            const response = await fetch('/api/create-user', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${session.access_token}`
+                },
+                body: JSON.stringify(formData)
+            })
 
-        if (data) {
-            setSuccess(true)
-            setTimeout(() => {
-                onCreated(data)
-            }, 1500)
+            const result = await response.json()
+
+            if (!response.ok) {
+                setError(result.error || 'Error creando usuario')
+                setIsSubmitting(false)
+                return
+            }
+
+            if (result.success && result.usuario) {
+                setSuccess(true)
+                setTimeout(() => {
+                    onCreated(result.usuario)
+                }, 1500)
+            }
+        } catch (err: any) {
+            setError(err.message || 'Error de conexión')
         }
 
         setIsSubmitting(false)
@@ -194,11 +217,10 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                         </p>
                     </div>
 
-                    {/* Nota importante */}
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
-                        <strong>Nota:</strong> Después de crear el usuario aquí, debes ejecutar el script
-                        <code className="bg-amber-100 px-1 rounded mx-1">create_user.cjs</code>
-                        para crear las credenciales de acceso en Supabase Auth.
+                    {/* Nota informativa */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                        <strong>⚡ Creación automática:</strong> El usuario será creado con acceso completo
+                        al portal. Podrá iniciar sesión inmediatamente con la contraseña temporal.
                     </div>
 
                     {/* Error */}
