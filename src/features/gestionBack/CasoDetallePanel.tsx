@@ -32,8 +32,11 @@ import {
     Route,
     Loader2,
     Sparkles,
+    Copy,
+    Check,
 } from 'lucide-react'
 import { Button, RichTextEditor } from '@/components/common'
+import { copyRichText } from '@/utils/clipboard'
 import { backService } from '@/services/back.service'
 import { emailService } from '@/services/email.service'
 import { generarContrarreferenciaAutomatica } from '@/services/contrarreferenciaService'
@@ -223,6 +226,9 @@ export function CasoDetallePanel({
     const [pdfActivo, setPdfActivo] = useState<string | null>(null)
     const [indicePdf, setIndicePdf] = useState(0)
     const [pdfFullscreen, setPdfFullscreen] = useState(false)
+
+    // Estado para animación de copia
+    const [copiandoRespuesta, setCopiandoRespuesta] = useState(false)
 
     // ============================================
     // HANDLERS
@@ -698,9 +704,39 @@ export function CasoDetallePanel({
 
                         {/* Respuesta Auditoría */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Respuesta Auditoría / Back
-                            </label>
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Respuesta Auditoría / Back
+                                </label>
+                                {respuestaBack && respuestaBack.trim() !== '' && (
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            const exito = await copyRichText(respuestaBack)
+                                            if (exito) {
+                                                setCopiandoRespuesta(true)
+                                                setTimeout(() => setCopiandoRespuesta(false), 2000)
+                                            }
+                                        }}
+                                        className={`flex items-center gap-1.5 px-2 py-1 text-xs font-semibold rounded-md transition-all ${copiandoRespuesta
+                                                ? 'bg-emerald-500 text-white'
+                                                : 'text-emerald-600 hover:bg-emerald-50'
+                                            }`}
+                                    >
+                                        {copiandoRespuesta ? (
+                                            <>
+                                                <Check size={14} />
+                                                ¡Copiado!
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Copy size={14} />
+                                                Copiar para Outlook/Word
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+                            </div>
 
                             {/* Botón Generar Contrarreferencia (solo superadmin) */}
                             {user?.rol === 'superadmin' && (

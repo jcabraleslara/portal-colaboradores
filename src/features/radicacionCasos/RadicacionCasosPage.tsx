@@ -31,7 +31,8 @@ import {
     Copy,
     Check,
 } from 'lucide-react'
-import { Card, Button, Input, LoadingOverlay, FileUpload, OrdenadorAutocomplete, Autocomplete } from '@/components/common'
+import { Card, Button, Input, LoadingOverlay, FileUpload, OrdenadorAutocomplete, Autocomplete, MarkdownRenderer } from '@/components/common'
+import { copyRichText } from '@/utils/clipboard'
 import { afiliadosService } from '@/services/afiliados.service'
 import { backService } from '@/services/back.service'
 import { useAuth } from '@/context/AuthContext'
@@ -1096,11 +1097,11 @@ export function RadicacionCasosPage() {
                                                                 <MessageCircle size={16} className="text-emerald-600" />
                                                                 <span className="text-sm font-bold text-emerald-700">Respuesta del Back:</span>
                                                             </div>
-                                                            <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
-                                                                {radicacion.respuestaBack === 'NaN'
-                                                                    ? (radicacion.estadoRadicado === 'Pendiente' ? 'Pendiente por gestión' : '-')
-                                                                    : radicacion.respuestaBack}
-                                                            </p>
+                                                            <div className="text-gray-800 leading-relaxed">
+                                                                <MarkdownRenderer
+                                                                    markdown={radicacion.respuestaBack === 'NaN' ? '-' : radicacion.respuestaBack}
+                                                                />
+                                                            </div>
                                                         </div>
                                                     )}
 
@@ -1133,10 +1134,12 @@ export function RadicacionCasosPage() {
                                                                     type="button"
                                                                     onClick={async () => {
                                                                         try {
-                                                                            await navigator.clipboard.writeText(radicacion.respuestaBack || '')
-                                                                            setCopiandoRespuesta(radicacion.radicado)
-                                                                            // Resetear animación después de 2 segundos
-                                                                            setTimeout(() => setCopiandoRespuesta(null), 2000)
+                                                                            const exito = await copyRichText(radicacion.respuestaBack || '')
+                                                                            if (exito) {
+                                                                                setCopiandoRespuesta(radicacion.radicado)
+                                                                                // Resetear animación después de 2 segundos
+                                                                                setTimeout(() => setCopiandoRespuesta(null), 2000)
+                                                                            }
                                                                         } catch (err) {
                                                                             console.error('Error al copiar:', err)
                                                                         }
