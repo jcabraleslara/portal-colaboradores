@@ -153,7 +153,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         path: ROUTES.ANEXO_8,
         icon: 'FileSpreadsheet',
         enabled: true,
-        description: 'Recetario FNE para medicamentos controlados',
+        description: 'Recetario de control especial',
     },
     {
         id: 'triangulaciones',

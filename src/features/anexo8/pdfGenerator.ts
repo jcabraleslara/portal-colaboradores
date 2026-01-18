@@ -197,9 +197,9 @@ function dibujarSeccionPaciente(
     y -= LINE_HEIGHT * 1.5
 
     // Afiliación
-    const subsidiado = data.paciente_regimen === 'Subsidiado' ? '●' : '○'
-    const contributivo = data.paciente_regimen === 'Contributivo' ? '●' : '○'
-    const vinculado = data.paciente_regimen === 'Vinculado' ? '●' : '○'
+    const subsidiado = data.paciente_regimen === 'Subsidiado' ? '[X]' : '[ ]'
+    const contributivo = data.paciente_regimen === 'Contributivo' ? '[X]' : '[ ]'
+    const vinculado = data.paciente_regimen === 'Vinculado' ? '[X]' : '[ ]'
 
     page.drawText(`Afiliación al SGSSS: Subsidiado ${subsidiado}  Contributivo ${contributivo}  Vinculado ${vinculado}`, {
         x: MARGIN,
@@ -313,8 +313,8 @@ function dibujarSeccionProfesional(
     y -= LINE_HEIGHT * 1.5
 
     // Tipo de médico
-    const general = data.medico_tipo === 'General' ? 'X' : '○'
-    const especializado = data.medico_tipo === 'Especializado' ? 'X' : '○'
+    const general = data.medico_tipo === 'General' ? 'X' : ' '
+    const especializado = data.medico_tipo === 'Especializado' ? 'X' : ' '
 
     page.drawText(`Médico: General [${general}]  Especializado [${especializado}]`, {
         x: MARGIN,

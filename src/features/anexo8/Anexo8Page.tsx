@@ -11,6 +11,7 @@ import { afiliadosService } from '@/services/afiliados.service'
 import { anexo8Service, ROLES_PERMITIDOS_ANEXO8 } from '@/services/anexo8.service'
 import { generarAnexo8Pdf, descargarPdf } from './pdfGenerator'
 import { OcrDialog } from './components/OcrDialog'
+import { Cie10Search } from './components/Cie10Search'
 import { numeroALetras } from '@/utils/numeroALetras'
 import {
     Afiliado,
@@ -646,22 +647,18 @@ export default function Anexo8Page() {
                                     <label className="block text-sm font-medium text-slate-600 mb-1">
                                         Diagnóstico CIE-10
                                     </label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <input
-                                            type="text"
-                                            placeholder="F200"
-                                            value={formData.diagnosticoCie10}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, diagnosticoCie10: e.target.value.toUpperCase() }))}
-                                            className="border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                        />
-                                        <input
-                                            type="text"
-                                            placeholder="Descripción del diagnóstico"
-                                            value={formData.diagnosticoDescripcion}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, diagnosticoDescripcion: e.target.value }))}
-                                            className="col-span-2 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                        />
-                                    </div>
+                                    <Cie10Search
+                                        value={{
+                                            codigo: formData.diagnosticoCie10,
+                                            descripcion: formData.diagnosticoDescripcion
+                                        }}
+                                        onChange={(data) => setFormData(prev => ({
+                                            ...prev,
+                                            diagnosticoCie10: data.codigo,
+                                            diagnosticoDescripcion: data.descripcion
+                                        }))}
+                                        placeholder="Buscar por código o descripción..."
+                                    />
                                 </div>
                             </div>
                         </div>
