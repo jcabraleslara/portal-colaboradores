@@ -42,7 +42,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
 
         const payload = {
             message: message,
-            // tpoa: "GESTARSALUD", // Se comenta para usar remitente por defecto y mejorar entregabilidad
+            tpoa: "GESTARSALUD", // Remitente personalizado (max 11 chars)
             recipient: [
                 { msisdn: cleanPhone }
             ]

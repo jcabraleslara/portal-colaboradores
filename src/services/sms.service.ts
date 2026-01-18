@@ -53,9 +53,9 @@ export const smsService = {
 
             const estadoTexto = nuevoEstado.toUpperCase();
 
-            let mensaje = `Hola ${nombreLimpio}, el estado de su radicado ${radicado.radicado} ha cambiado a ${estadoTexto}. Para mayor info comunicarse al call center 333 6026080.`;
+            let mensaje = `GESTAR SALUD: Hola ${nombreLimpio}, el estado de su radicado ${radicado.radicado} ha cambiado a ${estadoTexto}. Mas info al call center 333 6026080.`;
 
-            // Validación de seguridad para no exceder caracteres si el nombre es muy largo o algo falla
+            // Validación de seguridad para no exceder caracteres
             if (mensaje.length > 160) {
                 mensaje = mensaje.substring(0, 157) + '...';
             }
