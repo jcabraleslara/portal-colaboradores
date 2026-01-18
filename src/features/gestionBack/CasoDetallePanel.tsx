@@ -381,6 +381,20 @@ export function CasoDetallePanel({
         return () => window.removeEventListener('keydown', handleKeyDown)
     }, [onClose, mostandoConfirmacionEliminar, pdfActivo, pdfFullscreen, handleCerrarPdf])
 
+    // Sincronizar estado cuando el caso cambie (Navegación Siguiente/Anterior)
+    useEffect(() => {
+        if (caso) {
+            setDireccionamiento((caso.direccionamiento as Direccionamiento) || '')
+            setRespuestaBack((caso.respuestaBack && caso.respuestaBack !== 'NaN') ? caso.respuestaBack : '')
+            setEstadoRadicado(caso.estadoRadicado || 'Pendiente')
+            setTipoSolicitud(caso.tipoSolicitud || 'Auditoría de Pertinencia')
+            setGuardadoExitoso(false)
+            setErrorGuardado(null)
+            setPdfActivo(null)
+            setIndicePdf(0)
+        }
+    }, [caso.radicado])
+
     // ============================================
     // HELPERS
     // ============================================

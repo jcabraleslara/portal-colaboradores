@@ -1,0 +1,602 @@
+/**
+ * Estilos para Plantilla Anexo 8
+ * Recetario Oficial para Medicamentos de Control Especial
+ * Portal de Colaboradores GESTAR SALUD IPS
+ * 
+ * Estructura basada en formato oficial del Fondo Nacional de Estupefacientes (FNE)
+ */
+
+/* ========================================
+   CONTENEDOR PRINCIPAL
+   ======================================== */
+.anexo8-container {
+    width: 612px; /* 8.5 pulgadas = 612pt (Letter) */
+    font-family: Arial, Helvetica, sans-serif;
+    background: #fff;
+    color: #000;
+    box-sizing: border-box;
+}
+
+/* ========================================
+   SECCIÓN ÚNICA (Original o Copia)
+   ======================================== */
+.anexo8-seccion {
+    width: 100%;
+    border: 2px solid #000;
+    box-sizing: border-box;
+    padding: 0;
+    margin-bottom: 8px;
+    background: #fff;
+    page-break-inside: avoid;
+}
+
+/* ========================================
+   ENCABEZADO CON ESCUDO
+   ======================================== */
+.anexo8-header {
+    display: flex;
+    border-bottom: 1px solid #000;
+}
+
+.anexo8-escudo {
+    width: 80px;
+    padding: 8px;
+    border-right: 1px solid #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.anexo8-escudo img {
+    width: 60px;
+    height: auto;
+}
+
+.anexo8-titulo-container {
+    flex: 1;
+    text-align: center;
+    padding: 8px 4px;
+}
+
+.anexo8-titulo-linea1 {
+    font-size: 10px;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+.anexo8-titulo-linea2 {
+    font-size: 9px;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+.anexo8-titulo-linea3 {
+    font-size: 9px;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.anexo8-anexo-numero {
+    font-size: 14px;
+    font-weight: bold;
+    margin-top: 4px;
+}
+
+/* ========================================
+   FILA DE TÍTULO RECETARIO + Nº
+   ======================================== */
+.anexo8-recetario-row {
+    display: flex;
+    border-bottom: 1px solid #000;
+    background: #e0e0e0;
+}
+
+.anexo8-recetario-titulo {
+    flex: 1;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 4px 8px;
+    text-align: center;
+}
+
+.anexo8-numero-recetario {
+    width: 100px;
+    font-size: 9px;
+    font-weight: bold;
+    padding: 4px;
+    text-align: center;
+    border-left: 1px solid #000;
+}
+
+.anexo8-numero-valor {
+    font-size: 11px;
+    color: #c00;
+}
+
+/* ========================================
+   SECCIÓN 1. PACIENTE + FECHA
+   ======================================== */
+.anexo8-paciente-header {
+    display: flex;
+    border-bottom: 1px solid #000;
+    background: #d0d0d0;
+}
+
+.anexo8-seccion-titulo {
+    padding: 3px 8px;
+    font-size: 9px;
+    font-weight: bold;
+}
+
+.anexo8-fecha-container {
+    display: flex;
+    margin-left: auto;
+    border-left: 1px solid #000;
+}
+
+.anexo8-fecha-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2px 8px;
+    border-left: 1px solid #000;
+    min-width: 45px;
+}
+
+.anexo8-fecha-item:first-child {
+    border-left: none;
+}
+
+.anexo8-fecha-label {
+    font-size: 8px;
+    font-weight: bold;
+}
+
+.anexo8-fecha-value {
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.anexo8-anio {
+    border-left: 1px solid #000;
+}
+
+/* ========================================
+   FILA NOMBRES PACIENTE
+   ======================================== */
+.anexo8-row {
+    display: flex;
+    border-bottom: 1px solid #000;
+}
+
+.anexo8-cell {
+    padding: 3px 6px;
+    border-left: 1px solid #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.anexo8-cell:first-child {
+    border-left: none;
+}
+
+.anexo8-cell-label {
+    font-size: 7px;
+    font-weight: bold;
+    color: #333;
+}
+
+.anexo8-cell-value {
+    font-size: 9px;
+    font-weight: normal;
+    min-height: 12px;
+    text-transform: uppercase;
+}
+
+/* Anchos específicos */
+.anexo8-cell-primer-apellido {
+    width: 140px;
+}
+
+.anexo8-cell-segundo-apellido {
+    width: 140px;
+}
+
+.anexo8-cell-nombres {
+    flex: 1;
+}
+
+/* ========================================
+   FILA DOCUMENTO DE IDENTIFICACIÓN
+   ======================================== */
+.anexo8-doc-row {
+    display: flex;
+    border-bottom: 1px solid #000;
+}
+
+.anexo8-doc-label {
+    padding: 3px 6px;
+    font-size: 8px;
+    font-weight: bold;
+    width: 140px;
+    display: flex;
+    align-items: center;
+}
+
+.anexo8-doc-tipos {
+    display: flex;
+    align-items: center;
+    padding: 3px 6px;
+    border-left: 1px solid #000;
+}
+
+.anexo8-doc-tipo {
+    display: flex;
+    align-items: center;
+    margin-right: 10px;
+    font-size: 8px;
+}
+
+.anexo8-checkbox {
+    width: 12px;
+    height: 12px;
+    border: 1px solid #000;
+    margin-right: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.anexo8-checkbox.checked::before {
+    content: 'X';
+}
+
+.anexo8-doc-numero {
+    flex: 1;
+    padding: 3px 6px;
+    border-left: 1px solid #000;
+}
+
+.anexo8-edad {
+    width: 60px;
+    padding: 3px 6px;
+    border-left: 1px solid #000;
+}
+
+.anexo8-genero {
+    width: 80px;
+    padding: 3px 6px;
+    border-left: 1px solid #000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.anexo8-genero-item {
+    display: flex;
+    align-items: center;
+    font-size: 8px;
+}
+
+/* ========================================
+   FILA TELÉFONO, MUNICIPIO, DIRECCIÓN
+   ======================================== */
+.anexo8-cell-telefono {
+    width: 90px;
+}
+
+.anexo8-cell-municipio {
+    width: 100px;
+}
+
+.anexo8-cell-direccion {
+    flex: 1;
+}
+
+.anexo8-cell-depto {
+    width: 90px;
+}
+
+/* ========================================
+   FILA AFILIACIÓN SGSSS
+   ======================================== */
+.anexo8-afiliacion-row {
+    display: flex;
+    border-bottom: 1px solid #000;
+    font-size: 8px;
+}
+
+.anexo8-afiliacion-label {
+    padding: 3px 6px;
+    font-weight: bold;
+}
+
+.anexo8-afiliacion-opciones {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 3px 6px;
+}
+
+.anexo8-afiliacion-item {
+    display: flex;
+    align-items: center;
+}
+
+.anexo8-eps-container {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    padding: 3px 6px;
+    border-left: 1px solid #000;
+}
+
+.anexo8-eps-label {
+    font-weight: bold;
+    margin-right: 6px;
+}
+
+.anexo8-eps-value {
+    font-size: 8px;
+}
+
+/* ========================================
+   SECCIÓN 2. MEDICAMENTOS
+   ======================================== */
+.anexo8-medicamentos-header {
+    background: #d0d0d0;
+    border-bottom: 1px solid #000;
+    padding: 3px 8px;
+    font-size: 9px;
+    font-weight: bold;
+}
+
+.anexo8-medicamentos-labels {
+    display: flex;
+    border-bottom: 1px solid #000;
+    font-size: 7px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.anexo8-med-cell {
+    padding: 3px 4px;
+    border-left: 1px solid #000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.anexo8-med-cell:first-child {
+    border-left: none;
+}
+
+.anexo8-med-nombre {
+    width: 150px;
+}
+
+.anexo8-med-concentracion {
+    width: 90px;
+}
+
+.anexo8-med-forma {
+    width: 80px;
+}
+
+.anexo8-med-dosis {
+    width: 100px;
+}
+
+.anexo8-med-cantidad {
+    flex: 1;
+}
+
+.anexo8-med-cantidad-header {
+    display: flex;
+    flex-direction: column;
+}
+
+.anexo8-med-cantidad-sub {
+    display: flex;
+    font-size: 6px;
+    margin-top: 2px;
+}
+
+.anexo8-med-cantidad-numeros {
+    width: 50%;
+    text-align: center;
+}
+
+.anexo8-med-cantidad-letras {
+    width: 50%;
+    text-align: center;
+}
+
+/* Fila de datos del medicamento */
+.anexo8-medicamentos-data {
+    display: flex;
+    border-bottom: 1px solid #000;
+    min-height: 28px;
+}
+
+.anexo8-med-data-cell {
+    padding: 4px;
+    border-left: 1px solid #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8px;
+    text-transform: uppercase;
+    text-align: center;
+    word-break: break-word;
+}
+
+.anexo8-med-data-cell:first-child {
+    border-left: none;
+}
+
+/* ========================================
+   FILA DIAGNÓSTICO
+   ======================================== */
+.anexo8-diagnostico-row {
+    display: flex;
+    border-bottom: 1px solid #000;
+}
+
+.anexo8-diagnostico-label {
+    padding: 3px 8px;
+    font-size: 8px;
+    font-weight: bold;
+    width: 80px;
+}
+
+.anexo8-diagnostico-value {
+    flex: 1;
+    padding: 3px 8px;
+    font-size: 8px;
+    text-transform: uppercase;
+    border-left: 1px solid #000;
+}
+
+/* ========================================
+   SECCIÓN 3. PROFESIONAL
+   ======================================== */
+.anexo8-profesional-header {
+    background: #d0d0d0;
+    border-bottom: 1px solid #000;
+    padding: 3px 8px;
+    font-size: 9px;
+    font-weight: bold;
+}
+
+.anexo8-medico-tipo-row {
+    display: flex;
+    border-bottom: 1px solid #000;
+    font-size: 8px;
+}
+
+.anexo8-medico-tipo-label {
+    padding: 3px 8px;
+    font-weight: bold;
+}
+
+.anexo8-medico-tipos {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 3px 8px;
+}
+
+.anexo8-medico-tipo-item {
+    display: flex;
+    align-items: center;
+}
+
+.anexo8-especialidad-container {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    padding: 3px 8px;
+    border-left: 1px solid #000;
+}
+
+.anexo8-especialidad-label {
+    font-weight: bold;
+    margin-right: 6px;
+}
+
+.anexo8-especialidad-value {
+    font-size: 8px;
+    text-transform: uppercase;
+}
+
+/* Fila nombres médico */
+.anexo8-medico-nombres-row {
+    display: flex;
+    border-bottom: 1px solid #000;
+}
+
+.anexo8-cell-medico-apellido1 {
+    width: 140px;
+}
+
+.anexo8-cell-medico-apellido2 {
+    width: 140px;
+}
+
+.anexo8-cell-medico-nombres {
+    flex: 1;
+}
+
+/* Fila documento y resolución */
+.anexo8-medico-doc-row {
+    display: flex;
+    border-bottom: 1px solid #000;
+}
+
+.anexo8-cell-medico-tipodoc {
+    width: 40px;
+}
+
+.anexo8-cell-medico-doc {
+    width: 120px;
+}
+
+.anexo8-cell-resolucion {
+    width: 150px;
+}
+
+.anexo8-cell-firma {
+    flex: 1;
+    min-height: 40px;
+}
+
+/* Fila institución */
+.anexo8-institucion-row {
+    display: flex;
+}
+
+.anexo8-cell-institucion {
+    width: 180px;
+}
+
+.anexo8-cell-direccion-inst {
+    width: 150px;
+}
+
+.anexo8-cell-ciudad {
+    width: 90px;
+}
+
+.anexo8-cell-tel {
+    flex: 1;
+}
+
+/* ========================================
+   UTILIDADES PARA IMPRESIÓN
+   ======================================== */
+@media print {
+    .anexo8-container {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
+    .anexo8-seccion {
+        page-break-inside: avoid;
+        margin-bottom: 10px;
+    }
+}
+
+/* ========================================
+   ESPACIADO PARA COPIA
+   ======================================== */
+.anexo8-separador {
+    height: 15px;
+    border-bottom: 1px dashed #999;
+    margin-bottom: 8px;
+}
