@@ -102,9 +102,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         console.info('🔎 Buscando perfil en tabla usuarios_portal para:', email)
         try {
-            // Timeout específico de 30s para no bloquear
+            // Timeout específico de 60s para entornos lentos
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT_USUARIOS_PORTAL')), 30000)
+                setTimeout(() => reject(new Error('TIMEOUT_USUARIOS_PORTAL')), 60000)
             )
 
             const query = supabase
@@ -254,7 +254,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         if (profile) {
                             setUser(profile)
                         } else {
-                            // Fallback básico si falla la búsqueda pero hay sesión
+                            // Si no hay perfil (timeout o error), NO cerrar sesión automáticamente
+                            // para evitar bucles, pero poner un perfil básico para poder usar la App
                             setUser({
                                 identificacion: 'N/A',
                                 nombreCompleto: currentEmail?.split('@')[0] || 'Usuario',
@@ -264,6 +265,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                                 ultimoLogin: null
                             })
                         }
+                        setIsLoading(false) // Asegurar que termina de cargar
                     }
                 } else if (event === 'SIGNED_OUT') {
                     console.info('🔒 Usuario desconectado')
