@@ -30,10 +30,14 @@ import {
     FileEdit,
     Zap,
     Route,
+    Loader2,
+    Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/common'
 import { backService } from '@/services/back.service'
 import { emailService } from '@/services/email.service'
+import { generarContrarreferenciaAutomatica } from '@/services/contrarreferenciaService'
+import { useAuth } from '@/context/AuthContext'
 import {
     BackRadicacionExtendido,
     ESTADO_COLORES,
@@ -88,6 +92,9 @@ export function CasoDetallePanel({
     // ============================================
     // ESTADO
     // ============================================
+
+    // Autenticación
+    const { user } = useAuth()
 
     // Campos editables
     const [direccionamiento, setDireccionamiento] = useState<Direccionamiento | ''>(
@@ -164,12 +171,53 @@ export function CasoDetallePanel({
         }
     }
 
+    // Handler para generar contrarreferencia con IA
+    const handleGenerarContrarreferencia = async () => {
+        setGenerandoContrarreferencia(true)
+        setErrorGuardado(null)
+
+        try {
+            // Obtener el primer soporte (PDF)
+            const pdfUrl = caso.soportes?.[0]
+            if (!pdfUrl) {
+                setErrorGuardado('No hay soporte adjunto para generar contrarreferencia')
+                setGenerandoContrarreferencia(false)
+                return
+            }
+
+            console.log('[UI] Iniciando generación de contrarreferencia...')
+
+            const resultado = await generarContrarreferenciaAutomatica(
+                caso.radicado,
+                pdfUrl,
+                caso.especialidad || undefined
+            )
+
+            if (resultado.success && resultado.texto) {
+                console.log(`[UI] ✅ Contrarreferencia generada en ${resultado.tiempoMs}ms (${resultado.metodo})`)
+                // Actualizar el campo respuesta_back (esto también activará auto-cambio de estado)
+                handleRespuestaBackChange(resultado.texto)
+            } else {
+                console.error('[UI] Error en generación:', resultado.error)
+                setErrorGuardado(resultado.error || 'Error al generar contrarreferencia')
+            }
+        } catch (error) {
+            console.error('[UI] Excepción al generar contrarreferencia:', error)
+            setErrorGuardado('Error inesperado al generar contrarreferencia')
+        } finally {
+            setGenerandoContrarreferencia(false)
+        }
+    }
+
     // Estado de guardado / eliminación
     const [guardando, setGuardando] = useState(false)
     const [guardadoExitoso, setGuardadoExitoso] = useState(false)
     const [errorGuardado, setErrorGuardado] = useState<string | null>(null)
     const [mostandoConfirmacionEliminar, setMostandoConfirmacionEliminar] = useState(false)
     const [eliminando, setEliminando] = useState(false)
+
+    // Estado de generación de contrarreferencia con IA
+    const [generandoContrarreferencia, setGenerandoContrarreferencia] = useState(false)
 
     // Visor de PDF
     const [pdfActivo, setPdfActivo] = useState<string | null>(null)
@@ -639,6 +687,33 @@ export function CasoDetallePanel({
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Respuesta Auditoría / Back
                             </label>
+
+                            {/* Botón Generar Contrarreferencia (solo superadmin) */}
+                            {user?.rol === 'superadmin' && (
+                                <div className="mb-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleGenerarContrarreferencia}
+                                        disabled={generandoContrarreferencia || guardando}
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 
+                                                   text-white text-sm font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 
+                                                   disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
+                                    >
+                                        {generandoContrarreferencia ? (
+                                            <>
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Generando contrarreferencia...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Sparkles className="w-4 h-4" />
+                                                🤖 Generar Contrarreferencia con IA
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+
                             <textarea
                                 value={respuestaBack}
                                 onChange={(e) => handleRespuestaBackChange(e.target.value)}

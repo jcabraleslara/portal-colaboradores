@@ -417,3 +417,17 @@ export const DIRECCIONAMIENTO_LISTA: Direccionamiento[] = [
     'Nueva EPS',
 ]
 
+// ========================================
+// TIPOS PARA CONTRARREFERENCIA CON IA
+// ========================================
+
+/**
+ * Resultado de generación de contrarreferencia automática
+ */
+export interface ContrarreferenciaResult {
+    success: boolean
+    texto?: string
+    error?: string
+    metodo?: 'vectorizado' | 'vectorizado-on-fly'
+    tiempoMs?: number
+}
