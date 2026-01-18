@@ -4,7 +4,7 @@
  */
 
 // Tipo de rol definido localmente para evitar problemas con isolatedModules
-export type UserRole = 'administrador' | 'asistencial' | 'operativo' | 'externo' | 'admin' | 'superadmin'
+export type UserRole = 'administrador' | 'asistencial' | 'operativo' | 'externo' | 'admin' | 'superadmin' | 'gerencia' | 'auditor'
 
 // ========================================
 // TIPOS DE AUTENTICACIÓN

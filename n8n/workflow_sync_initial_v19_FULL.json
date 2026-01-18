@@ -1,0 +1,469 @@
+{
+    "name": "Sync Inicial v19 - FULL SYNC",
+    "nodes": [
+        {
+            "parameters": {},
+            "name": "Ejecutar",
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                -2400,
+                400
+            ],
+            "id": "trigger"
+        },
+        {
+            "parameters": {
+                "url": "https://people.googleapis.com/v1/people/me/connections",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "googleContactsOAuth2Api",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "personFields",
+                            "value": "names,emailAddresses,phoneNumbers"
+                        },
+                        {
+                            "name": "pageSize",
+                            "value": "1000"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "1. Leer Google",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                -2100,
+                400
+            ],
+            "id": "google-get",
+            "credentials": {
+                "googleContactsOAuth2Api": {
+                    "id": "uF3bSNDa0djQ8pTu",
+                    "name": "Google Contacts account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "resource": "contact",
+                "operation": "getAll",
+                "returnAll": true,
+                "filters": {}
+            },
+            "name": "2. Leer Outlook",
+            "type": "n8n-nodes-base.microsoftOutlook",
+            "typeVersion": 2,
+            "position": [
+                -1800,
+                400
+            ],
+            "id": "outlook-get",
+            "credentials": {
+                "microsoftOutlookOAuth2Api": {
+                    "id": "PJzHzo2wZUMwYYSj",
+                    "name": "Microsoft Outlook account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nreturn [{ json: { outlookData: items.map(i => i.json) } }];"
+            },
+            "name": "2b. Compactar Outlook",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -1500,
+                400
+            ],
+            "id": "compact-o"
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "tableId": "contactos",
+                "returnAll": true
+            },
+            "name": "3. Leer Supabase",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                -1200,
+                400
+            ],
+            "id": "supabase-get",
+            "credentials": {
+                "supabaseApi": {
+                    "id": "OfStvPP3jSJ53nzk",
+                    "name": "Supabase account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const googleAll = $('1. Leer Google').first().json.connections || [];\nconst outlookAll = $('2b. Compactar Outlook').first().json.outlookData || [];\nconst supabaseAll = $input.all().map(i => i.json);\n\nfunction norm(s) {\n  if (!s) return '';\n  return s.toString().toLowerCase().trim().replace(/\\s+/g, ' ');\n}\n\nconst gMap = new Map();\ngoogleAll.forEach(g => {\n  const n = (g.names || [])[0];\n  if (n) {\n    const k = norm(`${n.givenName || ''} ${n.middleName || ''} ${n.familyName || ''}`);\n    if (k.length > 3) gMap.set(k, g.resourceName);\n  }\n});\n\nconst oMap = new Map();\noutlookAll.forEach(o => {\n  const k = norm(`${o.givenName || ''} ${o.middleName || ''} ${o.surname || ''}`);\n  if (k.length > 3) oMap.set(k, o.id);\n});\n\nconst result = [];\nfor (const c of supabaseAll) {\n  const k = norm(`${c.primer_nombre || ''} ${c.segundo_nombre || ''} ${c.apellidos || ''}`);\n  \n  let gId = c.google_contact_id || gMap.get(k) || null;\n  let oId = c.outlook_contact_id || oMap.get(k) || null;\n\n  if (!gId || !oId) {\n    result.push({\n      json: {\n        ...c,\n        google_contact_id: gId,\n        outlook_contact_id: oId,\n        crear_g: !gId,\n        crear_o: !oId\n      }\n    });\n  }\n}\n\n// FULL SYNC: Retornar todos los resultados sin slice\nreturn result;"
+            },
+            "name": "4. Mapear y comparar",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -900,
+                400
+            ],
+            "id": "match"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.crear_g }}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "5. ¿Crear en G?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                -600,
+                400
+            ],
+            "id": "if-g"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://people.googleapis.com/v1/people:createContact",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "googleContactsOAuth2Api",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"names\": [{\"givenName\": \"{{ $json.primer_nombre }}\", \"middleName\": \"{{ $json.segundo_nombre }}\", \"familyName\": \"{{ $json.apellidos }}\"}],\n  \"emailAddresses\": [{\"value\": \"{{ $json.email }}\"}],\n  \"phoneNumbers\": [{\"value\": \"{{ $json.celular }}\"}]\n}",
+                "options": {}
+            },
+            "name": "6a. Google Crear",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                -300,
+                300
+            ],
+            "id": "g-create",
+            "credentials": {
+                "googleContactsOAuth2Api": {
+                    "id": "uF3bSNDa0djQ8pTu",
+                    "name": "Google Contacts account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const c = $input.first().json;\nconst p = $('5. ¿Crear en G?').first().json;\nreturn [{ json: { ...p, google_contact_id: c.resourceName } }];"
+            },
+            "name": "6b. Set G ID",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                0,
+                300
+            ],
+            "id": "set-g"
+        },
+        {
+            "parameters": {
+                "jsCode": "return $input.all();"
+            },
+            "name": "6c. Ya existe en G",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                0,
+                500
+            ],
+            "id": "skip-g"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.crear_o }}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "7. ¿Crear en O?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                300,
+                400
+            ],
+            "id": "if-o"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://graph.microsoft.com/v1.0/me/contacts",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "microsoftOutlookOAuth2Api",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"givenName\": \"{{ $json.primer_nombre }}\",\n  \"surname\": \"{{ $json.apellidos }}\",\n  \"emailAddresses\": [\n    {{ $json.email ? '{\"address\": \"' + $json.email + '\", \"name\": \"' + $json.primer_nombre + ' ' + $json.apellidos + '\"}' : '' }}\n  ],\n  \"businessPhones\": [ \"{{ $json.celular }}\" ]\n}",
+                "options": {}
+            },
+            "name": "8a. Outlook Crear HTTP",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                600,
+                300
+            ],
+            "id": "o-create-http",
+            "credentials": {
+                "microsoftOutlookOAuth2Api": {
+                    "id": "PJzHzo2wZUMwYYSj",
+                    "name": "Microsoft Outlook account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const c = $input.first().json;\nconst p = $('7. ¿Crear en O?').first().json;\nreturn [{ json: { ...p, outlook_contact_id: c.id } }];"
+            },
+            "name": "8b. Set O ID",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                900,
+                300
+            ],
+            "id": "set-o"
+        },
+        {
+            "parameters": {
+                "jsCode": "return $input.all();"
+            },
+            "name": "8c. Ya existe en O",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                900,
+                500
+            ],
+            "id": "skip-o"
+        },
+        {
+            "parameters": {
+                "method": "PATCH",
+                "url": "=https://supabase.gestarsaludips.com/rest/v1/contactos?id=eq.{{ $json.id }}",
+                "authentication": "none",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "apikey",
+                            "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NTgwODUyMDAsImV4cCI6MTkxNTg1MTYwMH0._LU8AiKPM4pZJwBZjPKJOKn-_rh1mpdlSps8I2n5XcY"
+                        },
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NTgwODUyMDAsImV4cCI6MTkxNTg1MTYwMH0._LU8AiKPM4pZJwBZjPKJOKn-_rh1mpdlSps8I2n5XcY"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"google_contact_id\": {{ $json.google_contact_id ? '\"' + $json.google_contact_id + '\"' : 'null' }},\n  \"outlook_contact_id\": {{ $json.outlook_contact_id ? '\"' + $json.outlook_contact_id + '\"' : 'null' }},\n  \"sync_status\": \"synced\",\n  \"last_synced_at\": \"{{ $now.toISO() }}\"\n}"
+            },
+            "name": "9. Guardar Supabase",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                1200,
+                400
+            ],
+            "id": "save"
+        }
+    ],
+    "connections": {
+        "Ejecutar": {
+            "main": [
+                [
+                    {
+                        "node": "1. Leer Google",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "1. Leer Google": {
+            "main": [
+                [
+                    {
+                        "node": "2. Leer Outlook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "2. Leer Outlook": {
+            "main": [
+                [
+                    {
+                        "node": "2b. Compactar Outlook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "2b. Compactar Outlook": {
+            "main": [
+                [
+                    {
+                        "node": "3. Leer Supabase",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "3. Leer Supabase": {
+            "main": [
+                [
+                    {
+                        "node": "4. Mapear y comparar",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "4. Mapear y comparar": {
+            "main": [
+                [
+                    {
+                        "node": "5. ¿Crear en G?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "5. ¿Crear en G?": {
+            "main": [
+                [
+                    {
+                        "node": "6a. Google Crear",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "6c. Ya existe en G",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "6a. Google Crear": {
+            "main": [
+                [
+                    {
+                        "node": "6b. Set G ID",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "6b. Set G ID": {
+            "main": [
+                [
+                    {
+                        "node": "7. ¿Crear en O?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "6c. Ya existe en G": {
+            "main": [
+                [
+                    {
+                        "node": "7. ¿Crear en O?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "7. ¿Crear en O?": {
+            "main": [
+                [
+                    {
+                        "node": "8a. Outlook Crear HTTP",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "8c. Ya existe en O",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "8a. Outlook Crear HTTP": {
+            "main": [
+                [
+                    {
+                        "node": "8b. Set O ID",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "8b. Set O ID": {
+            "main": [
+                [
+                    {
+                        "node": "9. Guardar Supabase",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "8c. Ya existe en O": {
+            "main": [
+                [
+                    {
+                        "node": "9. Guardar Supabase",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

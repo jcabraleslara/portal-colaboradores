@@ -31,7 +31,7 @@ interface CreateUserRequest {
     identificacion: string
     nombre_completo: string
     email_institucional: string
-    rol: 'operativo' | 'admin' | 'superadmin'
+    rol: 'operativo' | 'admin' | 'superadmin' | 'gerencia' | 'auditor' | 'asistencial' | 'externo'
     password: string
     contacto_id?: string | null
 }

@@ -1,0 +1,198 @@
+{
+    "name": "Sync 0 - Limpieza Duplicados Google V2",
+    "nodes": [
+        {
+            "parameters": {},
+            "name": "Ejecutar Limpieza",
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                0,
+                0
+            ],
+            "id": "trigger"
+        },
+        {
+            "parameters": {
+                "url": "https://people.googleapis.com/v1/people/me/connections",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "googleContactsOAuth2Api",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "personFields",
+                            "value": "names,emailAddresses"
+                        },
+                        {
+                            "name": "pageSize",
+                            "value": "2000"
+                        }
+                    ]
+                }
+            },
+            "name": "1. Obtener Todos",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                220,
+                0
+            ],
+            "id": "get-all",
+            "credentials": {
+                "googleContactsOAuth2Api": {
+                    "id": "uF3bSNDa0djQ8pTu",
+                    "name": "Google Contacts account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const connections = $input.first().json.connections || [];\nconst seen = new Map();\nconst toDelete = [];\nconst summary = { total: connections.length, duplicates: 0 };\n\nfunction clean(s) {\n  if (!s) return '';\n  return s.toString()\n    .toLowerCase()\n    .normalize(\"NFD\")\n    .replace(/[\\u0300-\\u036f]/g, \"\") // Quita tildes\n    .replace(/[^a-z0-9]/g, \"\") // Quita espacios y símbolos\n    .trim();\n}\n\nconnections.forEach(person => {\n  const names = person.names || [];\n  if (names.length > 0) {\n    const n = names[0];\n    // Usamos el nombre completo normalizado como clave\n    const key = clean(n.displayName || `${n.givenName || ''}${n.familyName || ''}`);\n    \n    if (key.length > 3) {\n      if (seen.has(key)) {\n        toDelete.push(person.resourceName);\n        summary.duplicates++;\n      } else {\n        seen.set(key, true);\n      }\n    }\n  }\n});\n\nreturn [{ json: { resourceNames: toDelete, summary } }];"
+            },
+            "name": "2. Analizar",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                440,
+                0
+            ],
+            "id": "analyze"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "has-dupes",
+                            "leftValue": "={{ $json.resourceNames.length }}",
+                            "rightValue": 0,
+                            "operator": {
+                                "type": "number",
+                                "operation": "larger"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "name": "3. ¿Hay duplicados?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                660,
+                0
+            ],
+            "id": "if-dupes"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://people.googleapis.com/v1/people:batchDeleteContacts",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "googleContactsOAuth2Api",
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"resourceNames\": {{ JSON.stringify($json.resourceNames) }}\n}",
+                "options": {}
+            },
+            "name": "4. Borrado Masivo",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                880,
+                -100
+            ],
+            "id": "delete-batch",
+            "credentials": {
+                "googleContactsOAuth2Api": {
+                    "id": "uF3bSNDa0djQ8pTu",
+                    "name": "Google Contacts account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "return [{\n  json: {\n    mensaje: $input.first().json.summary?.duplicates > 0 \n      ? `Se borraron ${$input.first().json.summary.duplicates} duplicados.` \n      : \"No se encontraron duplicados con esta lógica.\"\n  }\n}];"
+            },
+            "name": "5. Resultado",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1150,
+                0
+            ],
+            "id": "result"
+        }
+    ],
+    "connections": {
+        "Ejecutar Limpieza": {
+            "main": [
+                [
+                    {
+                        "node": "1. Obtener Todos",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "1. Obtener Todos": {
+            "main": [
+                [
+                    {
+                        "node": "2. Analizar",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "2. Analizar": {
+            "main": [
+                [
+                    {
+                        "node": "3. ¿Hay duplicados?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "3. ¿Hay duplicados?": {
+            "main": [
+                [
+                    {
+                        "node": "4. Borrado Masivo",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "5. Resultado",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "4. Borrado Masivo": {
+            "main": [
+                [
+                    {
+                        "node": "5. Resultado",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

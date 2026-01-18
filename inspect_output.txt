@@ -1,0 +1,401 @@
+­ƒöì Inspeccionando estructura de JotForm...
+
+Total submissions: 5
+
+--- Inspeccionando primeras 5 submissions ---
+
+============================================================
+Submission ID: 6443245149183239434
+Created: 2026-01-15 17:15:15
+
+Campos:
+  [1] Solicitudes Auditor├¡a M├®dica:
+    Tipo: undefined
+    Valor: undefined
+  [2] Radicar:
+    Tipo: undefined
+    Valor: undefined
+  [3] Correo Radicador:
+    Tipo: string
+    Valor: "maria.jarupia.gestarsalud@gmail.com"
+  [4] ID ├Ünico:
+    Tipo: string
+    Valor: "A22348"
+  [6] Datos del Usuario:
+    Tipo: undefined
+    Valor: undefined
+  [7] Buscar Usuario:
+    Tipo: undefined
+    Valor: undefined
+  [8] Identificaci├│n:
+    Tipo: string
+    Valor: "26216954"
+  [9] Tipo ID:
+    Tipo: string
+    Valor: "CC"
+  [10] Nombres Completos:
+    Tipo: string
+    Valor: "DIOSELINA BELTRAN FLOREZ"
+  [11] Contacto:
+    Tipo: object
+    Valor: {"full":"3006955981"}
+  [12] Municipio:
+    Tipo: string
+    Valor: "TIERRALTA"
+  [14] IPS Primaria:
+    Tipo: string
+    Valor: "SUBSIDIADO-E.S.E. HOSPITAL SAN JOSE DE TIERRALTA"
+  [15] Solicitud de Autorizaci├│n:
+    Tipo: undefined
+    Valor: undefined
+  [16] Servicio:
+    Tipo: string
+    Valor: "Consulta Externa"
+  [18] Especialidad:
+    Tipo: string
+    Valor: "Medicina Interna"
+  [19] Ordenador:
+    Tipo: string
+    Valor: "ESE HOSPITAL SAN JOSE DE TIERRALTA"
+  [20] Observaciones:
+    Tipo: undefined
+    Valor: undefined
+  [21] Soportes:
+    Tipo: object
+    Valor: ["https://www.jotform.com/uploads/JhonattanCabralesLara/242404883255054/6443245149183239434/doc15702920260116172410.pdf"]
+    *** CAMPO DE ARCHIVOS DETECTADO ***
+    Es array con 1 elementos
+    [0] Tipo: string
+        URL: https://www.jotform.com/uploads/JhonattanCabralesLara/242404883255054/6443245149183239434/doc15702920260116172410.pdf
+  [22] Estado:
+    Tipo: string
+    Valor: "{mszij8y2l5}"
+  [23] Respuesta Auditor├¡a:
+    Tipo: undefined
+    Valor: undefined
+  [24] Direccionamiento:
+    Tipo: undefined
+    Valor: undefined
+  [25] Ordenador:
+    Tipo: string
+    Valor: "ESE HOSPITAL SAN JOSE DE TIERRALTA"
+  [26] ID ├Ünico:
+    Tipo: string
+    Valor: "22350"
+
+============================================================
+Submission ID: 6443234899187074491
+Created: 2026-01-15 16:58:10
+
+Campos:
+  [1] Solicitudes Auditor├¡a M├®dica:
+    Tipo: undefined
+    Valor: undefined
+  [2] Radicar:
+    Tipo: undefined
+    Valor: undefined
+  [3] Correo Radicador:
+    Tipo: string
+    Valor: "luisa.gomez.gestarsalud@gmail.com"
+  [4] ID ├Ünico:
+    Tipo: string
+    Valor: "A22347"
+  [6] Datos del Usuario:
+    Tipo: undefined
+    Valor: undefined
+  [7] Buscar Usuario:
+    Tipo: undefined
+    Valor: undefined
+  [8] Identificaci├│n:
+    Tipo: string
+    Valor: "26216954"
+  [9] Tipo ID:
+    Tipo: string
+    Valor: "CC"
+  [10] Nombres Completos:
+    Tipo: string
+    Valor: "DIOSELINA BELTRAN FLOREZ"
+  [11] Contacto:
+    Tipo: object
+    Valor: {"full":"3006955981"}
+  [12] Municipio:
+    Tipo: string
+    Valor: "TIERRALTA"
+  [14] IPS Primaria:
+    Tipo: string
+    Valor: "SUBSIDIADO-E.S.E. HOSPITAL SAN JOSE DE TIERRALTA"
+  [15] Solicitud de Autorizaci├│n:
+    Tipo: undefined
+    Valor: undefined
+  [16] Servicio:
+    Tipo: string
+    Valor: "Consulta Externa"
+  [18] Especialidad:
+    Tipo: string
+    Valor: "Medicina Interna"
+  [19] Ordenador:
+    Tipo: string
+    Valor: "SALUD TIERRALTA IPS SAS"
+  [20] Observaciones:
+    Tipo: undefined
+    Valor: undefined
+  [21] Soportes:
+    Tipo: object
+    Valor: ["https://www.jotform.com/uploads/JhonattanCabralesLara/242404883255054/6443234899187074491/doc15702520260116170741.pdf"]
+    *** CAMPO DE ARCHIVOS DETECTADO ***
+    Es array con 1 elementos
+    [0] Tipo: string
+        URL: https://www.jotform.com/uploads/JhonattanCabralesLara/242404883255054/6443234899187074491/doc15702520260116170741.pdf
+  [22] Estado:
+    Tipo: string
+    Valor: "{mszij8y2l5}"
+  [23] Respuesta Auditor├¡a:
+    Tipo: undefined
+    Valor: undefined
+  [24] Direccionamiento:
+    Tipo: undefined
+    Valor: undefined
+  [25] Ordenador:
+    Tipo: string
+    Valor: "SALUD TIERRALTA IPS SAS"
+  [26] ID ├Ünico:
+    Tipo: string
+    Valor: "22288"
+
+============================================================
+Submission ID: 6443228339181435773
+Created: 2026-01-15 16:47:13
+
+Campos:
+  [1] Solicitudes Auditor├¡a M├®dica:
+    Tipo: undefined
+    Valor: undefined
+  [2] Radicar:
+    Tipo: undefined
+    Valor: undefined
+  [3] Correo Radicador:
+    Tipo: string
+    Valor: "maria.jarupia.gestarsalud@gmail.com"
+  [4] ID ├Ünico:
+    Tipo: string
+    Valor: "A22346"
+  [6] Datos del Usuario:
+    Tipo: undefined
+    Valor: undefined
+  [7] Buscar Usuario:
+    Tipo: undefined
+    Valor: undefined
+  [8] Identificaci├│n:
+    Tipo: string
+    Valor: "26212370"
+  [9] Tipo ID:
+    Tipo: string
+    Valor: "CC"
+  [10] Nombres Completos:
+    Tipo: string
+    Valor: "MARLENE PACHECO HIGUITA"
+  [11] Contacto:
+    Tipo: object
+    Valor: {"full":"3118010754"}
+  [12] Municipio:
+    Tipo: string
+    Valor: "TIERRALTA"
+  [14] IPS Primaria:
+    Tipo: string
+    Valor: "SUBSIDIADO-E.S.E. HOSPITAL SAN JOSE DE TIERRALTA"
+  [15] Solicitud de Autorizaci├│n:
+    Tipo: undefined
+    Valor: undefined
+  [16] Servicio:
+    Tipo: string
+    Valor: "Consulta Externa"
+  [18] Especialidad:
+    Tipo: string
+    Valor: "Medicina Interna"
+  [19] Ordenador:
+    Tipo: string
+    Valor: "ESE HOSPITAL SAN JOSE DE TIERRALTA"
+  [20] Observaciones:
+    Tipo: undefined
+    Valor: undefined
+  [21] Soportes:
+    Tipo: object
+    Valor: ["https://www.jotform.com/uploads/JhonattanCabralesLara/242404883255054/6443228339181435773/doc15702120260116165646.pdf"]
+    *** CAMPO DE ARCHIVOS DETECTADO ***
+    Es array con 1 elementos
+    [0] Tipo: string
+        URL: https://www.jotform.com/uploads/JhonattanCabralesLara/242404883255054/6443228339181435773/doc15702120260116165646.pdf
+  [22] Estado:
+    Tipo: string
+    Valor: "{mszij8y2l5}"
+  [23] Respuesta Auditor├¡a:
+    Tipo: undefined
+    Valor: undefined
+  [24] Direccionamiento:
+    Tipo: undefined
+    Valor: undefined
+  [25] Ordenador:
+    Tipo: string
+    Valor: "ESE HOSPITAL SAN JOSE DE TIERRALTA"
+  [26] ID ├Ünico:
+    Tipo: string
+    Valor: "22348"
+
+============================================================
+Submission ID: 6443215929181876469
+Created: 2026-01-15 16:26:32
+
+Campos:
+  [1] Solicitudes Auditor├¡a M├®dica:
+    Tipo: undefined
+    Valor: undefined
+  [2] Radicar:
+    Tipo: undefined
+    Valor: undefined
+  [3] Correo Radicador:
+    Tipo: string
+    Valor: "maria.jarupia.gestarsalud@gmail.com"
+  [4] ID ├Ünico:
+    Tipo: string
+    Valor: "A22345"
+  [6] Datos del Usuario:
+    Tipo: undefined
+    Valor: undefined
+  [7] Buscar Usuario:
+    Tipo: undefined
+    Valor: undefined
+  [8] Identificaci├│n:
+    Tipo: string
+    Valor: "1003737042"
+  [9] Tipo ID:
+    Tipo: string
+    Valor: "CC"
+  [10] Nombres Completos:
+    Tipo: string
+    Valor: "OSNEIDER NEYIT BALLESTEROS RUIZ"
+  [11] Contacto:
+    Tipo: object
+    Valor: {"full":"3244722652"}
+  [12] Municipio:
+    Tipo: string
+    Valor: "TIERRALTA"
+  [14] IPS Primaria:
+    Tipo: string
+    Valor: "SALUD TIERRALTA I.P.S. S.A.S."
+  [15] Solicitud de Autorizaci├│n:
+    Tipo: undefined
+    Valor: undefined
+  [16] Servicio:
+    Tipo: string
+    Valor: "Consulta Externa"
+  [18] Especialidad:
+    Tipo: string
+    Valor: "Ortopedia"
+  [19] Ordenador:
+    Tipo: string
+    Valor: "SALUD TIERRALTA IPS SAS"
+  [20] Observaciones:
+    Tipo: undefined
+    Valor: undefined
+  [21] Soportes:
+    Tipo: object
+    Valor: ["https://www.jotform.com/uploads/JhonattanCabralesLara/242404883255054/6443215929181876469/doc15701420260116163547.pdf"]
+    *** CAMPO DE ARCHIVOS DETECTADO ***
+    Es array con 1 elementos
+    [0] Tipo: string
+        URL: https://www.jotform.com/uploads/JhonattanCabralesLara/242404883255054/6443215929181876469/doc15701420260116163547.pdf
+  [22] Estado:
+    Tipo: string
+    Valor: "{mszij8y2l5}"
+  [23] Respuesta Auditor├¡a:
+    Tipo: undefined
+    Valor: undefined
+  [24] Direccionamiento:
+    Tipo: undefined
+    Valor: undefined
+  [25] Ordenador:
+    Tipo: string
+    Valor: "SALUD TIERRALTA IPS SAS"
+  [26] ID ├Ünico:
+    Tipo: string
+    Valor: "22347"
+
+============================================================
+Submission ID: 6443209669183897840
+Created: 2026-01-15 16:16:07
+
+Campos:
+  [1] Solicitudes Auditor├¡a M├®dica:
+    Tipo: undefined
+    Valor: undefined
+  [2] Radicar:
+    Tipo: undefined
+    Valor: undefined
+  [3] Correo Radicador:
+    Tipo: string
+    Valor: "maria.jarupia.gestarsalud@gmail.com"
+  [4] ID ├Ünico:
+    Tipo: string
+    Valor: "A22344"
+  [6] Datos del Usuario:
+    Tipo: undefined
+    Valor: undefined
+  [7] Buscar Usuario:
+    Tipo: undefined
+    Valor: undefined
+  [8] Identificaci├│n:
+    Tipo: string
+    Valor: "78767766"
+  [9] Tipo ID:
+    Tipo: string
+    Valor: "CC"
+  [10] Nombres Completos:
+    Tipo: string
+    Valor: "ARCELIO JOSE CHAVERRA RODRIGUEZ"
+  [11] Contacto:
+    Tipo: object
+    Valor: {"full":"3145971807"}
+  [12] Municipio:
+    Tipo: string
+    Valor: "TIERRALTA"
+  [14] IPS Primaria:
+    Tipo: string
+    Valor: "SALUD TIERRALTA I.P.S. S.A.S."
+  [15] Solicitud de Autorizaci├│n:
+    Tipo: undefined
+    Valor: undefined
+  [16] Servicio:
+    Tipo: string
+    Valor: "Consulta Externa"
+  [18] Especialidad:
+    Tipo: string
+    Valor: "Medicina Interna"
+  [19] Ordenador:
+    Tipo: string
+    Valor: "SALUD TIERRALTA IPS SAS"
+  [20] Observaciones:
+    Tipo: undefined
+    Valor: undefined
+  [21] Soportes:
+    Tipo: object
+    Valor: ["https://www.jotform.com/uploads/JhonattanCabralesLara/242404883255054/6443209669183897840/doc15701020260116162520.pdf"]
+    *** CAMPO DE ARCHIVOS DETECTADO ***
+    Es array con 1 elementos
+    [0] Tipo: string
+        URL: https://www.jotform.com/uploads/JhonattanCabralesLara/242404883255054/6443209669183897840/doc15701020260116162520.pdf
+  [22] Estado:
+    Tipo: string
+    Valor: "{mszij8y2l5}"
+  [23] Respuesta Auditor├¡a:
+    Tipo: undefined
+    Valor: undefined
+  [24] Direccionamiento:
+    Tipo: undefined
+    Valor: undefined
+  [25] Ordenador:
+    Tipo: string
+    Valor: "SALUD TIERRALTA IPS SAS"
+  [26] ID ├Ünico:
+    Tipo: string
+    Valor: "22346"
+

@@ -17,7 +17,11 @@ import CreateUserModal from './components/CreateUserModal'
 const ROL_LABELS: Record<string, { label: string; color: string; icon: typeof Shield }> = {
     operativo: { label: 'Operativo', color: 'bg-blue-100 text-blue-800', icon: Shield },
     admin: { label: 'Admin', color: 'bg-purple-100 text-purple-800', icon: ShieldCheck },
-    superadmin: { label: 'Super Admin', color: 'bg-red-100 text-red-800', icon: ShieldX }
+    superadmin: { label: 'Super Admin', color: 'bg-red-100 text-red-800', icon: ShieldX },
+    gerencia: { label: 'Gerencia', color: 'bg-slate-100 text-slate-800', icon: ShieldCheck },
+    auditor: { label: 'Auditor', color: 'bg-orange-100 text-orange-800', icon: ShieldCheck },
+    asistencial: { label: 'Asistencial', color: 'bg-green-100 text-green-800', icon: ShieldCheck },
+    externo: { label: 'Externo', color: 'bg-gray-100 text-gray-800', icon: Shield }
 }
 
 export default function AdminUsuariosPage() {
@@ -187,6 +191,10 @@ export default function AdminUsuariosPage() {
                         <option value="all">Todos los roles</option>
                         <option value="operativo">Operativo</option>
                         <option value="admin">Admin</option>
+                        <option value="gerencia">Gerencia</option>
+                        <option value="auditor">Auditor</option>
+                        <option value="asistencial">Asistencial</option>
+                        <option value="externo">Externo</option>
                         <option value="superadmin">Super Admin</option>
                     </select>
 
@@ -293,7 +301,11 @@ export default function AdminUsuariosPage() {
                                                 >
                                                     <option value="operativo">Operativo</option>
                                                     <option value="admin">Admin</option>
-                                                    <option value="superadmin">Super Admin</option>
+                                                    <option value="gerencia">Gerencia</option>
+                                                    <option value="auditor">Auditor</option>
+                                                    <option value="asistencial">Asistencial</option>
+                                                    <option value="externo">Externo</option>
+                                                    {usuario.rol === 'superadmin' && <option value="superadmin">Super Admin</option>}
                                                 </select>
                                             </td>
                                             <td className="px-4 py-3 text-center">

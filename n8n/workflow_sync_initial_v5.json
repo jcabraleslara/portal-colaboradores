@@ -1,0 +1,482 @@
+{
+    "name": "Sync Inicial v5 - Sin Duplicados",
+    "nodes": [
+        {
+            "parameters": {},
+            "name": "Ejecutar",
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                -1400,
+                400
+            ],
+            "id": "trigger"
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "tableId": "contactos",
+                "returnAll": true
+            },
+            "name": "1. Supabase Contactos",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                -1100,
+                400
+            ],
+            "id": "supabase-get",
+            "credentials": {
+                "supabaseApi": {
+                    "id": "OfStvPP3jSJ53nzk",
+                    "name": "Supabase account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "returnAll": true,
+                "options": {}
+            },
+            "name": "2. Google Contactos",
+            "type": "n8n-nodes-base.googleContacts",
+            "typeVersion": 1,
+            "position": [
+                -1100,
+                200
+            ],
+            "id": "google-get",
+            "credentials": {
+                "googleContactsOAuth2Api": {
+                    "id": "uF3bSNDa0djQ8pTu",
+                    "name": "Google Contacts account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "resource": "contact",
+                "operation": "getAll",
+                "returnAll": true,
+                "options": {}
+            },
+            "name": "3. Outlook Contactos",
+            "type": "n8n-nodes-base.microsoftOutlook",
+            "typeVersion": 2,
+            "position": [
+                -1100,
+                600
+            ],
+            "id": "outlook-get",
+            "credentials": {
+                "microsoftOutlookOAuth2Api": {
+                    "id": "PJzHzo2wZUMwYYSj",
+                    "name": "Microsoft Outlook account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "// Obtener datos de los tres nodos\nconst supabaseItems = $('1. Supabase Contactos').all();\nconst googleItems = $('2. Google Contactos').all();\nconst outlookItems = $('3. Outlook Contactos').all();\n\n// Crear mapas de emails para búsqueda rápida\nconst googleByEmail = new Map();\nfor (const g of googleItems) {\n  const emails = g.json.emailAddresses || [];\n  for (const e of emails) {\n    if (e.value) {\n      googleByEmail.set(e.value.toLowerCase(), g.json.resourceName);\n    }\n  }\n}\n\nconst outlookByEmail = new Map();\nfor (const o of outlookItems) {\n  const emails = o.json.emailAddresses || [];\n  for (const e of emails) {\n    if (e.address) {\n      outlookByEmail.set(e.address.toLowerCase(), o.json.id);\n    }\n  }\n}\n\n// Procesar contactos de Supabase\nconst resultados = [];\nconst paraCrearGoogle = [];\nconst paraCrearOutlook = [];\n\nfor (const s of supabaseItems) {\n  const c = s.json;\n  const email = (c.email || '').toLowerCase();\n  \n  // Buscar si ya existe en Google\n  let googleId = c.google_contact_id;\n  if (!googleId && email) {\n    googleId = googleByEmail.get(email) || null;\n  }\n  \n  // Buscar si ya existe en Outlook\n  let outlookId = c.outlook_contact_id;\n  if (!outlookId && email) {\n    outlookId = outlookByEmail.get(email) || null;\n  }\n  \n  // Determinar qué necesita crearse\n  const necesitaCrearGoogle = !googleId && email;\n  const necesitaCrearOutlook = !outlookId && email;\n  \n  resultados.push({\n    json: {\n      id: c.id,\n      email: c.email,\n      primer_nombre: c.primer_nombre || '',\n      segundo_nombre: c.segundo_nombre || '',\n      apellidos: c.apellidos || '',\n      celular: c.celular || '',\n      empresa: c.empresa || '',\n      cargo: c.cargo || '',\n      google_contact_id: googleId,\n      outlook_contact_id: outlookId,\n      necesita_crear_google: necesitaCrearGoogle,\n      necesita_crear_outlook: necesitaCrearOutlook,\n      ya_sincronizado: !necesitaCrearGoogle && !necesitaCrearOutlook\n    }\n  });\n}\n\n// Estadísticas\nconst stats = {\n  total: resultados.length,\n  ya_en_google: resultados.filter(r => r.json.google_contact_id).length,\n  ya_en_outlook: resultados.filter(r => r.json.outlook_contact_id).length,\n  para_crear_google: resultados.filter(r => r.json.necesita_crear_google).length,\n  para_crear_outlook: resultados.filter(r => r.json.necesita_crear_outlook).length\n};\n\nconsole.log('Estadísticas:', stats);\n\n// Retornar solo los que necesitan acción\nconst pendientes = resultados.filter(r => \n  r.json.necesita_crear_google || r.json.necesita_crear_outlook || \n  !r.json.google_contact_id || !r.json.outlook_contact_id\n);\n\nif (pendientes.length === 0) {\n  return [{ json: { mensaje: 'Todos los contactos ya están sincronizados', ...stats } }];\n}\n\n// Limitar a 20 para prueba inicial\nreturn pendientes.slice(0, 20);"
+            },
+            "name": "4. Comparar y Mapear",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -700,
+                400
+            ],
+            "id": "compare"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.necesita_crear_google }}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "5. Crear Google?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                -400,
+                400
+            ],
+            "id": "if-google"
+        },
+        {
+            "parameters": {
+                "familyName": "={{ $json.apellidos }}",
+                "givenName": "={{ $json.primer_nombre }}",
+                "additionalFields": {
+                    "middleName": "={{ $json.segundo_nombre }}",
+                    "emailUi": {
+                        "emailValues": [
+                            {
+                                "value": "={{ $json.email }}"
+                            }
+                        ]
+                    },
+                    "phoneUi": {
+                        "phoneValues": [
+                            {
+                                "value": "={{ $json.celular }}"
+                            }
+                        ]
+                    }
+                }
+            },
+            "name": "6a. Crear Google",
+            "type": "n8n-nodes-base.googleContacts",
+            "typeVersion": 1,
+            "position": [
+                -100,
+                300
+            ],
+            "id": "google-create",
+            "credentials": {
+                "googleContactsOAuth2Api": {
+                    "id": "uF3bSNDa0djQ8pTu",
+                    "name": "Google Contacts account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const created = $input.first().json;\nconst original = $('5. Crear Google?').first().json;\nreturn [{ json: { ...original, google_contact_id: created.resourceName } }];"
+            },
+            "name": "6b. Set Google ID",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                200,
+                300
+            ],
+            "id": "set-google"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Ya tiene Google ID, pasar sin cambios\nreturn $input.all();"
+            },
+            "name": "6c. Ya tiene Google",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                200,
+                500
+            ],
+            "id": "has-google"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{ $json.necesita_crear_outlook }}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "7. Crear Outlook?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 1,
+            "position": [
+                500,
+                400
+            ],
+            "id": "if-outlook"
+        },
+        {
+            "parameters": {
+                "resource": "contact",
+                "operation": "create",
+                "givenName": "={{ $json.primer_nombre }}",
+                "surname": "={{ $json.apellidos }}",
+                "additionalFields": {
+                    "businessPhones": "={{ $json.celular }}",
+                    "companyName": "={{ $json.empresa }}",
+                    "emailAddresses": {
+                        "values": [
+                            {
+                                "address": "={{ $json.email }}",
+                                "name": "={{ $json.primer_nombre }} {{ $json.apellidos }}"
+                            }
+                        ]
+                    },
+                    "jobTitle": "={{ $json.cargo }}"
+                }
+            },
+            "name": "8a. Crear Outlook",
+            "type": "n8n-nodes-base.microsoftOutlook",
+            "typeVersion": 2,
+            "position": [
+                800,
+                300
+            ],
+            "id": "outlook-create",
+            "credentials": {
+                "microsoftOutlookOAuth2Api": {
+                    "id": "PJzHzo2wZUMwYYSj",
+                    "name": "Microsoft Outlook account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const created = $input.first().json;\nconst original = $('7. Crear Outlook?').first().json;\nreturn [{ json: { ...original, outlook_contact_id: created.id } }];"
+            },
+            "name": "8b. Set Outlook ID",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1100,
+                300
+            ],
+            "id": "set-outlook"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Ya tiene Outlook ID, pasar sin cambios\nreturn $input.all();"
+            },
+            "name": "8c. Ya tiene Outlook",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1100,
+                500
+            ],
+            "id": "has-outlook"
+        },
+        {
+            "parameters": {
+                "operation": "update",
+                "tableId": "contactos",
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "id",
+                            "condition": "eq",
+                            "keyValue": "={{ $json.id }}"
+                        }
+                    ]
+                },
+                "fieldsUi": {
+                    "fieldValues": [
+                        {
+                            "fieldName": "google_contact_id",
+                            "fieldValue": "={{ $json.google_contact_id }}"
+                        },
+                        {
+                            "fieldName": "outlook_contact_id",
+                            "fieldValue": "={{ $json.outlook_contact_id }}"
+                        },
+                        {
+                            "fieldName": "sync_status",
+                            "fieldValue": "synced"
+                        },
+                        {
+                            "fieldName": "last_synced_at",
+                            "fieldValue": "={{ $now.toISO() }}"
+                        }
+                    ]
+                }
+            },
+            "name": "9. Guardar",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                1400,
+                400
+            ],
+            "id": "save",
+            "credentials": {
+                "supabaseApi": {
+                    "id": "OfStvPP3jSJ53nzk",
+                    "name": "Supabase account"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Ejecutar": {
+            "main": [
+                [
+                    {
+                        "node": "1. Supabase Contactos",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "2. Google Contactos",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "3. Outlook Contactos",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "1. Supabase Contactos": {
+            "main": [
+                [
+                    {
+                        "node": "4. Comparar y Mapear",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "2. Google Contactos": {
+            "main": [
+                [
+                    {
+                        "node": "4. Comparar y Mapear",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "3. Outlook Contactos": {
+            "main": [
+                [
+                    {
+                        "node": "4. Comparar y Mapear",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "4. Comparar y Mapear": {
+            "main": [
+                [
+                    {
+                        "node": "5. Crear Google?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "5. Crear Google?": {
+            "main": [
+                [
+                    {
+                        "node": "6a. Crear Google",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "6c. Ya tiene Google",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "6a. Crear Google": {
+            "main": [
+                [
+                    {
+                        "node": "6b. Set Google ID",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "6b. Set Google ID": {
+            "main": [
+                [
+                    {
+                        "node": "7. Crear Outlook?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "6c. Ya tiene Google": {
+            "main": [
+                [
+                    {
+                        "node": "7. Crear Outlook?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "7. Crear Outlook?": {
+            "main": [
+                [
+                    {
+                        "node": "8a. Crear Outlook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "8c. Ya tiene Outlook",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "8a. Crear Outlook": {
+            "main": [
+                [
+                    {
+                        "node": "8b. Set Outlook ID",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "8b. Set Outlook ID": {
+            "main": [
+                [
+                    {
+                        "node": "9. Guardar",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "8c. Ya tiene Outlook": {
+            "main": [
+                [
+                    {
+                        "node": "9. Guardar",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "meta": {
+        "templateCredsSetupCompleted": true
+    }
+}

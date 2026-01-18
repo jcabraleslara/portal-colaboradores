@@ -12,7 +12,7 @@ export interface UsuarioPortal {
     identificacion: string
     email_institucional: string
     nombre_completo: string
-    rol: 'operativo' | 'admin' | 'superadmin'
+    rol: 'operativo' | 'admin' | 'superadmin' | 'gerencia' | 'auditor' | 'asistencial' | 'externo'
     activo: boolean
     last_sign_in_at: string | null
     created_at: string
@@ -24,13 +24,13 @@ export interface CreateUserData {
     identificacion: string
     nombre_completo: string
     email_institucional: string
-    rol: 'operativo' | 'admin' | 'superadmin'
+    rol: 'operativo' | 'admin' | 'superadmin' | 'gerencia' | 'auditor' | 'asistencial' | 'externo'
     password: string
     contacto_id?: string | null
 }
 
 export interface UpdateUserData {
-    rol?: 'operativo' | 'admin' | 'superadmin'
+    rol?: 'operativo' | 'admin' | 'superadmin' | 'gerencia' | 'auditor' | 'asistencial' | 'externo'
     activo?: boolean
     nombre_completo?: string
 }
@@ -170,7 +170,7 @@ export const usuariosPortalService = {
     /**
      * Cambiar rol de usuario
      */
-    async changeRole(id: string, rol: 'operativo' | 'admin' | 'superadmin'): Promise<{ success: boolean; error: string | null }> {
+    async changeRole(id: string, rol: 'operativo' | 'admin' | 'superadmin' | 'gerencia' | 'auditor' | 'asistencial' | 'externo'): Promise<{ success: boolean; error: string | null }> {
         try {
             const { error } = await supabase
                 .from('usuarios_portal')

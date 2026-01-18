@@ -323,7 +323,10 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                             >
                                 <option value="operativo">Operativo</option>
                                 <option value="admin">Admin</option>
-                                <option value="superadmin">Super Admin</option>
+                                <option value="gerencia">Gerencia</option>
+                                <option value="auditor">Auditor</option>
+                                <option value="asistencial">Asistencial</option>
+                                <option value="externo">Externo</option>
                             </select>
                         </div>
                     </div>

@@ -1,0 +1,36 @@
+(node:39148) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[
+  {
+    "name": "AUD16093_jf_6443215929181876469_0.pdf",
+    "id": "e96df244-d8e8-41df-b312-ea9c65ea86cc",
+    "updated_at": "2026-01-18T03:48:33.699Z",
+    "created_at": "2026-01-18T02:58:43.721Z",
+    "last_accessed_at": "2026-01-18T02:58:43.721Z",
+    "metadata": {
+      "eTag": "\"efb0ede22efc8a254d3d42b5c98299ea\"",
+      "size": 1698426,
+      "mimetype": "application/pdf",
+      "cacheControl": "max-age=3600",
+      "lastModified": "2026-01-18T03:48:33.673Z",
+      "contentLength": 1698426,
+      "httpStatusCode": 200
+    }
+  },
+  {
+    "name": "AUD16093_jf_6443215929181876469_1.pdf",
+    "id": "191adcad-dd29-4a44-b863-05c82c1f99a7",
+    "updated_at": "2026-01-17T23:51:57.393Z",
+    "created_at": "2026-01-17T23:51:57.393Z",
+    "last_accessed_at": "2026-01-17T23:51:57.393Z",
+    "metadata": {
+      "eTag": "\"efb0ede22efc8a254d3d42b5c98299ea\"",
+      "size": 1698426,
+      "mimetype": "application/pdf",
+      "cacheControl": "max-age=3600",
+      "lastModified": "2026-01-17T23:51:57.380Z",
+      "contentLength": 1698426,
+      "httpStatusCode": 200
+    }
+  }
+]

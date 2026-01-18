@@ -1,0 +1,32 @@
+
+­ƒöì Analizando AUD16095...
+
+(node:6996) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Soportes actuales: 4
+
+Procesando: https://supabase.gestarsaludips.com/storage/v1/object/sign/soportes-back/AUD1609...
+  - Submission ID: 6443245149183239434
+  - Path en bucket: AUD16095/AUD16095_jf_6443245149183239434_1.pdf
+  - Tama├▒o: 862354
+  Ô£à ├Ünico (Huella: 6443245149183239434_862354)
+
+Procesando: https://supabase.gestarsaludips.com/storage/v1/object/sign/soportes-back/AUD1609...
+  - Submission ID: 6443234899187074491
+  - Path en bucket: AUD16095/AUD16095_jf_6443234899187074491_1.pdf
+  - Tama├▒o: 860011
+  Ô£à ├Ünico (Huella: 6443234899187074491_860011)
+
+Procesando: https://supabase.gestarsaludips.com/storage/v1/object/sign/soportes-back/AUD1609...
+  - Submission ID: 6443234899187074491
+  - Path en bucket: AUD16095/AUD16095_jf_6443234899187074491_0.pdf
+  - Tama├▒o: 860011
+  ÔÜá´©Å ┬íDUPLICADO DETECTADO! (Huella: 6443234899187074491_860011)
+
+Procesando: https://supabase.gestarsaludips.com/storage/v1/object/sign/soportes-back/AUD1609...
+  - Submission ID: 6443245149183239434
+  - Path en bucket: AUD16095/AUD16095_jf_6443245149183239434_0.pdf
+  - Tama├▒o: 862354
+  ÔÜá´©Å ┬íDUPLICADO DETECTADO! (Huella: 6443245149183239434_862354)
+
+Resultado final: 2 soportes ├║nicos.

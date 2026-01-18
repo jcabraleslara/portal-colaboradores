@@ -1,0 +1,95 @@
+{
+    "name": "TEST - Solo Leer Google",
+    "nodes": [
+        {
+            "parameters": {},
+            "name": "Ejecutar",
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                400,
+                300
+            ],
+            "id": "trigger"
+        },
+        {
+            "parameters": {
+                "url": "https://people.googleapis.com/v1/people/me/connections",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "googleContactsOAuth2Api",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "personFields",
+                            "value": "names,emailAddresses,phoneNumbers"
+                        },
+                        {
+                            "name": "pageSize",
+                            "value": "100"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Google HTTP",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                700,
+                300
+            ],
+            "id": "google-http",
+            "credentials": {
+                "googleContactsOAuth2Api": {
+                    "id": "uF3bSNDa0djQ8pTu",
+                    "name": "Google Contacts account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const response = $input.first().json;\nconst connections = response.connections || [];\n\nconsole.log(`Total contactos: ${connections.length}`);\n\n// Mostrar primeros 5\nconst primeros = connections.slice(0, 5).map(c => {\n  const names = c.names || [];\n  const nombre = names.length > 0 ? `${names[0].givenName || ''} ${names[0].familyName || ''}` : 'Sin nombre';\n  return { resourceName: c.resourceName, nombre };\n});\n\nreturn primeros.map(p => ({ json: p }));"
+            },
+            "name": "Mostrar",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1000,
+                300
+            ],
+            "id": "show"
+        }
+    ],
+    "connections": {
+        "Ejecutar": {
+            "main": [
+                [
+                    {
+                        "node": "Google HTTP",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google HTTP": {
+            "main": [
+                [
+                    {
+                        "node": "Mostrar",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "settings": {
+        "executionOrder": "v1"
+    },
+    "meta": {
+        "templateCredsSetupCompleted": true
+    }
+}

@@ -1,0 +1,644 @@
+{
+    "name": "Sync Inicial - Match por Email (Corregido)",
+    "nodes": [
+        {
+            "parameters": {},
+            "name": "When clicking 'Execute workflow'",
+            "type": "n8n-nodes-base.manualTrigger",
+            "typeVersion": 1,
+            "position": [
+                -1616,
+                88
+            ],
+            "id": "5a45e909-a0f2-4641-8c75-48ec2bb3a593"
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {}
+                    ]
+                }
+            },
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.3,
+            "position": [
+                -1616,
+                280
+            ],
+            "id": "55ee899f-8652-40b4-9c03-07fd34eeb1ce"
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "tableId": "contactos",
+                "returnAll": true,
+                "filterType": "string",
+                "filterString": "google_contact_id.is.null,outlook_contact_id.is.null"
+            },
+            "name": "Supabase - Contactos Sin IDs",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                -1184,
+                224
+            ],
+            "id": "20b94429-7c91-4898-aaf8-314aa3069eef",
+            "credentials": {
+                "supabaseApi": {
+                    "id": "OfStvPP3jSJ53nzk",
+                    "name": "Supabase account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "name": "Procesar Uno por Uno",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 3,
+            "position": [
+                -960,
+                224
+            ],
+            "id": "cd5ebfae-3072-4aef-9aac-f74ad8039b57"
+        },
+        {
+            "parameters": {
+                "url": "https://people.googleapis.com/v1/people:searchContacts",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "googleContactsOAuth2Api",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "query",
+                            "value": "={{ $json.email }}"
+                        },
+                        {
+                            "name": "readMask",
+                            "value": "names,emailAddresses"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Google - Buscar por Email",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                -736,
+                32
+            ],
+            "id": "840d7185-6222-4fb5-a630-5b4c625b4ef5",
+            "credentials": {
+                "googleContactsOAuth2Api": {
+                    "id": "uF3bSNDa0djQ8pTu",
+                    "name": "Google Contacts account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "condition-google-found",
+                            "leftValue": "={{ $json.results }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "array",
+                                "operation": "notEmpty"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "name": "Google Encontrado?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                -512,
+                32
+            ],
+            "id": "6c9b2e05-a4da-47cd-8a3f-6e7241dda110"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Extraer el resourceName del primer resultado\nconst results = $input.first().json.results;\nconst contactoOriginal = $('Procesar Uno por Uno').first().json;\n\nlet googleContactId = null;\nif (results && results.length > 0 && results[0].person) {\n  googleContactId = results[0].person.resourceName;\n}\n\nreturn [{\n  json: {\n    ...contactoOriginal,\n    google_contact_id: googleContactId,\n    google_found: true\n  }\n}];"
+            },
+            "name": "Extraer Google ID",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -64,
+                -64
+            ],
+            "id": "bb05249a-2773-4be8-9120-c500ea10dc99"
+        },
+        {
+            "parameters": {
+                "familyName": "={{ $('Procesar Uno por Uno').first().json.apellidos }}",
+                "givenName": "={{ $('Procesar Uno por Uno').first().json.primer_nombre }}",
+                "additionalFields": {
+                    "middleName": "={{ $('Procesar Uno por Uno').first().json.segundo_nombre }}",
+                    "emailUi": {
+                        "emailValues": [
+                            {
+                                "value": "={{ $('Procesar Uno por Uno').first().json.email }}"
+                            }
+                        ]
+                    },
+                    "phoneUi": {
+                        "phoneValues": [
+                            {
+                                "value": "={{ $('Procesar Uno por Uno').first().json.celular }}"
+                            }
+                        ]
+                    },
+                    "organizationUi": {
+                        "organizationValues": [
+                            {
+                                "current": true,
+                                "name": "={{ $('Procesar Uno por Uno').first().json.empresa }}",
+                                "title": "={{ $('Procesar Uno por Uno').first().json.cargo }}"
+                            }
+                        ]
+                    }
+                }
+            },
+            "name": "Google - Crear Contacto",
+            "type": "n8n-nodes-base.googleContacts",
+            "typeVersion": 1,
+            "position": [
+                -288,
+                128
+            ],
+            "id": "13a94bcc-ff8e-4585-b0bd-b99035836d28",
+            "credentials": {
+                "googleContactsOAuth2Api": {
+                    "id": "uF3bSNDa0djQ8pTu",
+                    "name": "Google Contacts account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "// Obtener el resourceName del contacto recién creado\nconst nuevoContacto = $input.first().json;\nconst contactoOriginal = $('Procesar Uno por Uno').first().json;\n\nreturn [{\n  json: {\n    ...contactoOriginal,\n    google_contact_id: nuevoContacto.resourceName,\n    google_found: false\n  }\n}];"
+            },
+            "name": "Guardar Nuevo Google ID",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -64,
+                128
+            ],
+            "id": "8a18ba99-e05b-481c-bfbc-be04256680a6"
+        },
+        {
+            "parameters": {
+                "mode": "combine",
+                "combineBy": "combineAll",
+                "options": {}
+            },
+            "name": "Merge Google Results",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                160,
+                32
+            ],
+            "id": "21a41b8d-9103-4f3f-916f-29918a8b87db"
+        },
+        {
+            "parameters": {
+                "url": "https://graph.microsoft.com/v1.0/me/contacts",
+                "authentication": "predefinedCredentialType",
+                "nodeCredentialType": "microsoftOutlookOAuth2Api",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "$filter",
+                            "value": "=emailAddresses/any(e:e/address eq '{{ $json.email }}')"
+                        },
+                        {
+                            "name": "$select",
+                            "value": "id,displayName,emailAddresses"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Outlook - Buscar por Email",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4,
+            "position": [
+                384,
+                32
+            ],
+            "id": "0d4a6578-4659-46f5-b29c-60580460f460",
+            "credentials": {
+                "microsoftOutlookOAuth2Api": {
+                    "id": "PJzHzo2wZUMwYYSj",
+                    "name": "Microsoft Outlook account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "id": "condition-outlook-found",
+                            "leftValue": "={{ $json.value }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "array",
+                                "operation": "notEmpty"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "name": "Outlook Encontrado?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                608,
+                32
+            ],
+            "id": "f6151fbe-b8f3-4891-9555-8b151df72833"
+        },
+        {
+            "parameters": {
+                "jsCode": "// Extraer el ID del primer resultado de Outlook\nconst results = $input.first().json.value;\nconst datosAnteriores = $('Merge Google Results').first().json;\n\nlet outlookContactId = null;\nif (results && results.length > 0) {\n  outlookContactId = results[0].id;\n}\n\nreturn [{\n  json: {\n    ...datosAnteriores,\n    outlook_contact_id: outlookContactId,\n    outlook_found: true\n  }\n}];"
+            },
+            "name": "Extraer Outlook ID",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1056,
+                -64
+            ],
+            "id": "bc6879cb-40d6-40bf-a162-40f062b99ee9"
+        },
+        {
+            "parameters": {
+                "resource": "contact",
+                "operation": "create",
+                "givenName": "={{ $('Merge Google Results').first().json.primer_nombre }}",
+                "surname": "={{ $('Merge Google Results').first().json.apellidos }}",
+                "additionalFields": {
+                    "businessPhones": "={{ $('Merge Google Results').first().json.celular }}",
+                    "companyName": "={{ $('Merge Google Results').first().json.empresa }}",
+                    "emailAddresses": {
+                        "values": [
+                            {
+                                "address": "={{ $('Merge Google Results').first().json.email }}",
+                                "name": "={{ $('Merge Google Results').first().json.primer_nombre }} {{ $('Merge Google Results').first().json.apellidos }}"
+                            }
+                        ]
+                    },
+                    "jobTitle": "={{ $('Merge Google Results').first().json.cargo }}"
+                }
+            },
+            "name": "Outlook - Crear Contacto",
+            "type": "n8n-nodes-base.microsoftOutlook",
+            "typeVersion": 2,
+            "position": [
+                832,
+                128
+            ],
+            "id": "5c9e8394-833e-452a-b777-91052b6997dd",
+            "credentials": {
+                "microsoftOutlookOAuth2Api": {
+                    "id": "PJzHzo2wZUMwYYSj",
+                    "name": "Microsoft Outlook account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "// Obtener el ID del contacto recién creado en Outlook\nconst nuevoContacto = $input.first().json;\nconst datosAnteriores = $('Merge Google Results').first().json;\n\nreturn [{\n  json: {\n    ...datosAnteriores,\n    outlook_contact_id: nuevoContacto.id,\n    outlook_found: false\n  }\n}];"
+            },
+            "name": "Guardar Nuevo Outlook ID",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1056,
+                128
+            ],
+            "id": "2c7901fd-cc2e-4ee0-9ea9-325a2306f281"
+        },
+        {
+            "parameters": {
+                "mode": "combine",
+                "combineBy": "combineAll",
+                "options": {}
+            },
+            "name": "Merge Outlook Results",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                1280,
+                32
+            ],
+            "id": "433ad206-8ba0-4805-af42-274985fa1c8e"
+        },
+        {
+            "parameters": {
+                "operation": "update",
+                "tableId": "contactos",
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "id",
+                            "condition": "eq",
+                            "keyValue": "={{ $json.id }}"
+                        }
+                    ]
+                },
+                "fieldsUi": {
+                    "fieldValues": [
+                        {
+                            "fieldName": "google_contact_id",
+                            "fieldValue": "={{ $json.google_contact_id }}"
+                        },
+                        {
+                            "fieldName": "outlook_contact_id",
+                            "fieldValue": "={{ $json.outlook_contact_id }}"
+                        },
+                        {
+                            "fieldName": "sync_status",
+                            "fieldValue": "synced"
+                        },
+                        {
+                            "fieldName": "last_synced_at",
+                            "fieldValue": "={{ $now.toISO() }}"
+                        }
+                    ]
+                }
+            },
+            "name": "Supabase - Guardar IDs",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                1504,
+                200
+            ],
+            "id": "fb85e2c9-f50b-4e46-a35a-469296709b4b",
+            "credentials": {
+                "supabaseApi": {
+                    "id": "OfStvPP3jSJ53nzk",
+                    "name": "Supabase account"
+                }
+            }
+        },
+        {
+            "parameters": {},
+            "name": "Siguiente Contacto",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                -736,
+                224
+            ],
+            "id": "adfc0b3b-a159-4f60-853a-28e51d755c76"
+        }
+    ],
+    "connections": {
+        "When clicking 'Execute workflow'": {
+            "main": [
+                [
+                    {
+                        "node": "Supabase - Contactos Sin IDs",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Supabase - Contactos Sin IDs",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Supabase - Contactos Sin IDs": {
+            "main": [
+                [
+                    {
+                        "node": "Procesar Uno por Uno",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Procesar Uno por Uno": {
+            "main": [
+                [
+                    {
+                        "node": "Google - Buscar por Email",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Siguiente Contacto",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google - Buscar por Email": {
+            "main": [
+                [
+                    {
+                        "node": "Google Encontrado?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google Encontrado?": {
+            "main": [
+                [
+                    {
+                        "node": "Extraer Google ID",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Google - Crear Contacto",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extraer Google ID": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Google Results",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google - Crear Contacto": {
+            "main": [
+                [
+                    {
+                        "node": "Guardar Nuevo Google ID",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Guardar Nuevo Google ID": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Google Results",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge Google Results": {
+            "main": [
+                [
+                    {
+                        "node": "Outlook - Buscar por Email",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Outlook - Buscar por Email": {
+            "main": [
+                [
+                    {
+                        "node": "Outlook Encontrado?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Outlook Encontrado?": {
+            "main": [
+                [
+                    {
+                        "node": "Extraer Outlook ID",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Outlook - Crear Contacto",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extraer Outlook ID": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Outlook Results",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Outlook - Crear Contacto": {
+            "main": [
+                [
+                    {
+                        "node": "Guardar Nuevo Outlook ID",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Guardar Nuevo Outlook ID": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Outlook Results",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge Outlook Results": {
+            "main": [
+                [
+                    {
+                        "node": "Supabase - Guardar IDs",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Supabase - Guardar IDs": {
+            "main": [
+                [
+                    {
+                        "node": "Procesar Uno por Uno",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "settings": {
+        "executionOrder": "v1",
+        "availableInMCP": true
+    },
+    "meta": {
+        "templateCredsSetupCompleted": true
+    }
+}
