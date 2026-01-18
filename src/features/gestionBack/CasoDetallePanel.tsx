@@ -33,7 +33,7 @@ import {
     Loader2,
     Sparkles,
 } from 'lucide-react'
-import { Button } from '@/components/common'
+import { Button, RichTextEditor } from '@/components/common'
 import { backService } from '@/services/back.service'
 import { emailService } from '@/services/email.service'
 import { generarContrarreferenciaAutomatica } from '@/services/contrarreferenciaService'
@@ -714,12 +714,11 @@ export function CasoDetallePanel({
                                 </div>
                             )}
 
-                            <textarea
+                            <RichTextEditor
                                 value={respuestaBack}
-                                onChange={(e) => handleRespuestaBackChange(e.target.value)}
-                                rows={6}
+                                onChange={handleRespuestaBackChange}
                                 placeholder="Escribir la respuesta o comentarios del caso..."
-                                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-[var(--color-primary)] resize-y min-h-[120px]"
+                                disabled={generandoContrarreferencia || guardando}
                             />
                         </div>
 
