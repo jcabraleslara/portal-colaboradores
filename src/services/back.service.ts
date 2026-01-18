@@ -16,9 +16,11 @@ import {
     CrearAfiliadoData,
     BackRadicacionExtendido,
     FiltrosCasosBack,
+
     ConteosCasosBack,
 } from '@/types/back.types'
 import { ragService } from './rag.service'
+import { smsService } from './sms.service'
 
 /**
  * Normalizar texto a mayúsculas sin tildes
@@ -528,6 +530,13 @@ export const backService = {
                     success: false,
                     error: 'Error al actualizar el caso: ' + error.message,
                 }
+            }
+
+            // Notificar por SMS si el estado cambió
+            if (datos.estado_radicado) {
+                // Ejecutar en background (no esperar) para no bloquear la UI
+                smsService.enviarNotificacionEstado(transformRadicacion(data as BackRadicacionRaw), datos.estado_radicado)
+                    .catch(err => console.error('Error enviando SMS:', err))
             }
 
             return {
