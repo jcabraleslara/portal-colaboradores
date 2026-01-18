@@ -180,3 +180,6 @@ export interface AlertState {
 
 // Re-export tipos del módulo Back
 export * from './back.types'
+
+// Re-export tipos del módulo Anexo 8
+export * from './anexo8.types'

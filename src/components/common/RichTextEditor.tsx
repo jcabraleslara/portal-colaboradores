@@ -6,11 +6,7 @@
 
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import Bold from '@tiptap/extension-bold'
-import Italic from '@tiptap/extension-italic'
 import Underline from '@tiptap/extension-underline'
-import BulletList from '@tiptap/extension-bullet-list'
-import OrderedList from '@tiptap/extension-ordered-list'
 import { useEffect } from 'react'
 import MarkdownIt from 'markdown-it'
 
@@ -21,14 +17,27 @@ interface RichTextEditorProps {
     disabled?: boolean
 }
 
-const md = new MarkdownIt()
+// Configurar markdown-it para convertir markdown a HTML
+const md = new MarkdownIt({
+    html: true,
+    breaks: true,
+    linkify: false
+})
 
 /**
  * Convierte markdown a HTML para TipTap
  */
 function markdownToHtml(markdown: string): string {
     if (!markdown) return ''
-    return md.render(markdown)
+
+    try {
+        const html = md.render(markdown)
+        return html
+    } catch (error) {
+        console.error('[RichTextEditor] Error convirtiendo markdown:', error)
+        // Fallback: retornar el texto tal cual envuelto en párrafo
+        return `<p>${markdown.replace(/\n/g, '<br>')}</p>`
+    }
 }
 
 /**
@@ -84,11 +93,7 @@ export function RichTextEditor({ value, onChange, placeholder, disabled }: RichT
                     levels: [1, 2, 3]
                 }
             }),
-            Bold,
-            Italic,
             Underline,
-            BulletList,
-            OrderedList,
         ],
         content: value ? markdownToHtml(value) : '',
         editable: !disabled,
