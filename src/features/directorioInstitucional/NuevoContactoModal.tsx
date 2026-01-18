@@ -200,16 +200,7 @@ export function NuevoContactoModal({ onClose, onCreated }: NuevoContactoModalPro
                                         />
                                     </div>
 
-                                    {/* Área */}
-                                    <div className="col-span-2">
-                                        <label className="block text-xs font-medium text-gray-500 mb-1">Área / Departamento</label>
-                                        <input
-                                            type="text"
-                                            value={formData.area || ''}
-                                            onChange={(e) => handleChange('area', e.target.value || null)}
-                                            className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)]"
-                                        />
-                                    </div>
+
                                 </div>
                             </div>
 
