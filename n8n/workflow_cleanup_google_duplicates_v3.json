@@ -48,7 +48,7 @@
         },
         {
             "parameters": {
-                "jsCode": "const connections = $input.first().json.connections || [];\nconst seen = new Map();\nconst duplicates = [];\n\nfunction clean(s) {\n  if (!s) return '';\n  return s.toString().toLowerCase().normalize(\"NFD\").replace(/[\\u0300-\\u036f]/g, \"\").replace(/[^a-z0-9]/g, \"\").trim();\n}\n\nconnections.forEach(person => {\n  const names = person.names || [];\n  if (names.length > 0) {\n    const key = clean(names[0].displayName || `${names[0].givenName || ''}${names[0].familyName || ''}`);\n    if (key.length > 3) {\n      if (seen.has(key)) {\n        duplicates.push({ resourceName: person.resourceName });\n      } else {\n        seen.set(key, true);\n      }\n    }\n  }\n});\n\n// Retornar la lista de duplicados para el nodo Split\nreturn duplicates.map(d => ({ json: d }));"
+                "jsCode": "const connections = $input.first().json.connections || [];\nconst seen = new Map();\nconst duplicates = [];\n\nfunction clean(s) {\n  if (!s) return '';\n  return s.toString().toLowerCase().normalize(\"NFD\").replace(/[\\u0300-\\u036f]/g, \"\").replace(/[^a-z0-9]/g, \"\").trim();\n}\n\nconnections.forEach(person => {\n  const names = person.names || [];\n  if (names.length > 0) {\n    const key = clean(names[0].displayName || `${names[0].givenName || ''}${names[0].familyName || ''}`);\n    if (key.length > 3) {\n      if (seen.has(key)) {\n        duplicates.push({ resourceName: person.resourceName });\n      } else {\n        seen.set(key, true);\n      }\n    }\n  }\n});\n\nreturn duplicates.map(d => ({ json: d }));"
             },
             "name": "2. Listar Duplicados",
             "type": "n8n-nodes-base.code",
@@ -61,7 +61,8 @@
         },
         {
             "parameters": {
-                "batchSize": 50,\n        "options": {}\n
+                "batchSize": 50,
+                "options": {}
             },
             "name": "3. Grupos de 50",
             "type": "n8n-nodes-base.splitInBatches",

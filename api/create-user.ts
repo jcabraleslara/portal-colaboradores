@@ -42,6 +42,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(405).json({ error: 'Method not allowed' })
     }
 
+    // 0. Inicializar clientes dentro del handler para asegurar env vars frescas
+    const supabaseUrl = process.env.SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const anonKey = process.env.SUPABASE_ANON_KEY
+
+    if (!supabaseUrl || !serviceRoleKey || !anonKey) {
+        return res.status(500).json({
+            error: 'Configuración incompleta en el servidor',
+            details: 'Faltan variables de entorno esenciales (URL o Keys)',
+            hint: 'Verifica las variables SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY y SUPABASE_ANON_KEY en Vercel'
+        })
+    }
+
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false }
+    })
+    const supabaseAnon = createClient(supabaseUrl, anonKey)
+
     try {
         // 1. Verificar que el usuario esté autenticado
         const authHeader = req.headers.authorization
@@ -58,8 +76,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             console.error('Error de autenticación:', authError)
             return res.status(401).json({
                 error: 'No autorizado: token inválido',
-                details: authError?.message,
-                hint: 'Asegúrate de que SUPABASE_ANON_KEY sea correcta en el servidor'
+                details: authError?.message || 'Error de red al validar token',
+                hint: `Verifica que el servidor pueda conectar a ${supabaseUrl}. Error: ${authError?.name || 'FetchError'}`
             })
         }
 
@@ -143,6 +161,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     } catch (error: any) {
         console.error('Error inesperado:', error)
-        return res.status(500).json({ error: `Error interno: ${error.message}` })
+        return res.status(500).json({
+            error: 'Error interno del servidor',
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        })
     }
 }
