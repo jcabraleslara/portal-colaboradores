@@ -102,9 +102,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         console.info('🔎 Buscando perfil en tabla usuarios_portal para:', email)
         try {
-            // Timeout específico de 15s para no bloquear
+            // Timeout específico de 30s para no bloquear
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT_USUARIOS_PORTAL')), 15000)
+                setTimeout(() => reject(new Error('TIMEOUT_USUARIOS_PORTAL')), 30000)
             )
 
             const queryPromise = supabase
@@ -220,43 +220,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
     useEffect(() => {
         let mounted = true
 
-        // Verificar sesión inicial
-        const initSession = async () => {
-            console.log('--- Iniciando verificación de sesión ---')
+        // Failsafe: Si después de 30 segundos no hay respuesta del listener de auth
+        const timeoutId = setTimeout(() => {
+            if (mounted && isLoading) {
+                console.warn('⏰ Aviso: La carga inicial está tomando más de lo esperado.')
+                // No forzar logout aquí, dejar que el sistema siga intentando
+                // Solo desbloquear si realmente parece bloqueado (opcional)
+            }
+        }, 30000)
 
-            // Failsafe: Si después de 20 segundos no responde, limpiar sesión y desbloquear
-            const timeoutId = setTimeout(() => {
-                if (mounted) {
-                    console.error('⏰ TIMEOUT: Carga inicial excedida (20s). Posible sesión corrupta.')
-                    console.warn('🧹 Limpiando almacenamiento local y forzando logout...')
+        // Suscribirse a cambios de auth
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event, session) => {
+                if (!mounted) return
+                console.info('Auth state change:', event)
 
-                    // 1. Limpieza de emergencia del almacenamiento local
-                    try {
-                        localStorage.removeItem('gestar-auth-token')
-                        // Intentar desconexión de Supabase (sin await para no bloquear)
-                        supabase.auth.signOut().catch(err => console.error('Error en signOut forzado', err))
-                    } catch (e) {
-                        console.error('Error limpiando localStorage', e)
+                // IMPORTANTE: Manejar sesión inicial y login
+                if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session?.user) {
+                    // Si ya tenemos el usuario y el email coincide, no buscar de nuevo
+                    if (user && user.email === session.user.email) {
+                        setIsLoading(false)
+                        return
                     }
 
-                    // 2. Desbloquear UI
-                    setUser(null)
-                    setIsLoading(false)
-                }
-            }, 20000)
-
-            try {
-                const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-                if (sessionError) {
-                    console.error('❌ Error al obtener sesión:', sessionError)
-                    // Si hay error de sesión, asumimos logout
-                    if (mounted) setUser(null)
-                    return
-                }
-
-                if (session?.user) {
-                    console.log('👤 Usuario autenticado detectado:', session.user.email)
+                    console.log('👤 Usuario detectado (Event:', event, '):', session.user.email)
                     const profile = await fetchUserProfile(
                         session.user.id,
                         session.user.email || ''
@@ -266,48 +253,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         if (profile) {
                             setUser(profile)
                         } else {
-                            // Fallback de emergencia
-                            console.error('🆘 Error crítico: No se pudo obtener ni el perfil básico.')
+                            // Fallback básico si falla la búsqueda pero hay sesión
                             setUser({
-                                identificacion: 'Error',
-                                nombreCompleto: session.user.email || 'Usuario',
+                                identificacion: 'N/A',
+                                nombreCompleto: session.user.email?.split('@')[0] || 'Usuario',
                                 email: session.user.email || '',
                                 rol: 'operativo',
-                                primerLogin: false,
-                                ultimoLogin: new Date()
+                                primerLogin: true,
+                                ultimoLogin: null
                             })
                         }
-                    }
-                } else {
-                    console.log('ℹ️ No hay sesión activa')
-                    if (mounted) setUser(null)
-                }
-            } catch (err) {
-                console.error('💥 Error crítico inicializando sesión:', err)
-            } finally {
-                clearTimeout(timeoutId)
-                if (mounted) {
-                    console.log('🏁 Carga inicial finalizada')
-                    setIsLoading(false)
-                }
-            }
-        }
-
-        initSession()
-
-        // Suscribirse a cambios de auth
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (event, session) => {
-                if (!mounted) return
-                console.info('Auth state change:', event)
-
-                if (event === 'SIGNED_IN' && session?.user) {
-                    const profile = await fetchUserProfile(
-                        session.user.id,
-                        session.user.email || ''
-                    )
-                    if (mounted && profile) {
-                        setUser(profile)
                     }
                 } else if (event === 'SIGNED_OUT') {
                     console.info('🔒 Usuario desconectado')
@@ -316,7 +271,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 } else if (event === 'TOKEN_REFRESHED') {
                     console.info('🔄 Token de sesión renovado')
                 } else if (event === 'USER_UPDATED') {
-                    // Actualización de metadatos del usuario
                     console.info('👤 Datos de usuario actualizados')
                     if (session?.user && mounted) {
                         const profile = await fetchUserProfile(
@@ -325,20 +279,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         )
                         if (profile) setUser(profile)
                     }
-                } else if (event === 'INITIAL_SESSION') {
-                    console.info('🚀 Sesión inicial cargada')
                 }
 
-                // IMPORTANTE: Cualquier cambio de estado debe desbloquear la pantalla de carga
-                if (mounted) setIsLoading(false)
+                // Finalizar carga inicial una vez procesado el evento de sesión
+                if (mounted && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT')) {
+                    clearTimeout(timeoutId)
+                    setIsLoading(false)
+                }
             }
         )
 
         return () => {
             mounted = false
+            clearTimeout(timeoutId)
             subscription.unsubscribe()
         }
-    }, [fetchUserProfile, clearProfileCache])
+    }, [fetchUserProfile, clearProfileCache, user, isLoading])
 
     const value: AuthContextType = {
         user,
