@@ -73,7 +73,6 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
         draw(data.paciente_apellido2 || '', 270, fila1, offset)
         draw(data.paciente_nombres, 410, fila1, offset)
 
-        const fila2 = 137 // Identificación
         // Checks TI/CC/Otro
         if (data.paciente_tipo_id === 'CC') draw('X', 80, 133, offset, 10) // Ajuste fino check
         else if (data.paciente_tipo_id === 'TI') draw('X', 45, 133, offset, 10)
@@ -86,13 +85,11 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
         if (data.paciente_genero === 'F') draw('X', 428, 133, offset, 8)
         else if (data.paciente_genero === 'M') draw('X', 463, 133, offset, 8)
 
-        const fila3 = 153 // Teléfono, Municipio
         draw(data.paciente_telefono || '', 90, 169, offset) // Bajado un poco
         draw(data.paciente_municipio || '', 180, 169, offset)
         draw(data.paciente_direccion || '', 290, 169, offset) // Dirección Residencia
         draw(data.paciente_departamento || 'CORDOBA', 460, 169, offset)
 
-        const fila4 = 200 // Afiliación SGSSS
         // Checks
         if (data.paciente_regimen === 'Subsidiado') draw('X', 135, 203, offset, 10)
         else if (data.paciente_regimen === 'Contributivo') draw('X', 225, 203, offset, 10)
@@ -103,7 +100,7 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
         // -- 2. MEDICAMENTOS --
         // Ajustado para caer dentro de la tabla
         const filaMed = 242
-        let nombreMed = data.medicamento_nombre
+        let nombreMed = data.medicamento_nombre as string // Cast para permitir manipulación
         if (nombreMed.length > 25) nombreMed = nombreMed.substring(0, 25) // Truncar si es muy largo
 
         draw(nombreMed, 40, filaMed, offset, 8)
@@ -118,7 +115,6 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
         draw(diagTexto.substring(0, 90), 80, 295, offset, 8) // Diagnóstico texto
 
         // -- 3. PROFESIONAL --
-        const filaProf1 = 328
         // Tipo Médico (Checks) - Asumiendo posiciones
         if (data.medico_tipo === 'General') draw('X', 100, 325, offset, 10)
         else draw('X', 190, 325, offset, 10) // Especializado
@@ -136,7 +132,6 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
         // Firma: Dejamos espacio en blanco o ponemos nombre como firma digital simple
         // draw(data.medico_nombres, 400, 360, offset, 6) 
 
-        const filaInst = 398 // Inst, Dir, Ciudad, Tel
         draw('GESTAR SALUD DE COLOMBIA IPS', 60, 385, offset, 8) // Institución subida un poco
         draw(data.medico_direccion || 'CRA 6 n 65 24', 260, 385, offset, 8)
         draw(data.medico_ciudad || 'MONTERIA', 390, 385, offset, 8)
