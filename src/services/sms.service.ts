@@ -35,6 +35,14 @@ export const smsService = {
                 return;
             }
 
+            // Validar que sea un celular válido de Colombia
+            // Debe tener 10 dígitos y comenzar por 3
+            const telefonoLimpio = paciente.telefono.replace(/\D/g, '');
+            if (!/^3\d{9}$/.test(telefonoLimpio)) {
+                console.warn(`[SMS] El número ${paciente.telefono} no es un celular válido (debe iniciar con 3 y tener 10 dígitos). No se envía SMS.`);
+                return;
+            }
+
             // 2. Construir mensaje personalizado
             // Limitar a ~160 caracteres.
             // "Hola JUAN, tu radicado XXX cambio a AUTORIZADO. Mas info: comunicate al 3336026080. Gestarsalud"

@@ -102,9 +102,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         console.info('🔎 Buscando perfil en tabla usuarios_portal para:', email)
         try {
-            // Timeout específico de 5s para no bloquear
+            // Timeout específico de 15s para no bloquear
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT_USUARIOS_PORTAL')), 5000)
+                setTimeout(() => reject(new Error('TIMEOUT_USUARIOS_PORTAL')), 15000)
             )
 
             const queryPromise = supabase

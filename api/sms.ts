@@ -27,14 +27,18 @@ export default async function handler(request: VercelRequest, response: VercelRe
         }
 
         // LabsMobile espera el teléfono con código de país.
-        // Asumimos Colombia (57) si no viene incluido, pero idealmente debería venir formateado.
-        // Limpiamos el teléfono de caracteres no numéricos
+        // Validamos estrictamente que sea un celular Colombia (10 dígitos, inicia con 3)
+        // Limpiamos caracteres no numéricos
         let cleanPhone = phone.replace(/\D/g, '');
 
-        // Si tiene 10 dígitos (ej: 3001234567), asumimos Colombia y agregamos 57
-        if (cleanPhone.length === 10) {
-            cleanPhone = `57${cleanPhone}`;
+        // Validación estricta: debe tener 10 dígitos y empezar por 3
+        if (!/^3\d{9}$/.test(cleanPhone)) {
+            console.warn(`[API SMS] Rechazado número inválido: ${phone}`);
+            return response.status(400).json({ error: 'Número de teléfono inválido. Debe ser un celular de Colombia (3XX...)' });
         }
+
+        // Agregar código de país 57
+        cleanPhone = `57${cleanPhone}`;
 
         const payload = {
             message: message,
