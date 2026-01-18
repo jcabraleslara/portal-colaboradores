@@ -611,7 +611,7 @@ export default function Anexo8Page() {
                                         Dosis / Vía de Administración
                                     </label>
                                     <textarea
-                                        placeholder="Ej: Tomar dos tabletas vía oral, diariamente"
+                                        placeholder="Ser explícito en la forma de administración del medicamento."
                                         value={formData.dosisVia}
                                         onChange={(e) => setFormData(prev => ({ ...prev, dosisVia: e.target.value }))}
                                         rows={2}
@@ -628,7 +628,7 @@ export default function Anexo8Page() {
                                         type="number"
                                         min="1"
                                         max="999"
-                                        placeholder="Ej: 60"
+                                        placeholder="Ej: 30"
                                         value={formData.cantidadNumero}
                                         onChange={(e) => actualizarCantidad(e.target.value)}
                                         className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"

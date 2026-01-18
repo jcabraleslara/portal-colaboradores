@@ -228,10 +228,47 @@ export function OcrDialog({ isOpen, onClose, onDataExtracted }: OcrDialogProps) 
                                                 <span className="ml-2 font-medium">{resultado.concentracion}</span>
                                             </div>
                                         )}
+                                        {resultado.formaFarmaceutica && (
+                                            <div>
+                                                <span className="text-slate-500">Forma:</span>
+                                                <span className="ml-2 font-medium">{resultado.formaFarmaceutica}</span>
+                                            </div>
+                                        )}
                                         {resultado.cantidadNumero && (
                                             <div>
                                                 <span className="text-slate-500">Cantidad:</span>
                                                 <span className="ml-2 font-medium">{resultado.cantidadNumero}</span>
+                                            </div>
+                                        )}
+                                        {resultado.diasTratamiento && (
+                                            <div>
+                                                <span className="text-slate-500">Días:</span>
+                                                <span className="ml-2 font-medium">{resultado.diasTratamiento}</span>
+                                            </div>
+                                        )}
+                                        {resultado.mesesTratamiento && (
+                                            <div className="col-span-2">
+                                                <span className="text-slate-500">Tratamiento:</span>
+                                                <span className="ml-2 font-medium text-blue-600">
+                                                    {resultado.mesesTratamiento} {resultado.mesesTratamiento === 1 ? 'mes' : 'meses'}
+                                                    {resultado.cantidadPorMes && ` (${resultado.cantidadPorMes} por mes)`}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {resultado.dosisVia && (
+                                            <div className="col-span-2">
+                                                <span className="text-slate-500">Posología:</span>
+                                                <span className="ml-2 font-medium text-purple-600">{resultado.dosisVia}</span>
+                                            </div>
+                                        )}
+                                        {resultado.medicoNombre && (
+                                            <div className="col-span-2">
+                                                <span className="text-slate-500">Médico:</span>
+                                                <span className="ml-2 font-medium text-indigo-600">
+                                                    {resultado.medicoNombre}
+                                                    {resultado.medicoRegistro && ` (Reg. ${resultado.medicoRegistro})`}
+                                                    {!resultado.medicoRegistro && resultado.medicoDocumento && ` (CC ${resultado.medicoDocumento})`}
+                                                </span>
                                             </div>
                                         )}
                                         {resultado.diagnosticoCie10 && (

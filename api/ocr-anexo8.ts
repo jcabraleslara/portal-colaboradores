@@ -32,9 +32,12 @@ const MEDICAMENTOS_CONTROLADOS = [
 // Patrones para extraer datos
 const PATRONES = {
     // Documento del paciente
-    documento: /(?:c\.?c\.?|t\.?i\.?|c\.?e\.?|documento|identificaci[oó]n)[:\s]*(\d{4,15})/i,
+    documento: /(?:c\.?c\.?|t\.?i\.?|c\.?e\.?|documento|identificación)[:\s]*(\d{4,15})/i,
 
-    // Nombres (buscar después de "nombres" o patrón de nombres)
+    // Nombre completo (más flexible para capturar todo el nombre)
+    nombreCompleto: /nombre[:\s]*([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+)/i,
+
+    // Nombres individuales (fallback si no encuentra nombre completo)
     nombres: /nombres?[:\s]*([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)*)/i,
 
     // Apellidos
@@ -51,17 +54,33 @@ const PATRONES = {
     diagnosticoCie10: /diagn[oó]stico[:\s]*([A-Z]\d{2,3}(?:\.\d{1,2})?)/i,
     diagnosticoDesc: /diagn[oó]stico[:\s]*(?:[A-Z]\d{2,3}(?:\.\d)?)?[\s-]*([A-Za-záéíóúñ\s]+?)(?:\n|$)/i,
 
-    // Cantidad
-    cantidad: /cantidad[:\s]*(\d{1,4})|(\d{1,4})\s*(?:tabletas?|c[aá]psulas?|ampollas?|mg)/i,
+    // Cantidad y días
+    cantidad: /cantidad[:\s]*(\d{1,4})|(\d{1,4})\s*(?:TOMAR|APLICAR|tabletas?|cápsulas?|ampollas?)/i,
+    dias: /d[ií]as?[:\s]*(\d{1,4})/i,
 
-    // Concentración
-    concentracion: /concentraci[oó]n[:\s]*([\d.,]+\s*(?:mg|ml|g|mcg|%)[\/\w]*)/i,
+    // Medicamento completo (nombre + concentración + forma en una sola captura)
+    medicamentoCompleto: new RegExp(`(${MEDICAMENTOS_CONTROLADOS.join('|')})\\s+(\\d+(?:\\.\\d+)?\\s*(?:mg|ml|g|mcg|UI|%))\\s*\\(([^)]+)\\)`, 'gi'),
 
-    // Medicamento (buscar coincidencias con lista)
-    medicamento: new RegExp(`(${MEDICAMENTOS_CONTROLADOS.join('|')})`, 'i')
+    // Concentración individual (fallback)
+    concentracion: /(\d+(?:\.\d+)?\s*(?:mg|ml|g|mcg|UI|%)(?:\/(?:ml|g|tableta|cápsula))?)/i,
+
+    // Forma farmacéutica individual (fallback)
+    formaFarmaceutica: /\((TABLETA|CÁPSULA|SOLUCIÓN\s+(?:INYECTABLE|ORAL|NASAL)|JARABE|PARCHE|POLVO)\)/i,
+
+    // Posología (TOMAR, APLICAR, ADMINISTRAR, etc.)
+    posologia: /(?:TOMAR|APLICAR|ADMINISTRAR|VIA)\s+([^\d]{5,100})/i,
+
+    // Medicamento simple (fallback)
+    medicamento: new RegExp(`(${MEDICAMENTOS_CONTROLADOS.join('|')})`, 'i'),
+
+    // Médico que firma (nombre con salto de línea)
+    medicoNombre: /ATENDIDO\s+POR\s*[\r\n]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+)/i,
+    medicoRegistro: /reg\.\s*méd[:\s]*(\d{4,15})/i,
+    medicoCedula: /cédula[:\s]*(\d{4,15})/i
 }
 
 interface OcrAnexo8Result {
+    // Datos del paciente
     pacienteDocumento?: string
     pacienteTipoId?: string
     pacienteNombres?: string
@@ -69,13 +88,29 @@ interface OcrAnexo8Result {
     pacienteApellido2?: string
     pacienteEdad?: number
     pacienteGenero?: 'F' | 'M'
+
+    // Datos del medicamento
     medicamentoNombre?: string
     concentracion?: string
     formaFarmaceutica?: string
     dosisVia?: string
     cantidadNumero?: number
+    diasTratamiento?: number
+
+    // Cálculo de meses
+    cantidadPorMes?: number
+    mesesTratamiento?: number
+
+    // Diagnóstico
     diagnosticoCie10?: string
     diagnosticoDescripcion?: string
+
+    // Datos del médico
+    medicoNombre?: string
+    medicoDocumento?: string
+    medicoRegistro?: string
+
+    // Metadata
     textoCompleto?: string
     confidence: number
 }
@@ -89,7 +124,9 @@ function extraerDatosDeTexto(texto: string): OcrAnexo8Result {
     }
 
     let camposEncontrados = 0
-    const totalCampos = 10
+    const totalCampos = 15 // Incrementado para incluir nuevos campos
+
+    // ===== DATOS DEL PACIENTE =====
 
     // Documento
     const matchDoc = texto.match(PATRONES.documento)
@@ -99,23 +136,43 @@ function extraerDatosDeTexto(texto: string): OcrAnexo8Result {
         camposEncontrados++
     }
 
-    // Nombres
-    const matchNombres = texto.match(PATRONES.nombres)
-    if (matchNombres) {
-        resultado.pacienteNombres = matchNombres[1]
+    // Nombre completo (intentar primero)
+    const matchNombreCompleto = texto.match(PATRONES.nombreCompleto)
+    if (matchNombreCompleto) {
+        const nombreCompleto = matchNombreCompleto[1]
+        // Dividir en apellidos y nombres (asumiendo: Apellido1 Apellido2 Nombre1 Nombre2...)
+        const partes = nombreCompleto.split(/\s+/)
+        if (partes.length >= 3) {
+            resultado.pacienteApellido1 = partes[0]
+            resultado.pacienteApellido2 = partes[1]
+            resultado.pacienteNombres = partes.slice(2).join(' ')
+            camposEncontrados += 2
+        } else if (partes.length === 2) {
+            resultado.pacienteApellido1 = partes[0]
+            resultado.pacienteNombres = partes[1]
+            camposEncontrados++
+        } else {
+            resultado.pacienteNombres = nombreCompleto
+        }
         camposEncontrados++
-    }
+    } else {
+        // Fallback: buscar nombres y apellidos por separado
+        const matchNombres = texto.match(PATRONES.nombres)
+        if (matchNombres) {
+            resultado.pacienteNombres = matchNombres[1]
+            camposEncontrados++
+        }
 
-    // Apellidos
-    const matchApellido1 = texto.match(PATRONES.apellido1)
-    if (matchApellido1) {
-        resultado.pacienteApellido1 = matchApellido1[1]
-        camposEncontrados++
-    }
+        const matchApellido1 = texto.match(PATRONES.apellido1)
+        if (matchApellido1) {
+            resultado.pacienteApellido1 = matchApellido1[1]
+            camposEncontrados++
+        }
 
-    const matchApellido2 = texto.match(PATRONES.apellido2)
-    if (matchApellido2) {
-        resultado.pacienteApellido2 = matchApellido2[1]
+        const matchApellido2 = texto.match(PATRONES.apellido2)
+        if (matchApellido2) {
+            resultado.pacienteApellido2 = matchApellido2[1]
+        }
     }
 
     // Edad
@@ -135,19 +192,47 @@ function extraerDatosDeTexto(texto: string): OcrAnexo8Result {
         }
     }
 
-    // Medicamento
-    const matchMedicamento = texto.match(PATRONES.medicamento)
-    if (matchMedicamento) {
+    // ===== DATOS DEL MEDICAMENTO =====
+
+    // Intentar primero capturar medicamento completo (nombre + concentración + forma)
+    const matchMedCompleto = PATRONES.medicamentoCompleto.exec(texto)
+    if (matchMedCompleto) {
         // Capitalizar correctamente
-        const med = matchMedicamento[1].toLowerCase()
+        const med = matchMedCompleto[1].toLowerCase()
         resultado.medicamentoNombre = med.charAt(0).toUpperCase() + med.slice(1)
-        camposEncontrados++
+        resultado.concentracion = matchMedCompleto[2].toUpperCase()
+        resultado.formaFarmaceutica = matchMedCompleto[3]
+        camposEncontrados += 3
+    } else {
+        // Fallback: buscar por separado
+
+        // Medicamento
+        const matchMedicamento = texto.match(PATRONES.medicamento)
+        if (matchMedicamento) {
+            const med = matchMedicamento[1].toLowerCase()
+            resultado.medicamentoNombre = med.charAt(0).toUpperCase() + med.slice(1)
+            camposEncontrados++
+        }
+
+        // Concentración
+        const matchConcentracion = texto.match(PATRONES.concentracion)
+        if (matchConcentracion) {
+            resultado.concentracion = matchConcentracion[1].toUpperCase()
+            camposEncontrados++
+        }
+
+        // Forma farmacéutica
+        const matchForma = texto.match(PATRONES.formaFarmaceutica)
+        if (matchForma) {
+            resultado.formaFarmaceutica = matchForma[1]
+            camposEncontrados++
+        }
     }
 
-    // Concentración
-    const matchConcentracion = texto.match(PATRONES.concentracion)
-    if (matchConcentracion) {
-        resultado.concentracion = matchConcentracion[1].toUpperCase()
+    // Posología
+    const matchPosologia = texto.match(PATRONES.posologia)
+    if (matchPosologia) {
+        resultado.dosisVia = matchPosologia[1].trim()
         camposEncontrados++
     }
 
@@ -157,6 +242,30 @@ function extraerDatosDeTexto(texto: string): OcrAnexo8Result {
         resultado.cantidadNumero = parseInt(matchCantidad[1] || matchCantidad[2], 10)
         camposEncontrados++
     }
+
+    // Días de tratamiento
+    const matchDias = texto.match(PATRONES.dias)
+    if (matchDias) {
+        resultado.diasTratamiento = parseInt(matchDias[1], 10)
+        camposEncontrados++
+    }
+
+    // ===== CÁLCULO DE MESES DE TRATAMIENTO =====
+    if (resultado.cantidadNumero && resultado.diasTratamiento) {
+        // Calcular cantidad por mes (asumiendo 30 días/mes)
+        resultado.cantidadPorMes = Math.round((resultado.cantidadNumero / resultado.diasTratamiento) * 30)
+
+        // Calcular meses de tratamiento (redondeando al múltiplo de 30 más cercano)
+        resultado.mesesTratamiento = Math.ceil(resultado.diasTratamiento / 30)
+
+        camposEncontrados++
+    } else if (resultado.cantidadNumero) {
+        // Si no hay días, asumir cantidad por mes = cantidad / 30
+        resultado.cantidadPorMes = Math.floor(resultado.cantidadNumero / 30)
+        resultado.mesesTratamiento = resultado.cantidadPorMes > 0 ? Math.ceil(resultado.cantidadNumero / resultado.cantidadPorMes) : 1
+    }
+
+    // ===== DIAGNÓSTICO =====
 
     // Diagnóstico CIE-10
     const matchCie10 = texto.match(PATRONES.diagnosticoCie10)
@@ -172,7 +281,32 @@ function extraerDatosDeTexto(texto: string): OcrAnexo8Result {
         camposEncontrados++
     }
 
-    // Calcular confianza
+    // ===== DATOS DEL MÉDICO =====
+
+    // Nombre del médico
+    const matchMedicoNombre = texto.match(PATRONES.medicoNombre)
+    if (matchMedicoNombre) {
+        resultado.medicoNombre = matchMedicoNombre[1].trim()
+        camposEncontrados++
+    }
+
+    // Registro médico
+    const matchMedicoReg = texto.match(PATRONES.medicoRegistro)
+    if (matchMedicoReg) {
+        resultado.medicoRegistro = matchMedicoReg[1]
+        camposEncontrados++
+    }
+
+    // Cédula del médico (si no se encontró registro)
+    if (!resultado.medicoRegistro) {
+        const matchMedicoCed = texto.match(PATRONES.medicoCedula)
+        if (matchMedicoCed) {
+            resultado.medicoDocumento = matchMedicoCed[1]
+            camposEncontrados++
+        }
+    }
+
+    // ===== CALCULAR CONFIANZA =====
     resultado.confidence = Math.round((camposEncontrados / totalCampos) * 100)
     resultado.textoCompleto = texto.substring(0, 2000) // Primeros 2000 caracteres para debug
 

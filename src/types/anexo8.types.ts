@@ -257,10 +257,20 @@ export interface Anexo8OcrResult {
     formaFarmaceutica?: string
     dosisVia?: string
     cantidadNumero?: number
+    diasTratamiento?: number
+
+    // Cálculo de meses
+    cantidadPorMes?: number
+    mesesTratamiento?: number
 
     // Diagnóstico
     diagnosticoCie10?: string
     diagnosticoDescripcion?: string
+
+    // Médico
+    medicoNombre?: string
+    medicoDocumento?: string
+    medicoRegistro?: string
 
     // Confianza del OCR
     confidence: number

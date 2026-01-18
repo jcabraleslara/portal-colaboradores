@@ -24,23 +24,47 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     const templateBytes = await fetch(templateUrl).then(res => res.arrayBuffer())
     const pdfDoc = await PDFDocument.load(templateBytes)
 
-    // 2. Obtener el formulario
+    // 2. Obtener el formulario y la primera página
     const form = pdfDoc.getForm()
+    const pages = pdfDoc.getPages()
+    const firstPage = pages[0]
 
     // 3. Extraer fecha
     const [anio, mes, dia] = data.fecha_prescripcion.split('-')
 
-    // 4. Separar nombres del médico (formato: APELLIDO1 APELLIDO2 NOMBRES)
-    const medicoPartes = data.medico_nombres.trim().split(' ')
-    const medicoApellido1 = medicoPartes[0] || ''
-    const medicoApellido2 = medicoPartes[1] || ''
-    const medicoNombres = medicoPartes.slice(2).join(' ') || ''
+    // 4. Separar nombres del médico
+    // IMPORTANTE: El formato puede ser "NOMBRES APELLIDO1 APELLIDO2"
+    // Asumimos que los últimos 2 elementos son apellidos y el resto son nombres
+    const medicoPartes = data.medico_nombres.trim().split(' ').filter(p => p.length > 0)
+    let medicoNombres = ''
+    let medicoApellido1 = ''
+    let medicoApellido2 = ''
+
+    if (medicoPartes.length >= 3) {
+        // Caso: "HUGO ALBERTO BERASTEGUI SOTO" → nombres: "HUGO ALBERTO", apellidos: "BERASTEGUI", "SOTO"
+        medicoApellido2 = medicoPartes[medicoPartes.length - 1]
+        medicoApellido1 = medicoPartes[medicoPartes.length - 2]
+        medicoNombres = medicoPartes.slice(0, -2).join(' ')
+    } else if (medicoPartes.length === 2) {
+        // Caso: "HUGO BERASTEGUI" → nombres: "HUGO", apellido1: "BERASTEGUI"
+        medicoNombres = medicoPartes[0]
+        medicoApellido1 = medicoPartes[1]
+    } else if (medicoPartes.length === 1) {
+        // Solo un elemento, lo ponemos como nombre
+        medicoNombres = medicoPartes[0]
+    }
 
     // 5. Función helper para llenar campos de texto de forma segura
-    const setText = (fieldName: string, value: string | number | null | undefined) => {
+    const setText = (fieldName: string, value: string | number | null | undefined, fontSize?: number) => {
         try {
             const field = form.getTextField(fieldName)
-            field.setText(String(value ?? '').toUpperCase())
+            const textValue = String(value ?? '').toUpperCase()
+            field.setText(textValue)
+
+            // Ajustar tamaño de fuente si se especifica
+            if (fontSize) {
+                field.setFontSize(fontSize)
+            }
         } catch (e) {
             console.warn(`Campo no encontrado: ${fieldName}`)
         }
@@ -80,13 +104,16 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     setText('paciente_departamento', data.paciente_departamento || 'CÓRDOBA')
     setText('paciente_eps', data.paciente_eps)
 
-    // Medicamento
-    setText('medicamento_nombre', data.medicamento_nombre)
-    setText('medicamento_concentracion', data.medicamento_concentracion)
-    setText('medicamento_forma', data.medicamento_forma_farmaceutica)
-    setText('medicamento_dosis', data.medicamento_dosis_via)
-    setText('cantidad_numero', data.cantidad_numero)
-    setText('cantidad_letras', data.cantidad_letras)
+    // Medicamento - AJUSTAR TAMAÑOS DE FUENTE
+    setText('medicamento_nombre', data.medicamento_nombre, 9)
+    setText('medicamento_concentracion', data.medicamento_concentracion, 9)
+    setText('medicamento_forma', data.medicamento_forma_farmaceutica, 9)
+
+    // Para dosis: Permitir que el texto fluya naturalmente
+    setText('medicamento_dosis', data.medicamento_dosis_via, 8)
+
+    setText('cantidad_numero', data.cantidad_numero, 9)
+    setText('cantidad_letras', data.cantidad_letras, 8)
 
     // Diagnóstico
     const diagnosticoCompleto = data.diagnostico_cie10
@@ -100,7 +127,6 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     setText('medico_nombres', medicoNombres)
     setText('medico_documento', data.medico_documento)
     setText('medico_especialidad', data.medico_especialidad)
-    setText('medico_firma', '') // Espacio para firma física
 
     // ========================================
     // LLENAR RADIO BUTTONS
@@ -122,6 +148,68 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     // Género
     if (data.paciente_genero) {
         setRadio('genero', data.paciente_genero)
+    }
+
+    // ========================================
+    // INSERTAR FIRMA DEL MÉDICO
+    // ========================================
+    if (data.medico_firma_url) {
+        try {
+            // Descargar la imagen de firma
+            const firmaResponse = await fetch(data.medico_firma_url)
+            const firmaBytes = await firmaResponse.arrayBuffer()
+
+            // Determinar tipo de imagen (PNG o JPG)
+            let firmaImage
+            if (data.medico_firma_url.toLowerCase().includes('.png')) {
+                firmaImage = await pdfDoc.embedPng(firmaBytes)
+            } else {
+                firmaImage = await pdfDoc.embedJpg(firmaBytes)
+            }
+
+            // Obtener dimensiones del campo de firma (aprox)
+            // Los campos de firma están en las posiciones Y: ~485 (primera copia) y ~55 (segunda copia)
+            const firmaDims = firmaImage.scale(0.5) // Escalar al 50% del tamaño original
+
+            // Posiciones aproximadas del campo firma (necesitan ajuste)
+            // Primera firma (Original): Y ~485
+            // Segunda firma (Copia): Y ~55
+            const firmaWidth = 80 // Ancho del campo
+            const firmaHeight = 35 // Alto del campo
+
+            // Calcular escala para que quepa en el campo
+            const scaleX = firmaWidth / firmaDims.width
+            const scaleY = firmaHeight / firmaDims.height
+            const scale = Math.min(scaleX, scaleY, 1) // No agrandar
+
+            const finalWidth = firmaDims.width * scale
+            const finalHeight = firmaDims.height * scale
+
+            // Posiciones (estas son aproximadas, ajustar según necesidad)
+            const firmaX1 = 500 // Posición X aproximada
+            const firmaY1 = 485 // Primera firma
+            const firmaY2 = 55  // Segunda firma
+
+            // Centrar horizontalmente en el campo
+            const offsetX = (firmaWidth - finalWidth) / 2
+
+            // Dibujar firma en ambas copias
+            firstPage.drawImage(firmaImage, {
+                x: firmaX1 + offsetX,
+                y: firmaY1,
+                width: finalWidth,
+                height: finalHeight
+            })
+
+            firstPage.drawImage(firmaImage, {
+                x: firmaX1 + offsetX,
+                y: firmaY2,
+                width: finalWidth,
+                height: finalHeight
+            })
+        } catch (e) {
+            console.warn('Error al cargar firma del médico:', e)
+        }
     }
 
     // ========================================
