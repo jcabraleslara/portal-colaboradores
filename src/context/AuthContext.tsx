@@ -107,14 +107,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 setTimeout(() => reject(new Error('TIMEOUT_USUARIOS_PORTAL')), 30000)
             )
 
-            const queryPromise = supabase
+            const query = supabase
                 .from('usuarios_portal')
                 .select('identificacion, nombre_completo, email_institucional, rol, activo, last_sign_in_at')
                 .eq('email_institucional', email)
                 .single()
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { data: usuarioPortal } = await Promise.race([queryPromise, timeoutPromise]) as any
+            const result: any = await Promise.race([query, timeoutPromise])
+            const usuarioPortal = result.data
 
             // Si no hay usuario o está inactivo, generar un perfil básico
             if (!usuarioPortal) {
