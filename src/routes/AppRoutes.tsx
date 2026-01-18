@@ -20,6 +20,7 @@ const GestionBackPage = lazy(() => import('@/features/gestionBack/GestionBackPag
 const DirectorioPage = lazy(() => import('@/features/directorioInstitucional/DirectorioPage'))
 const PlaceholderPage = lazy(() => import('@/features/placeholder/PlaceholderPage'))
 const AdminUsuariosPage = lazy(() => import('@/features/admin/AdminUsuariosPage'))
+const Anexo8Page = lazy(() => import('@/features/anexo8/Anexo8Page'))
 
 /**
  * Componente de protección de rutas
@@ -171,7 +172,7 @@ export function AppRoutes() {
                     path={ROUTES.ANEXO_8}
                     element={
                         <LazyWrapper>
-                            <PlaceholderPage moduleName="Generar Anexo 8" />
+                            <Anexo8Page />
                         </LazyWrapper>
                     }
                 />

@@ -10,6 +10,7 @@ import { useAuth } from '@/context/AuthContext'
 import { afiliadosService } from '@/services/afiliados.service'
 import { anexo8Service, ROLES_PERMITIDOS_ANEXO8 } from '@/services/anexo8.service'
 import { generarAnexo8Pdf, descargarPdf } from './pdfGenerator'
+import { OcrDialog } from './components/OcrDialog'
 import { numeroALetras } from '@/utils/numeroALetras'
 import {
     Afiliado,
@@ -18,6 +19,7 @@ import {
     MedicoData,
     Anexo8CreateData,
     Anexo8FormData,
+    Anexo8OcrResult,
     MedicamentoControlado,
     FormaFarmaceutica,
     Regimen
@@ -42,6 +44,7 @@ export default function Anexo8Page() {
     const [generando, setGenerando] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [exito, setExito] = useState<string | null>(null)
+    const [mostrarOcr, setMostrarOcr] = useState(false)
 
     // Búsqueda de paciente
     const [busqueda, setBusqueda] = useState('')
@@ -320,6 +323,40 @@ export default function Anexo8Page() {
         })
     }
 
+    // Manejar datos extraídos del OCR
+    const handleOcrData = async (data: Anexo8OcrResult) => {
+        // Si extrajo documento del paciente, buscar automáticamente
+        if (data.pacienteDocumento) {
+            setBusqueda(data.pacienteDocumento)
+            const result = await afiliadosService.buscarPorDocumento(data.pacienteDocumento)
+            if (result.success && result.data) {
+                seleccionarPaciente(result.data)
+            }
+        }
+
+        // Aplicar medicamento si se detectó
+        if (data.medicamentoNombre) {
+            // Buscar coincidencia exacta en la lista
+            const medicamentoMatch = MEDICAMENTOS_CONTROLADOS.find(
+                m => m.toLowerCase() === data.medicamentoNombre?.toLowerCase()
+            )
+            if (medicamentoMatch) {
+                setFormData(prev => ({ ...prev, medicamentoNombre: medicamentoMatch }))
+            }
+        }
+
+        // Aplicar otros campos extraídos
+        setFormData(prev => ({
+            ...prev,
+            concentracion: data.concentracion || prev.concentracion,
+            cantidadNumero: data.cantidadNumero || prev.cantidadNumero,
+            diagnosticoCie10: data.diagnosticoCie10 || prev.diagnosticoCie10,
+            diagnosticoDescripcion: data.diagnosticoDescripcion || prev.diagnosticoDescripcion
+        }))
+
+        setExito('Datos extraídos del OCR aplicados. Verifique y complete la información.')
+    }
+
     // Si no tiene acceso, mostrar mensaje
     if (!tieneAcceso) {
         return (
@@ -333,388 +370,397 @@ export default function Anexo8Page() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
-            {/* Header */}
-            <div className="max-w-6xl mx-auto mb-6">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
-                            <FaFilePdf className="text-red-500" />
-                            Generar Anexo 8
-                        </h1>
-                        <p className="text-slate-500 mt-1">
-                            Recetario Oficial para Medicamentos de Control Especial (FNE)
-                        </p>
-                    </div>
+        <>
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+                {/* Header */}
+                <div className="max-w-6xl mx-auto mb-6">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
+                                <FaFilePdf className="text-red-500" />
+                                Generar Anexo 8
+                            </h1>
+                            <p className="text-slate-500 mt-1">
+                                Recetario Oficial para Medicamentos de Control Especial (FNE)
+                            </p>
+                        </div>
 
-                    {/* Botón OCR solo para superadmin */}
-                    {esSuperadmin && (
-                        <button
-                            className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-lg"
-                            onClick={() => {/* TODO: Abrir modal OCR */ }}
-                        >
-                            <FaPaste />
-                            Pegar Receta (OCR)
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {/* Alertas */}
-            {error && (
-                <div className="max-w-6xl mx-auto mb-4">
-                    <Alert type="error" message={error} onClose={() => setError(null)} />
-                </div>
-            )}
-            {exito && (
-                <div className="max-w-6xl mx-auto mb-4">
-                    <Alert type="success" message={exito} onClose={() => setExito(null)} />
-                </div>
-            )}
-
-            {/* Contenido principal */}
-            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                {/* Columna izquierda: Paciente y Médico */}
-                <div className="lg:col-span-1 space-y-6">
-
-                    {/* Búsqueda de Paciente */}
-                    <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
-                        <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
-                            <FaUser className="text-blue-500" />
-                            1. Paciente
-                        </h2>
-
-                        {!paciente ? (
-                            <div className="relative">
-                                <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-400">
-                                    <FaSearch className="text-slate-400 ml-3" />
-                                    <input
-                                        type="text"
-                                        placeholder="Buscar por documento o nombre..."
-                                        value={busqueda}
-                                        onChange={(e) => setBusqueda(e.target.value)}
-                                        className="w-full px-3 py-2.5 focus:outline-none"
-                                    />
-                                    {buscando && <LoadingSpinner size="sm" />}
-                                </div>
-
-                                {/* Resultados de búsqueda */}
-                                {mostrarResultados && resultadosBusqueda.length > 0 && (
-                                    <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                                        {resultadosBusqueda.map((afiliado) => (
-                                            <button
-                                                key={afiliado.id}
-                                                onClick={() => seleccionarPaciente(afiliado)}
-                                                className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b last:border-b-0 transition-colors"
-                                            >
-                                                <p className="font-medium text-slate-800">
-                                                    {afiliado.nombres} {afiliado.apellido1} {afiliado.apellido2}
-                                                </p>
-                                                <p className="text-sm text-slate-500">
-                                                    {afiliado.tipoId} {afiliado.id} • {afiliado.eps}
-                                                </p>
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="bg-blue-50 rounded-lg p-4 relative">
-                                <button
-                                    onClick={limpiarPaciente}
-                                    className="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors"
-                                >
-                                    <FaTimes />
-                                </button>
-                                <p className="font-semibold text-slate-800">
-                                    {paciente.nombres} {paciente.apellido1} {paciente.apellido2}
-                                </p>
-                                <p className="text-sm text-slate-600">
-                                    {paciente.tipoId} {paciente.id}
-                                </p>
-                                <p className="text-sm text-slate-500 mt-1">
-                                    {paciente.edad} años • {paciente.sexo === 'F' ? 'Femenino' : 'Masculino'}
-                                </p>
-                                <p className="text-sm text-slate-500">
-                                    {paciente.municipio}, {paciente.departamento}
-                                </p>
-                                <p className="text-sm text-blue-600 font-medium mt-1">
-                                    {paciente.eps} • {paciente.regimen}
-                                </p>
-                            </div>
+                        {/* Botón OCR solo para superadmin */}
+                        {esSuperadmin && (
+                            <button
+                                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-lg"
+                                onClick={() => setMostrarOcr(true)}
+                            >
+                                <FaPaste />
+                                Pegar Receta (OCR)
+                            </button>
                         )}
                     </div>
+                </div>
 
-                    {/* Médico */}
-                    <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
-                        <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
-                            <FaUserMd className="text-green-500" />
-                            3. Profesional
-                        </h2>
+                {/* Alertas */}
+                {error && (
+                    <div className="max-w-6xl mx-auto mb-4">
+                        <Alert type="error" message={error} onClose={() => setError(null)} />
+                    </div>
+                )}
+                {exito && (
+                    <div className="max-w-6xl mx-auto mb-4">
+                        <Alert type="success" message={exito} onClose={() => setExito(null)} />
+                    </div>
+                )}
 
-                        {esAsistencial ? (
-                            // Médico fijo para asistencial
-                            medicoSeleccionado ? (
-                                <div className="bg-green-50 rounded-lg p-4">
-                                    <p className="font-semibold text-slate-800">{medicoSeleccionado.nombreCompleto}</p>
-                                    <p className="text-sm text-slate-600">CC {medicoSeleccionado.documento}</p>
-                                    {medicoSeleccionado.especialidad && (
-                                        <p className="text-sm text-green-600 font-medium mt-1">
-                                            {medicoSeleccionado.especialidad}
-                                        </p>
+                {/* Contenido principal */}
+                <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                    {/* Columna izquierda: Paciente y Médico */}
+                    <div className="lg:col-span-1 space-y-6">
+
+                        {/* Búsqueda de Paciente */}
+                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
+                            <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
+                                <FaUser className="text-blue-500" />
+                                1. Paciente
+                            </h2>
+
+                            {!paciente ? (
+                                <div className="relative">
+                                    <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-400">
+                                        <FaSearch className="text-slate-400 ml-3" />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar por documento o nombre..."
+                                            value={busqueda}
+                                            onChange={(e) => setBusqueda(e.target.value)}
+                                            className="w-full px-3 py-2.5 focus:outline-none"
+                                        />
+                                        {buscando && <LoadingSpinner size="sm" />}
+                                    </div>
+
+                                    {/* Resultados de búsqueda */}
+                                    {mostrarResultados && resultadosBusqueda.length > 0 && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                            {resultadosBusqueda.map((afiliado) => (
+                                                <button
+                                                    key={afiliado.id}
+                                                    onClick={() => seleccionarPaciente(afiliado)}
+                                                    className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b last:border-b-0 transition-colors"
+                                                >
+                                                    <p className="font-medium text-slate-800">
+                                                        {afiliado.nombres} {afiliado.apellido1} {afiliado.apellido2}
+                                                    </p>
+                                                    <p className="text-sm text-slate-500">
+                                                        {afiliado.tipoId} {afiliado.id} • {afiliado.eps}
+                                                    </p>
+                                                </button>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
                             ) : (
-                                <p className="text-slate-500 text-sm">Cargando datos del médico...</p>
-                            )
-                        ) : (
-                            // Selector para admin/superadmin
-                            <select
-                                value={formData.medicoId}
-                                onChange={(e) => seleccionarMedico(e.target.value)}
-                                className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-400"
-                            >
-                                <option value="">Seleccionar médico...</option>
-                                {medicos.map((medico) => (
-                                    <option key={medico.id} value={medico.id}>
-                                        {medico.nombreCompleto} {medico.especialidad ? `(${medico.especialidad})` : ''}
-                                    </option>
-                                ))}
-                            </select>
-                        )}
-
-                        {medicoSeleccionado && !esAsistencial && (
-                            <div className="mt-3 bg-green-50 rounded-lg p-3 text-sm">
-                                <p className="text-slate-600">
-                                    <strong>Ciudad:</strong> {medicoSeleccionado.ciudad || 'No especificada'}
-                                </p>
-                                <p className="text-slate-600">
-                                    <strong>Teléfono:</strong> {medicoSeleccionado.telefono || 'No especificado'}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Columna central: Medicamento */}
-                <div className="lg:col-span-1">
-                    <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200 h-full">
-                        <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
-                            <FaPills className="text-amber-500" />
-                            2. Medicamento
-                        </h2>
-
-                        <div className="space-y-4">
-                            {/* Nombre del medicamento */}
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-1">
-                                    Nombre Genérico *
-                                </label>
-                                <select
-                                    value={formData.medicamentoNombre}
-                                    onChange={(e) => setFormData(prev => ({
-                                        ...prev,
-                                        medicamentoNombre: e.target.value as MedicamentoControlado | ''
-                                    }))}
-                                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                >
-                                    <option value="">Seleccionar medicamento...</option>
-                                    {MEDICAMENTOS_CONTROLADOS.map((med) => (
-                                        <option key={med} value={med}>{med}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Concentración */}
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-1">
-                                    Concentración
-                                </label>
-                                <input
-                                    type="text"
-                                    placeholder="Ej: 100MG, 5MG/ML"
-                                    value={formData.concentracion}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, concentracion: e.target.value }))}
-                                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                />
-                            </div>
-
-                            {/* Forma farmacéutica */}
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-1">
-                                    Forma Farmacéutica *
-                                </label>
-                                <select
-                                    value={formData.formaFarmaceutica}
-                                    onChange={(e) => setFormData(prev => ({
-                                        ...prev,
-                                        formaFarmaceutica: e.target.value as FormaFarmaceutica | ''
-                                    }))}
-                                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                >
-                                    <option value="">Seleccionar forma...</option>
-                                    {FORMAS_FARMACEUTICAS.map((forma) => (
-                                        <option key={forma} value={forma}>{forma}</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            {/* Dosis / Vía */}
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-1">
-                                    Dosis / Vía de Administración
-                                </label>
-                                <textarea
-                                    placeholder="Ej: Tomar dos tabletas vía oral, diariamente"
-                                    value={formData.dosisVia}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, dosisVia: e.target.value }))}
-                                    rows={2}
-                                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
-                                />
-                            </div>
-
-                            {/* Cantidad */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1">
-                                        Cantidad *
-                                    </label>
-                                    <input
-                                        type="number"
-                                        min="1"
-                                        max="999"
-                                        placeholder="60"
-                                        value={formData.cantidadNumero}
-                                        onChange={(e) => actualizarCantidad(e.target.value)}
-                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                    />
+                                <div className="bg-blue-50 rounded-lg p-4 relative">
+                                    <button
+                                        onClick={limpiarPaciente}
+                                        className="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors"
+                                    >
+                                        <FaTimes />
+                                    </button>
+                                    <p className="font-semibold text-slate-800">
+                                        {paciente.nombres} {paciente.apellido1} {paciente.apellido2}
+                                    </p>
+                                    <p className="text-sm text-slate-600">
+                                        {paciente.tipoId} {paciente.id}
+                                    </p>
+                                    <p className="text-sm text-slate-500 mt-1">
+                                        {paciente.edad} años • {paciente.sexo === 'F' ? 'Femenino' : 'Masculino'}
+                                    </p>
+                                    <p className="text-sm text-slate-500">
+                                        {paciente.municipio}, {paciente.departamento}
+                                    </p>
+                                    <p className="text-sm text-blue-600 font-medium mt-1">
+                                        {paciente.eps} • {paciente.regimen}
+                                    </p>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1">
-                                        En Letras
-                                    </label>
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        value={formData.cantidadNumero ? numeroALetras(Number(formData.cantidadNumero)) : ''}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-slate-600"
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Diagnóstico */}
-                            <div className="border-t border-slate-200 pt-4 mt-4">
-                                <label className="block text-sm font-medium text-slate-600 mb-1">
-                                    Diagnóstico CIE-10
-                                </label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <input
-                                        type="text"
-                                        placeholder="F200"
-                                        value={formData.diagnosticoCie10}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, diagnosticoCie10: e.target.value.toUpperCase() }))}
-                                        className="border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                    />
-                                    <input
-                                        type="text"
-                                        placeholder="Descripción del diagnóstico"
-                                        value={formData.diagnosticoDescripcion}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, diagnosticoDescripcion: e.target.value }))}
-                                        className="col-span-2 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                    />
-                                </div>
-                            </div>
+                            )}
                         </div>
-                    </div>
-                </div>
 
-                {/* Columna derecha: Configuración y Generar */}
-                <div className="lg:col-span-1 space-y-6">
-                    {/* Configuración */}
-                    <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
-                        <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
-                            <FaCalendarAlt className="text-indigo-500" />
-                            Configuración
-                        </h2>
+                        {/* Médico */}
+                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
+                            <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
+                                <FaUserMd className="text-green-500" />
+                                3. Profesional
+                            </h2>
 
-                        <div className="space-y-4">
-                            {/* Fecha de prescripción */}
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-1">
-                                    Fecha de Prescripción
-                                </label>
-                                <input
-                                    type="date"
-                                    value={formData.fechaPrescripcion}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, fechaPrescripcion: e.target.value }))}
-                                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                />
-                            </div>
-
-                            {/* Meses de fórmula */}
-                            <div>
-                                <label className="block text-sm font-medium text-slate-600 mb-1">
-                                    Meses de Fórmula (Posfechado)
-                                </label>
+                            {esAsistencial ? (
+                                // Médico fijo para asistencial
+                                medicoSeleccionado ? (
+                                    <div className="bg-green-50 rounded-lg p-4">
+                                        <p className="font-semibold text-slate-800">{medicoSeleccionado.nombreCompleto}</p>
+                                        <p className="text-sm text-slate-600">CC {medicoSeleccionado.documento}</p>
+                                        {medicoSeleccionado.especialidad && (
+                                            <p className="text-sm text-green-600 font-medium mt-1">
+                                                {medicoSeleccionado.especialidad}
+                                            </p>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <p className="text-slate-500 text-sm">Cargando datos del médico...</p>
+                                )
+                            ) : (
+                                // Selector para admin/superadmin
                                 <select
-                                    value={formData.mesesFormula}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, mesesFormula: parseInt(e.target.value) }))}
-                                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    value={formData.medicoId}
+                                    onChange={(e) => seleccionarMedico(e.target.value)}
+                                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-400"
                                 >
-                                    {[1, 2, 3, 4, 5, 6].map((mes) => (
-                                        <option key={mes} value={mes}>
-                                            {mes} {mes === 1 ? 'mes' : 'meses'}
+                                    <option value="">Seleccionar médico...</option>
+                                    {medicos.map((medico) => (
+                                        <option key={medico.id} value={medico.id}>
+                                            {medico.nombreCompleto} {medico.especialidad ? `(${medico.especialidad})` : ''}
                                         </option>
                                     ))}
                                 </select>
-                                {formData.mesesFormula > 1 && (
-                                    <p className="text-xs text-indigo-600 mt-1">
-                                        Se generarán {formData.mesesFormula} PDFs con fechas consecutivas
+                            )}
+
+                            {medicoSeleccionado && !esAsistencial && (
+                                <div className="mt-3 bg-green-50 rounded-lg p-3 text-sm">
+                                    <p className="text-slate-600">
+                                        <strong>Ciudad:</strong> {medicoSeleccionado.ciudad || 'No especificada'}
                                     </p>
-                                )}
+                                    <p className="text-slate-600">
+                                        <strong>Teléfono:</strong> {medicoSeleccionado.telefono || 'No especificado'}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Columna central: Medicamento */}
+                    <div className="lg:col-span-1">
+                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200 h-full">
+                            <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
+                                <FaPills className="text-amber-500" />
+                                2. Medicamento
+                            </h2>
+
+                            <div className="space-y-4">
+                                {/* Nombre del medicamento */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                        Nombre Genérico *
+                                    </label>
+                                    <select
+                                        value={formData.medicamentoNombre}
+                                        onChange={(e) => setFormData(prev => ({
+                                            ...prev,
+                                            medicamentoNombre: e.target.value as MedicamentoControlado | ''
+                                        }))}
+                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                    >
+                                        <option value="">Seleccionar medicamento...</option>
+                                        {MEDICAMENTOS_CONTROLADOS.map((med) => (
+                                            <option key={med} value={med}>{med}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Concentración */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                        Concentración
+                                    </label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej: 100MG, 5MG/ML"
+                                        value={formData.concentracion}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, concentracion: e.target.value }))}
+                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                    />
+                                </div>
+
+                                {/* Forma farmacéutica */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                        Forma Farmacéutica *
+                                    </label>
+                                    <select
+                                        value={formData.formaFarmaceutica}
+                                        onChange={(e) => setFormData(prev => ({
+                                            ...prev,
+                                            formaFarmaceutica: e.target.value as FormaFarmaceutica | ''
+                                        }))}
+                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                    >
+                                        <option value="">Seleccionar forma...</option>
+                                        {FORMAS_FARMACEUTICAS.map((forma) => (
+                                            <option key={forma} value={forma}>{forma}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Dosis / Vía */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                        Dosis / Vía de Administración
+                                    </label>
+                                    <textarea
+                                        placeholder="Ej: Tomar dos tabletas vía oral, diariamente"
+                                        value={formData.dosisVia}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, dosisVia: e.target.value }))}
+                                        rows={2}
+                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                                    />
+                                </div>
+
+                                {/* Cantidad */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-600 mb-1">
+                                            Cantidad *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="999"
+                                            placeholder="60"
+                                            value={formData.cantidadNumero}
+                                            onChange={(e) => actualizarCantidad(e.target.value)}
+                                            className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-600 mb-1">
+                                            En Letras
+                                        </label>
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            value={formData.cantidadNumero ? numeroALetras(Number(formData.cantidadNumero)) : ''}
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-slate-600"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Diagnóstico */}
+                                <div className="border-t border-slate-200 pt-4 mt-4">
+                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                        Diagnóstico CIE-10
+                                    </label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="F200"
+                                            value={formData.diagnosticoCie10}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, diagnosticoCie10: e.target.value.toUpperCase() }))}
+                                            className="border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder="Descripción del diagnóstico"
+                                            value={formData.diagnosticoDescripcion}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, diagnosticoDescripcion: e.target.value }))}
+                                            className="col-span-2 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Botón Generar */}
-                    <button
-                        onClick={generarAnexo8}
-                        disabled={generando || !paciente || !medicoSeleccionado}
-                        className={`
+                    {/* Columna derecha: Configuración y Generar */}
+                    <div className="lg:col-span-1 space-y-6">
+                        {/* Configuración */}
+                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
+                            <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
+                                <FaCalendarAlt className="text-indigo-500" />
+                                Configuración
+                            </h2>
+
+                            <div className="space-y-4">
+                                {/* Fecha de prescripción */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                        Fecha de Prescripción
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={formData.fechaPrescripcion}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, fechaPrescripcion: e.target.value }))}
+                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    />
+                                </div>
+
+                                {/* Meses de fórmula */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                        Meses de Fórmula (Posfechado)
+                                    </label>
+                                    <select
+                                        value={formData.mesesFormula}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, mesesFormula: parseInt(e.target.value) }))}
+                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    >
+                                        {[1, 2, 3, 4, 5, 6].map((mes) => (
+                                            <option key={mes} value={mes}>
+                                                {mes} {mes === 1 ? 'mes' : 'meses'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {formData.mesesFormula > 1 && (
+                                        <p className="text-xs text-indigo-600 mt-1">
+                                            Se generarán {formData.mesesFormula} PDFs con fechas consecutivas
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Botón Generar */}
+                        <button
+                            onClick={generarAnexo8}
+                            disabled={generando || !paciente || !medicoSeleccionado}
+                            className={`
                             w-full py-4 rounded-xl text-white font-semibold text-lg
                             flex items-center justify-center gap-3
                             transition-all duration-200 shadow-lg
                             ${generando || !paciente || !medicoSeleccionado
-                                ? 'bg-slate-400 cursor-not-allowed'
-                                : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 hover:shadow-xl'
-                            }
+                                    ? 'bg-slate-400 cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 hover:shadow-xl'
+                                }
                         `}
-                    >
-                        {generando ? (
-                            <>
-                                <LoadingSpinner size="sm" />
-                                Generando...
-                            </>
-                        ) : (
-                            <>
-                                <FaFilePdf className="text-xl" />
-                                Generar Anexo 8
-                            </>
-                        )}
-                    </button>
+                        >
+                            {generando ? (
+                                <>
+                                    <LoadingSpinner size="sm" />
+                                    Generando...
+                                </>
+                            ) : (
+                                <>
+                                    <FaFilePdf className="text-xl" />
+                                    Generar Anexo 8
+                                </>
+                            )}
+                        </button>
 
-                    {/* Info adicional */}
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-                        <p className="font-medium mb-1">📋 Recuerde:</p>
-                        <ul className="list-disc list-inside space-y-1 text-amber-700">
-                            <li>Este es el recetario oficial del FNE</li>
-                            <li>Los PDFs se guardan automáticamente</li>
-                            <li>La sección 4 se deja en blanco (farmacia)</li>
-                        </ul>
+                        {/* Info adicional */}
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
+                            <p className="font-medium mb-1">📋 Recuerde:</p>
+                            <ul className="list-disc list-inside space-y-1 text-amber-700">
+                                <li>Este es el recetario oficial del FNE</li>
+                                <li>Los PDFs se guardan automáticamente</li>
+                                <li>La sección 4 se deja en blanco (farmacia)</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+
+            {/* Modal OCR */}
+            <OcrDialog
+                isOpen={mostrarOcr}
+                onClose={() => setMostrarOcr(false)}
+                onDataExtracted={handleOcrData}
+            />
+        </>
     )
 }

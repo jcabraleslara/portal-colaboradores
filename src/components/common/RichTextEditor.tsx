@@ -4,11 +4,11 @@
  * Convierte markdown a HTML visual y permite copiar a Word
  */
 
-import { useEditor, EditorContent } from '@tiptap/react'
+import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
 import { useEffect } from 'react'
 import MarkdownIt from 'markdown-it'
+import TurndownService from 'turndown'
 
 interface RichTextEditorProps {
     value: string
@@ -17,11 +17,18 @@ interface RichTextEditorProps {
     disabled?: boolean
 }
 
-// Configurar markdown-it para convertir markdown a HTML
+// Configurar markdown-it para convertir markdown a HTML (Input)
 const md = new MarkdownIt({
     html: true,
     breaks: true,
     linkify: false
+})
+
+// Configurar Turndown para convertir HTML a markdown (Output)
+const turndownService = new TurndownService({
+    headingStyle: 'atx', // Usar # para encabezados
+    bulletListMarker: '-', // Usar - para listas
+    codeBlockStyle: 'fenced'
 })
 
 /**
@@ -29,60 +36,26 @@ const md = new MarkdownIt({
  */
 function markdownToHtml(markdown: string): string {
     if (!markdown) return ''
-
     try {
-        const html = md.render(markdown)
-        return html
+        return md.render(markdown)
     } catch (error) {
         console.error('[RichTextEditor] Error convirtiendo markdown:', error)
-        // Fallback: retornar el texto tal cual envuelto en párrafo
         return `<p>${markdown.replace(/\n/g, '<br>')}</p>`
     }
 }
 
 /**
- * Convierte HTML de TipTap a texto con formato básico preservado
- * (para guardar en BD y poder copiar a Word)
+ * Convierte HTML de TipTap a Markdown
+ * Preserva formato (negritas, listas) para guardar en BD
  */
-function htmlToText(html: string): string {
+function htmlToMarkdown(html: string): string {
     if (!html) return ''
-
-    // Crear elemento temporal para parsear HTML
-    const temp = document.createElement('div')
-    temp.innerHTML = html
-
-    // Convertir elementos HTML a texto con formato básico
-    let text = html
-
-    // Convertir encabezados
-    text = text.replace(/<h1[^>]*>(.*?)<\/h1>/gi, '\n\n$1\n\n')
-    text = text.replace(/<h2[^>]*>(.*?)<\/h2>/gi, '\n\n$1\n\n')
-    text = text.replace(/<h3[^>]*>(.*?)<\/h3>/gi, '\n\n$1\n')
-
-    // Convertir párrafos
-    text = text.replace(/<\/p>/gi, '\n')
-    text = text.replace(/<p[^>]*>/gi, '')
-
-    // Convertir listas
-    text = text.replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n')
-    text = text.replace(/<\/?(ul|ol)[^>]*>/gi, '\n')
-
-    // Convertir saltos de línea
-    text = text.replace(/<br\s*\/?>/gi, '\n')
-
-    // Limpiar tags HTML restantes
-    text = text.replace(/<[^>]+>/g, '')
-
-    // Decodificar entidades HTML
-    const textarea = document.createElement('textarea')
-    textarea.innerHTML = text
-    text = textarea.value
-
-    // Limpiar espacios múltiples y saltos de línea excesivos
-    text = text.replace(/\n\s*\n\s*\n/g, '\n\n')
-    text = text.trim()
-
-    return text
+    try {
+        return turndownService.turndown(html)
+    } catch (error) {
+        console.error('[RichTextEditor] Error convirtiendo a markdown:', error)
+        return html.replace(/<[^>]+>/g, '') // Fallback a texto plano
+    }
 }
 
 export function RichTextEditor({ value, onChange, placeholder, disabled }: RichTextEditorProps) {
@@ -92,26 +65,39 @@ export function RichTextEditor({ value, onChange, placeholder, disabled }: RichT
                 heading: {
                     levels: [1, 2, 3]
                 }
-            }),
-            Underline,
+            })
         ],
         content: value ? markdownToHtml(value) : '',
         editable: !disabled,
-        onUpdate: ({ editor }) => {
-            // Obtener HTML y convertir a texto con formato preservado
+        onUpdate: ({ editor }: { editor: Editor }) => {
+            // Obtener HTML y convertir a Markdown estándar
             const html = editor.getHTML()
-            const formattedText = htmlToText(html)
-            onChange(formattedText)
+            const markdown = htmlToMarkdown(html)
+            onChange(markdown)
         },
     })
 
     // Actualizar contenido cuando cambia externamente (ej: generación con IA)
     useEffect(() => {
-        if (editor && value && editor.getHTML() !== markdownToHtml(value)) {
-            const html = markdownToHtml(value)
-            editor.commands.setContent(html)
+        if (editor && value) {
+            // Comparar contenido actual (Markdown -> HTML) con nuevo valor para evitar loops
+            const currentHtml = editor.getHTML()
+            const newHtml = markdownToHtml(value)
+
+            // Verificación simple para evitar loops infinitos de renderizado
+            // Si el contenido renderizado es muy diferente, actualizar
+            if (currentHtml !== newHtml && Math.abs(currentHtml.length - newHtml.length) > 5) {
+                editor.commands.setContent(newHtml)
+            }
         }
     }, [value, editor])
+
+    // Actualizar estado disabled
+    useEffect(() => {
+        if (editor) {
+            editor.setEditable(!disabled)
+        }
+    }, [disabled, editor])
 
     if (!editor) {
         return <div className="animate-pulse bg-gray-100 h-32 rounded-lg" />

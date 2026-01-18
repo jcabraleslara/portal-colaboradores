@@ -52,7 +52,9 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
 
     // Generar blob
     const pdfBytes = await pdfDoc.save()
-    const blob = new Blob([pdfBytes], { type: 'application/pdf' })
+    // Convertir a ArrayBuffer para compatibilidad con Blob
+    const arrayBuffer = pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength) as ArrayBuffer
+    const blob = new Blob([arrayBuffer], { type: 'application/pdf' })
 
     // Nombre del archivo
     const fechaStr = data.fecha_prescripcion.replace(/-/g, '')
@@ -234,7 +236,6 @@ function dibujarSeccionMedicamento(
     y -= LINE_HEIGHT * 1.5
 
     // Encabezados de columnas
-    const colWidths = [150, 80, 100, 100, 50, 70]
     const colX = [MARGIN, 190, 270, 370, 470, 520]
     const headers = ['Nombre Genérico', 'Concentración', 'Forma Farmacéutica', 'Dosis / Vía', 'Cant.', 'En Letras']
 

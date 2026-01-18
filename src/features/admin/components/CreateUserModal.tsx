@@ -82,14 +82,19 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
             contacto.apellidos
         ].filter(Boolean).join(' ')
 
-        setFormData(prev => ({
-            ...prev,
-            identificacion: contacto.identificacion || prev.identificacion,
-            nombre_completo: nombreCompleto,
-            email_institucional: contacto.email_institucional || prev.email_institucional,
-            password: contacto.identificacion || prev.password, // Contraseña temporal = identificación
-            contacto_id: contacto.id
-        }))
+        setFormData(prev => {
+            // Lógica: Si no hay email institucional, intentar usar el personal
+            const emailToUse = contacto.email_institucional || contacto.email_personal || prev.email_institucional
+
+            return {
+                ...prev,
+                identificacion: contacto.identificacion || prev.identificacion,
+                nombre_completo: nombreCompleto,
+                email_institucional: emailToUse,
+                password: contacto.identificacion || prev.password, // Contraseña temporal = identificación
+                contacto_id: contacto.id
+            }
+        })
 
         setSearchTerm('')
         setShowResults(false)
@@ -143,7 +148,15 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                 body: JSON.stringify(formData)
             })
 
-            const result = await response.json()
+            let result: any;
+            const contentType = response.headers.get("content-type");
+
+            if (contentType && contentType.includes("application/json")) {
+                result = await response.json();
+            } else {
+                const text = await response.text();
+                throw new Error(`Respuesta no válida del servidor (${response.status}): ${text.substring(0, 100)}...`);
+            }
 
             if (!response.ok) {
                 let errorMsg = result.error || 'Error creando usuario'

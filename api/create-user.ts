@@ -153,7 +153,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(500).json({ error: `Error creando perfil: ${portalError.message}` })
         }
 
-        // 7. Respuesta exitosa
+        // 7. Actualizar datos del contacto si es necesario
+        if (contacto_id) {
+            try {
+                // Obtener datos actuales del contacto
+                const { data: contactData } = await supabaseAdmin
+                    .from('contactos')
+                    .select('email_personal, email_institucional')
+                    .eq('id', contacto_id)
+                    .single()
+
+                if (contactData) {
+                    // Si el email usado es el personal y no tiene institucional, lo movemos
+                    if (!contactData.email_institucional && contactData.email_personal === email_institucional) {
+                        await supabaseAdmin
+                            .from('contactos')
+                            .update({
+                                email_institucional: email_institucional,
+                                email_personal: null
+                            })
+                            .eq('id', contacto_id)
+                    }
+                    // Si no tiene institucional pero el personal es diferente, solo ponemos el institucional
+                    else if (!contactData.email_institucional) {
+                        await supabaseAdmin
+                            .from('contactos')
+                            .update({ email_institucional: email_institucional })
+                            .eq('id', contacto_id)
+                    }
+                }
+            } catch (contactUpdateError) {
+                console.error('Error actualizando contacto:', contactUpdateError)
+                // No detenemos el proceso si falla la actualización del contacto
+                // ya que el usuario ya fue creado exitosamente
+            }
+        }
+
+        // 8. Respuesta exitosa
         return res.status(201).json({
             success: true,
             message: 'Usuario creado exitosamente',
