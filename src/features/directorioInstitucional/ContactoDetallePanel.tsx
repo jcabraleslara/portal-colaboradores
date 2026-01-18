@@ -39,8 +39,6 @@ import {
     Contacto,
     ContactoUpdate,
     TRATAMIENTO_LISTA,
-    ROL_LISTA,
-    ROL_COLORES,
 } from '@/types/contactos.types'
 
 interface ContactoDetallePanelProps {
@@ -77,7 +75,6 @@ export function ContactoDetallePanel({
         departamento: contacto.departamento,
         pais: contacto.pais,
         notas: contacto.notas,
-        rol: contacto.rol,
         area: contacto.area,
     })
 
@@ -206,8 +203,6 @@ export function ContactoDetallePanel({
     // RENDER
     // ============================================
 
-    const rolColor = ROL_COLORES[formData.rol || 'operativo'] || ROL_COLORES['operativo']
-
     return (
         <>
             {/* Overlay */}
@@ -232,9 +227,6 @@ export function ContactoDetallePanel({
                                         {contacto.puesto}
                                     </span>
                                 )}
-                                <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-semibold capitalize ${rolColor.bg} ${rolColor.text}`}>
-                                    {formData.rol}
-                                </span>
                             </div>
                         </div>
                         <button
@@ -439,18 +431,15 @@ export function ContactoDetallePanel({
                                 />
                             </div>
 
-                            {/* Rol */}
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Rol</label>
-                                <select
-                                    value={formData.rol || 'operativo'}
-                                    onChange={(e) => handleChange('rol', e.target.value)}
-                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] capitalize"
-                                >
-                                    {ROL_LISTA.map(r => (
-                                        <option key={r} value={r} className="capitalize">{r}</option>
-                                    ))}
-                                </select>
+                            {/* Área */}
+                            <div className="col-span-2">
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Área / Departamento</label>
+                                <input
+                                    type="text"
+                                    value={formData.area || ''}
+                                    onChange={(e) => handleChange('area', e.target.value || null)}
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)]"
+                                />
                             </div>
                         </div>
                     </div>

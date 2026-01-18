@@ -18,7 +18,6 @@ import {
     X,
     Building2,
     Users,
-    UserCircle,
     Plus,
     Mail,
     Phone,
@@ -30,7 +29,6 @@ import {
     Contacto,
     ContactoFiltros,
     ConteosContactos,
-    ROL_COLORES,
 } from '@/types/contactos.types'
 import { ContactoDetallePanel } from './ContactoDetallePanel'
 import { NuevoContactoModal } from './NuevoContactoModal'
@@ -143,13 +141,6 @@ export function DirectorioPage() {
         setFiltros(prev => ({
             ...prev,
             empresa: prev.empresa === empresa ? null : empresa,
-        }))
-    }, [])
-
-    const handleFiltroRol = useCallback((rol: string | null) => {
-        setFiltros(prev => ({
-            ...prev,
-            rol: prev.rol === rol ? null : rol,
         }))
     }, [])
 
@@ -287,54 +278,6 @@ export function DirectorioPage() {
             </div>
 
             {/* ============================================ */}
-            {/* CARDS DE CONTEO - ROLES */}
-            {/* ============================================ */}
-            <div>
-                <h2 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
-                    <Users size={16} />
-                    Por Rol
-                </h2>
-                <div className="flex flex-wrap gap-3">
-                    {cargandoConteos ? (
-                        Array.from({ length: 4 }).map((_, i) => (
-                            <div key={i} className="h-12 w-32 bg-gray-100 rounded-xl animate-pulse" />
-                        ))
-                    ) : (
-                        conteos?.porRol.map(item => {
-                            const colores = ROL_COLORES[item.rol] || ROL_COLORES['operativo']
-                            const activo = filtros.rol === item.rol
-
-                            return (
-                                <button
-                                    key={item.rol}
-                                    onClick={() => handleFiltroRol(item.rol)}
-                                    className={`
-                                        relative px-4 py-2 rounded-xl border-2 transition-all duration-300
-                                        hover:shadow-md flex items-center gap-2
-                                        ${activo
-                                            ? `${colores.bg} ${colores.border} shadow-md`
-                                            : 'bg-white border-gray-100 hover:border-gray-200'
-                                        }
-                                    `}
-                                >
-                                    <UserCircle size={18} className={activo ? colores.text : 'text-gray-500'} />
-                                    <span className={`font-semibold ${activo ? colores.text : 'text-gray-700'}`}>
-                                        {item.cantidad}
-                                    </span>
-                                    <span className="text-sm text-gray-600 capitalize">
-                                        {item.rol}
-                                    </span>
-                                    {activo && (
-                                        <X size={14} className={colores.text} />
-                                    )}
-                                </button>
-                            )
-                        })
-                    )}
-                </div>
-            </div>
-
-            {/* ============================================ */}
             {/* BARRA DE BÚSQUEDA Y FILTROS */}
             {/* ============================================ */}
             <Card>
@@ -389,7 +332,7 @@ export function DirectorioPage() {
                     </div>
 
                     {/* Chips de filtros activos */}
-                    {(filtros.empresa || filtros.rol || filtros.busqueda) && (
+                    {(filtros.empresa || filtros.busqueda) && (
                         <div className="flex flex-wrap gap-2">
                             {filtros.busqueda && (
                                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
@@ -403,14 +346,6 @@ export function DirectorioPage() {
                                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
                                     Empresa: {filtros.empresa}
                                     <button onClick={() => handleFiltroEmpresa(null)} className="hover:opacity-70">
-                                        <X size={14} />
-                                    </button>
-                                </span>
-                            )}
-                            {filtros.rol && (
-                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm capitalize">
-                                    Rol: {filtros.rol}
-                                    <button onClick={() => handleFiltroRol(null)} className="hover:opacity-70">
                                         <X size={14} />
                                     </button>
                                 </span>
@@ -478,13 +413,10 @@ export function DirectorioPage() {
                                                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Puesto</th>
                                                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Empresa</th>
                                                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Contacto</th>
-                                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Rol</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-50">
                                             {contactos.map((contacto) => {
-                                                const rolColor = ROL_COLORES[contacto.rol] || ROL_COLORES['operativo']
-
                                                 return (
                                                     <tr
                                                         key={contacto.id}
@@ -525,11 +457,6 @@ export function DirectorioPage() {
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                        </td>
-                                                        <td className="px-4 py-3">
-                                                            <span className={`inline-flex px-2 py-1 rounded-lg text-xs font-medium capitalize ${rolColor.bg} ${rolColor.text}`}>
-                                                                {contacto.rol}
-                                                            </span>
                                                         </td>
                                                     </tr>
                                                 )

@@ -21,7 +21,6 @@ import { contactosService } from '@/services/contactos.service'
 import {
     ContactoInput,
     TRATAMIENTO_LISTA,
-    ROL_LISTA,
 } from '@/types/contactos.types'
 
 interface NuevoContactoModalProps {
@@ -52,7 +51,6 @@ export function NuevoContactoModal({ onClose, onCreated }: NuevoContactoModalPro
         departamento: 'Córdoba',
         pais: 'Colombia',
         notas: null,
-        rol: 'operativo',
         area: null,
     })
 
@@ -202,18 +200,15 @@ export function NuevoContactoModal({ onClose, onCreated }: NuevoContactoModalPro
                                         />
                                     </div>
 
-                                    {/* Rol */}
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 mb-1">Rol</label>
-                                        <select
-                                            value={formData.rol || 'operativo'}
-                                            onChange={(e) => handleChange('rol', e.target.value)}
-                                            className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] capitalize"
-                                        >
-                                            {ROL_LISTA.map(r => (
-                                                <option key={r} value={r} className="capitalize">{r}</option>
-                                            ))}
-                                        </select>
+                                    {/* Área */}
+                                    <div className="col-span-2">
+                                        <label className="block text-xs font-medium text-gray-500 mb-1">Área / Departamento</label>
+                                        <input
+                                            type="text"
+                                            value={formData.area || ''}
+                                            onChange={(e) => handleChange('area', e.target.value || null)}
+                                            className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)]"
+                                        />
                                     </div>
                                 </div>
                             </div>

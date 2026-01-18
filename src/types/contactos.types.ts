@@ -28,7 +28,6 @@ export interface Contacto {
     notas: string | null
     hoja_vida_url: string | null
     firma_url: string | null
-    rol: string
     area: string | null
     google_contact_id: string | null
     outlook_contact_id: string | null
@@ -37,7 +36,6 @@ export interface Contacto {
     last_synced_at?: string | null
     created_at: string
     updated_at: string
-    last_sign_in_at: string | null
 }
 
 // ========================================
@@ -48,7 +46,6 @@ export interface ContactoFiltros {
     busqueda?: string  // Busca en nombre, identificación, puesto, área, empresa
     empresa?: string | null
     area?: string | null
-    rol?: string | null
 }
 
 // ========================================
@@ -59,7 +56,6 @@ export interface ConteosContactos {
     total: number
     porEmpresa: { empresa: string; cantidad: number }[]
     porArea: { area: string; cantidad: number }[]
-    porRol: { rol: string; cantidad: number }[]
 }
 
 // ========================================
