@@ -108,9 +108,7 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
         draw(data.medicamento_forma_farmaceutica, 305, filaMed + 5, offset, 7) // +5 para centrar verticalmente si es largo
         draw(data.medicamento_dosis_via || '', 380, filaMed, offset, 7)
         draw(data.cantidad_numero.toString(), 460, filaMed, offset)
-        draw(data.cantidad_letras, 485, filaMed, offset, 6) // Letra pequeña para que quepa
-
-        const filaDiag = 295 // Diagnóstico
+        draw(data.cantidad_letras, 485, filaMed, offset, 6) // Letra pequeña para        // Diagnóstico
         const diagTexto = `${data.diagnostico_cie10 || ''} - ${data.diagnostico_descripcion || ''}`
         draw(diagTexto.substring(0, 90), 80, 295, offset, 8) // Diagnóstico texto
 
@@ -123,10 +121,10 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
             draw(data.medico_especialidad, 360, 325, offset, 9)
         }
 
-        const filaProf2 = 340 // Apellidos Nombres Médico
+        // Apellidos Nombres Médico
         draw(data.medico_nombres, 180, 340, offset, 9) // Nombre completo centrado
 
-        const filaProf3 = 368 // Doc, Res, Firma
+        // Doc, Res, Firma
         draw(data.medico_documento, 60, 368, offset, 9) // Documento
         draw(data.medico_documento, 260, 368, offset, 9) // Resolución (misma)
         // Firma: Dejamos espacio en blanco o ponemos nombre como firma digital simple
