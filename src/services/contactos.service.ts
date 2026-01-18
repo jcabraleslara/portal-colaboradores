@@ -99,21 +99,26 @@ export const contactosService = {
                 query = query.eq('rol', filtros.rol)
             }
 
-            // Búsqueda general (nombre, identificación, puesto, área, empresa)
+            // Búsqueda general optimizada (múltiples términos)
             if (filtros.busqueda && filtros.busqueda.trim()) {
-                const termino = filtros.busqueda.trim().toLowerCase()
-                // Búsqueda flexible en múltiples campos
-                query = query.or(
-                    `primer_nombre.ilike.%${termino}%,` +
-                    `segundo_nombre.ilike.%${termino}%,` +
-                    `apellidos.ilike.%${termino}%,` +
-                    `identificacion.ilike.%${termino}%,` +
-                    `puesto.ilike.%${termino}%,` +
-                    `area.ilike.%${termino}%,` +
-                    `empresa.ilike.%${termino}%,` +
-                    `email_personal.ilike.%${termino}%,` +
-                    `email_institucional.ilike.%${termino}%`
-                )
+                const terminos = filtros.busqueda.trim().toLowerCase().split(/\s+/)
+
+                // Para cada palabra, agregamos una condición OR que debe cumplirse (AND implícito entre grupos OR)
+                terminos.forEach(termino => {
+                    if (termino.length > 0) {
+                        query = query.or(
+                            `primer_nombre.ilike.%${termino}%,` +
+                            `segundo_nombre.ilike.%${termino}%,` +
+                            `apellidos.ilike.%${termino}%,` +
+                            `identificacion.ilike.%${termino}%,` +
+                            `puesto.ilike.%${termino}%,` +
+                            `area.ilike.%${termino}%,` +
+                            `empresa.ilike.%${termino}%,` +
+                            `email_personal.ilike.%${termino}%,` +
+                            `email_institucional.ilike.%${termino}%`
+                        )
+                    }
+                })
             }
 
             // Ordenar por apellidos, luego nombre

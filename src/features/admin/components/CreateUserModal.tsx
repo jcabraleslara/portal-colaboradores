@@ -228,7 +228,11 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                                         </div>
                                         <div>
                                             <p className="font-medium text-gray-800 text-sm">
-                                                {contacto.primer_nombre} {contacto.apellidos}
+                                                {[
+                                                    contacto.primer_nombre,
+                                                    contacto.segundo_nombre,
+                                                    contacto.apellidos
+                                                ].filter(Boolean).join(' ')}
                                             </p>
                                             <div className="flex flex-col text-xs text-gray-500 mt-0.5">
                                                 <span>CC: {contacto.identificacion || 'N/A'}</span>
