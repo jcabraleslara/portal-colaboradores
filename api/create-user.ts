@@ -43,15 +43,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 0. Inicializar clientes dentro del handler para asegurar env vars frescas
-    const supabaseUrl = process.env.SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    const anonKey = process.env.SUPABASE_ANON_KEY
+    // Intentar obtener de SUPABASE_URL o VITE_SUPABASE_URL por compatibilidad
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
+    const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
 
     if (!supabaseUrl || !serviceRoleKey || !anonKey) {
         return res.status(500).json({
             error: 'Configuración incompleta en el servidor',
-            details: 'Faltan variables de entorno esenciales (URL o Keys)',
-            hint: 'Verifica las variables SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY y SUPABASE_ANON_KEY en Vercel'
+            details: `Faltan: ${!supabaseUrl ? 'URL ' : ''}${!serviceRoleKey ? 'ServiceKey ' : ''}${!anonKey ? 'AnonKey' : ''}`,
+            hint: 'Asegúrate de configurar SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY y SUPABASE_ANON_KEY en Vercel'
         })
     }
 

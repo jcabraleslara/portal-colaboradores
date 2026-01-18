@@ -146,9 +146,10 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
             const result = await response.json()
 
             if (!response.ok) {
-                const errorMsg = result.details
-                    ? `${result.error}: ${result.details}`
-                    : (result.error || 'Error creando usuario')
+                let errorMsg = result.error || 'Error creando usuario'
+                if (result.details) errorMsg += `: ${result.details}`
+                if (result.hint) errorMsg += ` (${result.hint})`
+
                 setError(errorMsg)
                 setIsSubmitting(false)
                 return
