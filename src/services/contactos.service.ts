@@ -94,11 +94,6 @@ export const contactosService = {
                 query = query.eq('area', filtros.area)
             }
 
-            // Filtro por rol
-            if (filtros.rol) {
-                query = query.eq('rol', filtros.rol)
-            }
-
             // Búsqueda general optimizada (múltiples términos)
             if (filtros.busqueda && filtros.busqueda.trim()) {
                 const terminos = filtros.busqueda.trim().toLowerCase().split(/\s+/)
@@ -158,10 +153,10 @@ export const contactosService = {
      */
     async obtenerConteos(): Promise<ApiResponse<ConteosContactos>> {
         try {
-            // Obtener total y agrupar por empresa, área, rol
+            // Obtener total y agrupar por empresa, área
             const { data, error, count } = await supabase
                 .from('contactos')
-                .select('empresa, area, rol', { count: 'exact' })
+                .select('empresa, area', { count: 'exact' })
 
             if (error) {
                 console.error('Error obteniendo conteos:', error)
@@ -174,7 +169,6 @@ export const contactosService = {
             // Agrupar manualmente
             const porEmpresa: Record<string, number> = {}
             const porArea: Record<string, number> = {}
-            const porRol: Record<string, number> = {}
 
             for (const row of data || []) {
                 // Empresa
@@ -184,10 +178,6 @@ export const contactosService = {
                 // Área
                 const area = row.area || 'Sin área'
                 porArea[area] = (porArea[area] || 0) + 1
-
-                // Rol
-                const rol = row.rol || 'operativo'
-                porRol[rol] = (porRol[rol] || 0) + 1
             }
 
             return {
@@ -202,9 +192,6 @@ export const contactosService = {
                         .map(([area, cantidad]) => ({ area, cantidad }))
                         .sort((a, b) => b.cantidad - a.cantidad)
                         .slice(0, 10), // Top 10 áreas
-                    porRol: Object.entries(porRol)
-                        .map(([rol, cantidad]) => ({ rol, cantidad }))
-                        .sort((a, b) => b.cantidad - a.cantidad),
                 },
             }
         } catch (error) {
@@ -280,7 +267,6 @@ export const contactosService = {
                     notas: datos.notas || null,
                     hoja_vida_url: datos.hoja_vida_url || null,
                     firma_url: datos.firma_url || null,
-                    rol: datos.rol || 'operativo',
                     area: datos.area || null,
                 })
                 .select()
@@ -324,7 +310,7 @@ export const contactosService = {
                 'identificacion', 'email_personal', 'email_institucional',
                 'empresa', 'puesto', 'celular_1', 'celular_2', 'fecha_nacimiento',
                 'direccion', 'ciudad', 'departamento', 'pais', 'notas',
-                'hoja_vida_url', 'firma_url', 'rol', 'area',
+                'hoja_vida_url', 'firma_url', 'area',
                 'google_contact_id', 'outlook_contact_id'
             ]
 
