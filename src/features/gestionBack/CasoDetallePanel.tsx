@@ -389,17 +389,20 @@ export function CasoDetallePanel({
 
     // Sincronizar estado cuando el caso cambie (Navegación Siguiente/Anterior)
     useEffect(() => {
-        if (caso) {
-            setDireccionamiento((caso.direccionamiento as Direccionamiento) || '')
-            setRespuestaBack((caso.respuestaBack && caso.respuestaBack !== 'NaN') ? caso.respuestaBack : '')
-            setEstadoRadicado(caso.estadoRadicado || 'Pendiente')
-            setTipoSolicitud(caso.tipoSolicitud || 'Auditoría de Pertinencia')
-            setGuardadoExitoso(false)
-            setErrorGuardado(null)
-            setPdfActivo(null)
-            setIndicePdf(0)
-        }
-    }, [caso.radicado])
+        // Resetear todos los estados editables al valor del nuevo caso
+        setDireccionamiento((caso.direccionamiento as Direccionamiento) || '')
+        setRespuestaBack((caso.respuestaBack && caso.respuestaBack !== 'NaN') ? caso.respuestaBack : '')
+        setEstadoRadicado(caso.estadoRadicado || 'Pendiente')
+        setTipoSolicitud(caso.tipoSolicitud || 'Auditoría de Pertinencia')
+
+        // Resetear estados de UI
+        setGuardadoExitoso(false)
+        setErrorGuardado(null)
+        setPdfActivo(null)
+        setIndicePdf(0)
+        setCopiandoRespuesta(false)
+    }, [caso]) // Dependencia del objeto caso completo para detectar cualquier cambio
+
 
     // ============================================
     // HELPERS
@@ -719,8 +722,8 @@ export function CasoDetallePanel({
                                             }
                                         }}
                                         className={`flex items-center gap-1.5 px-2 py-1 text-xs font-semibold rounded-md transition-all ${copiandoRespuesta
-                                                ? 'bg-emerald-500 text-white'
-                                                : 'text-emerald-600 hover:bg-emerald-50'
+                                            ? 'bg-emerald-500 text-white'
+                                            : 'text-emerald-600 hover:bg-emerald-50'
                                             }`}
                                     >
                                         {copiandoRespuesta ? (

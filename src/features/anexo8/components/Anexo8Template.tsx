@@ -10,8 +10,8 @@
 import './Anexo8Template.css'
 import { Anexo8Record } from '@/types/anexo8.types'
 
-// Escudo de Colombia en Base64 (versión simplificada para el PDF)
-import escudoColombia from '@/assets/escudo_colombia.png'
+// Escudo de Colombia desde carpeta public
+const escudoColombia = '/templates/escudo_colombia.jpg'
 
 interface Anexo8TemplateProps {
     data: Anexo8Record

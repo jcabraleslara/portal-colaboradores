@@ -3,13 +3,11 @@
  * Portal de Colaboradores GESTAR SALUD IPS
  * 
  * Estrategia: HTML → PDF usando html2pdf.js para máxima fidelidad visual
+ * Tamaño: Carta (8.5" x 11" = 612pt x 792pt)
  */
 
 import html2pdf from 'html2pdf.js'
 import { Anexo8Record } from '@/types/anexo8.types'
-
-// Importar imagen del escudo como URL
-import escudoColombia from '@/assets/escudo_colombia.png'
 
 interface PdfGeneratorResult {
     blob: Blob
@@ -18,7 +16,7 @@ interface PdfGeneratorResult {
 
 /**
  * Genera el HTML completo del Anexo 8 con estilos embebidos
- * Esta función crea un string HTML que representa el formulario completo
+ * Optimizado para caber en una sola hoja tamaño Carta
  */
 function generarHtmlAnexo8(data: Anexo8Record): string {
     const [anio, mes, dia] = data.fecha_prescripcion.split('-')
@@ -32,119 +30,122 @@ function generarHtmlAnexo8(data: Anexo8Record): string {
     // Función para renderizar checkbox
     const checkbox = (checked: boolean) => checked ? 'X' : ''
 
-    // Estilos CSS embebidos
+    // Estilos CSS optimizados para tamaño Carta
     const styles = `
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, Helvetica, sans-serif; font-size: 9px; }
-            .container { width: 612px; background: #fff; }
-            .seccion { width: 100%; border: 2px solid #000; margin-bottom: 8px; background: #fff; }
+            body { font-family: Arial, Helvetica, sans-serif; font-size: 7.5px; }
+            .container { width: 580px; background: #fff; margin: 0 auto; }
+            .seccion { width: 100%; border: 1.5px solid #000; margin-bottom: 6px; background: #fff; }
             
             /* Header */
             .header { display: flex; border-bottom: 1px solid #000; }
-            .escudo { width: 80px; padding: 8px; border-right: 1px solid #000; text-align: center; }
-            .escudo img { width: 55px; height: auto; }
-            .titulo-container { flex: 1; text-align: center; padding: 8px 4px; }
-            .titulo-1 { font-size: 10px; font-weight: bold; margin-bottom: 2px; }
-            .titulo-2, .titulo-3 { font-size: 9px; font-weight: bold; margin-bottom: 2px; }
-            .anexo-num { font-size: 14px; font-weight: bold; margin-top: 4px; }
+            .escudo { width: 65px; padding: 4px; border-right: 1px solid #000; text-align: center; }
+            .escudo img { width: 50px; height: auto; }
+            .titulo-container { flex: 1; text-align: center; padding: 4px 2px; }
+            .titulo-1 { font-size: 8.5px; font-weight: bold; margin-bottom: 1px; }
+            .titulo-2, .titulo-3 { font-size: 7.5px; font-weight: bold; margin-bottom: 1px; }
+            .anexo-num { font-size: 11px; font-weight: bold; margin-top: 2px; }
             
             /* Recetario row */
             .recetario-row { display: flex; border-bottom: 1px solid #000; background: #e0e0e0; }
-            .recetario-titulo { flex: 1; font-size: 9px; font-weight: bold; padding: 4px 8px; text-align: center; }
-            .numero-rec { width: 100px; font-size: 9px; font-weight: bold; padding: 4px; text-align: center; border-left: 1px solid #000; }
-            .numero-val { font-size: 11px; color: #c00; }
+            .recetario-titulo { flex: 1; font-size: 7.5px; font-weight: bold; padding: 2px 6px; text-align: center; }
+            .numero-rec { width: 85px; font-size: 7.5px; font-weight: bold; padding: 2px 4px; text-align: center; border-left: 1px solid #000; }
+            .numero-val { font-size: 9px; color: #c00; }
             
             /* Paciente header */
             .paciente-header { display: flex; border-bottom: 1px solid #000; background: #d0d0d0; }
-            .seccion-titulo { padding: 3px 8px; font-size: 9px; font-weight: bold; }
+            .seccion-titulo { padding: 2px 6px; font-size: 7.5px; font-weight: bold; }
             .fecha-container { display: flex; margin-left: auto; border-left: 1px solid #000; }
-            .fecha-item { display: flex; flex-direction: column; align-items: center; padding: 2px 8px; border-left: 1px solid #000; min-width: 45px; }
+            .fecha-item { display: flex; flex-direction: column; align-items: center; padding: 1px 6px; border-left: 1px solid #000; min-width: 38px; }
             .fecha-item:first-child { border-left: none; }
-            .fecha-label { font-size: 8px; font-weight: bold; }
-            .fecha-value { font-size: 10px; font-weight: bold; }
+            .fecha-label { font-size: 6.5px; font-weight: bold; }
+            .fecha-value { font-size: 8px; font-weight: bold; }
             
             /* Rows and cells */
             .row { display: flex; border-bottom: 1px solid #000; }
-            .cell { padding: 3px 6px; border-left: 1px solid #000; display: flex; flex-direction: column; }
+            .cell { padding: 2px 4px; border-left: 1px solid #000; display: flex; flex-direction: column; }
             .cell:first-child { border-left: none; }
-            .cell-label { font-size: 7px; font-weight: bold; color: #333; }
-            .cell-value { font-size: 9px; min-height: 12px; text-transform: uppercase; }
+            .cell-label { font-size: 6px; font-weight: bold; color: #333; }
+            .cell-value { font-size: 7.5px; min-height: 10px; text-transform: uppercase; }
             
             /* Document row */
             .doc-row { display: flex; border-bottom: 1px solid #000; }
-            .doc-label { padding: 3px 6px; font-size: 8px; font-weight: bold; width: 140px; }
-            .doc-tipos { display: flex; align-items: center; padding: 3px 6px; border-left: 1px solid #000; }
-            .doc-tipo { display: flex; align-items: center; margin-right: 10px; font-size: 8px; }
-            .checkbox { width: 12px; height: 12px; border: 1px solid #000; margin-right: 3px; text-align: center; font-weight: bold; line-height: 12px; }
-            .doc-numero { flex: 1; padding: 3px 6px; border-left: 1px solid #000; }
-            .edad { width: 60px; padding: 3px 6px; border-left: 1px solid #000; }
-            .genero { width: 80px; padding: 3px 6px; border-left: 1px solid #000; display: flex; align-items: center; gap: 6px; }
-            .genero-item { display: flex; align-items: center; font-size: 8px; }
+            .doc-label { padding: 2px 4px; font-size: 6.5px; font-weight: bold; width: 115px; }
+            .doc-tipos { display: flex; align-items: center; padding: 2px 4px; border-left: 1px solid #000; }
+            .doc-tipo { display: flex; align-items: center; margin-right: 8px; font-size: 6.5px; }
+            .checkbox { width: 10px; height: 10px; border: 1px solid #000; margin-right: 2px; text-align: center; font-weight: bold; line-height: 10px; font-size: 8px; }
+            .doc-numero { flex: 1; padding: 2px 4px; border-left: 1px solid #000; }
+            .edad { width: 50px; padding: 2px 4px; border-left: 1px solid #000; }
+            .genero { width: 70px; padding: 2px 4px; border-left: 1px solid #000; display: flex; align-items: center; gap: 4px; }
+            .genero-item { display: flex; align-items: center; font-size: 6.5px; }
             
             /* Afiliación */
-            .afil-row { display: flex; border-bottom: 1px solid #000; font-size: 8px; }
-            .afil-label { padding: 3px 6px; font-weight: bold; }
-            .afil-opciones { display: flex; align-items: center; gap: 12px; padding: 3px 6px; }
+            .afil-row { display: flex; border-bottom: 1px solid #000; font-size: 6.5px; }
+            .afil-label { padding: 2px 4px; font-weight: bold; }
+            .afil-opciones { display: flex; align-items: center; gap: 10px; padding: 2px 4px; }
             .afil-item { display: flex; align-items: center; }
-            .eps-container { display: flex; align-items: center; margin-left: auto; padding: 3px 6px; border-left: 1px solid #000; }
-            .eps-label { font-weight: bold; margin-right: 6px; }
+            .eps-container { display: flex; align-items: center; margin-left: auto; padding: 2px 4px; border-left: 1px solid #000; }
+            .eps-label { font-weight: bold; margin-right: 4px; }
             
             /* Medicamentos */
-            .med-header { background: #d0d0d0; border-bottom: 1px solid #000; padding: 3px 8px; font-size: 9px; font-weight: bold; }
-            .med-labels { display: flex; border-bottom: 1px solid #000; font-size: 7px; font-weight: bold; text-align: center; }
-            .med-cell { padding: 3px 4px; border-left: 1px solid #000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+            .med-header { background: #d0d0d0; border-bottom: 1px solid #000; padding: 2px 6px; font-size: 7.5px; font-weight: bold; }
+            .med-labels { display: flex; border-bottom: 1px solid #000; font-size: 6px; font-weight: bold; text-align: center; }
+            .med-cell { padding: 2px 3px; border-left: 1px solid #000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
             .med-cell:first-child { border-left: none; }
-            .med-nombre { width: 150px; }
-            .med-conc { width: 90px; }
-            .med-forma { width: 80px; }
-            .med-dosis { width: 100px; }
+            .med-nombre { width: 130px; }
+            .med-conc { width: 75px; }
+            .med-forma { width: 70px; }
+            .med-dosis { width: 90px; }
             .med-cant { flex: 1; }
-            .med-cant-sub { display: flex; font-size: 6px; margin-top: 2px; width: 100%; }
+            .med-cant-sub { display: flex; font-size: 5px; margin-top: 1px; width: 100%; }
             .med-cant-num { width: 50%; text-align: center; }
             .med-cant-let { width: 50%; text-align: center; }
-            .med-data { display: flex; border-bottom: 1px solid #000; min-height: 28px; }
-            .med-data-cell { padding: 4px; border-left: 1px solid #000; display: flex; align-items: center; justify-content: center; font-size: 8px; text-transform: uppercase; text-align: center; word-break: break-word; }
+            .med-data { display: flex; border-bottom: 1px solid #000; min-height: 22px; }
+            .med-data-cell { padding: 2px 3px; border-left: 1px solid #000; display: flex; align-items: center; justify-content: center; font-size: 7px; text-transform: uppercase; text-align: center; word-break: break-word; }
             .med-data-cell:first-child { border-left: none; }
             
             /* Diagnóstico */
             .diag-row { display: flex; border-bottom: 1px solid #000; }
-            .diag-label { padding: 3px 8px; font-size: 8px; font-weight: bold; width: 80px; }
-            .diag-value { flex: 1; padding: 3px 8px; font-size: 8px; text-transform: uppercase; border-left: 1px solid #000; }
+            .diag-label { padding: 2px 6px; font-size: 6.5px; font-weight: bold; width: 65px; }
+            .diag-value { flex: 1; padding: 2px 6px; font-size: 7px; text-transform: uppercase; border-left: 1px solid #000; }
             
             /* Profesional */
-            .prof-header { background: #d0d0d0; border-bottom: 1px solid #000; padding: 3px 8px; font-size: 9px; font-weight: bold; }
-            .med-tipo-row { display: flex; border-bottom: 1px solid #000; font-size: 8px; }
-            .med-tipo-label { padding: 3px 8px; font-weight: bold; }
-            .med-tipos { display: flex; align-items: center; gap: 15px; padding: 3px 8px; }
+            .prof-header { background: #d0d0d0; border-bottom: 1px solid #000; padding: 2px 6px; font-size: 7.5px; font-weight: bold; }
+            .med-tipo-row { display: flex; border-bottom: 1px solid #000; font-size: 6.5px; }
+            .med-tipo-label { padding: 2px 6px; font-weight: bold; }
+            .med-tipos { display: flex; align-items: center; gap: 12px; padding: 2px 6px; }
             .med-tipo-item { display: flex; align-items: center; }
-            .espec-container { display: flex; align-items: center; margin-left: auto; padding: 3px 8px; border-left: 1px solid #000; }
-            .espec-label { font-weight: bold; margin-right: 6px; }
-            .espec-value { font-size: 8px; text-transform: uppercase; }
+            .espec-container { display: flex; align-items: center; margin-left: auto; padding: 2px 6px; border-left: 1px solid #000; }
+            .espec-label { font-weight: bold; margin-right: 4px; }
+            .espec-value { font-size: 6.5px; text-transform: uppercase; }
             
             /* Cell widths */
-            .w-primer-ap { width: 140px; }
-            .w-segundo-ap { width: 140px; }
+            .w-primer-ap { width: 120px; }
+            .w-segundo-ap { width: 120px; }
             .w-nombres { flex: 1; }
-            .w-tel { width: 90px; }
-            .w-mun { width: 100px; }
+            .w-tel { width: 75px; }
+            .w-mun { width: 85px; }
             .w-dir { flex: 1; }
-            .w-depto { width: 90px; }
-            .w-tipodoc { width: 40px; }
-            .w-doc { width: 120px; }
-            .w-res { width: 150px; }
-            .w-firma { flex: 1; min-height: 40px; }
-            .w-inst { width: 180px; }
-            .w-dir-inst { width: 150px; }
-            .w-ciudad { width: 90px; }
+            .w-depto { width: 75px; }
+            .w-tipodoc { width: 30px; }
+            .w-doc { width: 100px; }
+            .w-res { width: 130px; }
+            .w-firma { flex: 1; min-height: 30px; }
+            .w-inst { width: 155px; }
+            .w-dir-inst { width: 130px; }
+            .w-ciudad { width: 75px; }
             
             /* Separador */
-            .separador { height: 15px; border-bottom: 1px dashed #999; margin-bottom: 8px; }
+            .separador { height: 8px; border-bottom: 1px dashed #999; margin-bottom: 6px; }
             
             /* Copia label */
-            .copia-label { text-align: center; font-size: 7px; color: #666; padding: 2px; background: #f5f5f5; }
+            .copia-label { text-align: center; font-size: 6px; color: #666; padding: 1px; background: #f5f5f5; }
         </style>
     `
+
+    // Ruta del escudo oficial (desde public/templates)
+    const escudoUrl = '/templates/escudo_colombia.jpg'
 
     // Función para generar una sección (Original o Copia)
     const generarSeccion = (esCopia: boolean) => `
@@ -152,7 +153,7 @@ function generarHtmlAnexo8(data: Anexo8Record): string {
             <!-- Header -->
             <div class="header">
                 <div class="escudo">
-                    <img src="${escudoColombia}" alt="Escudo">
+                    <img src="${escudoUrl}" alt="Escudo" crossorigin="anonymous">
                 </div>
                 <div class="titulo-container">
                     <div class="titulo-1">República de Colombia</div>
@@ -306,6 +307,7 @@ function generarHtmlAnexo8(data: Anexo8Record): string {
 
 /**
  * Genera un PDF del Anexo 8 utilizando html2pdf.js
+ * Configurado para tamaño Carta (8.5" x 11")
  */
 export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGeneratorResult> {
     // 1. Generar HTML
@@ -319,31 +321,33 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     container.style.top = '0'
     document.body.appendChild(container)
 
-    // 3. Configurar opciones de html2pdf
+    // 3. Configurar opciones de html2pdf para tamaño Carta exacto
     const opt = {
-        margin: [5, 5, 5, 5] as [number, number, number, number], // márgenes en mm [top, right, bottom, left]
+        margin: [8, 8, 8, 8] as [number, number, number, number],
         filename: `anexo8_${data.numero_recetario}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
+        image: { type: 'jpeg' as const, quality: 0.98 },
         html2canvas: {
-            scale: 2, // Alta resolución
+            scale: 2.5, // Alta resolución
             useCORS: true,
-            logging: false
+            logging: false,
+            letterRendering: true
         },
         jsPDF: {
             unit: 'mm',
-            format: 'letter', // Tamaño carta
-            orientation: 'portrait'
+            format: 'letter', // Tamaño carta exacto
+            orientation: 'portrait' as const
         }
     }
 
     try {
-        const source = container.querySelector('.container') as HTMLElement
-        if (!source) throw new Error('No se encontró el contenedor del Anexo 8')
+        // 4. Obtener contenedor y validar
+        const pdfContainer = container.querySelector('.container') as HTMLElement
+        if (!pdfContainer) throw new Error('No se encontró el contenedor del PDF')
 
-        // 4. Generar PDF como Blob
-        const blob = await (html2pdf() as any)
+        // 5. Generar PDF como Blob
+        const blob = await html2pdf()
             .set(opt)
-            .from(source)
+            .from(pdfContainer)
             .outputPdf('blob')
 
         // 5. Limpiar el DOM

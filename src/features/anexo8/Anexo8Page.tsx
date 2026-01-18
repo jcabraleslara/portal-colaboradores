@@ -34,7 +34,8 @@ import {
     FaPills,
     FaUser,
     FaCalendarAlt,
-    FaTimes
+    FaTimes,
+    FaCheck
 } from 'react-icons/fa'
 
 // Componente principal
@@ -43,6 +44,7 @@ export default function Anexo8Page() {
 
     // Estados principales
     const [generando, setGenerando] = useState(false)
+    const [generadoExito, setGeneradoExito] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [exito, setExito] = useState<string | null>(null)
     const [mostrarOcr, setMostrarOcr] = useState(false)
@@ -294,6 +296,10 @@ export default function Anexo8Page() {
             }
 
             setExito(`Se generaron ${resultado.data.length} Anexo(s) 8 correctamente`)
+
+            // Activar animación de éxito
+            setGeneradoExito(true)
+            setTimeout(() => setGeneradoExito(false), 3000)
 
             // Limpiar formulario
             limpiarFormulario()
@@ -614,32 +620,19 @@ export default function Anexo8Page() {
                                 </div>
 
                                 {/* Cantidad */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-1">
-                                            Cantidad *
-                                        </label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="999"
-                                            placeholder="60"
-                                            value={formData.cantidadNumero}
-                                            onChange={(e) => actualizarCantidad(e.target.value)}
-                                            className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-600 mb-1">
-                                            En Letras
-                                        </label>
-                                        <input
-                                            type="text"
-                                            readOnly
-                                            value={formData.cantidadNumero ? numeroALetras(Number(formData.cantidadNumero)) : ''}
-                                            className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-slate-600"
-                                        />
-                                    </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                        Cantidad *
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="999"
+                                        placeholder="Ej: 60"
+                                        value={formData.cantidadNumero}
+                                        onChange={(e) => actualizarCantidad(e.target.value)}
+                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                    />
                                 </div>
 
                                 {/* Diagnóstico */}
@@ -715,14 +708,16 @@ export default function Anexo8Page() {
                         {/* Botón Generar */}
                         <button
                             onClick={generarAnexo8}
-                            disabled={generando || !paciente || !medicoSeleccionado}
+                            disabled={generando || generadoExito || !paciente || !medicoSeleccionado}
                             className={`
                             w-full py-4 rounded-xl text-white font-semibold text-lg
                             flex items-center justify-center gap-3
-                            transition-all duration-200 shadow-lg
+                            transition-all duration-300 shadow-lg
                             ${generando || !paciente || !medicoSeleccionado
                                     ? 'bg-slate-400 cursor-not-allowed'
-                                    : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 hover:shadow-xl'
+                                    : generadoExito
+                                        ? 'bg-gradient-to-r from-green-500 to-green-600 animate-pulse'
+                                        : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 hover:shadow-xl'
                                 }
                         `}
                         >
@@ -730,6 +725,11 @@ export default function Anexo8Page() {
                                 <>
                                     <LoadingSpinner size="sm" />
                                     Generando...
+                                </>
+                            ) : generadoExito ? (
+                                <>
+                                    <FaCheck className="text-xl animate-bounce" />
+                                    ¡Generado Correctamente!
                                 </>
                             ) : (
                                 <>
