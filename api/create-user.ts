@@ -55,7 +55,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { data: { user: authUser }, error: authError } = await supabaseAnon.auth.getUser(token)
 
         if (authError || !authUser) {
-            return res.status(401).json({ error: 'No autorizado: token inválido' })
+            console.error('Error de autenticación:', authError)
+            return res.status(401).json({
+                error: 'No autorizado: token inválido',
+                details: authError?.message,
+                hint: 'Asegúrate de que SUPABASE_ANON_KEY sea correcta en el servidor'
+            })
         }
 
         // 2. Verificar que el usuario sea superadmin
