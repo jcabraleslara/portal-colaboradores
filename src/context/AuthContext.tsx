@@ -154,17 +154,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             // Actualizar last_sign_in_at al tiempo actual (fire-and-forget)
             // Esto marca el inicio de la sesión ACTUAL, para que en la próxima sea la "anterior"
+            // Actualizar last_sign_in_at usando RPC seguro (bypassea RLS estricto)
             supabase
-                .from('usuarios_portal')
-                .update({ last_sign_in_at: new Date().toISOString() })
-                .eq('email_institucional', email)
+                .rpc('update_last_login', { user_email: email })
                 .then(({ error }) => {
-                    if (error) {
-                        // Ignorar error 403/42501 (permisos) para no ensuciar la consola, es secundario
-                        if (error.code !== '42501') {
-                            console.warn('⚠️ No se pudo actualizar last_sign_in_at:', error.message)
-                        }
-                    }
+                    if (error) console.warn('⚠️ Error actualizando fecha de acceso:', error.message)
                 })
 
             // Guardar en caché
