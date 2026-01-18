@@ -90,7 +90,10 @@ export const anexo8Service = {
             // Parsear fecha inicial
             const fechaBase = new Date(datosBase.fecha_prescripcion)
 
+            console.log('🔍 DEBUG Servicio: totalMeses=', totalMeses, 'tipo:', typeof totalMeses)
+
             for (let mes = 1; mes <= totalMeses; mes++) {
+                console.log(`🔍 Iteración ${mes} de ${totalMeses}`)
                 // Calcular fecha posfechada sumando 30 días por cada mes
                 const fechaPosfechada = new Date(fechaBase)
                 const diasASumar = (mes - 1) * 30

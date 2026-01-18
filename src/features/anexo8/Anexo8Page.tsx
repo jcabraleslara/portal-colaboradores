@@ -274,6 +274,7 @@ export default function Anexo8Page() {
             }
 
             // Crear registros (1 o múltiples si hay posfechado)
+            console.log('🔍 DEBUG: Valor de mesesFormula:', formData.mesesFormula, 'Tipo:', typeof formData.mesesFormula)
             const resultado = await anexo8Service.crearAnexos8Multiples(
                 datosBase,
                 formData.mesesFormula
@@ -389,6 +390,13 @@ export default function Anexo8Page() {
         // Usar cantidad POR MES, no cantidad total
         const cantidadCorrecta = data.cantidadPorMes || data.cantidadNumero || ''
 
+        // Validar y convertir mesesTratamiento a número
+        const mesesTratamiento = data.mesesTratamiento
+            ? Math.max(1, parseInt(String(data.mesesTratamiento), 10) || 1)
+            : undefined
+
+        console.log('🔍 OCR: mesesTratamiento detectado:', data.mesesTratamiento, '→ convertido a:', mesesTratamiento)
+
         // Aplicar todos los campos extraídos
         setFormData(prev => ({
             ...prev,
@@ -399,7 +407,7 @@ export default function Anexo8Page() {
             cantidadNumero: cantidadCorrecta,
             diagnosticoCie10: data.diagnosticoCie10 || prev.diagnosticoCie10,
             diagnosticoDescripcion: data.diagnosticoDescripcion || prev.diagnosticoDescripcion,
-            mesesFormula: data.mesesTratamiento || prev.mesesFormula
+            mesesFormula: mesesTratamiento !== undefined ? mesesTratamiento : prev.mesesFormula
         }))
 
         setExito('Datos extraídos del OCR aplicados. Verifique y complete la información.')
@@ -728,7 +736,10 @@ export default function Anexo8Page() {
                                     </label>
                                     <select
                                         value={formData.mesesFormula}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, mesesFormula: parseInt(e.target.value) }))}
+                                        onChange={(e) => setFormData(prev => ({
+                                            ...prev,
+                                            mesesFormula: Math.max(1, parseInt(e.target.value) || 1)
+                                        }))}
                                         className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                                     >
                                         {[1, 2, 3, 4, 5, 6].map((mes) => (

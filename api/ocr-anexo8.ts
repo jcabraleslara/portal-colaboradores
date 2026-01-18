@@ -50,33 +50,39 @@ const PATRONES = {
     // Género
     genero: /(?:g[eé]nero|sexo)[:\s]*([FM])|(?:\[x?\])\s*(femenino|masculino)/i,
 
-    // Diagnóstico CIE-10
-    diagnosticoCie10: /diagn[oó]stico[:\s]*([A-Z]\d{2,3}(?:\.\d{1,2})?)/i,
-    diagnosticoDesc: /diagn[oó]stico[:\s]*(?:[A-Z]\d{2,3}(?:\.\d)?)?[\s-]*([A-Za-záéíóúñ\s]+?)(?:\n|$)/i,
+    // Diagnóstico - MEJORADO para capturar múltiples formatos
+    diagnosticoCie10: /(?:diagn[oó]stico|motivo)[:\s]*([A-Z]\d{2,3}(?:\.\d{1,2})?)/i,
+    diagnosticoDescGlobal: /(?:diagn[oó]stico|motivo)[:\s]*(?:[A-Z]\d{2,3})?[:\s-]*([A-ZÁÉÍÓÚ][a-záéíóúñ\s]{3,50})/i,
+    // Buscar diagnóstico en cualquier parte del texto (formato común en encabezados)
+    diagnosticoTexto: /\b([A-ZÁÉÍÓÚ][A-ZÁÉÍÓÚÑ\s]{5,40})\s+EPS\s+SUBSIDIADO/i,
 
-    // Cantidad y días
-    cantidad: /cantidad[:\s]*(\d{1,4})|(\d{1,4})\s*(?:TOMAR|APLICAR|tabletas?|cápsulas?|ampollas?)/i,
-    dias: /d[ií]as?[:\s]*(\d{1,4})/i,
+    // Cantidad y días - MEJORADO para tablas
+    cantidadTabla: /(?:cantidad|cant\.?)[:\s]*(\d{1,4})|^(\d{1,4})\s+(?:\d+\s+)?(?:TAB|CAP|AMP|ML)/mi,
+    cantidad: /cantidad[:\s]*(\d{1,4})|(\d{1,4})\s*(?:TOMAR|APLICAR|tabletas?|cápsulas?)/i,
+    dias: /d[ií]as?[:\s]*(\d{1,4})|(\d{1,4})$/m,
 
     // Medicamento completo (nombre + concentración + forma en una sola captura)
     medicamentoCompleto: new RegExp(`(${MEDICAMENTOS_CONTROLADOS.join('|')})\\s+(\\d+(?:\\.\\d+)?\\s*(?:mg|ml|g|mcg|UI|%))\\s*\\(([^)]+)\\)`, 'gi'),
 
-    // Concentración individual (fallback)
+    // Concentración individual (fallback) - MEJORADO
     concentracion: /(\d+(?:\.\d+)?\s*(?:mg|ml|g|mcg|UI|%)(?:\/(?:ml|g|tableta|cápsula))?)/i,
 
     // Forma farmacéutica individual (fallback)
     formaFarmaceutica: /\((TABLETA|CÁPSULA|SOLUCIÓN\s+(?:INYECTABLE|ORAL|NASAL)|JARABE|PARCHE|POLVO)\)/i,
 
-    // Posología (TOMAR, APLICAR, ADMINISTRAR, etc.)
+    // Posología - MEJORADO para capturar más variantes
+    posologiaCompleta: /(\d+\s+TAB\s+(?:VO|VIA\s+ORAL)\s+[A-ZÁÉÍÓÚ]+)/i,
     posologia: /(?:TOMAR|APLICAR|ADMINISTRAR|VIA)\s+([^\d]{5,100})/i,
+    posologiaTabla: /\d+\s+((?:TAB|CAP|AMP)\s+(?:VO|VIA)?\s*[A-ZÁÉÍÓÚÑ\s]{3,50})/i,
 
     // Medicamento simple (fallback)
     medicamento: new RegExp(`(${MEDICAMENTOS_CONTROLADOS.join('|')})`, 'i'),
 
-    // Médico que firma (nombre con salto de línea)
+    // Médico que firma - MEJORADO para múltiples formatos
+    medicoNombreCompleto: /(?:ATENDIDO\s+POR|MÉDICO)[:\s]*[\r\n]*([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+){2,5})/i,
     medicoNombre: /ATENDIDO\s+POR\s*[\r\n]+([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)+)/i,
     medicoRegistro: /reg\.\s*méd[:\s]*(\d{4,15})/i,
-    medicoCedula: /cédula[:\s]*(\d{4,15})/i
+    medicoCedula: /c[eé]dula[:\s]*(\d{4,15})/i
 }
 
 interface OcrAnexo8Result {
@@ -229,24 +235,54 @@ function extraerDatosDeTexto(texto: string): OcrAnexo8Result {
         }
     }
 
-    // Posología
-    const matchPosologia = texto.match(PATRONES.posologia)
-    if (matchPosologia) {
-        resultado.dosisVia = matchPosologia[1].trim()
+    // Posología - intentar múltiples formatos
+    let posologiaEncontrada = false
+
+    // Primero intentar posología completa (ej: "1 TAB VO NOCHE")
+    const matchPosologiaCompleta = texto.match(PATRONES.posologiaCompleta)
+    if (matchPosologiaCompleta) {
+        resultado.dosisVia = matchPosologiaCompleta[1].trim()
         camposEncontrados++
+        posologiaEncontrada = true
     }
 
-    // Cantidad
-    const matchCantidad = texto.match(PATRONES.cantidad)
-    if (matchCantidad) {
-        resultado.cantidadNumero = parseInt(matchCantidad[1] || matchCantidad[2], 10)
+    // Si no, intentar posología de tabla
+    if (!posologiaEncontrada) {
+        const matchPosologiaTabla = texto.match(PATRONES.posologiaTabla)
+        if (matchPosologiaTabla) {
+            resultado.dosisVia = matchPosologiaTabla[1].trim()
+            camposEncontrados++
+            posologiaEncontrada = true
+        }
+    }
+
+    // Fallback: posología general
+    if (!posologiaEncontrada) {
+        const matchPosologia = texto.match(PATRONES.posologia)
+        if (matchPosologia) {
+            resultado.dosisVia = matchPosologia[1].trim()
+            camposEncontrados++
+        }
+    }
+
+    // Cantidad - intentar primero desde tablas
+    const matchCantidadTabla = texto.match(PATRONES.cantidadTabla)
+    if (matchCantidadTabla) {
+        resultado.cantidadNumero = parseInt(matchCantidadTabla[1] || matchCantidadTabla[2], 10)
         camposEncontrados++
+    } else {
+        // Fallback: patrón general
+        const matchCantidad = texto.match(PATRONES.cantidad)
+        if (matchCantidad) {
+            resultado.cantidadNumero = parseInt(matchCantidad[1] || matchCantidad[2], 10)
+            camposEncontrados++
+        }
     }
 
     // Días de tratamiento
     const matchDias = texto.match(PATRONES.dias)
     if (matchDias) {
-        resultado.diasTratamiento = parseInt(matchDias[1], 10)
+        resultado.diasTratamiento = parseInt(matchDias[1] || matchDias[2], 10)
         camposEncontrados++
     }
 
@@ -267,27 +303,41 @@ function extraerDatosDeTexto(texto: string): OcrAnexo8Result {
 
     // ===== DIAGNÓSTICO =====
 
-    // Diagnóstico CIE-10
+    // Intentar múltiples patrones para diagnóstico
     const matchCie10 = texto.match(PATRONES.diagnosticoCie10)
     if (matchCie10) {
         resultado.diagnosticoCie10 = matchCie10[1].toUpperCase()
         camposEncontrados++
     }
 
-    // Descripción diagnóstico
-    const matchDiagDesc = texto.match(PATRONES.diagnosticoDesc)
-    if (matchDiagDesc && matchDiagDesc[1]) {
-        resultado.diagnosticoDescripcion = matchDiagDesc[1].trim().substring(0, 100)
+    // Descripción diagnóstico - intentar varios patrones
+    const matchDiagDescGlobal = texto.match(PATRONES.diagnosticoDescGlobal)
+    if (matchDiagDescGlobal && matchDiagDescGlobal[1]) {
+        resultado.diagnosticoDescripcion = matchDiagDescGlobal[1].trim().toUpperCase().substring(0, 100)
         camposEncontrados++
+    } else {
+        // Fallback: buscar diagnóstico en encabezado
+        const matchDiagTexto = texto.match(PATRONES.diagnosticoTexto)
+        if (matchDiagTexto && matchDiagTexto[1]) {
+            resultado.diagnosticoDescripcion = matchDiagTexto[1].trim().toUpperCase().substring(0, 100)
+            camposEncontrados++
+        }
     }
 
     // ===== DATOS DEL MÉDICO =====
 
-    // Nombre del médico
-    const matchMedicoNombre = texto.match(PATRONES.medicoNombre)
-    if (matchMedicoNombre) {
-        resultado.medicoNombre = matchMedicoNombre[1].trim()
+    // Intentar múltiples patrones para el médico
+    const matchMedicoNombreCompleto = texto.match(PATRONES.medicoNombreCompleto)
+    if (matchMedicoNombreCompleto) {
+        resultado.medicoNombre = matchMedicoNombreCompleto[1].trim()
         camposEncontrados++
+    } else {
+        // Fallback: patrón con salto de línea
+        const matchMedicoNombre = texto.match(PATRONES.medicoNombre)
+        if (matchMedicoNombre) {
+            resultado.medicoNombre = matchMedicoNombre[1].trim()
+            camposEncontrados++
+        }
     }
 
     // Registro médico

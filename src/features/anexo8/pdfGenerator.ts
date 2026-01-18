@@ -6,7 +6,7 @@
  * El PDF debe tener campos AcroForm con los nombres correctos
  */
 
-import { PDFDocument } from 'pdf-lib'
+import { PDFDocument, rgb } from 'pdf-lib'
 import { Anexo8Record } from '@/types/anexo8.types'
 
 interface PdfGeneratorResult {
@@ -70,17 +70,7 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
         }
     }
 
-    // 6. Función helper para seleccionar radio buttons
-    const setRadio = (fieldName: string, value: string | null | undefined) => {
-        try {
-            if (value) {
-                const radio = form.getRadioGroup(fieldName)
-                radio.select(value)
-            }
-        } catch (e) {
-            console.warn(`Radio group no encontrado: ${fieldName}`)
-        }
-    }
+
 
     // ========================================
     // LLENAR CAMPOS DE TEXTO
@@ -129,7 +119,7 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     // LLENAR RADIO BUTTONS
     // ========================================
 
-    // Tipo de identificación
+    // Tipo de identificación - Marcar TODOS los widgets (no solo el primero)
     const tipoIdMap: Record<string, string> = {
         'TI': 'TI',
         'CC': 'CC',
@@ -140,11 +130,35 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
         'AS': 'Otro',
         'NV': 'Otro'
     }
-    setRadio('tipo_id', tipoIdMap[data.paciente_tipo_id] || 'Otro')
+    const tipoIdValue = tipoIdMap[data.paciente_tipo_id] || 'Otro'
+    try {
+        const tipoIdRadio = form.getRadioGroup('tipo_id')
+        const tipoIdWidgets = tipoIdRadio.acroField.getWidgets()
+        // Marcar manualmente cada widget que tenga el valor correcto
+        tipoIdWidgets.forEach(widget => {
+            const options = widget.getOnValue()?.toString() || '' // Obtener valor como string
+            if (options === tipoIdValue) {
+                tipoIdRadio.select(tipoIdValue)
+            }
+        })
+    } catch (e) {
+        console.warn('Error marcando tipo_id')
+    }
 
-    // Género
+    // Género - Marcar TODOS los widgets
     if (data.paciente_genero) {
-        setRadio('genero', data.paciente_genero)
+        try {
+            const generoRadio = form.getRadioGroup('genero')
+            const generoWidgets = generoRadio.acroField.getWidgets()
+            generoWidgets.forEach(widget => {
+                const options = widget.getOnValue()?.toString() || ''
+                if (options === data.paciente_genero!) {
+                    generoRadio.select(data.paciente_genero!)
+                }
+            })
+        } catch (e) {
+            console.warn('Error marcando género')
+        }
     }
 
     // ========================================
@@ -187,16 +201,27 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
                 const finalWidth = imgDims.width * scale
                 const finalHeight = imgDims.height * scale
 
-                // Centrar la firma en el campo (con pequeño offset hacia abajo)
+                // Centrar la firma en el campo (subirla un poco)
                 const x = fieldX + (fieldWidth - finalWidth) / 2
-                const y = fieldY + (fieldHeight - finalHeight) / 2 - 3 // Bajar 3px
+                const y = fieldY + (fieldHeight - finalHeight) / 2 + 3 // Subir 3px
 
                 // Dibujar la firma en esta posición
                 firstPage.drawImage(firmaImage, {
                     x,
                     y,
                     width: finalWidth,
-                    height: finalHeight
+                    height: finalHeight,
+                    opacity: 0.95 // Ligeramente transparente para no tapar bordes
+                })
+
+                // Añadir timestamp de firma electrónica debajo de la imagen
+                const ahora = new Date()
+                const timestamp = `Signed at: ${ahora.toISOString().slice(0, 19).replace('T', ' ')}`
+                firstPage.drawText(timestamp, {
+                    x: fieldX,
+                    y: fieldY - 2,
+                    size: 5,
+                    color: rgb(0.3, 0.3, 0.3)
                 })
             })
         } catch (e) {
