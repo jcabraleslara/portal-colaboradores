@@ -6,7 +6,7 @@
  * con auto-refresh y persistencia automática.
  */
 
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
 import { supabase } from '@/config/supabase.config'
 import { AuthUser } from '@/types'
 
@@ -216,16 +216,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
         })
     }, [])
 
+    // Ref para evitar bucles y re-ejecuciones innecesarias
+    const lastProcessedEmail = useRef<string | null>(null)
+
     // Escuchar cambios de autenticación de Supabase
     useEffect(() => {
         let mounted = true
 
         // Failsafe: Si después de 30 segundos no hay respuesta del listener de auth
         const timeoutId = setTimeout(() => {
-            if (mounted && isLoading) {
-                console.warn('⏰ Aviso: La carga inicial está tomando más de lo esperado.')
-                // No forzar logout aquí, dejar que el sistema siga intentando
-                // Solo desbloquear si realmente parece bloqueado (opcional)
+            if (mounted) {
+                setIsLoading(false)
             }
         }, 30000)
 
@@ -235,18 +236,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 if (!mounted) return
                 console.info('Auth state change:', event)
 
+                const currentEmail = session?.user?.email || null
+
                 // IMPORTANTE: Manejar sesión inicial y login
                 if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session?.user) {
-                    // Si ya tenemos el usuario y el email coincide, no buscar de nuevo
-                    if (user && user.email === session.user.email) {
+
+                    // Si ya procesamos este email, no hacer nada (evita bucles por re-renders del context)
+                    if (lastProcessedEmail.current === currentEmail) {
                         setIsLoading(false)
                         return
                     }
 
-                    console.log('👤 Usuario detectado (Event:', event, '):', session.user.email)
+                    console.log('👤 Usuario detectado (Event:', event, '):', currentEmail)
+                    lastProcessedEmail.current = currentEmail
+
                     const profile = await fetchUserProfile(
                         session.user.id,
-                        session.user.email || ''
+                        currentEmail || ''
                     )
 
                     if (mounted) {
@@ -256,8 +262,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             // Fallback básico si falla la búsqueda pero hay sesión
                             setUser({
                                 identificacion: 'N/A',
-                                nombreCompleto: session.user.email?.split('@')[0] || 'Usuario',
-                                email: session.user.email || '',
+                                nombreCompleto: currentEmail?.split('@')[0] || 'Usuario',
+                                email: currentEmail || '',
                                 rol: 'operativo',
                                 primerLogin: true,
                                 ultimoLogin: null
@@ -266,6 +272,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     }
                 } else if (event === 'SIGNED_OUT') {
                     console.info('🔒 Usuario desconectado')
+                    lastProcessedEmail.current = null
                     clearProfileCache()
                     if (mounted) setUser(null)
                 } else if (event === 'TOKEN_REFRESHED') {
@@ -275,7 +282,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     if (session?.user && mounted) {
                         const profile = await fetchUserProfile(
                             session.user.id,
-                            session.user.email || ''
+                            currentEmail || ''
                         )
                         if (profile) setUser(profile)
                     }
@@ -294,7 +301,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             clearTimeout(timeoutId)
             subscription.unsubscribe()
         }
-    }, [fetchUserProfile, clearProfileCache, user, isLoading])
+    }, [fetchUserProfile, clearProfileCache])
 
     const value: AuthContextType = {
         user,
