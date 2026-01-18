@@ -42,7 +42,7 @@ export default async function handler(request: VercelRequest, response: VercelRe
 
         const payload = {
             message: message,
-            tpoa: "GESTARSALUD", // Sender ID (max 11 chars alfanuméricos)
+            // tpoa: "GESTARSALUD", // Se omite para usar el remitente por defecto del gateway (evita bloqueos de operadores)
             recipient: [
                 { msisdn: cleanPhone }
             ]

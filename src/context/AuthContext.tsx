@@ -159,7 +159,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 .update({ last_sign_in_at: new Date().toISOString() })
                 .eq('email_institucional', email)
                 .then(({ error }) => {
-                    if (error) console.error('Error actualizando last_sign_in_at:', error)
+                    if (error) {
+                        // Ignorar error 403/42501 (permisos) para no ensuciar la consola, es secundario
+                        if (error.code !== '42501') {
+                            console.warn('⚠️ No se pudo actualizar last_sign_in_at:', error.message)
+                        }
+                    }
                 })
 
             // Guardar en caché
@@ -219,10 +224,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const initSession = async () => {
             console.log('--- Iniciando verificación de sesión ---')
 
-            // Failsafe: Si después de 8 segundos no responde, limpiar sesión y desbloquear
+            // Failsafe: Si después de 20 segundos no responde, limpiar sesión y desbloquear
             const timeoutId = setTimeout(() => {
                 if (mounted) {
-                    console.error('⏰ TIMEOUT: Carga inicial excedida. Posible sesión corrupta.')
+                    console.error('⏰ TIMEOUT: Carga inicial excedida (20s). Posible sesión corrupta.')
                     console.warn('🧹 Limpiando almacenamiento local y forzando logout...')
 
                     // 1. Limpieza de emergencia del almacenamiento local
@@ -238,7 +243,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     setUser(null)
                     setIsLoading(false)
                 }
-            }, 8000)
+            }, 20000)
 
             try {
                 const { data: { session }, error: sessionError } = await supabase.auth.getSession()

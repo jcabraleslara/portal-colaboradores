@@ -46,10 +46,14 @@ export const smsService = {
             // 2. Construir mensaje personalizado
             // Limitar a ~160 caracteres.
             // "Hola JUAN, tu radicado XXX cambio a AUTORIZADO. Mas info: comunicate al 3336026080. Gestarsalud"
+            // "Hola JUAN, tu radicado XXX cambio a AUTORIZADO. Mas info: comunicate al 3336026080. Gestarsalud"
             const nombreCorto = paciente.nombres.split(' ')[0]; // Primer nombre
+            // Normalizar a ASCII pura para evitar modo UCS-2 y asegurar entrega rápida
+            const nombreLimpio = nombreCorto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
             const estadoTexto = nuevoEstado.toUpperCase();
 
-            let mensaje = `Hola ${nombreCorto}, el estado de su radicado ${radicado.radicado} ha cambiado a ${estadoTexto}. Para mayor info comunicarse al call center 333 6026080.`;
+            let mensaje = `Hola ${nombreLimpio}, el estado de su radicado ${radicado.radicado} ha cambiado a ${estadoTexto}. Para mayor info comunicarse al call center 333 6026080.`;
 
             // Validación de seguridad para no exceder caracteres si el nombre es muy largo o algo falla
             if (mensaje.length > 160) {
