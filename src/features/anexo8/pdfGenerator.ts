@@ -28,102 +28,120 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica)
     const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
+    // Altura total de la página (aprox 841pt para A4, o 792pt para Letter)
+    // La plantilla parece ser tamaño oficio o carta larga.
     const { height } = page.getSize()
-    const fontSize = 10
-    const color = rgb(0.1, 0.1, 0.1) // Negro suave
+    const fontSize = 9 // Reducir un poco para encajar mejor
+    const color = rgb(0.1, 0.1, 0.1)
 
     // Función helper para dibujar texto
-    const draw = (text: string, x: number, yFromTop: number, size: number = fontSize, font = fontRegular) => {
-        // Convertir coordenadas: en PDF (0,0) es abajo-izquierda, pero es más fácil pensar desde arriba
+    // yOffset permite dibujar en la segunda copia (parte inferior)
+    const draw = (text: string, x: number, yFromTopBase: number, yOffset: number = 0, size: number = fontSize, font = fontRegular) => {
         page.drawText(String(text || '').toUpperCase(), {
             x,
-            y: height - yFromTop,
+            y: height - (yFromTopBase + yOffset),
             size,
             font,
             color
         })
     }
 
-    // === INSERTAR DATOS ===
+    // Definir offset para la copia inferior
+    // La segunda copia empieza aprox a mitad de página.
+    // En la imagen HTML, "RECETARIO..." superior está en top~6.5em, e inferior en top~24.6em. Diferencia ~18em.
+    // Estimación en puntos PDF: ~250-260 pt diferencia. Ajustaremos a 425pt aprox (mitad de hoja oficio/carta alargada).
+    const COPIA_Y_OFFSET = 422
 
-    // -- ENCABEZADO --
-    // Número (M-XXXX) - Asumiendo posición cerca de esquina superior derecha
-    draw(`Nº ${data.numero_recetario}`, 450, 95, 12, fontBold)
+    // === INSERTAR DATOS (Iteramos 2 veces: Original y Copia) ===
+    const offsets = [0, COPIA_Y_OFFSET]
 
-    // Fecha Prescripción
-    // Usar split para evitar problemas de zona horaria con new Date("YYYY-MM-DD")
-    const [anio, mes, dia] = data.fecha_prescripcion.split('-')
+    offsets.forEach(offset => {
+        // -- ENCABEZADO --
+        // Número (Nº) - Ajustado: más arriba y derecha
+        draw(`${data.numero_recetario}`, 480, 78, offset, 11, fontBold)
 
-    draw(`${dia}   /   ${mes}   /   ${anio}`, 440, 137, 11)
+        // Fecha - Ajustado: alineado con "Fecha Día Mes Año"
+        // Usar split para evitar problemas de zona horaria
+        const [anio, mes, dia] = data.fecha_prescripcion.split('-')
+        draw(dia, 300, 92, offset)
+        draw(mes, 370, 92, offset)
+        draw(anio, 450, 92, offset)
 
-    // -- 1. PACIENTE --
-    // Coordenadas estimadas basadas en formato estándar
-    const fila1 = 165
-    draw(data.paciente_apellido1, 120, fila1)           // Primer Apellido
-    draw(data.paciente_apellido2 || '', 280, fila1)     // Segundo Apellido
-    draw(data.paciente_nombres, 430, fila1)             // Nombres
+        // -- 1. PACIENTE --
+        const fila1 = 106 // Prima Apellido, Segundo, Nombres
+        draw(data.paciente_apellido1, 110, fila1, offset)
+        draw(data.paciente_apellido2 || '', 270, fila1, offset)
+        draw(data.paciente_nombres, 410, fila1, offset)
 
-    const fila2 = 188
-    // Tipo ID (Check simple basado en texto)
-    draw(data.paciente_tipo_id, 95, fila2)
-    draw(data.paciente_documento, 180, fila2)           // Número
-    draw(data.paciente_edad?.toString() || '', 350, fila2) // Edad
-    draw(data.paciente_genero || '', 450, fila2)        // Género
+        const fila2 = 137 // Identificación
+        // Checks TI/CC/Otro
+        if (data.paciente_tipo_id === 'CC') draw('X', 80, 133, offset, 10) // Ajuste fino check
+        else if (data.paciente_tipo_id === 'TI') draw('X', 45, 133, offset, 10)
+        else draw('X', 125, 133, offset, 10) // Otro
 
-    const fila3 = 212
-    draw(data.paciente_telefono || '', 100, fila3)      // Teléfono
-    draw(data.paciente_municipio || '', 260, fila3)     // Municipio
+        draw(data.paciente_documento, 170, 137, offset, 10) // Número documento
+        draw(data.paciente_edad?.toString() || '', 360, 137, offset) // Edad
 
-    const fila4 = 235
-    draw(data.paciente_direccion || '', 100, fila4)     // Dirección
-    draw(data.paciente_departamento || '', 450, fila4)  // Departamento (CORDOBA)
+        // Genero
+        if (data.paciente_genero === 'F') draw('X', 428, 133, offset, 8)
+        else if (data.paciente_genero === 'M') draw('X', 463, 133, offset, 8)
 
-    const fila5 = 258 // Afiliación y EPS
-    // Marcar con X según régimen
-    if (data.paciente_regimen === 'Subsidiado') draw('X', 205, fila5)
-    if (data.paciente_regimen === 'Contributivo') draw('X', 285, fila5)
-    if (data.paciente_regimen === 'Vinculado') draw('X', 355, fila5)
+        const fila3 = 153 // Teléfono, Municipio
+        draw(data.paciente_telefono || '', 90, 169, offset) // Bajado un poco
+        draw(data.paciente_municipio || '', 180, 169, offset)
+        draw(data.paciente_direccion || '', 290, 169, offset) // Dirección Residencia
+        draw(data.paciente_departamento || 'CORDOBA', 460, 169, offset)
 
-    draw(data.paciente_eps || '', 430, fila5)           // EPS
+        const fila4 = 200 // Afiliación SGSSS
+        // Checks
+        if (data.paciente_regimen === 'Subsidiado') draw('X', 135, 203, offset, 10)
+        else if (data.paciente_regimen === 'Contributivo') draw('X', 225, 203, offset, 10)
+        else if (data.paciente_regimen === 'Vinculado') draw('X', 320, 203, offset, 10)
 
-    // -- 2. MEDICAMENTOS --
-    const filaMed = 320
-    draw(data.medicamento_nombre, 40, filaMed)                     // Nombre Genérico
-    draw(data.medicamento_concentracion || '', 240, filaMed)       // Concentración
-    draw(data.medicamento_forma_farmaceutica, 320, filaMed)        // Forma Farm. (ajustar x)
-    draw(data.medicamento_dosis_via || '', 420, filaMed, 9)        // Dosis / Vía
-    draw(data.cantidad_numero.toString(), 515, filaMed)            // Cantidad Num
-    draw(data.cantidad_letras, 545, filaMed, 8)                    // En Letras (ajustar x/size)
+        draw(data.paciente_eps || '', 380, 203, offset, 8) // EPS
 
-    const filaDiag = 355
-    const diagTexto = `${data.diagnostico_cie10 || ''} - ${data.diagnostico_descripcion || ''}`
-    draw(diagTexto.substring(0, 85), 110, filaDiag, 9)             // Diagnóstico
+        // -- 2. MEDICAMENTOS --
+        // Ajustado para caer dentro de la tabla
+        const filaMed = 242
+        let nombreMed = data.medicamento_nombre
+        if (nombreMed.length > 25) nombreMed = nombreMed.substring(0, 25) // Truncar si es muy largo
 
-    // -- 3. PROFESIONAL --
-    const filaProf1 = 405
-    // Tipo Médico
-    if (data.medico_tipo === 'General') draw('X', 145, filaProf1)
-    if (data.medico_tipo === 'Especializado') draw('X', 235, filaProf1)
+        draw(nombreMed, 40, filaMed, offset, 8)
+        draw(data.medicamento_concentracion || '', 230, filaMed, offset, 8)
+        draw(data.medicamento_forma_farmaceutica, 305, filaMed + 5, offset, 7) // +5 para centrar verticalmente si es largo
+        draw(data.medicamento_dosis_via || '', 380, filaMed, offset, 7)
+        draw(data.cantidad_numero.toString(), 460, filaMed, offset)
+        draw(data.cantidad_letras, 485, filaMed, offset, 6) // Letra pequeña para que quepa
 
-    // Especialidad
-    if (data.medico_especialidad) {
-        draw(data.medico_especialidad, 450, filaProf1)
-    }
+        const filaDiag = 295 // Diagnóstico
+        const diagTexto = `${data.diagnostico_cie10 || ''} - ${data.diagnostico_descripcion || ''}`
+        draw(diagTexto.substring(0, 90), 80, 295, offset, 8) // Diagnóstico texto
 
-    const filaProf2 = 430
-    draw(data.medico_nombres, 150, filaProf2) // Nombre Completo
+        // -- 3. PROFESIONAL --
+        const filaProf1 = 328
+        // Tipo Médico (Checks) - Asumiendo posiciones
+        if (data.medico_tipo === 'General') draw('X', 100, 325, offset, 10)
+        else draw('X', 190, 325, offset, 10) // Especializado
 
-    const filaProf3 = 455
-    draw(data.medico_documento, 130, filaProf3) // Documento
-    draw(data.medico_documento, 380, filaProf3) // Resolución (usamos mismo documento o dejar vacío si es otro)
+        if (data.medico_especialidad) {
+            draw(data.medico_especialidad, 360, 325, offset, 9)
+        }
 
-    const filaInst = 480
-    draw('GESTAR SALUD DE COLOMBIA IPS', 210, filaInst) // Institución
+        const filaProf2 = 340 // Apellidos Nombres Médico
+        draw(data.medico_nombres, 180, 340, offset, 9) // Nombre completo centrado
 
-    const filaDirProf = 505
-    draw(data.medico_direccion || 'CRA 6 n 65 24', 90, filaDirProf) // Dirección
-    draw(data.medico_ciudad || 'MONTERIA', 350, filaDirProf)      // Ciudad
-    draw(data.medico_telefono || '', 500, filaDirProf)            // Teléfono
+        const filaProf3 = 368 // Doc, Res, Firma
+        draw(data.medico_documento, 60, 368, offset, 9) // Documento
+        draw(data.medico_documento, 260, 368, offset, 9) // Resolución (misma)
+        // Firma: Dejamos espacio en blanco o ponemos nombre como firma digital simple
+        // draw(data.medico_nombres, 400, 360, offset, 6) 
+
+        const filaInst = 398 // Inst, Dir, Ciudad, Tel
+        draw('GESTAR SALUD DE COLOMBIA IPS', 60, 385, offset, 8) // Institución subida un poco
+        draw(data.medico_direccion || 'CRA 6 n 65 24', 260, 385, offset, 8)
+        draw(data.medico_ciudad || 'MONTERIA', 390, 385, offset, 8)
+        draw(data.medico_telefono || '3103157229', 460, 385, offset, 8)
+    })
 
     // 4. Guardar
     const pdfBytes = await pdfDoc.save()
