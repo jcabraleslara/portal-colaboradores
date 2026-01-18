@@ -321,7 +321,7 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
 
     // 3. Configurar opciones de html2pdf
     const opt = {
-        margin: [5, 5, 5, 5], // márgenes en mm [top, right, bottom, left]
+        margin: [5, 5, 5, 5] as [number, number, number, number], // márgenes en mm [top, right, bottom, left]
         filename: `anexo8_${data.numero_recetario}.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: {
@@ -337,10 +337,13 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     }
 
     try {
+        const source = container.querySelector('.container') as HTMLElement
+        if (!source) throw new Error('No se encontró el contenedor del Anexo 8')
+
         // 4. Generar PDF como Blob
-        const blob = await html2pdf()
+        const blob = await (html2pdf() as any)
             .set(opt)
-            .from(container.querySelector('.container'))
+            .from(source)
             .outputPdf('blob')
 
         // 5. Limpiar el DOM
