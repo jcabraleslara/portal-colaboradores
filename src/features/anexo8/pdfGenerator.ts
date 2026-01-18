@@ -134,7 +134,6 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
 
     // Nombre del archivo
     const fechaStr = data.fecha_prescripcion.replace(/-/g, '')
-    const medNombre = data.medicamento_nombre.replace(/ /g, '_').substring(0, 15)
     // Sanitizar nombre paciente
     const pacienteNombre = (data.paciente_nombres.split(' ')[0] + (data.paciente_apellido1 || '')).replace(/[^a-zA-Z0-9]/g, '')
     const filename = `ANEXO8_${data.paciente_documento}_${pacienteNombre}_${fechaStr}.pdf`
