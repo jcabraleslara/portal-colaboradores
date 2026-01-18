@@ -152,8 +152,8 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         name: 'Generar Anexo 8',
         path: ROUTES.ANEXO_8,
         icon: 'FileSpreadsheet',
-        enabled: false,
-        description: 'En planeación',
+        enabled: true,
+        description: 'Recetario FNE para medicamentos controlados',
     },
     {
         id: 'triangulaciones',
