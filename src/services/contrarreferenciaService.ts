@@ -1,85 +1,12 @@
 /**
  * Servicio de Generación Automática de Contrarreferencias
- * Utiliza Gemini 3 Flash para generar contrarreferencias médicas
- * basadas en documentos vectorizados
+ * Utiliza endpoint serverless seguro (/api/generar-contrarreferencia)
+ * para generar contrarreferencias médicas sin exponer API keys
  */
 
 import { supabase } from '@/config/supabase.config'
 import { ragService } from './rag.service'
 import type { ContrarreferenciaResult } from '@/types/back.types'
-
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
-
-/**
- * Prompt especializado de auditor médico senior
- * Variables: {texto_soporte}, {especialidad}
- */
-const PROMPT_CONTRARREFERENCIA = `RESPUESTAS SIN CITATION MARKERS
-
-Eres un auditor médico senior con más de 15 años de experiencia en revisión de pertinencia médica de remisiones a especialidades en el sistema de salud colombiano. Tu función es evaluar la justificación clínica de remisiones desde niveles de baja complejidad hacia especialidades de mayor complejidad.
-
-DOCUMENTO DE SOPORTE CLÍNICO (Historia Clínica):
-{texto_soporte}
-
-ESPECIALIDAD DE DESTINO: {especialidad}
-
-CRITERIOS DE EVALUACIÓN PARA CONTRA REFERENCIA:
-
-**A. Completitud de soportes documentales:**
-- Identificación completa del paciente
-- Anamnesis detallada con evolución del cuadro clínico
-- Examen físico completo y signos vitales
-- Impresión diagnóstica coherente con el contenido de la Historia Clínica
-
-**B. Criterios de pertinencia médica:**
-- Justificación clara del motivo de remisión
-- Concordancia entre hallazgos clínicos y especialidad solicitada
-- Agotamiento de capacidad resolutiva del primer nivel de atención
-- Existencia de criterios de complejidad que justifiquen el nivel superior
-
-**C. Tratamientos previos:**
-- Verificar qué tratamientos farmacológicos se han prescrito previamente
-- Evaluar tiempo de evolución y respuesta a tratamientos instaurados
-- Confirmar si se han aplicado medidas terapéuticas disponibles en primer nivel
-- Si la HC no especifica tratamientos previos, debe ser parte de los motivos de la contra referencia
-
-**D. Estudios paraclínicos:**
-- Verificar si se han solicitado y realizado estudios básicos disponibles en primer nivel (laboratorios, EKG, radiografías simples, etc.)
-- Confirmar que NO se soliciten desde nivel bajo de complejidad ambulatorio: resonancias magnéticas, tomografías axiales computarizadas, ni ecografías (estos estudios solo pueden ordenarse desde niveles superiores)
-- Si faltan paraclínicos básicos, identificarlos
-
-**E. Criterios diagnósticos:**
-- Evaluar si el diagnóstico está claramente establecido o es presuntivo
-- Verificar coherencia entre síntomas, signos y diagnóstico propuesto
-- Determinar si se requieren estudios adicionales del primer nivel antes de remitir
-
-FORMATO DE RESPUESTA - CONTRA REFERENCIA:
-
-Cuando encuentres que la remisión NO cumple criterios de pertinencia, debes generar una CONTRA REFERENCIA concisa y técnica con el siguiente formato:
-
----
-
-**CONTRA REFERENCIA**
-
-Se contra remite el caso al primer nivel de atención por las siguientes razones:
-
-1. **Completitud documental:** [Especificar si faltan elementos de la HC]
-2. **Criterios clínicos:** [Indicar incongruencias o falta de justificación]
-3. **Tratamiento previo:** [Señalar tratamientos de primer nivel no instaurados]
-4. **Estudios paraclínicos:** [Indicar estudios básicos pendientes del primer nivel]
-
----
-
-IMPORTANTE:
-- Sé técnico pero claro en tu lenguaje médico
-- Fundamenta cada contra referencia en criterios clínicos objetivos
-- Proporciona alternativas terapéuticas concretas para el primer nivel
-- Mantén un tono profesional orientado a mejorar la calidad de atención
-- No debes recomendar la realización de terapias físicas, ecografías de ningún tipo, resonancias, pruebas de aliento para helicobacter, ni tomografías, puesto que no son de manejo del primer nivel de atención.
-
-La respuesta debe ser directa e inmediata, no debe contar con introducciones previas, ni encabezados previos ni con pregunta finales al usuario. Debe arrancar directamente con el encabezado "CONTRA REFERENCIA".
-
-Tampoco debe contener referencias tipo link a las fuentes, solo el texto disponible para copiar y pegar en el software de Historias Clínicas que es externo a gemini. No incluir citation markers [1], [2], etc.`
 
 /**
  * Obtiene el texto completo de un documento desde sus chunks vectorizados
@@ -110,76 +37,55 @@ async function obtenerTextoCompleto(radicado: string): Promise<string> {
 }
 
 /**
- * Genera contrarreferencia usando Gemini 3 Flash
+ * Genera contrarreferencia usando endpoint serverless seguro
+ * La API key NO se expone al frontend
  */
 async function generarContrarreferenciaConIA(
     textoSoporte: string,
     especialidad: string = 'No especificada'
 ): Promise<{ success: boolean; texto?: string; error?: string }> {
-    if (!GEMINI_API_KEY) {
-        return {
-            success: false,
-            error: 'VITE_GEMINI_API_KEY no configurada'
-        }
-    }
-
-    console.log('[Contrarreferencia] Generando con Gemini 3 Flash...')
+    console.log('[Contrarreferencia] Llamando a endpoint serverless...')
 
     try {
-        // Reemplazar variables en el prompt
-        const promptFinal = PROMPT_CONTRARREFERENCIA
-            .replace('{texto_soporte}', textoSoporte)
-            .replace('{especialidad}', especialidad)
-
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`
-
-        const response = await fetch(apiUrl, {
+        // Llamar al endpoint serverless de Vercel (API key segura en backend)
+        const response = await fetch('/api/generar-contrarreferencia', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: promptFinal }]
-                }],
-                generationConfig: {
-                    temperature: 0,
-                    maxOutputTokens: 2048,
-                    topP: 0.95,
-                    topK: 40
-                }
+                textoSoporte,
+                especialidad
             })
         })
 
         if (!response.ok) {
-            const errorData = await response.text()
-            console.error('[Contrarreferencia] Gemini error:', response.status, errorData)
+            const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }))
+            console.error('[Contrarreferencia] Endpoint error:', response.status, errorData)
             return {
                 success: false,
-                error: `Error de Gemini API: ${response.status}`
+                error: errorData.error || `Error del servidor: ${response.status}`
             }
         }
 
         const data = await response.json()
 
-        if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-            const textoGenerado = data.candidates[0].content.parts[0].text.trim()
-            console.log(`[Contrarreferencia] ✅ Generación exitosa (${textoGenerado.length} caracteres)`)
-
+        if (data.success && data.texto) {
+            console.log(`[Contrarreferencia] ✅ Generación exitosa (${data.texto.length} caracteres)`)
             return {
                 success: true,
-                texto: textoGenerado
+                texto: data.texto
             }
         }
 
         return {
             success: false,
-            error: 'Respuesta de Gemini sin contenido válido'
+            error: data.error || 'Respuesta del servidor sin contenido válido'
         }
 
     } catch (error) {
-        console.error('[Contrarreferencia] Error en generación:', error)
+        console.error('[Contrarreferencia] Error en llamada al endpoint:', error)
         return {
             success: false,
-            error: error instanceof Error ? error.message : 'Error desconocido'
+            error: error instanceof Error ? error.message : 'Error de conexión con el servidor'
         }
     }
 }
@@ -213,7 +119,7 @@ export async function generarContrarreferenciaAutomatica(
         // 2. Si no existe, vectorizar on-the-fly
         if (!textoSoporte || textoSoporte.length < 100) {
             console.log('[Contrarreferencia] No hay vectorización, vectorizando on-the-fly...')
-            
+
             const resultadoVectorizacion = await ragService.vectorizarPdf(radicado, pdfUrl)
 
             if (!resultadoVectorizacion.success) {
