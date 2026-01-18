@@ -24,3 +24,7 @@ dist-ssr
 *.sln
 *.sw?
 *.cjs
+
+# Google Cloud credentials
+*-credentials.json
+document-ai-*.json
