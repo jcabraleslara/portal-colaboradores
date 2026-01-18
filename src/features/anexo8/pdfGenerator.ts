@@ -104,16 +104,13 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     setText('paciente_departamento', data.paciente_departamento || 'CÓRDOBA')
     setText('paciente_eps', data.paciente_eps)
 
-    // Medicamento - AJUSTAR TAMAÑOS DE FUENTE
-    setText('medicamento_nombre', data.medicamento_nombre, 9)
-    setText('medicamento_concentracion', data.medicamento_concentracion, 9)
-    setText('medicamento_forma', data.medicamento_forma_farmaceutica, 9)
-
-    // Para dosis: Permitir que el texto fluya naturalmente
-    setText('medicamento_dosis', data.medicamento_dosis_via, 8)
-
-    setText('cantidad_numero', data.cantidad_numero, 9)
-    setText('cantidad_letras', data.cantidad_letras, 8)
+    // Medicamento - Reducir tamaños para que coincidan con el resto del formulario
+    setText('medicamento_nombre', data.medicamento_nombre, 7)
+    setText('medicamento_concentracion', data.medicamento_concentracion, 7)
+    setText('medicamento_forma', data.medicamento_forma_farmaceutica, 7)
+    setText('medicamento_dosis', data.medicamento_dosis_via, 7)
+    setText('cantidad_numero', data.cantidad_numero, 7)
+    setText('cantidad_letras', data.cantidad_letras, 7)
 
     // Diagnóstico
     const diagnosticoCompleto = data.diagnostico_cie10
@@ -167,45 +164,40 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
                 firmaImage = await pdfDoc.embedJpg(firmaBytes)
             }
 
-            // Obtener dimensiones del campo de firma (aprox)
-            // Los campos de firma están en las posiciones Y: ~485 (primera copia) y ~55 (segunda copia)
-            const firmaDims = firmaImage.scale(0.5) // Escalar al 50% del tamaño original
+            // Obtener el campo de firma para extraer sus coordenadas
+            const firmaField = form.getTextField('medico_firma')
+            const widgets = firmaField.acroField.getWidgets()
 
-            // Posiciones aproximadas del campo firma (necesitan ajuste)
-            // Primera firma (Original): Y ~485
-            // Segunda firma (Copia): Y ~55
-            const firmaWidth = 80 // Ancho del campo
-            const firmaHeight = 35 // Alto del campo
+            // Iterar sobre cada widget (habrá 2: uno para Original y otro para Copia)
+            widgets.forEach((widget) => {
+                const rect = widget.getRectangle()
 
-            // Calcular escala para que quepa en el campo
-            const scaleX = firmaWidth / firmaDims.width
-            const scaleY = firmaHeight / firmaDims.height
-            const scale = Math.min(scaleX, scaleY, 1) // No agrandar
+                // Obtener posición y tamaño del campo
+                const fieldX = rect.x
+                const fieldY = rect.y
+                const fieldWidth = rect.width
+                const fieldHeight = rect.height
 
-            const finalWidth = firmaDims.width * scale
-            const finalHeight = firmaDims.height * scale
+                // Calcular escala para que la firma quepa en el campo
+                const imgDims = firmaImage.scale(0.5) // Empezar con 50%
+                const scaleX = fieldWidth / imgDims.width
+                const scaleY = fieldHeight / imgDims.height
+                const scale = Math.min(scaleX, scaleY, 1) // No agrandar más allá del original
 
-            // Posiciones (estas son aproximadas, ajustar según necesidad)
-            const firmaX1 = 500 // Posición X aproximada
-            const firmaY1 = 485 // Primera firma
-            const firmaY2 = 55  // Segunda firma
+                const finalWidth = imgDims.width * scale
+                const finalHeight = imgDims.height * scale
 
-            // Centrar horizontalmente en el campo
-            const offsetX = (firmaWidth - finalWidth) / 2
+                // Centrar la firma en el campo
+                const x = fieldX + (fieldWidth - finalWidth) / 2
+                const y = fieldY + (fieldHeight - finalHeight) / 2
 
-            // Dibujar firma en ambas copias
-            firstPage.drawImage(firmaImage, {
-                x: firmaX1 + offsetX,
-                y: firmaY1,
-                width: finalWidth,
-                height: finalHeight
-            })
-
-            firstPage.drawImage(firmaImage, {
-                x: firmaX1 + offsetX,
-                y: firmaY2,
-                width: finalWidth,
-                height: finalHeight
+                // Dibujar la firma en esta posición
+                firstPage.drawImage(firmaImage, {
+                    x,
+                    y,
+                    width: finalWidth,
+                    height: finalHeight
+                })
             })
         } catch (e) {
             console.warn('Error al cargar firma del médico:', e)

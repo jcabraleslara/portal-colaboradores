@@ -342,23 +342,41 @@ export default function Anexo8Page() {
         }
 
         // Aplicar medicamento si se detectó
+        let medicamentoMatch: MedicamentoControlado | '' = ''
         if (data.medicamentoNombre) {
             // Buscar coincidencia exacta en la lista
-            const medicamentoMatch = MEDICAMENTOS_CONTROLADOS.find(
+            const match = MEDICAMENTOS_CONTROLADOS.find(
                 m => m.toLowerCase() === data.medicamentoNombre?.toLowerCase()
             )
-            if (medicamentoMatch) {
-                setFormData(prev => ({ ...prev, medicamentoNombre: medicamentoMatch }))
+            if (match) {
+                medicamentoMatch = match
             }
         }
 
-        // Aplicar otros campos extraídos
+        // Aplicar forma farmacéutica si se detectó
+        let formaMatch: FormaFarmaceutica | '' = ''
+        if (data.formaFarmaceutica) {
+            // Buscar coincidencia compatible
+            const match = FORMAS_FARMACEUTICAS.find(f =>
+                f.toLowerCase().includes(data.formaFarmaceutica?.toLowerCase() || '') ||
+                data.formaFarmaceutica?.toLowerCase().includes(f.toLowerCase())
+            )
+            if (match) {
+                formaMatch = match
+            }
+        }
+
+        // Aplicar todos los campos extraídos
         setFormData(prev => ({
             ...prev,
+            medicamentoNombre: medicamentoMatch || prev.medicamentoNombre,
             concentracion: data.concentracion || prev.concentracion,
+            formaFarmaceutica: formaMatch || prev.formaFarmaceutica,
+            dosisVia: data.dosisVia || prev.dosisVia,
             cantidadNumero: data.cantidadNumero || prev.cantidadNumero,
             diagnosticoCie10: data.diagnosticoCie10 || prev.diagnosticoCie10,
-            diagnosticoDescripcion: data.diagnosticoDescripcion || prev.diagnosticoDescripcion
+            diagnosticoDescripcion: data.diagnosticoDescripcion || prev.diagnosticoDescripcion,
+            mesesFormula: data.mesesTratamiento || prev.mesesFormula
         }))
 
         setExito('Datos extraídos del OCR aplicados. Verifique y complete la información.')
