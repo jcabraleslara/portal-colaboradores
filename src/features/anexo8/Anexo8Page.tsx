@@ -192,6 +192,15 @@ export default function Anexo8Page() {
         }
     }
 
+    // Validar si el formulario está completo
+    const formularioCompleto = (
+        paciente !== null &&
+        formData.medicamentoNombre !== '' &&
+        formData.formaFarmaceutica !== '' &&
+        formData.cantidadNumero !== '' &&
+        medicoSeleccionado !== null
+    )
+
     // Generar Anexo 8
     const generarAnexo8 = async () => {
         // Validaciones
@@ -297,9 +306,9 @@ export default function Anexo8Page() {
 
             setExito(`Se generaron ${resultado.data.length} Anexo(s) 8 correctamente`)
 
-            // Activar animación de éxito
+            // Activar animación de éxito (5 segundos)
             setGeneradoExito(true)
-            setTimeout(() => setGeneradoExito(false), 3000)
+            setTimeout(() => setGeneradoExito(false), 8000)
 
             // Limpiar formulario
             limpiarFormulario()
@@ -341,6 +350,17 @@ export default function Anexo8Page() {
             }
         }
 
+        // Buscar y seleccionar médico si se reconoció
+        if (data.medicoDocumento || data.medicoRegistro) {
+            const docMedico = data.medicoDocumento || data.medicoRegistro
+            const medicoEncontrado = medicos.find(m =>
+                m.documento === docMedico
+            )
+            if (medicoEncontrado) {
+                await seleccionarMedico(medicoEncontrado.id)
+            }
+        }
+
         // Aplicar medicamento si se detectó
         let medicamentoMatch: MedicamentoControlado | '' = ''
         if (data.medicamentoNombre) {
@@ -366,6 +386,9 @@ export default function Anexo8Page() {
             }
         }
 
+        // Usar cantidad POR MES, no cantidad total
+        const cantidadCorrecta = data.cantidadPorMes || data.cantidadNumero || ''
+
         // Aplicar todos los campos extraídos
         setFormData(prev => ({
             ...prev,
@@ -373,7 +396,7 @@ export default function Anexo8Page() {
             concentracion: data.concentracion || prev.concentracion,
             formaFarmaceutica: formaMatch || prev.formaFarmaceutica,
             dosisVia: data.dosisVia || prev.dosisVia,
-            cantidadNumero: data.cantidadNumero || prev.cantidadNumero,
+            cantidadNumero: cantidadCorrecta,
             diagnosticoCie10: data.diagnosticoCie10 || prev.diagnosticoCie10,
             diagnosticoDescripcion: data.diagnosticoDescripcion || prev.diagnosticoDescripcion,
             mesesFormula: data.mesesTratamiento || prev.mesesFormula
@@ -726,15 +749,15 @@ export default function Anexo8Page() {
                         {/* Botón Generar */}
                         <button
                             onClick={generarAnexo8}
-                            disabled={generando || generadoExito || !paciente || !medicoSeleccionado}
+                            disabled={generando || generadoExito || !formularioCompleto}
                             className={`
                             w-full py-4 rounded-xl text-white font-semibold text-lg
                             flex items-center justify-center gap-3
                             transition-all duration-300 shadow-lg
-                            ${generando || !paciente || !medicoSeleccionado
+                            ${generando || !formularioCompleto
                                     ? 'bg-slate-400 cursor-not-allowed'
                                     : generadoExito
-                                        ? 'bg-gradient-to-r from-green-500 to-green-600 animate-pulse'
+                                        ? 'bg-gradient-to-r from-green-500 to-green-600 animate-pulse scale-105'
                                         : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 hover:shadow-xl'
                                 }
                         `}

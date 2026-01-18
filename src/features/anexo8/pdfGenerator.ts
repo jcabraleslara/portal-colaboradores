@@ -104,13 +104,13 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     setText('paciente_departamento', data.paciente_departamento || 'CÓRDOBA')
     setText('paciente_eps', data.paciente_eps)
 
-    // Medicamento - Reducir tamaños para que coincidan con el resto del formulario
-    setText('medicamento_nombre', data.medicamento_nombre, 7)
-    setText('medicamento_concentracion', data.medicamento_concentracion, 7)
-    setText('medicamento_forma', data.medicamento_forma_farmaceutica, 7)
-    setText('medicamento_dosis', data.medicamento_dosis_via, 7)
-    setText('cantidad_numero', data.cantidad_numero, 7)
-    setText('cantidad_letras', data.cantidad_letras, 7)
+    // Medicamento (tamaños ajustados manualmente en el PDF por el usuario)
+    setText('medicamento_nombre', data.medicamento_nombre)
+    setText('medicamento_concentracion', data.medicamento_concentracion)
+    setText('medicamento_forma', data.medicamento_forma_farmaceutica)
+    setText('medicamento_dosis', data.medicamento_dosis_via)
+    setText('cantidad_numero', data.cantidad_numero)
+    setText('cantidad_letras', data.cantidad_letras)
 
     // Diagnóstico
     const diagnosticoCompleto = data.diagnostico_cie10
@@ -124,7 +124,7 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     setText('medico_nombres', medicoNombres)
     setText('medico_documento', data.medico_documento)
     setText('medico_especialidad', data.medico_especialidad)
-
+    // No llenar medico_firma con texto, se dibujará la imagen encima
     // ========================================
     // LLENAR RADIO BUTTONS
     // ========================================
@@ -187,9 +187,9 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
                 const finalWidth = imgDims.width * scale
                 const finalHeight = imgDims.height * scale
 
-                // Centrar la firma en el campo
+                // Centrar la firma en el campo (con pequeño offset hacia abajo)
                 const x = fieldX + (fieldWidth - finalWidth) / 2
-                const y = fieldY + (fieldHeight - finalHeight) / 2
+                const y = fieldY + (fieldHeight - finalHeight) / 2 - 3 // Bajar 3px
 
                 // Dibujar la firma en esta posición
                 firstPage.drawImage(firmaImage, {

@@ -91,9 +91,10 @@ export const anexo8Service = {
             const fechaBase = new Date(datosBase.fecha_prescripcion)
 
             for (let mes = 1; mes <= totalMeses; mes++) {
-                // Calcular fecha posfechada
+                // Calcular fecha posfechada sumando 30 días por cada mes
                 const fechaPosfechada = new Date(fechaBase)
-                fechaPosfechada.setMonth(fechaPosfechada.getMonth() + (mes - 1))
+                const diasASumar = (mes - 1) * 30
+                fechaPosfechada.setDate(fechaPosfechada.getDate() + diasASumar)
 
                 const datosRegistro: Anexo8CreateData = {
                     ...datosBase,
