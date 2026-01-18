@@ -17,6 +17,38 @@ import {
     ContactoUpdate,
 } from '@/types/contactos.types'
 
+const N8N_WEBHOOK_URL = import.meta.env.VITE_N8N_CONTACTS_WEBHOOK_URL
+
+/**
+ * Notifica a n8n sobre cambios para sincronización externa
+ */
+async function triggerSync(action: 'create' | 'update' | 'delete', data: Partial<Contacto>) {
+    if (!N8N_WEBHOOK_URL) {
+        console.warn('URL de Webhook N8N no configurada. Saltando sincronización.')
+        return
+    }
+
+    try {
+        console.log(`Iniciando sincronización N8N [${action}]...`)
+        // Fire and forget - no bloqueamos la UI esperando respuesta del webhook
+        fetch(N8N_WEBHOOK_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action,
+                data,
+                timestamp: new Date().toISOString(),
+                source: 'portal_colaboradores'
+            })
+        }).then(res => {
+            if (!res.ok) console.error('N8N Webhook error:', res.statusText)
+        }).catch(err => console.error('Error de conexión con N8N:', err))
+
+    } catch (error) {
+        console.error('Error disparando sync:', error)
+    }
+}
+
 // ========================================
 // HELPERS
 // ========================================
@@ -257,10 +289,13 @@ export const contactosService = {
                 }
             }
 
+            // Disparar sincronización
+            triggerSync('create', data as Contacto)
+
             return {
                 success: true,
                 data: data as Contacto,
-                message: 'Contacto creado exitosamente',
+                message: 'Contacto creado exitosamente. Iniciando sincronización...',
             }
         } catch (error) {
             console.error('Error en crearContacto:', error)
@@ -309,6 +344,9 @@ export const contactosService = {
                 }
             }
 
+            // Disparar sincronización
+            triggerSync('update', data as Contacto)
+
             return {
                 success: true,
                 data: data as Contacto,
@@ -340,6 +378,9 @@ export const contactosService = {
                     error: 'Error al eliminar el contacto. Verifica tus permisos.',
                 }
             }
+
+            // Disparar sincronización
+            triggerSync('delete', { id })
 
             return {
                 success: true,

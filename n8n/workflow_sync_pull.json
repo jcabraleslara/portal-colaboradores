@@ -1,0 +1,125 @@
+{
+    "name": "Sync Contactos PULL (Externos -> Portal)",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 15
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule Sync",
+            "type": "n8n-nodes-base.cron",
+            "typeVersion": 1,
+            "position": [
+                100,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "limit": 50,
+                "simple": false
+            },
+            "name": "Google Contacts",
+            "type": "n8n-nodes-base.googleContacts",
+            "typeVersion": 1,
+            "position": [
+                300,
+                200
+            ],
+            "credentials": {
+                "googleContactsOAuth2Api": {
+                    "id": "GOOGLE_CREDENTIALS_ID_PLACEHOLDER",
+                    "name": "Google Contacts Account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "returnAll": true
+            },
+            "name": "Microsoft Contacts",
+            "type": "n8n-nodes-base.microsoftOutlook",
+            "typeVersion": 1,
+            "position": [
+                300,
+                400
+            ],
+            "credentials": {
+                "microsoftOutlookOAuth2Api": {
+                    "id": "MICROSOFT_CREDENTIALS_ID_PLACEHOLDER",
+                    "name": "Microsoft Outlook Account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "tableId": "contactos",
+                "operation": "upsert",
+                "columns": "email_institucional, email_personal",
+                "updateKey": "email_institucional"
+            },
+            "name": "Upsert Supabase (Ejemplo)",
+            "type": "n8n-nodes-base.supabase",
+            "typeVersion": 1,
+            "position": [
+                600,
+                300
+            ],
+            "notes": "Configurar lógica de mapeo de campos antes de este nodo",
+            "credentials": {
+                "supabaseApi": {
+                    "id": "SUPABASE_CREDENTIALS_ID_PLACEHOLDER",
+                    "name": "Supabase Account"
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Schedule Sync": {
+            "main": [
+                [
+                    {
+                        "node": "Google Contacts",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Microsoft Contacts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Google Contacts": {
+            "main": [
+                [
+                    {
+                        "node": "Upsert Supabase (Ejemplo)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Microsoft Contacts": {
+            "main": [
+                [
+                    {
+                        "node": "Upsert Supabase (Ejemplo)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

@@ -4,9 +4,11 @@
  * Utiliza el endpoint serverless /api/create-user
  */
 
-import { useState } from 'react'
-import { X, User, Mail, Key, Shield, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { X, User, Mail, Key, Shield, Loader2, AlertCircle, CheckCircle, Search, Contact as ContactIcon } from 'lucide-react'
 import { UsuarioPortal, CreateUserData } from '@/services/usuariosPortal.service'
+import { contactosService } from '@/services/contactos.service'
+import { Contacto } from '@/types/contactos.types'
 import { supabase } from '@/config/supabase.config'
 
 interface CreateUserModalProps {
@@ -20,11 +22,79 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
         nombre_completo: '',
         email_institucional: '',
         rol: 'operativo',
-        password: ''
+        password: '',
+        contacto_id: null
     })
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
+
+    // Estados para búsqueda de contactos
+    const [searchTerm, setSearchTerm] = useState('')
+    const [isSearching, setIsSearching] = useState(false)
+    const [searchResults, setSearchResults] = useState<Contacto[]>([])
+    const [showResults, setShowResults] = useState(false)
+    const searchRef = useRef<HTMLDivElement>(null)
+
+    // Cerrar resultados al hacer clic fuera
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+                setShowResults(false)
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside)
+        return () => document.removeEventListener("mousedown", handleClickOutside)
+    }, [])
+
+    // Búsqueda de contactos
+    const handleSearchContact = async (term: string) => {
+        setSearchTerm(term)
+        if (term.length < 3) {
+            setSearchResults([])
+            setShowResults(false)
+            return
+        }
+
+        setIsSearching(true)
+        setShowResults(true)
+
+        try {
+            const { data, error: _error } = await contactosService.obtenerContactosFiltrados({
+                busqueda: term
+            }, 0, 5) // Limitar a 5 resultados
+
+            if (data?.contactos) {
+                setSearchResults(data.contactos)
+            }
+        } catch (err) {
+            console.error('Error buscando contactos:', err)
+        } finally {
+            setIsSearching(false)
+        }
+    }
+
+    // Seleccionar contacto
+    const handleSelectContact = (contacto: Contacto) => {
+        const nombreCompleto = [
+            contacto.primer_nombre,
+            contacto.segundo_nombre,
+            contacto.apellidos
+        ].filter(Boolean).join(' ')
+
+        setFormData(prev => ({
+            ...prev,
+            identificacion: contacto.identificacion || prev.identificacion,
+            nombre_completo: nombreCompleto,
+            email_institucional: contacto.email_institucional || prev.email_institucional,
+            password: contacto.identificacion || prev.password, // Contraseña temporal = identificación
+            contacto_id: contacto.id
+        }))
+
+        setSearchTerm('')
+        setShowResults(false)
+        setError(null) // Limpiar errores previos
+    }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target
@@ -120,6 +190,65 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
+
+                    {/* Buscador de Contactos - Feature nueva */}
+                    <div className="relative z-20" ref={searchRef}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Buscar en Directorio (Opcional)
+                        </label>
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-indigo-500" />
+                            <input
+                                type="text"
+                                value={searchTerm}
+                                onChange={(e) => handleSearchContact(e.target.value)}
+                                placeholder="Buscar por nombre o cédula..."
+                                className="w-full pl-10 pr-4 py-2 border border-indigo-200 bg-indigo-50 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-indigo-300"
+                                disabled={isSubmitting || success}
+                            />
+                            {isSearching && (
+                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                                    <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Resultados de búsqueda */}
+                        {showResults && searchResults.length > 0 && (
+                            <div className="absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                {searchResults.map((contacto) => (
+                                    <button
+                                        key={contacto.id}
+                                        type="button"
+                                        onClick={() => handleSelectContact(contacto)}
+                                        className="w-full px-4 py-3 text-left hover:bg-indigo-50 transition-colors border-b last:border-0 border-gray-100 flex items-start gap-3 group"
+                                    >
+                                        <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg group-hover:bg-indigo-200 transition-colors">
+                                            <ContactIcon size={16} />
+                                        </div>
+                                        <div>
+                                            <p className="font-medium text-gray-800 text-sm">
+                                                {contacto.primer_nombre} {contacto.apellidos}
+                                            </p>
+                                            <div className="flex flex-col text-xs text-gray-500 mt-0.5">
+                                                <span>CC: {contacto.identificacion || 'N/A'}</span>
+                                                <span>{contacto.email_institucional || 'Sin email'}</span>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+
+                        {showResults && searchResults.length === 0 && searchTerm.length >= 3 && !isSearching && (
+                            <div className="absolute w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-center text-sm text-gray-500">
+                                No se encontraron contactos
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="border-t border-gray-100 my-4"></div>
+
                     {/* Identificación */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">

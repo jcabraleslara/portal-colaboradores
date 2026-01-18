@@ -32,6 +32,9 @@ export interface Contacto {
     area: string | null
     google_contact_id: string | null
     outlook_contact_id: string | null
+    sync_status?: 'pending' | 'synced' | 'error'
+    sync_error?: string | null
+    last_synced_at?: string | null
     created_at: string
     updated_at: string
     last_sign_in_at: string | null
