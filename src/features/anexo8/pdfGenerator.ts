@@ -70,7 +70,7 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
         draw(data.paciente_apellido2 || '', 270, fila1, offset)
         draw(data.paciente_nombres, 410, fila1, offset)
 
-        const fila2 = 175 // Identificación
+        // Identificación
         // Checks TI/CC/Otro
         if (data.paciente_tipo_id === 'CC') draw('X', 82, 168, offset, 10)
         else if (data.paciente_tipo_id === 'TI') draw('X', 45, 168, offset, 10)
