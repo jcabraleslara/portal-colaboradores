@@ -1130,7 +1130,9 @@ export function RadicacionCasosPage() {
                                                                 </span>
                                                             </div>
                                                             <p className={`text-sm whitespace-pre-wrap ${esFondoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>
-                                                                {radicacion.observaciones}
+                                                                {(!radicacion.observaciones || radicacion.observaciones === 'NaN' || radicacion.observaciones.trim() === '')
+                                                                    ? 'Ninguna observación'
+                                                                    : radicacion.observaciones}
                                                             </p>
                                                             <p className={`text-xs italic mt-2 capitalize ${esFondoOscuro ? 'text-gray-400' : 'text-gray-500'}`}>
                                                                 Radicado por: {radicacion.radicador.toLowerCase()}
@@ -1141,12 +1143,18 @@ export function RadicacionCasosPage() {
                                                     {/* Soportes y Botón Copiar Respuesta */}
                                                     <div className="flex items-center justify-between mt-2">
                                                         {/* Soportes */}
-                                                        <div className="flex items-center gap-2">
-                                                            {radicacion.soportes && radicacion.soportes.length > 0 && (
-                                                                <span className={`text-xs ${esFondoOscuro ? 'text-gray-300' : 'text-gray-500'}`}>
-                                                                    📎 {radicacion.soportes.length} archivo(s) adjunto(s)
-                                                                </span>
-                                                            )}
+                                                        <div className="flex flex-col gap-1 items-start">
+                                                            {radicacion.soportes && radicacion.soportes.length > 0 && radicacion.soportes.map((url, idx) => (
+                                                                <a
+                                                                    key={idx}
+                                                                    href={url}
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className={`text-xs hover:underline flex items-center gap-1 cursor-pointer ${esFondoOscuro ? 'text-cyan-400 hover:text-cyan-300' : 'text-blue-600 hover:text-blue-800'}`}
+                                                                >
+                                                                    📎 {radicacion.soportes!.length > 1 ? `Archivo adjunto ${idx + 1}` : '1 archivo(s) adjunto(s)'}
+                                                                </a>
+                                                            ))}
                                                         </div>
 
                                                         {/* Botón Copiar Respuesta - Solo visible si hay respuesta válida */}
