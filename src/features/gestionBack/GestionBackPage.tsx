@@ -393,7 +393,7 @@ export function GestionBackPage() {
             {/* ============================================ */}
             {/* BARRA DE BÚSQUEDA Y FILTROS */}
             {/* ============================================ */}
-            <Card>
+            <Card className="bg-[var(--color-primary-50)] border-[var(--color-primary-200)] shadow-md">
                 <Card.Body className="space-y-4">
                     {/* Barra principal */}
                     <div className="flex flex-col sm:flex-row gap-3">
