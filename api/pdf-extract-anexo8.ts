@@ -3,11 +3,11 @@
  * Endpoint: POST /api/pdf-extract-anexo8
  * 
  * Extrae texto de PDFs nativos de fórmulas médicas y mapea campos al Anexo 8
- * SIN OCR - Solo PDFs nativos con texto seleccionable
+ * Usando pdf-lib (compatible con serverless)
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import pdfParse from 'pdf-parse'
+import { PDFDocument } from 'pdf-lib'
 
 // Lista de medicamentos controlados para matching
 const MEDICAMENTOS_CONTROLADOS = [
@@ -96,6 +96,38 @@ interface PdfExtractResult {
     // Metadata
     confidence: number
     textoExtraido?: string
+    metodo?: string
+}
+
+/**
+ * Extraer texto de los campos de formulario de un PDF
+ */
+async function extraerTextoDeFormulario(pdfDoc: PDFDocument): Promise<string> {
+    const textos: string[] = []
+
+    try {
+        const form = pdfDoc.getForm()
+        const fields = form.getFields()
+
+        for (const field of fields) {
+            try {
+                const fieldName = field.getName()
+                // Intentar obtener valor como texto
+                if ('getText' in field) {
+                    const texto = (field as { getText: () => string }).getText()
+                    if (texto) {
+                        textos.push(`${fieldName}: ${texto}`)
+                    }
+                }
+            } catch {
+                // Ignorar campos que no se pueden leer
+            }
+        }
+    } catch {
+        // PDF sin formulario
+    }
+
+    return textos.join('\n')
 }
 
 /**
@@ -246,19 +278,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: 'pdfBase64 is required' })
         }
 
-        console.log('[PDF-EXTRACT] Procesando PDF...')
+        console.log('[PDF-EXTRACT] Procesando PDF con pdf-lib...')
 
         // Convertir base64 a buffer
         const pdfBuffer = Buffer.from(pdfBase64, 'base64')
 
-        // Extraer texto del PDF usando pdf-parse
-        const data = await pdfParse(pdfBuffer)
-        const textoExtraido = data.text
+        // Cargar PDF con pdf-lib
+        const pdfDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true })
 
-        console.log('[PDF-EXTRACT] Texto extraído:', textoExtraido.substring(0, 200))
+        // Extraer texto de campos de formulario
+        const textoFormulario = await extraerTextoDeFormulario(pdfDoc)
 
-        // Extraer datos estructurados
-        const datosExtraidos = extraerDatos(textoExtraido)
+        console.log('[PDF-EXTRACT] Texto de formulario:', textoFormulario.substring(0, 200))
+
+        // Si hay texto de formulario, extraer datos
+        let datosExtraidos: PdfExtractResult
+
+        if (textoFormulario.length > 50) {
+            datosExtraidos = extraerDatos(textoFormulario)
+            datosExtraidos.metodo = 'formulario'
+        } else {
+            // PDF sin campos de formulario - devolver respuesta vacía con mensaje
+            datosExtraidos = {
+                confidence: 0,
+                metodo: 'sin_texto',
+                textoExtraido: 'Este PDF no contiene texto extraíble. Es posible que sea un PDF escaneado (imagen). Para estos casos, recomendamos ingresar los datos manualmente.'
+            }
+        }
 
         console.log('[PDF-EXTRACT] Datos extraídos:', datosExtraidos)
 
