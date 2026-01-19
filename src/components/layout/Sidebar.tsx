@@ -12,6 +12,7 @@ import {
     ClipboardCheck,
     FileText,
     FileSpreadsheet,
+    FileSearch,
     RefreshCw,
     Car,
     BarChart3,
@@ -30,6 +31,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
     ClipboardCheck,
     FileText,
     FileSpreadsheet,
+    FileSearch,
     RefreshCw,
     Car,
     BarChart3,
@@ -53,8 +55,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
     // Filtrar módulos según rol del usuario
     const visibleModules = PORTAL_MODULES.filter(module => {
-        if (!module.requiredRole) return true
-        return (user?.rol as string) === module.requiredRole
+        // Si no hay restricción de roles, el módulo es visible para todos
+        if (!module.requiredRoles || module.requiredRoles.length === 0) {
+            return true
+        }
+        // Verificar si el rol del usuario está incluido en los roles permitidos
+        return module.requiredRoles.includes(user?.rol as string)
     })
 
     return (

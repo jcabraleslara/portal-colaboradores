@@ -178,6 +178,28 @@ export interface AlertState {
     visible: boolean
 }
 
+// ========================================
+// TIPOS DE CUPS
+// ========================================
+
+/**
+ * Procedimiento CUPS de la BD
+ */
+export interface Cups {
+    cups: string
+    descripcion: string | null
+    pgp_rc: boolean | null
+    pgp_rs: boolean | null
+    pgp_derm: boolean | null
+    cpt_cerete: boolean | null
+    cpt_monteria: boolean | null
+    cpt_cienaga: boolean | null
+    pgp_imat: boolean | null
+    contratos: string | null
+    observaciones: string | null
+    pertinencia: string[] | null
+}
+
 // Re-export tipos del módulo Back
 export * from './back.types'
 

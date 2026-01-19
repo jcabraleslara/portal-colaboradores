@@ -1,0 +1,1 @@
+export { ConsultarCupsPage } from './ConsultarCupsPage'

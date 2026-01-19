@@ -14,6 +14,7 @@ export const ROUTES = {
     GESTION_BACK: '/gestion-back',
     DIRECTORIO_INSTITUCIONAL: '/directorio-institucional',
     ADMIN_USUARIOS: '/admin/usuarios',
+    CONSULTAR_CUPS: '/consultar-cups',
     // Módulos futuros (placeholders)
     SOPORTES_FACTURACION: '/soportes-facturacion',
     ANEXO_8: '/anexo-8',
@@ -103,7 +104,7 @@ export interface ModuleConfig {
     icon: string
     enabled: boolean
     description?: string
-    requiredRole?: string  // Rol requerido para ver este módulo
+    requiredRoles?: string[]  // Roles permitidos para ver este módulo (si no está definido, es visible para todos)
 }
 
 export const PORTAL_MODULES: ModuleConfig[] = [
@@ -114,6 +115,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'Search',
         enabled: true,
         description: 'Consultar estado y datos de afiliados',
+        // Sin restricción de rol - visible para todos
     },
     {
         id: 'radicacion-casos',
@@ -122,6 +124,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'ClipboardList',
         enabled: true,
         description: 'Radicar casos y solicitudes',
+        requiredRoles: ['gerencia', 'auditor', 'operativo', 'administrador', 'superadmin'],
     },
     {
         id: 'gestion-back',
@@ -130,6 +133,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'ClipboardCheck',
         enabled: true,
         description: 'Gestionar casos del Back Office',
+        requiredRoles: ['superadmin', 'auditor'],
     },
     {
         id: 'directorio-institucional',
@@ -138,6 +142,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'Contact',
         enabled: true,
         description: 'Contactos institucionales',
+        requiredRoles: ['superadmin'],
     },
     {
         id: 'soportes-facturacion',
@@ -154,6 +159,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'FileSpreadsheet',
         enabled: true,
         description: 'Recetario de control especial',
+        requiredRoles: ['superadmin', 'auditor', 'asistencial'],
     },
     {
         id: 'triangulaciones',
@@ -180,12 +186,20 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         description: 'En planeación',
     },
     {
+        id: 'consultar-cups',
+        name: 'Consultar CUPS',
+        path: ROUTES.CONSULTAR_CUPS,
+        icon: 'FileSearch',
+        enabled: true,
+        description: 'Buscar procedimientos CUPS',
+    },
+    {
         id: 'admin-usuarios',
         name: 'Administrar Usuarios',
         path: ROUTES.ADMIN_USUARIOS,
         icon: 'Users',
         enabled: true,
         description: 'Gestión de usuarios del portal',
-        requiredRole: 'superadmin',
+        requiredRoles: ['superadmin'],
     },
 ]

@@ -21,6 +21,7 @@ const DirectorioPage = lazy(() => import('@/features/directorioInstitucional/Dir
 const PlaceholderPage = lazy(() => import('@/features/placeholder/PlaceholderPage'))
 const AdminUsuariosPage = lazy(() => import('@/features/admin/AdminUsuariosPage'))
 const Anexo8Page = lazy(() => import('@/features/anexo8/Anexo8Page'))
+const ConsultarCupsPage = lazy(() => import('@/features/consultarCups/ConsultarCupsPage'))
 
 /**
  * Componente de protección de rutas
@@ -168,6 +169,16 @@ export function AppRoutes() {
                         </LazyWrapper>
                     }
                 />
+                {/* Consultar CUPS */}
+                <Route
+                    path={ROUTES.CONSULTAR_CUPS}
+                    element={
+                        <LazyWrapper>
+                            <ConsultarCupsPage />
+                        </LazyWrapper>
+                    }
+                />
+
                 <Route
                     path={ROUTES.ANEXO_8}
                     element={
