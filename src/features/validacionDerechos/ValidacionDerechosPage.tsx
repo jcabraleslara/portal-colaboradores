@@ -176,7 +176,19 @@ export function ValidacionDerechosPage() {
                                     />
                                     <DataItem label="Tipo Cotizante" value={afiliado.tipoCotizante} />
                                     <DataItem label="IPS Primaria" value={renderIPS(afiliado.ipsPrimaria)} fullWidth />
-                                    <DataItem label="Fuente" value={afiliado.fuente} />
+                                    <DataItem
+                                        label="Fuente"
+                                        value={
+                                            <span>
+                                                {afiliado.fuente}
+                                                {afiliado.updatedAt && (
+                                                    <span className="text-xs text-gray-400 ml-1 font-normal">
+                                                        (Datos actualizados el {afiliado.updatedAt.toLocaleDateString('es-CO')})
+                                                    </span>
+                                                )}
+                                            </span>
+                                        }
+                                    />
                                 </DataGrid>
                             </Card.Body>
                         </Card>

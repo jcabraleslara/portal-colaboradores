@@ -89,6 +89,7 @@ export interface Afiliado {
     edad: number | null
     eps: string | null
     fuente: string | null
+    updatedAt: Date | null
     busquedaTexto: string | null
 }
 
@@ -117,6 +118,7 @@ export interface AfiliadoRaw {
     edad: number | null
     eps: string | null
     fuente: string | null
+    updated_at: string | null
     busqueda_texto: string | null
 }
 

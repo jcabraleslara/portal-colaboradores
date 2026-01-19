@@ -405,24 +405,25 @@ export const backService = {
 
                 // Construir condiciones OR manualmente con escape de caracteres URL
                 const orConditions = usuariosRadicadores
-                    .map(usuario => {
+                    .map(nombre => {
                         // Escapar caracteres especiales para URL encoding
-                        const escaped = usuario
+                        const escaped = nombre
                             .replace(/ /g, '%20')  // Espacios
                             .replace(/\./g, '%2E') // Puntos
-                        return `usuario.eq.${escaped}`
+                        return `nombre_completo.ilike.${escaped}`
                     })
                     .join(',')
 
                 const { data: usuariosData, error: usuariosError } = await supabase
                     .from('usuarios_portal')
-                    .select('usuario, nombres_completo')
+                    .select('nombre_completo')
                     .or(orConditions)
 
                 if (usuariosError) {
                     console.warn('⚠️ Error obteniendo nombres de radicadores:', usuariosError.message)
                 } else if (usuariosData) {
-                    nombresRadicadoresMap = new Map(usuariosData.map(u => [u.usuario, u.nombres_completo]))
+                    // Mapear NOMBRE EN MAYÚSCULAS (back) -> Nombre Real (usuarios_portal)
+                    nombresRadicadoresMap = new Map(usuariosData.map(u => [u.nombre_completo.toUpperCase(), u.nombre_completo]))
                 }
             }
 

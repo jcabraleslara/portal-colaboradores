@@ -54,6 +54,7 @@ function transformAfiliado(raw: AfiliadoRaw): Afiliado {
         edad: raw.edad,
         eps: raw.eps,
         fuente: raw.fuente,
+        updatedAt: raw.updated_at ? new Date(raw.updated_at) : null,
         busquedaTexto: raw.busqueda_texto,
     }
 }
