@@ -50,7 +50,7 @@ import { CasoDetallePanel } from './CasoDetallePanel'
 
 // Iconos por tipo de solicitud
 const TIPO_ICONOS: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
-    'Auditoría de Pertinencia': Stethoscope,
+    'Auditoría Médica': Stethoscope,
     'Solicitud de Historia Clínica': BookOpen,
     'Ajuste de Ordenamiento': FileEdit,
     'Renovación de prequirúrgicos': Activity,

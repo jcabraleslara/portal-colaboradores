@@ -1,0 +1,26 @@
+============================================================
+­ƒöæ Probando API Key de Gemini
+============================================================
+­ƒº¬ [TEST] Probando text-embedding-004...
+Status: 403 Forbidden
+
+­ƒº¬ [TEST] Probando gemini-1.5-flash...
+ÔØî Error: {
+  "error": {
+    "code": 403,
+    "message": "Your API key was reported as leaked. Please use another API key.",
+    "status": "PERMISSION_DENIED"
+  }
+}
+Status: 404 Not Found
+ÔØî Error: {
+  "error": {
+    "code": 404,
+    "message": "models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.",
+    "status": "NOT_FOUND"
+  }
+}
+
+============================================================
+Ô£à Pruebas completadas
+============================================================

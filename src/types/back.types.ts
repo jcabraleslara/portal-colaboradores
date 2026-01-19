@@ -5,7 +5,7 @@
 
 // Tipos de solicitud disponibles
 export type TipoSolicitudBack =
-    | 'Auditoría de Pertinencia'
+    | 'Auditoría Médica'
     | 'Solicitud de Historia Clínica'
     | 'Ajuste de Ordenamiento'
     | 'Renovación de prequirúrgicos'
@@ -27,7 +27,7 @@ export type Direccionamiento =
     | 'Médico Especialista'
     | 'Nueva EPS'
 
-// Especialidades para Auditoría de Pertinencia
+// Especialidades para Auditoría Médica
 export type EspecialidadAuditoria =
     | 'Medicina Interna'
     | 'Dermatología'
@@ -181,7 +181,7 @@ export const ORDENADORES_LISTA = [
 
 // Tipos de solicitud para el dropdown
 export const TIPOS_SOLICITUD_LISTA: TipoSolicitudBack[] = [
-    'Auditoría de Pertinencia',
+    'Auditoría Médica',
     'Solicitud de Historia Clínica',
     'Ajuste de Ordenamiento',
     'Renovación de prequirúrgicos',
@@ -334,6 +334,7 @@ export const EPS_LISTA = [
 
 // Radicación extendida con datos del paciente (para lista de gestión)
 export interface BackRadicacionExtendido extends BackRadicacion {
+    nombreRadicador?: string | null
     paciente: {
         nombres: string
         apellido1: string
@@ -381,7 +382,7 @@ export interface BackRadicacionRawExtendido extends BackRadicacionRaw {
 
 // Colores para cards de tipo de solicitud
 export const TIPO_SOLICITUD_COLORES: Record<string, { bg: string; text: string; border: string; icon: string }> = {
-    'Auditoría de Pertinencia': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: 'Stethoscope' },
+    'Auditoría Médica': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', icon: 'Stethoscope' },
     'Solicitud de Historia Clínica': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: 'BookOpen' },
     'Ajuste de Ordenamiento': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: 'FileEdit' },
     'Renovación de prequirúrgicos': { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', icon: 'Activity' },

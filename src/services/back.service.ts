@@ -394,6 +394,21 @@ export const backService = {
                 }
             }
 
+            // Obtener nombres completos de radicadores desde usuarios_portal
+            const usuariosRadicadores = [...new Set((data as BackRadicacionRaw[]).map(r => r.radicador).filter(Boolean))]
+            let nombresRadicadoresMap = new Map<string, string>()
+
+            if (usuariosRadicadores.length > 0) {
+                const { data: usuariosData } = await supabase
+                    .from('usuarios_portal')
+                    .select('usuario, nombres_completo')
+                    .in('usuario', usuariosRadicadores)
+
+                if (usuariosData) {
+                    nombresRadicadoresMap = new Map(usuariosData.map(u => [u.usuario, u.nombres_completo]))
+                }
+            }
+
             // Crear mapa de pacientes
             const pacientesMap = new Map(
                 (pacientesData || []).map(p => [p.id, p])
@@ -407,9 +422,11 @@ export const backService = {
                 if (raw.correo_radicador) {
                     base.cargoRadicador = cargosMap.get(raw.correo_radicador) || null
                 }
+                const nombreRadicador = nombresRadicadoresMap.get(raw.radicador) || null
 
                 return {
                     ...base,
+                    nombreRadicador,
                     paciente: pacienteRaw ? {
                         nombres: pacienteRaw.nombres,
                         apellido1: pacienteRaw.apellido1,

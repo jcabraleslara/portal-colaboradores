@@ -71,7 +71,7 @@ const DEFAULT_DIR_STYLE = { bg: 'bg-gray-50', text: 'text-gray-700', border: 'bo
 
 // Mapa de iconos para tipos de solicitud
 const TIPO_ICONOS: Record<string, any> = {
-    'Auditoría de Pertinencia': Stethoscope,
+    'Auditoría Médica': Stethoscope,
     'Solicitud de Historia Clínica': BookOpen,
     'Ajuste de Ordenamiento': FileEdit,
     'Renovación de prequirúrgicos': Activity,
@@ -119,7 +119,7 @@ export function CasoDetallePanel({
         setTipoSolicitud(nuevoTipo)
 
         // Validar estados no permitidos al cambiar tipo
-        if (nuevoTipo === 'Auditoría de Pertinencia') {
+        if (nuevoTipo === 'Auditoría Médica') {
             // 'Gestionado' no debe estar visible en Auditoría
             if (estadoRadicado === 'Gestionado') {
                 setEstadoRadicado('Pendiente')
@@ -393,7 +393,7 @@ export function CasoDetallePanel({
         setDireccionamiento((caso.direccionamiento as Direccionamiento) || '')
         setRespuestaBack((caso.respuestaBack && caso.respuestaBack !== 'NaN') ? caso.respuestaBack : '')
         setEstadoRadicado(caso.estadoRadicado || 'Pendiente')
-        setTipoSolicitud(caso.tipoSolicitud || 'Auditoría de Pertinencia')
+        setTipoSolicitud(caso.tipoSolicitud || 'Auditoría Médica')
 
         // Resetear estados de UI
         setGuardadoExitoso(false)
@@ -424,7 +424,7 @@ export function CasoDetallePanel({
     }
 
     const estadoColor = ESTADO_COLORES[estadoRadicado] || ESTADO_COLORES['Pendiente']
-    const tipoSolicitudConfig = TIPO_SOLICITUD_COLORES[tipoSolicitud] || TIPO_SOLICITUD_COLORES['Auditoría de Pertinencia']
+    const tipoSolicitudConfig = TIPO_SOLICITUD_COLORES[tipoSolicitud] || TIPO_SOLICITUD_COLORES['Auditoría Médica']
     const IconoTipo = TIPO_ICONOS[tipoSolicitud] || FileText
 
     // ============================================
@@ -642,7 +642,7 @@ export function CasoDetallePanel({
                             <div>
                                 <p className="text-xs text-gray-500">Radicador</p>
                                 <p className="font-medium text-gray-800">
-                                    {capitalize(caso.radicador)}
+                                    {capitalize(caso.nombreRadicador || caso.radicador)}
                                 </p>
                                 {caso.cargoRadicador && (
                                     <p className="text-xs text-blue-600 font-medium mt-0.5">
@@ -675,7 +675,7 @@ export function CasoDetallePanel({
                         </div>
 
                         {/* Direccionamiento (Badges) - CONDICIONAL */}
-                        {tipoSolicitud === 'Auditoría de Pertinencia' && (
+                        {tipoSolicitud === 'Auditoría Médica' && (
                             <div className="animate-fade-in">
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Direccionamiento
@@ -741,8 +741,8 @@ export function CasoDetallePanel({
                                 )}
                             </div>
 
-                            {/* Botón Generar Contrarreferencia (solo superadmin) */}
-                            {user?.rol === 'superadmin' && (
+                            {/* Botón Generar Contrarreferencia (solo superadmin y en Auditoría Médica) */}
+                            {user?.rol === 'superadmin' && tipoSolicitud === 'Auditoría Médica' && (
                                 <div className="mb-3">
                                     <button
                                         type="button"
@@ -784,7 +784,7 @@ export function CasoDetallePanel({
                                 {ESTADOS_RADICADO_LISTA.filter(e => {
                                     if (e === 'Todos') return false
                                     // Validación VISUAL de estados según requerimiento
-                                    if (tipoSolicitud === 'Auditoría de Pertinencia') {
+                                    if (tipoSolicitud === 'Auditoría Médica') {
                                         // Si es Auditoría, NO mostrar 'Gestionado'
                                         if (e === 'Gestionado') return false
                                     } else {

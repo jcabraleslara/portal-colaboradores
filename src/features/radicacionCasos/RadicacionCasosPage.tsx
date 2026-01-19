@@ -106,7 +106,7 @@ export function RadicacionCasosPage() {
     // ============================================
     // ESTADO - PASO 2: Datos de la Solicitud
     // ============================================
-    const [tipoSolicitud, setTipoSolicitud] = useState<TipoSolicitudBack>('Auditoría de Pertinencia')
+    const [tipoSolicitud, setTipoSolicitud] = useState<TipoSolicitudBack>('Auditoría Médica')
     const [especialidad, setEspecialidad] = useState<EspecialidadAuditoria>('Medicina Interna')
     const [ordenador, setOrdenador] = useState('')
     const [observaciones, setObservaciones] = useState('')
@@ -244,7 +244,7 @@ export function RadicacionCasosPage() {
     // ============================================
 
     const resetFormulario = () => {
-        setTipoSolicitud('Auditoría de Pertinencia')
+        setTipoSolicitud('Auditoría Médica')
         setEspecialidad('Medicina Interna')
         setOrdenador('')
         setObservaciones('')
@@ -278,7 +278,7 @@ export function RadicacionCasosPage() {
             radicador: radicadorNombre,
             id: afiliado.id,
             tipoSolicitud,
-            especialidad: tipoSolicitud === 'Auditoría de Pertinencia' ? especialidad : undefined,
+            especialidad: tipoSolicitud === 'Auditoría Médica' ? especialidad : undefined,
             ordenador: requiereOrdenador ? ordenador : undefined,
             observaciones: observaciones || undefined,
             archivos: archivos.length > 0 ? archivos : undefined,
@@ -781,7 +781,7 @@ export function RadicacionCasosPage() {
                                     </label>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                         {[
-                                            { id: 'Auditoría de Pertinencia', icon: Stethoscope, color: 'blue', desc: 'Evaluación técnica de pertinencia médica' },
+                                            { id: 'Auditoría Médica', icon: Stethoscope, color: 'blue', desc: 'Evaluación técnica de pertinencia médica' },
                                             { id: 'Solicitud de Historia Clínica', icon: BookOpen, color: 'emerald', desc: 'Copia o resumen de registro clínico' },
                                             { id: 'Ajuste de Ordenamiento', icon: FileEdit, color: 'amber', desc: 'Corrección o cambio en órdenes médicas' },
                                             { id: 'Renovación de prequirúrgicos', icon: Activity, color: 'rose', desc: 'Actualización de exámenes para cirugía' },
@@ -793,31 +793,33 @@ export function RadicacionCasosPage() {
                                                 type="button"
                                                 onClick={() => setTipoSolicitud(opcion.id as any)}
                                                 className={`
-                                                    relative group flex flex-col p-4 rounded-xl border-2 transition-all duration-300 text-left
+                                                    relative group flex flex-row items-center p-4 rounded-xl border-2 transition-all duration-300 text-left gap-4
                                                     ${tipoSolicitud === opcion.id
-                                                        ? `border-[var(--color-primary)] bg-[var(--color-primary-50)] shadow-md translate-y-[-2px]`
+                                                        ? `border-red-500 bg-red-50 shadow-md translate-y-[-2px]`
                                                         : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm hover:translate-y-[-1px]'
                                                     }
                                                 `}
                                             >
                                                 <div className={`
-                                                    w-10 h-10 rounded-lg flex items-center justify-center mb-3 transition-colors
+                                                    w-10 h-10 rounded-lg flex items-center justify-center transition-colors flex-shrink-0
                                                     ${tipoSolicitud === opcion.id
-                                                        ? 'bg-[var(--color-primary)] text-white'
+                                                        ? 'bg-red-500 text-white'
                                                         : 'bg-gray-50 text-gray-500 group-hover:bg-gray-100'
                                                     }
                                                 `}>
-                                                    <opcion.icon size={22} />
+                                                    <opcion.icon size={20} />
                                                 </div>
-                                                <h3 className={`font-bold text-sm mb-1 ${tipoSolicitud === opcion.id ? 'text-[var(--color-primary)]' : 'text-gray-700'}`}>
-                                                    {opcion.id}
-                                                </h3>
-                                                <p className="text-xs text-gray-500 leading-tight">
-                                                    {opcion.desc}
-                                                </p>
+                                                <div className="flex-1">
+                                                    <h3 className={`font-bold text-sm mb-0.5 ${tipoSolicitud === opcion.id ? 'text-red-600' : 'text-gray-700'}`}>
+                                                        {opcion.id}
+                                                    </h3>
+                                                    <p className="text-xs text-gray-500 leading-tight">
+                                                        {opcion.desc}
+                                                    </p>
+                                                </div>
                                                 {tipoSolicitud === opcion.id && (
-                                                    <div className="absolute top-3 right-3 text-[var(--color-primary)]">
-                                                        <CheckCircle size={18} fill="currentColor" className="text-white" />
+                                                    <div className="absolute top-2 right-2 text-red-500">
+                                                        <CheckCircle size={16} fill="currentColor" className="text-white" />
                                                     </div>
                                                 )}
                                             </button>
@@ -826,8 +828,8 @@ export function RadicacionCasosPage() {
                                 </div>
 
                                 <div className="grid md:grid-cols-2 gap-6">
-                                    {/* Especialidad (solo para Auditoría de Pertinencia) */}
-                                    {tipoSolicitud === 'Auditoría de Pertinencia' && (
+                                    {/* Especialidad (solo para Auditoría Médica) */}
+                                    {tipoSolicitud === 'Auditoría Médica' && (
                                         <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                                             <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-2">
                                                 Especialidad *
@@ -848,7 +850,7 @@ export function RadicacionCasosPage() {
 
                                     {/* Ordenador - Autocomplete (no requerido para Solicitud de Historia Clínica) */}
                                     {tipoSolicitud !== 'Solicitud de Historia Clínica' && (
-                                        <div className={`space-y-2 ${tipoSolicitud !== 'Auditoría de Pertinencia' ? 'md:col-span-2' : ''}`}>
+                                        <div className={`space-y-2 ${tipoSolicitud !== 'Auditoría Médica' ? 'md:col-span-2' : ''}`}>
                                             <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-2">
                                                 Ordenador *
                                             </label>
@@ -1016,7 +1018,7 @@ export function RadicacionCasosPage() {
                                         : historial.filter(h => h.estadoRadicado === filtroEstado)
                                     ).map((radicacion) => {
                                         const colores = ESTADO_COLORES[radicacion.estadoRadicado]
-                                        const mostrarDireccionamiento = radicacion.tipoSolicitud === 'Auditoría de Pertinencia'
+                                        const mostrarDireccionamiento = radicacion.tipoSolicitud === 'Auditoría Médica'
                                         // Detectar si el fondo es oscuro para ajustar colores de texto
                                         const esFondoOscuro = radicacion.estadoRadicado === 'Contrarreferido'
 
@@ -1129,6 +1131,9 @@ export function RadicacionCasosPage() {
                                                             </div>
                                                             <p className={`text-sm whitespace-pre-wrap ${esFondoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>
                                                                 {radicacion.observaciones}
+                                                            </p>
+                                                            <p className={`text-xs italic mt-2 capitalize ${esFondoOscuro ? 'text-gray-400' : 'text-gray-500'}`}>
+                                                                Radicado por: {radicacion.radicador.toLowerCase()}
                                                             </p>
                                                         </div>
                                                     )}
