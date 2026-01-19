@@ -33,6 +33,7 @@ import {
 } from 'lucide-react'
 import { Card, Button, Input, LoadingOverlay, FileUpload, OrdenadorAutocomplete, Autocomplete, MarkdownRenderer } from '@/components/common'
 import { copyRichText } from '@/utils/clipboard'
+import { parseDateLocal } from '@/utils/date.utils'
 import { afiliadosService } from '@/services/afiliados.service'
 import { backService } from '@/services/back.service'
 import { useAuth } from '@/context/AuthContext'
@@ -216,7 +217,7 @@ export function RadicacionCasosPage() {
                 sexo: nuevoAfiliado.sexo || null,
                 direccion: nuevoAfiliado.direccion?.toUpperCase() || null,
                 telefono: nuevoAfiliado.telefono || null,
-                fechaNacimiento: nuevoAfiliado.fechaNacimiento ? new Date(nuevoAfiliado.fechaNacimiento) : null,
+                fechaNacimiento: nuevoAfiliado.fechaNacimiento ? parseDateLocal(nuevoAfiliado.fechaNacimiento) : null,
                 estado: 'ACTIVO',
                 municipio: nuevoAfiliado.municipioCodigo || null,
                 departamento: nuevoAfiliado.departamento || null,

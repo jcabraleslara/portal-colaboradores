@@ -10,6 +10,25 @@ import { ERROR_MESSAGES } from '@/config/constants'
 import { Afiliado, AfiliadoRaw, ApiResponse } from '@/types'
 
 /**
+ * Parsear fecha de la base de datos evitando problemas de timezone.
+ * La BD devuelve fechas tipo 'date' con timestamp UTC (ej: "1986-11-01T05:00:00.000Z")
+ * pero la fecha real es 1986-11-01 en timezone local.
+ * 
+ * @param dateString - String de fecha desde DB (ISO 8601)
+ * @returns Date object parseado en timezone local o null
+ */
+function parseDateLocal(dateString: string | null): Date | null {
+    if (!dateString) return null
+
+    // Extraer solo la parte de la fecha (YYYY-MM-DD)
+    const dateOnly = dateString.split('T')[0]
+    const [year, month, day] = dateOnly.split('-').map(Number)
+
+    // Crear fecha en timezone local (mes es 0-indexed en JS)
+    return new Date(year, month - 1, day)
+}
+
+/**
  * Transformar respuesta de DB (snake_case) a camelCase
  */
 function transformAfiliado(raw: AfiliadoRaw): Afiliado {
@@ -22,7 +41,7 @@ function transformAfiliado(raw: AfiliadoRaw): Afiliado {
         sexo: raw.sexo,
         direccion: raw.direccion,
         telefono: raw.telefono,
-        fechaNacimiento: raw.fecha_nacimiento ? new Date(raw.fecha_nacimiento) : null,
+        fechaNacimiento: parseDateLocal(raw.fecha_nacimiento),
         estado: raw.estado,
         municipio: raw.municipio,
         observaciones: raw.observaciones,
