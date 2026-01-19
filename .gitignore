@@ -31,3 +31,5 @@ document-ai-*.json
 
 # Internal scripts and documentation
 scripts/
+
+.vercel
