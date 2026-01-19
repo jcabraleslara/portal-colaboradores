@@ -148,23 +148,44 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
         console.warn('Error marcando tipo_id_2')
     }
 
-    // Marcar género_1 (Primera sección - Original)
+    // Marcar género - Intentar primero con radio groups, si falla usar checkboxes
     if (data.paciente_genero) {
+        // Sección 1 - Original
         try {
             const genero1 = form.getRadioGroup('genero_1')
             genero1.select(data.paciente_genero)
-        } catch (e) {
-            console.warn('Error marcando genero_1')
+        } catch {
+            // Si no es radio group, intentar como checkbox individual
+            try {
+                if (data.paciente_genero === 'F') {
+                    const checkF = form.getCheckBox('genero_f_1')
+                    checkF.check()
+                } else if (data.paciente_genero === 'M') {
+                    const checkM = form.getCheckBox('genero_m_1')
+                    checkM.check()
+                }
+            } catch (e2) {
+                console.warn('Campo de género no disponible en sección 1:', e2)
+            }
         }
-    }
 
-    // Marcar género_2 (Segunda sección - Copia)
-    if (data.paciente_genero) {
+        // Sección 2 - Copia
         try {
             const genero2 = form.getRadioGroup('genero_2')
             genero2.select(data.paciente_genero)
-        } catch (e) {
-            console.warn('Error marcando genero_2')
+        } catch {
+            // Si no es radio group, intentar como checkbox individual
+            try {
+                if (data.paciente_genero === 'F') {
+                    const checkF = form.getCheckBox('genero_f_2')
+                    checkF.check()
+                } else if (data.paciente_genero === 'M') {
+                    const checkM = form.getCheckBox('genero_m_2')
+                    checkM.check()
+                }
+            } catch (e2) {
+                console.warn('Campo de género no disponible en sección 2:', e2)
+            }
         }
     }
 

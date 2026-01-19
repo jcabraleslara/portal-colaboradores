@@ -60,20 +60,21 @@ export const afiliadosService = {
                 .from('afiliados')
                 .select('*')
                 .eq('id', documentoLimpio)
-                .single()
+                .maybeSingle()
 
             if (error) {
-                // PGRST116 = no rows found
-                if (error.code === 'PGRST116') {
-                    return {
-                        success: false,
-                        error: ERROR_MESSAGES.AFILIADO_NOT_FOUND,
-                    }
-                }
                 console.error('Error buscando afiliado', { documento: documentoLimpio, error })
                 return {
                     success: false,
                     error: ERROR_MESSAGES.SERVER_ERROR,
+                }
+            }
+
+            // maybeSingle devuelve null cuando no encuentra
+            if (!data) {
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.AFILIADO_NOT_FOUND,
                 }
             }
 

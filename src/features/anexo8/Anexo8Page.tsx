@@ -186,12 +186,17 @@ export default function Anexo8Page() {
         regimen?: string
         eps?: string
     }) => {
-        if (!paciente?.id) return
+        // Usar el documento de la búsqueda, no paciente.id
+        const documentoNuevo = busqueda.replace(/\D/g, '')
+        if (!documentoNuevo) {
+            setError('Debe ingresar un número de documento válido')
+            return
+        }
 
         setCreandoPaciente(true)
         const resultado = await backService.crearAfiliado({
             tipoId: datos.tipoId || 'CC',
-            id: paciente.id,
+            id: documentoNuevo,
             nombres: datos.nombres,
             apellido1: datos.apellido1,
             apellido2: datos.apellido2,
@@ -206,10 +211,10 @@ export default function Anexo8Page() {
         setCreandoPaciente(false)
 
         if (resultado.success) {
-            // Simular afiliado creado
+            // Crear afiliado local para continuar
             const nuevoAfiliado: Afiliado = {
                 tipoId: datos.tipoId || 'CC',
-                id: paciente.id,
+                id: documentoNuevo,
                 nombres: datos.nombres.toUpperCase(),
                 apellido1: datos.apellido1.toUpperCase(),
                 apellido2: datos.apellido2?.toUpperCase() || null,
@@ -273,12 +278,13 @@ export default function Anexo8Page() {
         }
     }
 
-    // Validar si el formulario está completo
+    // Validar si el formulario está completo (incluyendo diagnóstico CIE-10)
     const formularioCompleto = (
         paciente !== null &&
         formData.medicamentoNombre !== '' &&
         formData.formaFarmaceutica !== '' &&
         formData.cantidadNumero !== '' &&
+        formData.diagnosticoCie10 !== '' &&
         medicoSeleccionado !== null
     )
 
