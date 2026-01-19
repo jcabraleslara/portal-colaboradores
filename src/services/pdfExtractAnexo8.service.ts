@@ -149,59 +149,62 @@ function extraerDatosDeTexto(texto: string): Anexo8OcrResult {
 
     // ===== CANTIDAD Y DÍAS DE LA TABLA DE MEDICAMENTOS =====
     // La tabla tiene columnas: Código | Descripción | Cantidad | Posología | Días
-    // Buscar después del medicamento encontrado: número de cantidad y días
-    if (resultado.medicamentoNombre) {
-        const medNombre = resultado.medicamentoNombre.toUpperCase()
-        // Buscar la línea que contiene el medicamento y extraer cantidad y días
-        // Formato: CLONAZEPAM 2 mg (TABLETA) 180 1 TAB VO NOCHE 180
-        const regexLinea = new RegExp(`${medNombre}[^\\d]*(\\d+)\\s*(?:mg|ml|g)?[^\\d]*(\\d{1,4})\\s+([^\\d]+?)\\s+(\\d{1,4})(?:\\s|$)`, 'i')
-        const matchLinea = texto.match(regexLinea)
+    // Buscar patrón: número + posología + número (cantidad + posología + días)
+    // El texto del PDF tiene formato: ... 180 1 TAB VO NOCHE 180 ...
 
-        if (matchLinea) {
-            const cantidadTotal = parseInt(matchLinea[2], 10)
-            const posologia = matchLinea[3].trim()
-            const diasTratamiento = parseInt(matchLinea[4], 10)
+    const regexCantidadDias = /\b(\d{2,3})\s+(\d\s*TAB[A-Z\s]*(?:VO|V\.O\.)?\s*(?:NOCHE|DIA|MAÑANA|TARDE)?[A-Z\s]*?)\s+(\d{2,3})\b/gi
+    const matchesCantDias = [...texto.matchAll(regexCantidadDias)]
 
-            console.log('✓ Datos tabla - Cantidad:', cantidadTotal, 'Posología:', posologia, 'Días:', diasTratamiento)
+    console.log('[PDF-EXTRACT] Buscando patrón cantidad-posología-días, matches:', matchesCantDias.length)
 
-            // Guardar posología como dosis/vía
-            resultado.dosisVia = posologia
-            resultado.diasTratamiento = diasTratamiento
+    if (matchesCantDias.length > 0) {
+        for (const matchLinea of matchesCantDias) {
+            const cantidadTotal = parseInt(matchLinea[1], 10)
+            const posologia = matchLinea[2].trim()
+            const diasTratamiento = parseInt(matchLinea[3], 10)
 
-            // ===== LÓGICA DE CÁLCULO PARA ANEXO 8 =====
-            // El Anexo 8 es MENSUAL, así que debemos calcular la cantidad por mes
-            if (cantidadTotal > 0 && diasTratamiento > 0) {
-                // Calcular cantidad mensual (para 30 días)
+            console.log('✓ Match encontrado - Cantidad:', cantidadTotal, 'Posología:', posologia, 'Días:', diasTratamiento)
+
+            // Validar que sean valores razonables
+            if (cantidadTotal >= 30 && cantidadTotal <= 400 && diasTratamiento >= 30 && diasTratamiento <= 365) {
+                resultado.dosisVia = posologia
+                resultado.diasTratamiento = diasTratamiento
+
+                // Cálculo para Anexo 8 mensual
                 const cantidadPorMes = Math.round((cantidadTotal / diasTratamiento) * 30)
                 resultado.cantidadNumero = cantidadPorMes
                 resultado.cantidadPorMes = cantidadPorMes
-
-                // Calcular meses de tratamiento (máximo 6)
                 resultado.mesesTratamiento = Math.min(6, Math.ceil(diasTratamiento / 30))
 
                 camposEncontrados += 3
                 console.log('✓ Cálculo Anexo 8 - Cantidad/mes:', cantidadPorMes, 'Meses:', resultado.mesesTratamiento)
-            }
-        } else {
-            // Fallback: buscar patrones simples de cantidad y días
-            // Buscar "Cantidad" seguido de número en tabla
-            const matchCantidad = texto.match(/(?:Cantidad|Cant)[:\s]*(\d{1,4})/i)
-            if (matchCantidad) {
-                const cantidadTotal = parseInt(matchCantidad[1], 10)
-                resultado.cantidadNumero = cantidadTotal
-                camposEncontrados++
-                console.log('✓ Cantidad (fallback):', cantidadTotal)
-            }
-
-            // Buscar "Días" seguido de número
-            const matchDias = texto.match(/(?:Días|Dias)[:\s]*(\d{1,4})/i)
-            if (matchDias) {
-                resultado.diasTratamiento = parseInt(matchDias[1], 10)
-                console.log('✓ Días (fallback):', resultado.diasTratamiento)
+                break // Salir del bucle al encontrar un match válido
             }
         }
     }
 
+    // Fallback: si no se encontró cantidad
+    if (!resultado.cantidadNumero) {
+        // Buscar números de 3 dígitos que parezcan cantidad/días
+        const regexNumeros = /\b(\d{3})\b/g
+        const numerosGrandes = [...texto.matchAll(regexNumeros)].map(m => parseInt(m[1], 10))
+        const numerosValidos = numerosGrandes.filter(n => n >= 30 && n <= 365)
+
+        if (numerosValidos.length >= 2) {
+            const cantidadTotal = numerosValidos[0]
+            const diasTratamiento = numerosValidos[1]
+
+            if (diasTratamiento > 0) {
+                const cantidadPorMes = Math.round((cantidadTotal / diasTratamiento) * 30)
+                resultado.cantidadNumero = cantidadPorMes
+                resultado.cantidadPorMes = cantidadPorMes
+                resultado.diasTratamiento = diasTratamiento
+                resultado.mesesTratamiento = Math.min(6, Math.ceil(diasTratamiento / 30))
+                camposEncontrados += 2
+                console.log('✓ Fallback números - Cantidad:', cantidadTotal, 'Días:', diasTratamiento, '→ Por mes:', cantidadPorMes)
+            }
+        }
+    }
     // ===== POSOLOGÍA (si no se encontró en la tabla) =====
     if (!resultado.dosisVia) {
         // Buscar patrón de posología: "1 TAB VO NOCHE" o similar
