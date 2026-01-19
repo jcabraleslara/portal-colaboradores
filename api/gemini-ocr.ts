@@ -36,9 +36,9 @@ export default async function handler(
             })
         }
 
-        console.log('[API Gemini OCR] Iniciando OCR con Gemini Vision (Modelo 1.5 Flash)...')
+        console.log('[API Gemini OCR] Iniciando OCR con Gemini Vision...')
 
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`
 
         const geminiResponse = await fetch(apiUrl, {
             method: 'POST',

@@ -115,7 +115,7 @@ export default async function handler(
             .replace('{especialidad}', especialidad)
 
         // Llamar a Gemini API de forma segura
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`
 
         const geminiResponse = await fetch(apiUrl, {
             method: 'POST',
