@@ -7,7 +7,6 @@
 // Ajustamos la tabla si es necesario (1536 era para OpenAI, Gemini usa 768)
 export const EMBEDDING_DIMENSIONS = 768
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 
 interface EmbeddingResult {
     embedding: number[]
@@ -15,38 +14,37 @@ interface EmbeddingResult {
 }
 
 /**
- * Genera un embedding para un texto usando Gemini
+ * Genera un embedding para un texto usando Gemini vía endpoint serverless seguro
+ * La API key NO se expone al frontend
  */
 export async function generateEmbedding(text: string): Promise<EmbeddingResult> {
-    if (!GEMINI_API_KEY) {
-        throw new Error('VITE_GEMINI_API_KEY no configurada')
-    }
-
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${GEMINI_API_KEY}`
-
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            model: 'models/text-embedding-004',
-            content: {
-                parts: [{ text }]
-            }
+    try {
+        const response = await fetch('/api/generate-embedding', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ text })
         })
-    })
 
-    if (!response.ok) {
-        const error = await response.text()
-        throw new Error(`Error generando embedding: ${response.status} - ${error}`)
-    }
+        if (!response.ok) {
+            const error = await response.json()
+            throw new Error(`Error generando embedding: ${response.status} - ${error.error || 'Desconocido'}`)
+        }
 
-    const data = await response.json()
+        const data = await response.json()
 
-    return {
-        embedding: data.embedding.values,
-        tokenCount: data.embedding.tokenCount
+        if (!data.success || !data.embedding) {
+            throw new Error('Respuesta del servidor sin embedding válido')
+        }
+
+        return {
+            embedding: data.embedding,
+            tokenCount: data.dimensions // Usamos dimensiones en lugar de tokenCount
+        }
+    } catch (error) {
+        console.error('[Embedding Service] Error:', error)
+        throw error
     }
 }
 

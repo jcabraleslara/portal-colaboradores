@@ -10,7 +10,6 @@ import { supabase } from '@/config/supabase.config'
 import { generateEmbedding, splitTextIntoChunks } from './embedding.service'
 import type { TextItem } from 'pdfjs-dist/types/src/display/api'
 
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY
 
 interface VectorizacionResult {
     success: boolean
@@ -102,49 +101,48 @@ async function extractTextWithDocumentAI(pdfUrl: string): Promise<string> {
 }
 
 /**
- * Extrae texto usando Gemini Vision como fallback
+ * Extrae texto usando Gemini Vision como fallback vía endpoint serverless
+ * La API key NO se expone al frontend
  */
 async function extractTextWithGemini(pdfUrl: string): Promise<string> {
-    if (!GEMINI_API_KEY) {
-        throw new Error('VITE_GEMINI_API_KEY no configurada')
-    }
-
     console.log('[RAG] Usando Gemini 3 Flash como fallback...')
 
-    const response = await fetch(pdfUrl)
-    const pdfBuffer = await response.arrayBuffer()
-    const base64Pdf = btoa(
-        new Uint8Array(pdfBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-    )
+    try {
+        // Descargar el PDF
+        const response = await fetch(pdfUrl)
+        if (!response.ok) {
+            throw new Error(`Error descargando PDF: ${response.status}`)
+        }
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`
+        const pdfBuffer = await response.arrayBuffer()
+        const base64Pdf = btoa(
+            new Uint8Array(pdfBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        )
 
-    const geminiResponse = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{
-                parts: [
-                    { inlineData: { mimeType: 'application/pdf', data: base64Pdf } },
-                    { text: 'Extrae TODO el texto de este documento PDF. Devuelve ÚNICAMENTE el texto extraído. Si no hay texto, responde "SIN_TEXTO".' }
-                ]
-            }],
-            generationConfig: { temperature: 0, maxOutputTokens: 8192 }
+        // Llamar al endpoint serverless
+        const ocrResponse = await fetch('/api/gemini-ocr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pdfBase64: base64Pdf })
         })
-    })
 
-    if (!geminiResponse.ok) {
-        throw new Error(`Gemini error: ${geminiResponse.status}`)
+        if (!ocrResponse.ok) {
+            const error = await ocrResponse.json()
+            throw new Error(error.details || 'Gemini OCR failed')
+        }
+
+        const result = await ocrResponse.json()
+
+        if (result.success) {
+            console.log(`[RAG] Gemini OCR exitoso: ${result.text?.length || 0} caracteres`)
+            return result.text || ''
+        }
+
+        return ''
+    } catch (error) {
+        console.error('[RAG] Error en Gemini OCR:', error)
+        throw error
     }
-
-    const data = await geminiResponse.json()
-
-    if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        const text = data.candidates[0].content.parts[0].text
-        return text === 'SIN_TEXTO' ? '' : text
-    }
-
-    return ''
 }
 
 /**
