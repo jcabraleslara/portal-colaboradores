@@ -1116,6 +1116,23 @@ export function RadicacionCasosPage() {
                                                         </div>
                                                     )}
 
+                                                    {/* Observaciones del Radicador (Contexto original) */}
+                                                    {radicacion.observaciones && (
+                                                        <div className={`mt-3 p-3 rounded-lg border flex flex-col gap-1
+                                                            ${esFondoOscuro ? 'bg-slate-700/50 border-slate-600' : 'bg-gray-50 border-gray-200'}
+                                                        `}>
+                                                            <div className="flex items-center gap-2">
+                                                                <FileText size={14} className={esFondoOscuro ? 'text-gray-400' : 'text-gray-500'} />
+                                                                <span className={`text-xs font-bold uppercase ${esFondoOscuro ? 'text-gray-400' : 'text-gray-500'}`}>
+                                                                    Observaciones de la Solicitud:
+                                                                </span>
+                                                            </div>
+                                                            <p className={`text-sm whitespace-pre-wrap ${esFondoOscuro ? 'text-gray-300' : 'text-gray-700'}`}>
+                                                                {radicacion.observaciones}
+                                                            </p>
+                                                        </div>
+                                                    )}
+
                                                     {/* Soportes y Botón Copiar Respuesta */}
                                                     <div className="flex items-center justify-between mt-2">
                                                         {/* Soportes */}
