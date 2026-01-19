@@ -399,12 +399,29 @@ export const backService = {
             let nombresRadicadoresMap = new Map<string, string>()
 
             if (usuariosRadicadores.length > 0) {
-                const { data: usuariosData } = await supabase
+                // IMPORTANTE: No usar .in() con nombres que contengan espacios/puntos
+                // porque Supabase PostgREST genera URLs mal formadas (400 Bad Request)
+                // Solución: Escapar espacios como %20 y puntos como %2E en el .or()
+
+                // Construir condiciones OR manualmente con escape de caracteres URL
+                const orConditions = usuariosRadicadores
+                    .map(usuario => {
+                        // Escapar caracteres especiales para URL encoding
+                        const escaped = usuario
+                            .replace(/ /g, '%20')  // Espacios
+                            .replace(/\./g, '%2E') // Puntos
+                        return `usuario.eq.${escaped}`
+                    })
+                    .join(',')
+
+                const { data: usuariosData, error: usuariosError } = await supabase
                     .from('usuarios_portal')
                     .select('usuario, nombres_completo')
-                    .in('usuario', usuariosRadicadores)
+                    .or(orConditions)
 
-                if (usuariosData) {
+                if (usuariosError) {
+                    console.warn('⚠️ Error obteniendo nombres de radicadores:', usuariosError.message)
+                } else if (usuariosData) {
                     nombresRadicadoresMap = new Map(usuariosData.map(u => [u.usuario, u.nombres_completo]))
                 }
             }
