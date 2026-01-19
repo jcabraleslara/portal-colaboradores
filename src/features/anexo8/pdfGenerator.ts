@@ -116,10 +116,10 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     setText('medico_especialidad', data.medico_especialidad)
     // No llenar medico_firma con texto, se dibujará la imagen encima
     // ========================================
-    // LLENAR RADIO BUTTONS
+    // LLENAR RADIO BUTTONS (Sección 1 y 2 separadas)
     // ========================================
 
-    // Tipo de identificación - Marcar TODOS los widgets (no solo el primero)
+    // Mapeo de tipos de ID
     const tipoIdMap: Record<string, string> = {
         'TI': 'TI',
         'CC': 'CC',
@@ -130,34 +130,41 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
         'AS': 'Otro',
         'NV': 'Otro'
     }
-    const tipoIdValue = tipoIdMap[data.paciente_tipo_id] || 'Otro'
+    const tipoIdValue = tipoIdMap[data.paciente_tipo_id] || 'CC'
+
+    // Marcar tipo_id_1 (Primera sección - Original)
     try {
-        const tipoIdRadio = form.getRadioGroup('tipo_id')
-        const tipoIdWidgets = tipoIdRadio.acroField.getWidgets()
-        // Marcar manualmente cada widget que tenga el valor correcto
-        tipoIdWidgets.forEach(widget => {
-            const options = widget.getOnValue()?.toString() || '' // Obtener valor como string
-            if (options === tipoIdValue) {
-                tipoIdRadio.select(tipoIdValue)
-            }
-        })
+        const radio1 = form.getRadioGroup('tipo_id_1')
+        radio1.select(tipoIdValue)
     } catch (e) {
-        console.warn('Error marcando tipo_id')
+        console.warn('Error marcando tipo_id_1')
     }
 
-    // Género - Marcar TODOS los widgets
+    // Marcar tipo_id_2 (Segunda sección - Copia)
+    try {
+        const radio2 = form.getRadioGroup('tipo_id_2')
+        radio2.select(tipoIdValue)
+    } catch (e) {
+        console.warn('Error marcando tipo_id_2')
+    }
+
+    // Marcar género_1 (Primera sección - Original)
     if (data.paciente_genero) {
         try {
-            const generoRadio = form.getRadioGroup('genero')
-            const generoWidgets = generoRadio.acroField.getWidgets()
-            generoWidgets.forEach(widget => {
-                const options = widget.getOnValue()?.toString() || ''
-                if (options === data.paciente_genero!) {
-                    generoRadio.select(data.paciente_genero!)
-                }
-            })
+            const genero1 = form.getRadioGroup('genero_1')
+            genero1.select(data.paciente_genero)
         } catch (e) {
-            console.warn('Error marcando género')
+            console.warn('Error marcando genero_1')
+        }
+    }
+
+    // Marcar género_2 (Segunda sección - Copia)
+    if (data.paciente_genero) {
+        try {
+            const genero2 = form.getRadioGroup('genero_2')
+            genero2.select(data.paciente_genero)
+        } catch (e) {
+            console.warn('Error marcando genero_2')
         }
     }
 
@@ -192,34 +199,46 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
                 const fieldWidth = rect.width
                 const fieldHeight = rect.height
 
-                // Calcular escala para que la firma quepa en el campo
-                const imgDims = firmaImage.scale(0.5) // Empezar con 50%
-                const scaleX = fieldWidth / imgDims.width
+                // Calcular escala para la firma (más pequeña para dejar espacio al texto)
+                const imgDims = firmaImage.scale(0.4) // Reducir a 40% para dejar espacio
+                const scaleX = (fieldWidth * 0.6) / imgDims.width // Usar sólo 60% del ancho del campo
                 const scaleY = fieldHeight / imgDims.height
-                const scale = Math.min(scaleX, scaleY, 1) // No agrandar más allá del original
+                const scale = Math.min(scaleX, scaleY, 1)
 
                 const finalWidth = imgDims.width * scale
                 const finalHeight = imgDims.height * scale
 
-                // Centrar la firma en el campo (subirla un poco)
-                const x = fieldX + (fieldWidth - finalWidth) / 2
-                const y = fieldY + (fieldHeight - finalHeight) / 2 + 3 // Subir 3px
+                // Posicionar firma a la IZQUIERDA del campo
+                const firmaX = fieldX + 2 // Pequeño margen izquierdo
+                const firmaY = fieldY + (fieldHeight - finalHeight) / 2
 
-                // Dibujar la firma en esta posición
+                // Dibujar la firma
                 firstPage.drawImage(firmaImage, {
-                    x,
-                    y,
+                    x: firmaX,
+                    y: firmaY,
                     width: finalWidth,
                     height: finalHeight,
-                    opacity: 0.95 // Ligeramente transparente para no tapar bordes
+                    opacity: 0.95
                 })
 
-                // Añadir timestamp de firma electrónica debajo de la imagen
+                // Timestamp a la DERECHA de la firma
                 const ahora = new Date()
-                const timestamp = `Signed at: ${ahora.toISOString().slice(0, 19).replace('T', ' ')}`
-                firstPage.drawText(timestamp, {
-                    x: fieldX,
-                    y: fieldY - 2,
+                const fecha = ahora.toISOString().slice(0, 10)
+                const hora = ahora.toISOString().slice(11, 19)
+
+                const timestampX = firmaX + finalWidth + 5 // 5px de separación
+                const timestampY = fieldY + fieldHeight / 2 + 3
+
+                firstPage.drawText('Signed at:', {
+                    x: timestampX,
+                    y: timestampY,
+                    size: 6,
+                    color: rgb(0.2, 0.2, 0.8) // Azul
+                })
+
+                firstPage.drawText(`${fecha} ${hora}`, {
+                    x: timestampX,
+                    y: timestampY - 7,
                     size: 5,
                     color: rgb(0.3, 0.3, 0.3)
                 })

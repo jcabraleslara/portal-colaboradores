@@ -10,7 +10,7 @@ import { useAuth } from '@/context/AuthContext'
 import { afiliadosService } from '@/services/afiliados.service'
 import { anexo8Service, ROLES_PERMITIDOS_ANEXO8 } from '@/services/anexo8.service'
 import { generarAnexo8Pdf, descargarPdf } from './pdfGenerator'
-import { OcrDialog } from './components/OcrDialog'
+import { PdfExtractDialog } from './components/PdfExtractDialog'
 import { Cie10Search } from './components/Cie10Search'
 import { numeroALetras } from '@/utils/numeroALetras'
 import {
@@ -29,7 +29,6 @@ import { LoadingSpinner, Alert } from '@/components/common'
 import {
     FaFilePdf,
     FaSearch,
-    FaPaste,
     FaUserMd,
     FaPills,
     FaUser,
@@ -47,7 +46,7 @@ export default function Anexo8Page() {
     const [generadoExito, setGeneradoExito] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [exito, setExito] = useState<string | null>(null)
-    const [mostrarOcr, setMostrarOcr] = useState(false)
+    const [mostrarPdfExtract, setMostrarPdfExtract] = useState(false)
 
     // Búsqueda de paciente
     const [busqueda, setBusqueda] = useState('')
@@ -441,14 +440,14 @@ export default function Anexo8Page() {
                             </p>
                         </div>
 
-                        {/* Botón OCR solo para superadmin */}
+                        {/* Botón Extraer PDF solo para superadmin */}
                         {esSuperadmin && (
                             <button
-                                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-lg"
-                                onClick={() => setMostrarOcr(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg"
+                                onClick={() => setMostrarPdfExtract(true)}
                             >
-                                <FaPaste />
-                                Pegar Receta (OCR)
+                                <FaFilePdf />
+                                Extraer desde PDF
                             </button>
                         )}
                     </div>
@@ -804,10 +803,10 @@ export default function Anexo8Page() {
                 </div>
             </div>
 
-            {/* Modal OCR */}
-            <OcrDialog
-                isOpen={mostrarOcr}
-                onClose={() => setMostrarOcr(false)}
+            {/* Modal PDF Extract */}
+            <PdfExtractDialog
+                isOpen={mostrarPdfExtract}
+                onClose={() => setMostrarPdfExtract(false)}
                 onDataExtracted={handleOcrData}
             />
         </>

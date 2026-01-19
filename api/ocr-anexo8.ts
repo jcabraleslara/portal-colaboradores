@@ -51,15 +51,16 @@ const PATRONES = {
     genero: /(?:g[eé]nero|sexo)[:\s]*([FM])|(?:\[x?\])\s*(femenino|masculino)/i,
 
     // Diagnóstico - MEJORADO para capturar múltiples formatos
-    diagnosticoCie10: /(?:diagn[oó]stico|motivo)[:\s]*([A-Z]\d{2,3}(?:\.\d{1,2})?)/i,
-    diagnosticoDescGlobal: /(?:diagn[oó]stico|motivo)[:\s]*(?:[A-Z]\d{2,3})?[:\s-]*([A-ZÁÉÍÓÚ][a-záéíóúñ\s]{3,50})/i,
-    // Buscar diagnóstico en cualquier parte del texto (formato común en encabezados)
-    diagnosticoTexto: /\b([A-ZÁÉÍÓÚ][A-ZÁÉÍÓÚÑ\s]{5,40})\s+EPS\s+SUBSIDIADO/i,
+    diagnosticoCie10: /(?:diagnóstico|motivo)[:\s]*([A-Z]\d{2,3}(?:\.\d{1,2})?)/i,
+    diagnosticoDescGlobal: /(?:diagnóstico|motivo)[:\s]*(?:[A-Z]\d{2,3})?[:\s-]*([A-ZÁÉÍÓÚ][a-záéíóúñ\s]{3,50})/i,
+    // Buscar diagnóstico en encabezado antes de "EPS"
+    diagnosticoTexto: /\b([A-ZÁÉÍÓÚ][A-ZÁÉÍÓÚÑ\s]{3,40}?)\s+(?:POR|PARA)?\s*(?:NUEVA)?\s*EPS\s+SUBSIDIADO/i,
 
-    // Cantidad y días - MEJORADO para tablas
-    cantidadTabla: /(?:cantidad|cant\.?)[:\s]*(\d{1,4})|^(\d{1,4})\s+(?:\d+\s+)?(?:TAB|CAP|AMP|ML)/mi,
-    cantidad: /cantidad[:\s]*(\d{1,4})|(\d{1,4})\s*(?:TOMAR|APLICAR|tabletas?|cápsulas?)/i,
-    dias: /d[ií]as?[:\s]*(\d{1,4})|(\d{1,4})$/m,
+    // Cantidad y días - CORREGIDO para evitar números largos
+    cantidadTabla: /(?:cantidad|cant\.?)[:\s]*(\d{1,3})\b|^(\d{1,3})\s+(?:\d+\s+)?(?:TAB|CAP|AMP|ML)/mi,
+    cantidad: /cantidad[:\s]*(\d{1,3})\b|(\d{1,3})\s*(?:TOMAR|APLICAR|tabletas?|cápsulas?)/i,
+    // Días SOLO al final de línea o antes de salto, NO números de más de 3 dígitos
+    dias: /\b(\d{1,3})\s*(?:d[ií]as?)?$/m,
 
     // Medicamento completo (nombre + concentración + forma en una sola captura)
     medicamentoCompleto: new RegExp(`(${MEDICAMENTOS_CONTROLADOS.join('|')})\\s+(\\d+(?:\\.\\d+)?\\s*(?:mg|ml|g|mcg|UI|%))\\s*\\(([^)]+)\\)`, 'gi'),
@@ -357,7 +358,15 @@ function extraerDatosDeTexto(texto: string): OcrAnexo8Result {
     }
 
     // ===== CALCULAR CONFIANZA =====
-    resultado.confidence = Math.round((camposEncontrados / totalCampos) * 100)
+    // Limitar confianza al 100% máximo
+    resultado.confidence = Math.min(100, Math.round((camposEncontrados / totalCampos) * 100))
+
+    // Validar y limitar meses de tratamiento (máximo 6 meses para Anexo 8)
+    if (resultado.mesesTratamiento && resultado.mesesTratamiento > 6) {
+        console.warn(`⚠️ Meses de tratamiento excede límite: ${resultado.mesesTratamiento}, limitando a 6`)
+        resultado.mesesTratamiento = 6
+    }
+
     resultado.textoCompleto = texto.substring(0, 2000) // Primeros 2000 caracteres para debug
 
     return resultado
