@@ -448,12 +448,19 @@ export default function Anexo8Page() {
 
         // Buscar y seleccionar médico si se reconoció
         if (data.medicoDocumento || data.medicoRegistro) {
-            const docMedico = data.medicoDocumento || data.medicoRegistro
-            const medicoEncontrado = medicos.find(m =>
-                m.documento === docMedico
-            )
+            const docMedico = (data.medicoDocumento || data.medicoRegistro || '').replace(/\D/g, '')
+            console.log('🔍 OCR: Buscando médico con documento:', docMedico, 'en lista de', medicos.length, 'médicos')
+
+            const medicoEncontrado = medicos.find(m => {
+                const docLimpio = (m.documento || '').replace(/\D/g, '')
+                return docLimpio === docMedico
+            })
+
             if (medicoEncontrado) {
+                console.log('✓ OCR: Médico encontrado:', medicoEncontrado.nombreCompleto)
                 await seleccionarMedico(medicoEncontrado.id)
+            } else {
+                console.log('⚠️ OCR: Médico no encontrado en la lista. Documento:', docMedico)
             }
         }
 
@@ -491,19 +498,26 @@ export default function Anexo8Page() {
             : undefined
 
         console.log('🔍 OCR: mesesTratamiento detectado:', data.mesesTratamiento, '→ convertido a:', mesesTratamiento)
+        console.log('🔍 OCR: dosisVia detectado:', data.dosisVia)
+        console.log('🔍 OCR: cantidadNumero detectado:', data.cantidadNumero, '| cantidadPorMes:', data.cantidadPorMes)
+        console.log('🔍 OCR: diagnosticoCie10 detectado:', data.diagnosticoCie10)
 
         // Aplicar todos los campos extraídos
-        setFormData(prev => ({
-            ...prev,
-            medicamentoNombre: medicamentoMatch || prev.medicamentoNombre,
-            concentracion: data.concentracion || prev.concentracion,
-            formaFarmaceutica: formaMatch || prev.formaFarmaceutica,
-            dosisVia: data.dosisVia || prev.dosisVia,
-            cantidadNumero: cantidadCorrecta,
-            diagnosticoCie10: data.diagnosticoCie10 || prev.diagnosticoCie10,
-            diagnosticoDescripcion: data.diagnosticoDescripcion || prev.diagnosticoDescripcion,
-            mesesFormula: mesesTratamiento !== undefined ? mesesTratamiento : prev.mesesFormula
-        }))
+        setFormData(prev => {
+            const nuevoFormData = {
+                ...prev,
+                medicamentoNombre: medicamentoMatch || prev.medicamentoNombre,
+                concentracion: data.concentracion || prev.concentracion,
+                formaFarmaceutica: formaMatch || prev.formaFarmaceutica,
+                dosisVia: data.dosisVia || prev.dosisVia,
+                cantidadNumero: cantidadCorrecta || prev.cantidadNumero,
+                diagnosticoCie10: data.diagnosticoCie10 || prev.diagnosticoCie10,
+                diagnosticoDescripcion: data.diagnosticoDescripcion || prev.diagnosticoDescripcion,
+                mesesFormula: mesesTratamiento !== undefined ? mesesTratamiento : prev.mesesFormula
+            }
+            console.log('✓ OCR: FormData actualizado:', nuevoFormData)
+            return nuevoFormData
+        })
 
         setExito('Datos extraídos del OCR aplicados. Verifique y complete la información.')
     }
