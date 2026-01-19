@@ -230,6 +230,7 @@ export function RadicacionCasosPage() {
                 edad: null,
                 eps: nuevoAfiliado.eps || 'NUEVA EPS',
                 fuente: 'PORTAL_COLABORADORES',
+                updatedAt: null,
                 busquedaTexto: null,
             })
             setMostrarFormularioNuevo(false)

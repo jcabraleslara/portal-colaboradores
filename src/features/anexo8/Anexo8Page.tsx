@@ -234,6 +234,7 @@ export default function Anexo8Page() {
                 edad: null,
                 eps: datos.eps || 'NUEVA EPS',
                 fuente: 'PORTAL_COLABORADORES',
+                updatedAt: null,
                 busquedaTexto: null
             }
             setPaciente(nuevoAfiliado)
