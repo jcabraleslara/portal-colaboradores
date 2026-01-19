@@ -118,6 +118,14 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         // Sin restricción de rol - visible para todos
     },
     {
+        id: 'consultar-cups',
+        name: 'Consultar CUPS',
+        path: ROUTES.CONSULTAR_CUPS,
+        icon: 'FileSearch',
+        enabled: true,
+        description: 'Buscar procedimientos CUPS',
+    },
+    {
         id: 'radicacion-casos',
         name: 'Radicación de Casos',
         path: ROUTES.RADICACION_CASOS,
@@ -185,14 +193,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         enabled: false,
         description: 'En planeación',
     },
-    {
-        id: 'consultar-cups',
-        name: 'Consultar CUPS',
-        path: ROUTES.CONSULTAR_CUPS,
-        icon: 'FileSearch',
-        enabled: true,
-        description: 'Buscar procedimientos CUPS',
-    },
+
     {
         id: 'admin-usuarios',
         name: 'Administrar Usuarios',
