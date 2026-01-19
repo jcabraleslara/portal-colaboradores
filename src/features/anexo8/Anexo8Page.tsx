@@ -529,17 +529,6 @@ export default function Anexo8Page() {
                                 Recetario Oficial para Medicamentos de Control Especial (FNE)
                             </p>
                         </div>
-
-                        {/* Botón Extraer PDF solo para superadmin */}
-                        {esSuperadmin && (
-                            <button
-                                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors shadow-lg"
-                                onClick={() => setMostrarPdfExtract(true)}
-                            >
-                                <FaFilePdf />
-                                Extraer desde PDF
-                            </button>
-                        )}
                     </div>
                 </div>
 
@@ -555,11 +544,11 @@ export default function Anexo8Page() {
                     </div>
                 )}
 
-                {/* Contenido principal */}
-                <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Contenido principal - 2 COLUMNAS */}
+                <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-                    {/* Columna 1: Paciente (4 columnas del grid) */}
-                    <div className="lg:col-span-4">
+                    {/* COLUMNA IZQUIERDA: Paciente + Profesional + Configuración (1 columna del grid) */}
+                    <div className="lg:col-span-1 space-y-4">
                         {/* Búsqueda de Paciente */}
                         <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
                             <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
@@ -603,44 +592,168 @@ export default function Anexo8Page() {
                                         )}
                                     </div>
 
-                                    {/* Formulario crear paciente nuevo */}
+                                    {/* Formulario crear paciente nuevo - COMPLETO */}
                                     {mostrarFormularioNuevo && (
                                         <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                                            <p className="text-sm font-medium text-amber-800 mb-3">
-                                                Paciente no encontrado. Completar datos mínimos para crear:
+                                            <p className="text-sm font-semibold text-amber-800 mb-3">
+                                                ⚠️ Paciente no encontrado. Complete los datos para crear:
                                             </p>
                                             <div className="space-y-3">
+                                                {/* Documento (readonly) */}
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <select
+                                                        id="nuevo-tipo-id"
+                                                        className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+                                                    >
+                                                        <option value="CC">CC</option>
+                                                        <option value="TI">TI</option>
+                                                        <option value="CE">CE</option>
+                                                        <option value="PA">PA</option>
+                                                        <option value="RC">RC</option>
+                                                    </select>
+                                                    <input
+                                                        type="text"
+                                                        readOnly
+                                                        value={busqueda}
+                                                        className="px-3 py-2 rounded-lg border border-slate-300 bg-slate-100 text-sm"
+                                                    />
+                                                </div>
+
+                                                {/* Nombres y Apellidos */}
                                                 <input
+                                                    id="nuevo-nombres"
                                                     type="text"
                                                     placeholder="Nombres *"
                                                     className="w-full px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                                    onBlur={(e) => {
-                                                        if (e.target.value.trim() && busqueda.trim()) {
-                                                            crearPacienteNuevo({
-                                                                nombres: e.target.value.trim(),
-                                                                apellido1: (document.getElementById('apellido1-nuevo') as HTMLInputElement)?.value || 'PENDIENTE'
-                                                            })
-                                                        }
-                                                    }}
                                                 />
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <input
+                                                        id="nuevo-apellido1"
+                                                        type="text"
+                                                        placeholder="1er Apellido *"
+                                                        className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                    />
+                                                    <input
+                                                        id="nuevo-apellido2"
+                                                        type="text"
+                                                        placeholder="2do Apellido"
+                                                        className="px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                                    />
+                                                </div>
+
+                                                {/* Sexo y Edad */}
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <select
+                                                        id="nuevo-sexo"
+                                                        className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                    >
+                                                        <option value="">Sexo *</option>
+                                                        <option value="M">Masculino</option>
+                                                        <option value="F">Femenino</option>
+                                                    </select>
+                                                    <input
+                                                        id="nuevo-edad"
+                                                        type="number"
+                                                        min="0"
+                                                        max="120"
+                                                        placeholder="Edad *"
+                                                        className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                    />
+                                                </div>
+
+                                                {/* Teléfono */}
                                                 <input
-                                                    id="apellido1-nuevo"
-                                                    type="text"
-                                                    placeholder="Primer Apellido *"
+                                                    id="nuevo-telefono"
+                                                    type="tel"
+                                                    placeholder="Teléfono *"
                                                     className="w-full px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
                                                 />
+
+                                                {/* Dirección */}
+                                                <input
+                                                    id="nuevo-direccion"
+                                                    type="text"
+                                                    placeholder="Dirección de Residencia *"
+                                                    className="w-full px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                />
+
+                                                {/* Municipio */}
+                                                <input
+                                                    id="nuevo-municipio"
+                                                    type="text"
+                                                    placeholder="Municipio *"
+                                                    defaultValue="MONTERÍA"
+                                                    className="w-full px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                />
+
+                                                {/* Régimen y EPS */}
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <select
+                                                        id="nuevo-regimen"
+                                                        className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                    >
+                                                        <option value="">Régimen *</option>
+                                                        <option value="Contributivo">Contributivo</option>
+                                                        <option value="Subsidiado">Subsidiado</option>
+                                                        <option value="Vinculado">Vinculado</option>
+                                                    </select>
+                                                    <input
+                                                        id="nuevo-eps"
+                                                        type="text"
+                                                        placeholder="EPS *"
+                                                        defaultValue="NUEVA EPS"
+                                                        className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                    />
+                                                </div>
+
+                                                {/* Botón crear */}
                                                 <button
                                                     onClick={() => {
-                                                        const nombres = (document.querySelector('input[placeholder="Nombres *"]') as HTMLInputElement)?.value
-                                                        const apellido1 = (document.getElementById('apellido1-nuevo') as HTMLInputElement)?.value
-                                                        if (nombres && apellido1) {
-                                                            crearPacienteNuevo({ nombres, apellido1 })
+                                                        const tipoId = (document.getElementById('nuevo-tipo-id') as HTMLSelectElement)?.value || 'CC'
+                                                        const nombres = (document.getElementById('nuevo-nombres') as HTMLInputElement)?.value?.trim()
+                                                        const apellido1 = (document.getElementById('nuevo-apellido1') as HTMLInputElement)?.value?.trim()
+                                                        const apellido2 = (document.getElementById('nuevo-apellido2') as HTMLInputElement)?.value?.trim()
+                                                        const sexo = (document.getElementById('nuevo-sexo') as HTMLSelectElement)?.value
+                                                        const telefono = (document.getElementById('nuevo-telefono') as HTMLInputElement)?.value?.trim()
+                                                        const direccion = (document.getElementById('nuevo-direccion') as HTMLInputElement)?.value?.trim()
+                                                        const municipio = (document.getElementById('nuevo-municipio') as HTMLInputElement)?.value?.trim()
+                                                        const regimen = (document.getElementById('nuevo-regimen') as HTMLSelectElement)?.value
+                                                        const eps = (document.getElementById('nuevo-eps') as HTMLInputElement)?.value?.trim()
+
+                                                        // Validar campos requeridos
+                                                        if (!nombres || !apellido1 || !sexo || !telefono || !direccion || !municipio || !regimen || !eps) {
+                                                            setError('Complete todos los campos requeridos (*)')
+                                                            return
                                                         }
+
+                                                        crearPacienteNuevo({
+                                                            tipoId,
+                                                            nombres,
+                                                            apellido1,
+                                                            apellido2,
+                                                            sexo,
+                                                            telefono,
+                                                            direccion,
+                                                            municipio,
+                                                            regimen,
+                                                            eps
+                                                        })
                                                     }}
                                                     disabled={creandoPaciente}
-                                                    className="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors disabled:bg-slate-400"
+                                                    className="w-full px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors disabled:bg-slate-400"
                                                 >
-                                                    {creandoPaciente ? 'Creando...' : 'Crear y Continuar'}
+                                                    {creandoPaciente ? 'Creando...' : 'Crear Paciente y Continuar'}
+                                                </button>
+
+                                                <button
+                                                    onClick={() => {
+                                                        setMostrarFormularioNuevo(false)
+                                                        setPaciente(null)
+                                                        setBusqueda('')
+                                                    }}
+                                                    className="w-full px-4 py-2 text-slate-600 hover:text-slate-800 text-sm"
+                                                >
+                                                    Cancelar
                                                 </button>
                                             </div>
                                         </div>
@@ -672,11 +785,8 @@ export default function Anexo8Page() {
                                 </div>
                             )}
                         </div>
-                    </div>
 
-                    {/* Columna 2: Profesional + Configuración (4 columnas del grid) */}
-                    <div className="lg:col-span-4 space-y-6">
-                        {/* Profesional */}
+                        {/* 2. Profesional */}
                         <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
                             <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
                                 <FaUserMd className="text-green-500" />
@@ -730,11 +840,11 @@ export default function Anexo8Page() {
                             )}
                         </div>
 
-                        {/* Configuración */}
+                        {/* 3. Configuración */}
                         <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
                             <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
                                 <FaCalendarAlt className="text-indigo-500" />
-                                Configuración
+                                3. Configuración
                             </h2>
 
                             <div className="space-y-4">
@@ -780,12 +890,12 @@ export default function Anexo8Page() {
                         </div>
                     </div>
 
-                    {/* Columna 3: Medicamento + Botones (4 columnas del grid) */}
-                    <div className="lg:col-span-4">
-                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
+                    {/* COLUMNA DERECHA: Medicamento (2 columnas del grid - ocupa el resto del ancho) */}
+                    <div className="lg:col-span-2">
+                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200 h-full">
                             <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
                                 <FaPills className="text-amber-500" />
-                                3. Medicamento
+                                4. Medicamento
                             </h2>
 
                             <div className="space-y-4">
@@ -895,20 +1005,22 @@ export default function Anexo8Page() {
 
                             {/* Botones alineados a la derecha debajo del medicamento */}
                             <div className="mt-6 flex flex-wrap gap-3 justify-end">
-                                {/* Botón Nuevo Anexo 8 */}
-                                <button
-                                    onClick={resetearFormularioCompleto}
-                                    className="px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
-                                >
-                                    <FaPlus />
-                                    Nuevo Anexo 8
-                                </button>
+                                {/* Botón Nuevo Anexo 8 - SOLO visible después de generación exitosa */}
+                                {generadoExito && (
+                                    <button
+                                        onClick={resetearFormularioCompleto}
+                                        className="px-4 py-2.5 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                                    >
+                                        <FaPlus />
+                                        Nuevo Anexo 8
+                                    </button>
+                                )}
 
                                 {/* Botón Extraer PDF (solo superadmin) */}
                                 {esSuperadmin && (
                                     <button
                                         onClick={() => setMostrarPdfExtract(true)}
-                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                                     >
                                         <FaFilePdf />
                                         Extraer desde PDF
