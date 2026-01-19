@@ -2,7 +2,7 @@
  * Servicio de Extracción de PDF para Anexo 8
  * Portal de Colaboradores GESTAR SALUD IPS
  * 
- * Extrae datos de PDFs nativos de fórmulas médicas
+ * Extrae datos de PDFs nativos de fórmulas médicas de Gestar Salud
  * Usa pdfjs-dist en el frontend para extraer texto
  */
 
@@ -12,7 +12,7 @@ import { Anexo8OcrResult } from '@/types/anexo8.types'
 // Configurar worker de pdfjs
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
 
-// Lista de medicamentos controlados para matching
+// Lista de medicamentos controlados para matching (minúsculas para comparación)
 const MEDICAMENTOS_CONTROLADOS = [
     'alprazolam', 'bromazepam', 'buprenorfina', 'clobazam', 'clonazepam',
     'clozapina', 'diazepam', 'fentanilo', 'fenobarbital', 'hidrato de cloral',
@@ -21,48 +21,6 @@ const MEDICAMENTOS_CONTROLADOS = [
     'oxicodona', 'primidona', 'remifentanilo', 'tapentadol', 'tetrahidrocannabinol',
     'tiopental', 'triazolam', 'zolpidem'
 ]
-
-// Patrones optimizados para PDF nativo (texto perfecto)
-const PATRONES = {
-    // Documento del paciente - más flexible
-    documento: /(?:CC|C\.C\.|Documento|Identificación|DOCUMENTO|IDENTIFICACION)[:\s]*(\d{4,15})/i,
-
-    // Nombre completo - buscando la línea después de "Paciente" o "Nombre"
-    nombreCompleto: /(?:Paciente|PACIENTE|Nombre|NOMBRE)[:\s]*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{5,60})/i,
-
-    // Edad - varios formatos
-    edad: /(?:Edad|EDAD)[:\s]*(\d{1,3})(?:\s*años|\s*AÑOS)?/i,
-
-    // Género/Sexo
-    genero: /(?:Sexo|SEXO|Género|GENERO)[:\s]*([FM]|Masculino|Femenino|MASCULINO|FEMENINO)/i,
-
-    // Diagnóstico CIE-10
-    diagnosticoCie10: /(?:Diagnóstico|DIAGNOSTICO|CIE)[:\s]*([A-Z]\d{2,3}(?:\.\d{1,2})?)/i,
-    diagnosticoTexto: /(?:Diagnóstico|DIAGNOSTICO)[:\s]*([A-ZÁÉÍÓÚÑ\s]{5,80})/i,
-
-    // Medicamento - buscar cualquier medicamento controlado
-    medicamentoTabla: new RegExp(
-        `(${MEDICAMENTOS_CONTROLADOS.join('|')})\\s+(\\d+(?:[.,]\\d+)?\\s*(?:mg|ml|g|mcg|MG|ML|Mg|Ml))`,
-        'gi'
-    ),
-
-    // Forma farmacéutica
-    formaFarmaceutica: /\b(TABLETAS?|CAPSULAS?|COMPRIMIDOS?|GOTAS|AMPOLLA|JARABE|SOLUCION|TAB|CAPS?)\b/i,
-
-    // Cantidad (número seguido de unidades)
-    cantidadNumero: /(?:Cantidad|CANTIDAD|Cant)[:\s#]*(\d{1,3})/i,
-    cantidadAlternativo: /\b(\d{1,3})\s*(?:TAB|TABLETAS?|CAPSULAS?|UNIDADES?|UND)\b/i,
-
-    // Días de tratamiento
-    diasTratamiento: /(?:Días|DIAS|dias)[:\s]*(\d{1,3})/i,
-
-    // Posología
-    posologia: /(\d+\s*(?:TAB|TABLETA|CAPSULAS?)?[,\s]*(?:CADA\s*)?\d*\s*(?:HORAS?|\d+H)?\s*(?:VO|VIA\s*ORAL|ORAL)?[A-ZÁÉÍÓÚÑ\s]*)/i,
-
-    // Médico
-    medicoNombre: /(?:Médico|MEDICO|ATENDIDO\s*POR|Dr\.|DRA\.)[:\s]*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]{5,50})/i,
-    medicoDocumento: /(?:Reg\.|Registro|REGISTRO|CC|C\.C\.)[:\s]*(\d{6,15})/i
-}
 
 /**
  * Extrae texto completo de todas las páginas del PDF
@@ -86,7 +44,7 @@ async function extraerTextoPdf(file: File): Promise<string> {
 }
 
 /**
- * Extrae datos estructurados del texto del PDF
+ * Extrae datos estructurados del texto del PDF de fórmula de Gestar Salud
  */
 function extraerDatosDeTexto(texto: string): Anexo8OcrResult {
     const resultado: Anexo8OcrResult = {
@@ -98,8 +56,9 @@ function extraerDatosDeTexto(texto: string): Anexo8OcrResult {
 
     console.log('[PDF-EXTRACT] Texto extraído:', texto.substring(0, 500))
 
-    // ===== DOCUMENTO =====
-    const matchDoc = texto.match(PATRONES.documento)
+    // ===== DOCUMENTO DEL PACIENTE =====
+    // Formato: CC: 1067925976
+    const matchDoc = texto.match(/CC[:\s]+(\d{6,15})/i)
     if (matchDoc) {
         resultado.pacienteDocumento = matchDoc[1]
         resultado.pacienteTipoId = 'CC'
@@ -107,27 +66,32 @@ function extraerDatosDeTexto(texto: string): Anexo8OcrResult {
         console.log('✓ Documento:', resultado.pacienteDocumento)
     }
 
-    // ===== NOMBRE =====
-    const matchNombre = texto.match(PATRONES.nombreCompleto)
+    // ===== NOMBRE DEL PACIENTE =====
+    // Formato: Nombre: MOLINA QUINTANA SASKIA DEL CARMEN
+    const matchNombre = texto.match(/Nombre[:\s]+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]+?)(?=CC|Fecha|$)/i)
     if (matchNombre) {
         const nombreCompleto = matchNombre[1].trim()
         const partes = nombreCompleto.split(/\s+/).filter(p => p.length > 1)
-        if (partes.length >= 3) {
+        // Formato típico: APELLIDO1 APELLIDO2 NOMBRES
+        if (partes.length >= 4) {
             resultado.pacienteApellido1 = partes[0]
             resultado.pacienteApellido2 = partes[1]
             resultado.pacienteNombres = partes.slice(2).join(' ')
+        } else if (partes.length === 3) {
+            resultado.pacienteApellido1 = partes[0]
+            resultado.pacienteApellido2 = partes[1]
+            resultado.pacienteNombres = partes[2]
         } else if (partes.length === 2) {
             resultado.pacienteApellido1 = partes[0]
             resultado.pacienteNombres = partes[1]
-        } else if (partes.length === 1) {
-            resultado.pacienteNombres = partes[0]
         }
         camposEncontrados++
-        console.log('✓ Nombre:', resultado.pacienteNombres, resultado.pacienteApellido1)
+        console.log('✓ Nombre:', resultado.pacienteNombres, resultado.pacienteApellido1, resultado.pacienteApellido2)
     }
 
     // ===== EDAD =====
-    const matchEdad = texto.match(PATRONES.edad)
+    // Formato: Edad: 30 años
+    const matchEdad = texto.match(/Edad[:\s]+(\d{1,3})\s*años/i)
     if (matchEdad) {
         resultado.pacienteEdad = parseInt(matchEdad[1], 10)
         camposEncontrados++
@@ -135,93 +99,141 @@ function extraerDatosDeTexto(texto: string): Anexo8OcrResult {
     }
 
     // ===== GÉNERO =====
-    const matchGenero = texto.match(PATRONES.genero)
+    // Formato: Sexo: F
+    const matchGenero = texto.match(/Sexo[:\s]+([FM])/i)
     if (matchGenero) {
-        const g = matchGenero[1].toLowerCase()
-        resultado.pacienteGenero = g.startsWith('m') ? 'M' : 'F'
+        resultado.pacienteGenero = matchGenero[1].toUpperCase() as 'F' | 'M'
         camposEncontrados++
         console.log('✓ Género:', resultado.pacienteGenero)
     }
 
-    // ===== MEDICAMENTO =====
-    const matchMed = PATRONES.medicamentoTabla.exec(texto)
-    if (matchMed) {
-        const med = matchMed[1].toLowerCase()
-        resultado.medicamentoNombre = med.charAt(0).toUpperCase() + med.slice(1)
-        resultado.concentracion = matchMed[2].toUpperCase().replace(',', '.')
-        camposEncontrados += 2
-        console.log('✓ Medicamento:', resultado.medicamentoNombre, resultado.concentracion)
-    }
-
-    // ===== FORMA FARMACÉUTICA =====
-    const matchForma = texto.match(PATRONES.formaFarmaceutica)
-    if (matchForma) {
-        resultado.formaFarmaceutica = matchForma[1].toUpperCase()
+    // ===== DIAGNÓSTICO CIE-10 =====
+    // Formato: Dx Principal: G824 - CUADRIPLEJIA ESPASTICA
+    const matchDx = texto.match(/Dx\s*Principal[:\s]+([A-Z]\d{2,4})\s*[-–]\s*([A-ZÁÉÍÓÚÑ\s]+?)(?=Contrato|Municipio|$)/i)
+    if (matchDx) {
+        resultado.diagnosticoCie10 = matchDx[1].toUpperCase()
+        resultado.diagnosticoDescripcion = matchDx[2].trim()
         camposEncontrados++
-        console.log('✓ Forma:', resultado.formaFarmaceutica)
+        console.log('✓ Diagnóstico:', resultado.diagnosticoCie10, '-', resultado.diagnosticoDescripcion)
     }
 
-    // ===== CANTIDAD =====
-    let matchCantidad = texto.match(PATRONES.cantidadNumero)
-    if (!matchCantidad) {
-        matchCantidad = texto.match(PATRONES.cantidadAlternativo)
-    }
-    if (matchCantidad) {
-        resultado.cantidadNumero = parseInt(matchCantidad[1], 10)
-        camposEncontrados++
-        console.log('✓ Cantidad:', resultado.cantidadNumero)
-    }
-
-    // ===== DÍAS =====
-    const matchDias = texto.match(PATRONES.diasTratamiento)
-    if (matchDias) {
-        resultado.diasTratamiento = parseInt(matchDias[1], 10)
-        camposEncontrados++
-        console.log('✓ Días:', resultado.diasTratamiento)
-    }
-
-    // ===== POSOLOGÍA =====
-    const matchPosologia = texto.match(PATRONES.posologia)
-    if (matchPosologia) {
-        resultado.dosisVia = matchPosologia[1].trim()
-        console.log('✓ Posología:', resultado.dosisVia)
+    // ===== MEDICAMENTO CONTROLADO =====
+    // Buscar cualquier medicamento de la lista en el texto
+    // Formato en tabla: CLONAZEPAM 2 mg (TABLETA)
+    for (const med of MEDICAMENTOS_CONTROLADOS) {
+        const regexMed = new RegExp(`(${med})\\s+(\\d+(?:[.,]\\d+)?\\s*(?:mg|ml|g|mcg))(?:\\s*\\(?(TABLETA|CAPSUL|SOLUCION|JARABE|GOTAS|AMPOLLA)?\\)?)?`, 'gi')
+        const matchMed = regexMed.exec(texto)
+        if (matchMed) {
+            resultado.medicamentoNombre = med.charAt(0).toUpperCase() + med.slice(1)
+            resultado.concentracion = matchMed[2].toUpperCase().replace(',', '.')
+            if (matchMed[3]) {
+                resultado.formaFarmaceutica = matchMed[3].toUpperCase()
+                if (resultado.formaFarmaceutica === 'CAPSUL') {
+                    resultado.formaFarmaceutica = 'CAPSULA'
+                }
+            }
+            camposEncontrados += 2
+            console.log('✓ Medicamento:', resultado.medicamentoNombre, resultado.concentracion, resultado.formaFarmaceutica)
+            break // Solo tomar el primer medicamento controlado encontrado
+        }
     }
 
-    // ===== DIAGNÓSTICO =====
-    const matchCie10 = texto.match(PATRONES.diagnosticoCie10)
-    if (matchCie10) {
-        resultado.diagnosticoCie10 = matchCie10[1].toUpperCase()
-        camposEncontrados++
-        console.log('✓ CIE-10:', resultado.diagnosticoCie10)
+    // ===== FORMA FARMACÉUTICA (si no se encontró arriba) =====
+    if (!resultado.formaFarmaceutica) {
+        const matchForma = texto.match(/\b(TABLETA|TABLETAS|CAPSULA|CAPSULAS|SOLUCION|JARABE|GOTAS|AMPOLLA|COMPRIMIDO)\b/i)
+        if (matchForma) {
+            resultado.formaFarmaceutica = matchForma[1].toUpperCase()
+            console.log('✓ Forma (alternativo):', resultado.formaFarmaceutica)
+        }
     }
 
-    const matchDiagTexto = texto.match(PATRONES.diagnosticoTexto)
-    if (matchDiagTexto && !resultado.diagnosticoCie10) {
-        resultado.diagnosticoDescripcion = matchDiagTexto[1].trim()
+    // ===== CANTIDAD Y DÍAS DE LA TABLA DE MEDICAMENTOS =====
+    // La tabla tiene columnas: Código | Descripción | Cantidad | Posología | Días
+    // Buscar después del medicamento encontrado: número de cantidad y días
+    if (resultado.medicamentoNombre) {
+        const medNombre = resultado.medicamentoNombre.toUpperCase()
+        // Buscar la línea que contiene el medicamento y extraer cantidad y días
+        // Formato: CLONAZEPAM 2 mg (TABLETA) 180 1 TAB VO NOCHE 180
+        const regexLinea = new RegExp(`${medNombre}[^\\d]*(\\d+)\\s*(?:mg|ml|g)?[^\\d]*(\\d{1,4})\\s+([^\\d]+?)\\s+(\\d{1,4})(?:\\s|$)`, 'i')
+        const matchLinea = texto.match(regexLinea)
+
+        if (matchLinea) {
+            const cantidadTotal = parseInt(matchLinea[2], 10)
+            const posologia = matchLinea[3].trim()
+            const diasTratamiento = parseInt(matchLinea[4], 10)
+
+            console.log('✓ Datos tabla - Cantidad:', cantidadTotal, 'Posología:', posologia, 'Días:', diasTratamiento)
+
+            // Guardar posología como dosis/vía
+            resultado.dosisVia = posologia
+            resultado.diasTratamiento = diasTratamiento
+
+            // ===== LÓGICA DE CÁLCULO PARA ANEXO 8 =====
+            // El Anexo 8 es MENSUAL, así que debemos calcular la cantidad por mes
+            if (cantidadTotal > 0 && diasTratamiento > 0) {
+                // Calcular cantidad mensual (para 30 días)
+                const cantidadPorMes = Math.round((cantidadTotal / diasTratamiento) * 30)
+                resultado.cantidadNumero = cantidadPorMes
+                resultado.cantidadPorMes = cantidadPorMes
+
+                // Calcular meses de tratamiento (máximo 6)
+                resultado.mesesTratamiento = Math.min(6, Math.ceil(diasTratamiento / 30))
+
+                camposEncontrados += 3
+                console.log('✓ Cálculo Anexo 8 - Cantidad/mes:', cantidadPorMes, 'Meses:', resultado.mesesTratamiento)
+            }
+        } else {
+            // Fallback: buscar patrones simples de cantidad y días
+            // Buscar "Cantidad" seguido de número en tabla
+            const matchCantidad = texto.match(/(?:Cantidad|Cant)[:\s]*(\d{1,4})/i)
+            if (matchCantidad) {
+                const cantidadTotal = parseInt(matchCantidad[1], 10)
+                resultado.cantidadNumero = cantidadTotal
+                camposEncontrados++
+                console.log('✓ Cantidad (fallback):', cantidadTotal)
+            }
+
+            // Buscar "Días" seguido de número
+            const matchDias = texto.match(/(?:Días|Dias)[:\s]*(\d{1,4})/i)
+            if (matchDias) {
+                resultado.diasTratamiento = parseInt(matchDias[1], 10)
+                console.log('✓ Días (fallback):', resultado.diasTratamiento)
+            }
+        }
+    }
+
+    // ===== POSOLOGÍA (si no se encontró en la tabla) =====
+    if (!resultado.dosisVia) {
+        // Buscar patrón de posología: "1 TAB VO NOCHE" o similar
+        const matchPosologia = texto.match(/(\d+\s*TAB(?:LETA)?S?\s*(?:VO|VIA\s*ORAL|ORAL)?\s*(?:CADA\s*\d+\s*HORAS?|NOCHE|DIA|MAÑANA|TARDE)?)/i)
+        if (matchPosologia) {
+            resultado.dosisVia = matchPosologia[1].trim()
+            console.log('✓ Posología (alternativo):', resultado.dosisVia)
+        }
     }
 
     // ===== MÉDICO =====
-    const matchMedico = texto.match(PATRONES.medicoNombre)
+    // Formato: Médico: JULIO CESAR VILLALOBOS COMAS
+    const matchMedico = texto.match(/Médico[:\s]+([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s]+?)(?=Proveedor|Direccion|$)/i)
     if (matchMedico) {
         resultado.medicoNombre = matchMedico[1].trim()
         console.log('✓ Médico:', resultado.medicoNombre)
     }
 
-    const matchMedicoDoc = texto.match(PATRONES.medicoDocumento)
+    // Buscar cédula/registro del médico
+    // Formato: Cedula: 70031515 o Reg. med: 70031515
+    const matchMedicoDoc = texto.match(/(?:Cedula|Cédula|Reg\.?\s*med)[:\s]*(\d{6,15})/i)
     if (matchMedicoDoc) {
         resultado.medicoDocumento = matchMedicoDoc[1]
-    }
-
-    // Calcular meses automáticamente
-    if (resultado.cantidadNumero && resultado.diasTratamiento) {
-        resultado.cantidadPorMes = Math.round((resultado.cantidadNumero / resultado.diasTratamiento) * 30)
-        resultado.mesesTratamiento = Math.min(6, Math.ceil(resultado.diasTratamiento / 30))
+        resultado.medicoRegistro = matchMedicoDoc[1]
+        console.log('✓ Documento médico:', resultado.medicoDocumento)
     }
 
     // Calcular confianza
     resultado.confidence = Math.min(100, Math.round((camposEncontrados / totalCampos) * 100))
 
     console.log(`[PDF-EXTRACT] Confianza: ${resultado.confidence}% (${camposEncontrados}/${totalCampos} campos)`)
+    console.log('[PDF-EXTRACT] Resultado final:', resultado)
 
     return resultado
 }
