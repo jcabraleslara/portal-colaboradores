@@ -225,22 +225,12 @@ function Anexo8Seccion({ data, tipo }: Anexo8TemplateProps) {
             {/* 3. PROFESIONAL */}
             <div className="anexo8-profesional-header">3. PROFESIONAL</div>
 
-            {/* Tipo médico */}
+            {/* Especialidad */}
             <div className="anexo8-medico-tipo-row">
                 <div className="anexo8-medico-tipo-label">Médico</div>
-                <div className="anexo8-medico-tipos">
-                    <div className="anexo8-medico-tipo-item">
-                        <div className={`anexo8-checkbox ${data.medico_tipo === 'General' ? 'checked' : ''}`} />
-                        <span>General</span>
-                    </div>
-                    <div className="anexo8-medico-tipo-item">
-                        <div className={`anexo8-checkbox ${data.medico_tipo === 'Especializado' ? 'checked' : ''}`} />
-                        <span>Especializado</span>
-                    </div>
-                </div>
-                <div className="anexo8-especialidad-container">
-                    <span className="anexo8-especialidad-label">Especialidad, cuál:</span>
-                    <span className="anexo8-especialidad-value">{data.medico_especialidad || ''}</span>
+                <div className="anexo8-especialidad-container" style={{ marginLeft: '10px', flex: 1 }}>
+                    <span className="anexo8-especialidad-label">Especialidad:</span>
+                    <span className="anexo8-especialidad-value">{data.medico_especialidad || 'MEDICINA GENERAL'}</span>
                 </div>
             </div>
 
@@ -287,7 +277,7 @@ function Anexo8Seccion({ data, tipo }: Anexo8TemplateProps) {
                 </div>
                 <div className="anexo8-cell anexo8-cell-direccion-inst">
                     <span className="anexo8-cell-label">Dirección</span>
-                    <span className="anexo8-cell-value">{data.medico_direccion || 'CRA 6 N 65 24'}</span>
+                    <span className="anexo8-cell-value">CRA 6 N 65 24</span>
                 </div>
                 <div className="anexo8-cell anexo8-cell-ciudad">
                     <span className="anexo8-cell-label">Ciudad</span>
@@ -295,7 +285,7 @@ function Anexo8Seccion({ data, tipo }: Anexo8TemplateProps) {
                 </div>
                 <div className="anexo8-cell anexo8-cell-tel">
                     <span className="anexo8-cell-label">Teléfono</span>
-                    <span className="anexo8-cell-value">{data.medico_telefono || '3103157229'}</span>
+                    <span className="anexo8-cell-value">3103157229</span>
                 </div>
             </div>
 

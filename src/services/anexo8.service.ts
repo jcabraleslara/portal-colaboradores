@@ -287,7 +287,7 @@ export const anexo8Service = {
             if (usuario.contacto_id) {
                 const { data: contactoData } = await supabase
                     .from('contactos')
-                    .select('puesto, direccion, ciudad, celular_1, firma_url')
+                    .select('puesto, ciudad, firma_url')
                     .eq('id', usuario.contacto_id)
                     .single()
 
@@ -299,11 +299,8 @@ export const anexo8Service = {
                 documento: usuario.identificacion,
                 nombreCompleto: usuario.nombre_completo,
                 especialidad: contacto?.puesto || null,
-                direccion: contacto?.direccion || null,
                 ciudad: contacto?.ciudad || null,
-                telefono: contacto?.celular_1 || null,
-                firmaUrl: contacto?.firma_url || null,
-                tipoMedico: contacto?.puesto ? 'Especializado' : 'General'
+                firmaUrl: contacto?.firma_url || null
             }
 
             return { success: true, data: medicoData }
@@ -337,16 +334,14 @@ export const anexo8Service = {
 
             let contactosMap = new Map<string, {
                 puesto: string | null
-                direccion: string | null
                 ciudad: string | null
-                celular_1: string | null
                 firma_url: string | null
             }>()
 
             if (contactoIds.length > 0) {
                 const { data: contactos } = await supabase
                     .from('contactos')
-                    .select('id, puesto, direccion, ciudad, celular_1, firma_url')
+                    .select('id, puesto, ciudad, firma_url')
                     .in('id', contactoIds)
 
                 if (contactos) {
@@ -361,11 +356,8 @@ export const anexo8Service = {
                     documento: u.identificacion,
                     nombreCompleto: u.nombre_completo,
                     especialidad: contacto?.puesto || null,
-                    direccion: contacto?.direccion || null,
                     ciudad: contacto?.ciudad || null,
-                    telefono: contacto?.celular_1 || null,
-                    firmaUrl: contacto?.firma_url || null,
-                    tipoMedico: contacto?.puesto ? 'Especializado' : 'General'
+                    firmaUrl: contacto?.firma_url || null
                 }
             })
 

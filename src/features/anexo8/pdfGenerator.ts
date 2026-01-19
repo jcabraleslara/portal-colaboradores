@@ -221,10 +221,19 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
                     opacity: 0.95
                 })
 
-                // Timestamp a la DERECHA de la firma
+                // Timestamp a la DERECHA de la firma (GMT-5 Colombia)
                 const ahora = new Date()
-                const fecha = ahora.toISOString().slice(0, 10)
-                const hora = ahora.toISOString().slice(11, 19)
+                const formatter = new Intl.DateTimeFormat('sv-SE', {
+                    timeZone: 'America/Bogota',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                })
+                const formatted = formatter.format(ahora)
+                const [fecha, hora] = formatted.split(' ')
 
                 const timestampX = firmaX + finalWidth + 5 // 5px de separación
                 const timestampY = fieldY + fieldHeight / 2 + 3

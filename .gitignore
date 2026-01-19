@@ -28,3 +28,6 @@ dist-ssr
 # Google Cloud credentials
 *-credentials.json
 document-ai-*.json
+
+# Internal scripts and documentation
+scripts/

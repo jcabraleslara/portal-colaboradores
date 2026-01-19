@@ -112,11 +112,8 @@ export interface Anexo8Record {
     medico_tipo_doc: string
     medico_documento: string
     medico_nombres: string
-    medico_tipo: 'General' | 'Especializado'
     medico_especialidad: string | null
-    medico_direccion: string | null
     medico_ciudad: string | null
-    medico_telefono: string | null
     medico_firma_url: string | null
 
     // Fechas
@@ -174,11 +171,8 @@ export interface Anexo8CreateData {
     medico_tipo_doc?: string
     medico_documento: string
     medico_nombres: string
-    medico_tipo?: 'General' | 'Especializado'
     medico_especialidad?: string | null
-    medico_direccion?: string | null
     medico_ciudad?: string | null
-    medico_telefono?: string | null
     medico_firma_url?: string | null
 
     // Fechas
@@ -231,11 +225,8 @@ export interface MedicoData {
     documento: string
     nombreCompleto: string
     especialidad: string | null
-    direccion: string | null
     ciudad: string | null
-    telefono: string | null
     firmaUrl: string | null
-    tipoMedico: 'General' | 'Especializado'
 }
 
 /**

@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { afiliadosService } from '@/services/afiliados.service'
+import { backService } from '@/services/back.service'
 import { anexo8Service, ROLES_PERMITIDOS_ANEXO8 } from '@/services/anexo8.service'
 import { generarAnexo8Pdf, descargarPdf } from './pdfGenerator'
 import { PdfExtractDialog } from './components/PdfExtractDialog'
@@ -25,7 +26,7 @@ import {
     FormaFarmaceutica,
     Regimen
 } from '@/types'
-import { LoadingSpinner, Alert } from '@/components/common'
+import { LoadingSpinner, Alert, Autocomplete } from '@/components/common'
 import {
     FaFilePdf,
     FaSearch,
@@ -34,7 +35,8 @@ import {
     FaUser,
     FaCalendarAlt,
     FaTimes,
-    FaCheck
+    FaCheck,
+    FaPlus
 } from 'react-icons/fa'
 
 // Componente principal
@@ -54,10 +56,13 @@ export default function Anexo8Page() {
     const [paciente, setPaciente] = useState<Afiliado | null>(null)
     const [resultadosBusqueda, setResultadosBusqueda] = useState<Afiliado[]>([])
     const [mostrarResultados, setMostrarResultados] = useState(false)
+    const [mostrarFormularioNuevo, setMostrarFormularioNuevo] = useState(false)
+    const [creandoPaciente, setCreandoPaciente] = useState(false)
 
     // Médicos
     const [medicos, setMedicos] = useState<MedicoData[]>([])
     const [medicoSeleccionado, setMedicoSeleccionado] = useState<MedicoData | null>(null)
+    const [busquedaMedico, setBusquedaMedico] = useState('')
 
     // Formulario
     const [formData, setFormData] = useState<Anexo8FormData>({
@@ -109,12 +114,15 @@ export default function Anexo8Page() {
     const buscarPacientes = useCallback(async (texto: string) => {
         if (texto.length < 3) {
             setResultadosBusqueda([])
+            setMostrarFormularioNuevo(false)
             return
         }
 
         setBuscando(true)
+        setMostrarFormularioNuevo(false)
+
         try {
-            // Primero intentar por documento exacto
+            //  Primero iniciar por documento exacto
             const resultDoc = await afiliadosService.buscarPorDocumento(texto)
             if (resultDoc.success && resultDoc.data) {
                 setResultadosBusqueda([resultDoc.data])
@@ -125,9 +133,16 @@ export default function Anexo8Page() {
 
             // Si no, buscar por texto
             const resultTexto = await afiliadosService.buscarPorTexto(texto, 10)
-            if (resultTexto.success && resultTexto.data) {
+            if (resultTexto.success && resultTexto.data && resultTexto.data.length > 0) {
                 setResultadosBusqueda(resultTexto.data)
                 setMostrarResultados(true)
+            } else {
+                // No se encontró ningún paciente, mostrar formulario de creación
+                setResultadosBusqueda([])
+                setMostrarResultados(false)
+                setMostrarFormularioNuevo(true)
+                // Simular paciente con documento ingresado para crearPacienteNuevo
+                setPaciente({ id: texto } as Afiliado)
             }
         } catch {
             setError('Error buscando pacientes')
@@ -154,7 +169,74 @@ export default function Anexo8Page() {
             pacienteDocumento: afiliado.id || ''
         }))
         setMostrarResultados(false)
+        setMostrarFormularioNuevo(false)
         setBusqueda('')
+    }
+
+    // Crear paciente nuevo
+    const crearPacienteNuevo = async (datos: {
+        nombres: string
+        apellido1: string
+        apellido2?: string
+        tipoId?: string
+        sexo?: string
+        telefono?: string
+        direccion?: string
+        municipio?: string
+        regimen?: string
+        eps?: string
+    }) => {
+        if (!paciente?.id) return
+
+        setCreandoPaciente(true)
+        const resultado = await backService.crearAfiliado({
+            tipoId: datos.tipoId || 'CC',
+            id: paciente.id,
+            nombres: datos.nombres,
+            apellido1: datos.apellido1,
+            apellido2: datos.apellido2,
+            sexo: datos.sexo,
+            telefono: datos.telefono,
+            direccion: datos.direccion,
+            municipio: datos.municipio,
+            regimen: datos.regimen,
+            eps: datos.eps || 'NUEVA EPS'
+        })
+
+        setCreandoPaciente(false)
+
+        if (resultado.success) {
+            // Simular afiliado creado
+            const nuevoAfiliado: Afiliado = {
+                tipoId: datos.tipoId || 'CC',
+                id: paciente.id,
+                nombres: datos.nombres.toUpperCase(),
+                apellido1: datos.apellido1.toUpperCase(),
+                apellido2: datos.apellido2?.toUpperCase() || null,
+                sexo: datos.sexo || null,
+                direccion: datos.direccion?.toUpperCase() || null,
+                telefono: datos.telefono || null,
+                fechaNacimiento: null,
+                estado: 'ACTIVO',
+                municipio: datos.municipio || null,
+                departamento: '23',
+                observaciones: null,
+                ipsPrimaria: null,
+                tipoCotizante: null,
+                rango: null,
+                email: null,
+                regimen: datos.regimen || null,
+                edad: null,
+                eps: datos.eps || 'NUEVA EPS',
+                fuente: 'PORTAL_COLABORADORES',
+                busquedaTexto: null
+            }
+            setPaciente(nuevoAfiliado)
+            setMostrarFormularioNuevo(false)
+            setError(null)
+        } else {
+            setError(resultado.error || 'Error al crear paciente')
+        }
     }
 
     // Limpiar paciente
@@ -261,11 +343,8 @@ export default function Anexo8Page() {
                 medico_id: medicoSeleccionado.id,
                 medico_documento: medicoSeleccionado.documento,
                 medico_nombres: medicoSeleccionado.nombreCompleto,
-                medico_tipo: medicoSeleccionado.tipoMedico,
                 medico_especialidad: medicoSeleccionado.especialidad || null,
-                medico_direccion: medicoSeleccionado.direccion || null,
                 medico_ciudad: medicoSeleccionado.ciudad || null,
-                medico_telefono: medicoSeleccionado.telefono || null,
                 medico_firma_url: medicoSeleccionado.firmaUrl || null,
 
                 fecha_prescripcion: formData.fechaPrescripcion,
@@ -306,12 +385,8 @@ export default function Anexo8Page() {
 
             setExito(`Se generaron ${resultado.data.length} Anexo(s) 8 correctamente`)
 
-            // Activar animación de éxito (5 segundos)
+            // Activar estado de éxito (permanece verde hasta hacer clic en Nuevo Anexo 8)
             setGeneradoExito(true)
-            setTimeout(() => setGeneradoExito(false), 8000)
-
-            // Limpiar formulario
-            limpiarFormulario()
 
         } catch (err) {
             console.error('Error generando Anexo 8:', err)
@@ -321,9 +396,20 @@ export default function Anexo8Page() {
         setGenerando(false)
     }
 
-    // Limpiar formulario
-    const limpiarFormulario = () => {
+    // Resetear todo el formulario (botón Nuevo Anexo 8)
+    const resetearFormularioCompleto = () => {
         setPaciente(null)
+        setBusqueda('')
+        setMostrarFormularioNuevo(false)
+        setMostrarResultados(false)
+        setResultadosBusqueda([])
+
+        // Si no es asistencial, también limpiar médico
+        if (!esAsistencial) {
+            setMedicoSeleccionado(null)
+            setBusquedaMedico('')
+        }
+
         setFormData({
             pacienteDocumento: '',
             medicamentoNombre: '',
@@ -337,6 +423,10 @@ export default function Anexo8Page() {
             fechaPrescripcion: new Date().toISOString().split('T')[0],
             mesesFormula: 1
         })
+
+        setGeneradoExito(false)
+        setError(null)
+        setExito(null)
     }
 
     // Manejar datos extraídos del OCR
@@ -466,11 +556,10 @@ export default function Anexo8Page() {
                 )}
 
                 {/* Contenido principal */}
-                <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-                    {/* Columna izquierda: Paciente y Médico */}
-                    <div className="lg:col-span-1 space-y-6">
-
+                    {/* Columna 1: Paciente (4 columnas del grid) */}
+                    <div className="lg:col-span-4">
                         {/* Búsqueda de Paciente */}
                         <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
                             <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
@@ -479,39 +568,84 @@ export default function Anexo8Page() {
                             </h2>
 
                             {!paciente ? (
-                                <div className="relative">
-                                    <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-400">
-                                        <FaSearch className="text-slate-400 ml-3" />
-                                        <input
-                                            type="text"
-                                            placeholder="Buscar por documento o nombre..."
-                                            value={busqueda}
-                                            onChange={(e) => setBusqueda(e.target.value)}
-                                            className="w-full px-3 py-2.5 focus:outline-none"
-                                        />
-                                        {buscando && <LoadingSpinner size="sm" />}
+                                <>
+                                    <div className="relative">
+                                        <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-400">
+                                            <FaSearch className="text-slate-400 ml-3" />
+                                            <input
+                                                type="text"
+                                                placeholder="Buscar por documento o nombre..."
+                                                value={busqueda}
+                                                onChange={(e) => setBusqueda(e.target.value)}
+                                                className="w-full px-3 py-2.5 focus:outline-none"
+                                            />
+                                            {buscando && <LoadingSpinner size="sm" />}
+                                        </div>
+
+                                        {/* Resultados de búsqueda */}
+                                        {mostrarResultados && resultadosBusqueda.length > 0 && (
+                                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                                {resultadosBusqueda.map((afiliado) => (
+                                                    <button
+                                                        key={afiliado.id}
+                                                        onClick={() => seleccionarPaciente(afiliado)}
+                                                        className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b last:border-b-0 transition-colors"
+                                                    >
+                                                        <p className="font-medium text-slate-800">
+                                                            {afiliado.nombres} {afiliado.apellido1} {afiliado.apellido2}
+                                                        </p>
+                                                        <p className="text-sm text-slate-500">
+                                                            {afiliado.tipoId} {afiliado.id} • {afiliado.eps}
+                                                        </p>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
 
-                                    {/* Resultados de búsqueda */}
-                                    {mostrarResultados && resultadosBusqueda.length > 0 && (
-                                        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
-                                            {resultadosBusqueda.map((afiliado) => (
+                                    {/* Formulario crear paciente nuevo */}
+                                    {mostrarFormularioNuevo && (
+                                        <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                                            <p className="text-sm font-medium text-amber-800 mb-3">
+                                                Paciente no encontrado. Completar datos mínimos para crear:
+                                            </p>
+                                            <div className="space-y-3">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Nombres *"
+                                                    className="w-full px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                    onBlur={(e) => {
+                                                        if (e.target.value.trim() && busqueda.trim()) {
+                                                            crearPacienteNuevo({
+                                                                nombres: e.target.value.trim(),
+                                                                apellido1: (document.getElementById('apellido1-nuevo') as HTMLInputElement)?.value || 'PENDIENTE'
+                                                            })
+                                                        }
+                                                    }}
+                                                />
+                                                <input
+                                                    id="apellido1-nuevo"
+                                                    type="text"
+                                                    placeholder="Primer Apellido *"
+                                                    className="w-full px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                />
                                                 <button
-                                                    key={afiliado.id}
-                                                    onClick={() => seleccionarPaciente(afiliado)}
-                                                    className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b last:border-b-0 transition-colors"
+                                                    onClick={() => {
+                                                        const nombres = (document.querySelector('input[placeholder="Nombres *"]') as HTMLInputElement)?.value
+                                                        const apellido1 = (document.getElementById('apellido1-nuevo') as HTMLInputElement)?.value
+                                                        if (nombres && apellido1) {
+                                                            crearPacienteNuevo({ nombres, apellido1 })
+                                                        }
+                                                    }}
+                                                    disabled={creandoPaciente}
+                                                    className="w-full px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors disabled:bg-slate-400"
                                                 >
-                                                    <p className="font-medium text-slate-800">
-                                                        {afiliado.nombres} {afiliado.apellido1} {afiliado.apellido2}
-                                                    </p>
-                                                    <p className="text-sm text-slate-500">
-                                                        {afiliado.tipoId} {afiliado.id} • {afiliado.eps}
-                                                    </p>
+                                                    {creandoPaciente ? 'Creando...' : 'Crear y Continuar'}
                                                 </button>
-                                            ))}
+                                            </div>
                                         </div>
                                     )}
-                                </div>
+                                </>
                             ) : (
                                 <div className="bg-blue-50 rounded-lg p-4 relative">
                                     <button
@@ -538,12 +672,15 @@ export default function Anexo8Page() {
                                 </div>
                             )}
                         </div>
+                    </div>
 
-                        {/* Médico */}
+                    {/* Columna 2: Profesional + Configuración (4 columnas del grid) */}
+                    <div className="lg:col-span-4 space-y-6">
+                        {/* Profesional */}
                         <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
                             <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
                                 <FaUserMd className="text-green-500" />
-                                3. Profesional
+                                2. Profesional
                             </h2>
 
                             {esAsistencial ? (
@@ -562,40 +699,93 @@ export default function Anexo8Page() {
                                     <p className="text-slate-500 text-sm">Cargando datos del médico...</p>
                                 )
                             ) : (
-                                // Selector para admin/superadmin
-                                <select
-                                    value={formData.medicoId}
-                                    onChange={(e) => seleccionarMedico(e.target.value)}
-                                    className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-400"
-                                >
-                                    <option value="">Seleccionar médico...</option>
-                                    {medicos.map((medico) => (
-                                        <option key={medico.id} value={medico.id}>
-                                            {medico.nombreCompleto} {medico.especialidad ? `(${medico.especialidad})` : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                // Autocomplete para admin/superadmin
+                                <>
+                                    <Autocomplete
+                                        value={busquedaMedico}
+                                        onChange={(val) => {
+                                            setBusquedaMedico(val)
+                                            const medicoEncontrado = medicos.find(m => m.nombreCompleto === val)
+                                            if (medicoEncontrado) {
+                                                seleccionarMedico(medicoEncontrado.id)
+                                            }
+                                        }}
+                                        options={medicos.map(m => m.nombreCompleto)}
+                                        placeholder="Buscar médico por nombre..."
+                                        allowFreeText={false}
+                                    />
+                                    {medicoSeleccionado && (
+                                        <div className="mt-3 bg-green-50 rounded-lg p-3 text-sm">
+                                            <p className="text-slate-600">
+                                                <strong>Ciudad:</strong> {medicoSeleccionado.ciudad || 'No especificada'}
+                                            </p>
+                                            {medicoSeleccionado.especialidad && (
+                                                <p className="text-slate-600">
+                                                    <strong>Especialidad:</strong> {medicoSeleccionado.especialidad}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </>
                             )}
+                        </div>
 
-                            {medicoSeleccionado && !esAsistencial && (
-                                <div className="mt-3 bg-green-50 rounded-lg p-3 text-sm">
-                                    <p className="text-slate-600">
-                                        <strong>Ciudad:</strong> {medicoSeleccionado.ciudad || 'No especificada'}
-                                    </p>
-                                    <p className="text-slate-600">
-                                        <strong>Teléfono:</strong> {medicoSeleccionado.telefono || 'No especificado'}
-                                    </p>
+                        {/* Configuración */}
+                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
+                            <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
+                                <FaCalendarAlt className="text-indigo-500" />
+                                Configuración
+                            </h2>
+
+                            <div className="space-y-4">
+                                {/* Fecha de prescripción */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                        Fecha de Prescripción
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={formData.fechaPrescripcion}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, fechaPrescripcion: e.target.value }))}
+                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    />
                                 </div>
-                            )}
+
+                                {/* Meses de fórmula */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                        Meses de Fórmula (Posfechado)
+                                    </label>
+                                    <select
+                                        value={formData.mesesFormula}
+                                        onChange={(e) => setFormData(prev => ({
+                                            ...prev,
+                                            mesesFormula: Math.max(1, parseInt(e.target.value) || 1)
+                                        }))}
+                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                    >
+                                        {[1, 2, 3, 4, 5, 6].map((mes) => (
+                                            <option key={mes} value={mes}>
+                                                {mes} {mes === 1 ? 'mes' : 'meses'}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {formData.mesesFormula > 1 && (
+                                        <p className="text-xs text-indigo-600 mt-1">
+                                            Se generarán {formData.mesesFormula} PDFs con fechas consecutivas
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Columna central: Medicamento */}
-                    <div className="lg:col-span-1">
-                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200 h-full">
+                    {/* Columna 3: Medicamento + Botones (4 columnas del grid) */}
+                    <div className="lg:col-span-4">
+                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
                             <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
                                 <FaPills className="text-amber-500" />
-                                2. Medicamento
+                                3. Medicamento
                             </h2>
 
                             <div className="space-y-4">
@@ -684,7 +874,7 @@ export default function Anexo8Page() {
                                 </div>
 
                                 {/* Diagnóstico */}
-                                <div className="border-t border-slate-200 pt-4 mt-4">
+                                <div className="border-t border-slate-200 pt-4">
                                     <label className="block text-sm font-medium text-slate-600 mb-1">
                                         Diagnóstico CIE-10
                                     </label>
@@ -702,102 +892,62 @@ export default function Anexo8Page() {
                                     />
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Columna derecha: Configuración y Generar */}
-                    <div className="lg:col-span-1 space-y-6">
-                        {/* Configuración */}
-                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
-                            <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
-                                <FaCalendarAlt className="text-indigo-500" />
-                                Configuración
-                            </h2>
+                            {/* Botones alineados a la derecha debajo del medicamento */}
+                            <div className="mt-6 flex flex-wrap gap-3 justify-end">
+                                {/* Botón Nuevo Anexo 8 */}
+                                <button
+                                    onClick={resetearFormularioCompleto}
+                                    className="px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                                >
+                                    <FaPlus />
+                                    Nuevo Anexo 8
+                                </button>
 
-                            <div className="space-y-4">
-                                {/* Fecha de prescripción */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1">
-                                        Fecha de Prescripción
-                                    </label>
-                                    <input
-                                        type="date"
-                                        value={formData.fechaPrescripcion}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, fechaPrescripcion: e.target.value }))}
-                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                    />
-                                </div>
-
-                                {/* Meses de fórmula */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1">
-                                        Meses de Fórmula (Posfechado)
-                                    </label>
-                                    <select
-                                        value={formData.mesesFormula}
-                                        onChange={(e) => setFormData(prev => ({
-                                            ...prev,
-                                            mesesFormula: Math.max(1, parseInt(e.target.value) || 1)
-                                        }))}
-                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                {/* Botón Extraer PDF (solo superadmin) */}
+                                {esSuperadmin && (
+                                    <button
+                                        onClick={() => setMostrarPdfExtract(true)}
+                                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                                     >
-                                        {[1, 2, 3, 4, 5, 6].map((mes) => (
-                                            <option key={mes} value={mes}>
-                                                {mes} {mes === 1 ? 'mes' : 'meses'}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {formData.mesesFormula > 1 && (
-                                        <p className="text-xs text-indigo-600 mt-1">
-                                            Se generarán {formData.mesesFormula} PDFs con fechas consecutivas
-                                        </p>
+                                        <FaFilePdf />
+                                        Extraer desde PDF
+                                    </button>
+                                )}
+
+                                {/* Botón Generar Anexo 8 */}
+                                <button
+                                    onClick={generarAnexo8}
+                                    disabled={generando || generadoExito || !formularioCompleto}
+                                    className={`
+                                    px-6 py-2 rounded-lg font-semibold text-white
+                                    flex items-center gap-2 transition-all duration-300 shadow-lg
+                                    ${generando || !formularioCompleto
+                                            ? 'bg-slate-400 cursor-not-allowed'
+                                            : generadoExito
+                                                ? 'bg-green-600 hover:bg-green-700'
+                                                : 'bg-red-600 hover:bg-red-700'
+                                        }
+                                `}
+                                >
+                                    {generando ? (
+                                        <>
+                                            <LoadingSpinner size="sm" />
+                                            Generando...
+                                        </>
+                                    ) : generadoExito ? (
+                                        <>
+                                            <FaCheck />
+                                            ¡Generado Correctamente!
+                                        </>
+                                    ) : (
+                                        <>
+                                            <FaFilePdf />
+                                            Generar Anexo 8
+                                        </>
                                     )}
-                                </div>
+                                </button>
                             </div>
-                        </div>
-
-                        {/* Botón Generar */}
-                        <button
-                            onClick={generarAnexo8}
-                            disabled={generando || generadoExito || !formularioCompleto}
-                            className={`
-                            w-full py-4 rounded-xl text-white font-semibold text-lg
-                            flex items-center justify-center gap-3
-                            transition-all duration-300 shadow-lg
-                            ${generando || !formularioCompleto
-                                    ? 'bg-slate-400 cursor-not-allowed'
-                                    : generadoExito
-                                        ? 'bg-gradient-to-r from-green-500 to-green-600 animate-pulse scale-105'
-                                        : 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 hover:shadow-xl'
-                                }
-                        `}
-                        >
-                            {generando ? (
-                                <>
-                                    <LoadingSpinner size="sm" />
-                                    Generando...
-                                </>
-                            ) : generadoExito ? (
-                                <>
-                                    <FaCheck className="text-xl animate-bounce" />
-                                    ¡Generado Correctamente!
-                                </>
-                            ) : (
-                                <>
-                                    <FaFilePdf className="text-xl" />
-                                    Generar Anexo 8
-                                </>
-                            )}
-                        </button>
-
-                        {/* Info adicional */}
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
-                            <p className="font-medium mb-1">📋 Recuerde:</p>
-                            <ul className="list-disc list-inside space-y-1 text-amber-700">
-                                <li>Este es el recetario oficial del FNE</li>
-                                <li>Los PDFs se guardan automáticamente</li>
-                                <li>La sección 4 se deja en blanco (farmacia)</li>
-                            </ul>
                         </div>
                     </div>
                 </div>

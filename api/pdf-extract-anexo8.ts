@@ -7,7 +7,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf'
+import pdfParse from 'pdf-parse'
 
 // Lista de medicamentos controlados para matching
 const MEDICAMENTOS_CONTROLADOS = [
@@ -21,8 +21,8 @@ const MEDICAMENTOS_CONTROLADOS = [
 
 // Patrones optimizados para PDF nativo (texto perfecto)
 const PATRONES = {
-    // Documento del paciente
-    documento: /(?:CC|C\.C\.|Documento)[:\s]*(\d{4,15})/i,
+    // Documento del paciente - más flexible
+    documento: /(?:CC|C\.C\.|Documento|Identificación)[:\s]*(\d{4,15})/i,
 
     // Nombre completo
     nombreCompleto: /Nombre[:\s]*([A-ZÁÉÍÓÚÑ\s]{10,60})/i,
@@ -39,14 +39,20 @@ const PATRONES = {
 
     // Medicamento en tabla: MEDICAMENTO cantidad (FORMA)
     medicamentoTabla: new RegExp(
-        `(${MEDICAMENTOS_CONTROLADOS.join('|')})\\s+(\\d+(?:\\.\\d+)?\\s*(?:mg|ml|g|mcg))\\s*\\(([^)]+)\\)`,
+        `(${MEDICAMENTOS_CONTROLADOS.join('|')})\\s+(\\d+(?:\\.\\d+)?\\s*(?:mg|ml|g|mcg|MG|ML))\\s*\\(([^)]+)\\)`,
+        'gi'
+    ),
+
+    // Medicamento simple sin paréntesis
+    medicamentoSimple: new RegExp(
+        `(${MEDICAMENTOS_CONTROLADOS.join('|')})\\s+(\\d+(?:\\.\\d+)?\\s*(?:mg|ml|g|mcg|MG|ML))`,
         'gi'
     ),
 
     // Cantidad en columna de tabla
     cantidadColumna: /\b(\d{1,3})\s+(?:1\s+)?TAB/i,
 
-    // Días en última columna
+    // Días en última columna (solo números de 1-3 dígitos)
     diasColumna: /\b(\d{1,3})$/m,
 
     // Posología completa
@@ -54,7 +60,7 @@ const PATRONES = {
 
     // Médico que firma
     medicoNombre: /(?:ATENDIDO\s+POR|Médico)[:\s\n]*([A-ZÁÉÍÓÚÑ\s]{15,60})\s*\(/i,
-    medicoRegistro: /(?:Reg\.\s*méd|Cédula)[:\s]*(\d{4,15})/i
+    medicoRegistro: /(?:Reg\.\s*méd|Cédula|Código)[:\s]*(\d{4,15})/i
 }
 
 interface PdfExtractResult {
@@ -93,45 +99,6 @@ interface PdfExtractResult {
 }
 
 /**
- * Extraer texto completo del PDF
- */
-async function extraerTextoPdf(pdfBase64: string): Promise<string> {
-    try {
-        // Convertir base64 a buffer
-        const pdfBuffer = Buffer.from(pdfBase64, 'base64')
-
-        // Cargar PDF
-        const loadingTask = pdfjsLib.getDocument({
-            data: pdfBuffer,
-            useWorkerFetch: false,
-            isEvalSupported: false,
-            useSystemFonts: false
-        })
-
-        const pdf = await loadingTask.promise
-        let textoCompleto = ''
-
-        // Extraer texto de todas las páginas
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-            const page = await pdf.getPage(pageNum)
-            const textContent = await page.getTextContent()
-
-            // Concatenar texto preservando estructura
-            const pageText = textContent.items
-                .map((item: any) => item.str)
-                .join(' ')
-
-            textoCompleto += pageText + '\n'
-        }
-
-        return textoCompleto
-    } catch (error) {
-        console.error('Error extrayendo texto del PDF:', error)
-        throw new Error('No se pudo extraer texto del PDF. Asegúrese de que es un PDF nativo.')
-    }
-}
-
-/**
  * Extraer datos estructurados del texto del PDF
  */
 function extraerDatos(texto: string): PdfExtractResult {
@@ -158,6 +125,9 @@ function extraerDatos(texto: string): PdfExtractResult {
             resultado.pacienteApellido1 = partes[0]
             resultado.pacienteApellido2 = partes[1]
             resultado.pacienteNombres = partes.slice(2).join(' ')
+        } else if (partes.length === 2) {
+            resultado.pacienteApellido1 = partes[0]
+            resultado.pacienteNombres = partes[1]
         }
         camposEncontrados++
     }
@@ -175,6 +145,7 @@ function extraerDatos(texto: string): PdfExtractResult {
     }
 
     // ===== MEDICAMENTO =====
+    // Intentar primero con tabla completa
     const matchMed = PATRONES.medicamentoTabla.exec(texto)
     if (matchMed) {
         const med = matchMed[1].toLowerCase()
@@ -182,6 +153,15 @@ function extraerDatos(texto: string): PdfExtractResult {
         resultado.concentracion = matchMed[2].toUpperCase()
         resultado.formaFarmaceutica = matchMed[3]
         camposEncontrados += 3
+    } else {
+        // Fallback: medicamento sin paréntesis
+        const matchSimple = PATRONES.medicamentoSimple.exec(texto)
+        if (matchSimple) {
+            const med = matchSimple[1].toLowerCase()
+            resultado.medicamentoNombre = med.charAt(0).toUpperCase() + med.slice(1)
+            resultado.concentracion = matchSimple[2].toUpperCase()
+            camposEncontrados += 2
+        }
     }
 
     const matchPosologia = texto.match(PATRONES.posologia)
@@ -198,8 +178,12 @@ function extraerDatos(texto: string): PdfExtractResult {
 
     const matchDias = texto.match(PATRONES.diasColumna)
     if (matchDias) {
-        resultado.diasTratamiento = parseInt(matchDias[1], 10)
-        camposEncontrados++
+        const dias = parseInt(matchDias[1], 10)
+        // Validar que sean días razonables (máximo 365)
+        if (dias <= 365) {
+            resultado.diasTratamiento = dias
+            camposEncontrados++
+        }
     }
 
     // Calcular meses
@@ -264,8 +248,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         console.log('[PDF-EXTRACT] Procesando PDF...')
 
-        // Extraer texto del PDF
-        const textoExtraido = await extraerTextoPdf(pdfBase64)
+        // Convertir base64 a buffer
+        const pdfBuffer = Buffer.from(pdfBase64, 'base64')
+
+        // Extraer texto del PDF usando pdf-parse
+        const data = await pdfParse(pdfBuffer)
+        const textoExtraido = data.text
 
         console.log('[PDF-EXTRACT] Texto extraído:', textoExtraido.substring(0, 200))
 
