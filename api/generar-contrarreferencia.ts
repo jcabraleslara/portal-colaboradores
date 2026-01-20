@@ -106,7 +106,7 @@ export default async function handler(
                         }],
                         generationConfig: {
                             temperature: 0.3,  // Mayor variabilidad para respuestas completas
-                            maxOutputTokens: 2000,  // Espacio suficiente para 4 puntos completos
+                            maxOutputTokens: 3000,  // Espacio suficiente para 4 puntos completos
                             topP: 0.95,
                             topK: 40
                         }
