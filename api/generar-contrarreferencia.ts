@@ -61,23 +61,32 @@ Cuando encuentres que la remisión NO cumple criterios de pertinencia, debes gen
 
 Se contra remite el caso al primer nivel de atención por las siguientes razones:
 
-1. **Completitud documental:** [Especificar si faltan elementos de la HC]
-2. **Criterios clínicos:** [Indicar incongruencias o falta de justificación]
-3. **Tratamiento previo:** [Señalar tratamientos de primer nivel no instaurados]
-4. **Estudios paraclínicos:** [Indicar estudios básicos pendientes del primer nivel]
+1. **Completitud documental:** [Especificar DETALLADAMENTE si faltan elementos de la HC, cuáles exactamente]
+2. **Criterios clínicos:** [Indicar TODAS las incongruencias o faltas de justificación encontradas]
+3. **Tratamiento previo:** [Señalar ESPECÍFICAMENTE qué tratamientos de primer nivel no se instauraron y deberían aplicarse]
+4. **Estudios paraclínicos:** [Indicar TODOS los estudios básicos pendientes del primer nivel, justificando por qué son necesarios]
+
+**Recomendaciones para el primer nivel:**
+[Proporcionar alternativas terapéuticas CONCRETAS y DETALLADAS]
 
 ---
 
-IMPORTANTE:
+IMPORTANTE - REQUISITOS DE CALIDAD:
+- Cada punto (1-4) debe tener AL MENOS 2-3 oraciones explicativas
 - Sé técnico pero claro en tu lenguaje médico
-- Fundamenta cada contra referencia en criterios clínicos objetivos
-- Proporciona alternativas terapéuticas concretas para el primer nivel
+- Fundamenta cada contra referencia en criterios clínicos objetivos y específicos
+- Proporciona alternativas terapéuticas CONCRETAS para el primer nivel
 - Mantén un tono profesional orientado a mejorar la calidad de atención
-- No debes recomendar la realización de terapias físicas, ecografías de ningún tipo, resonancias, pruebas de aliento para helicobacter, ni tomografías, puesto que no son de manejo del primer nivel de atención.
+- La respuesta debe ser COMPLETA y RIGUROSA, no un resumen superficial
+- No debes recomendar: terapias físicas, ecografías, resonancias, pruebas de aliento para helicobacter, ni tomografías (no son de manejo del primer nivel)
 
-La respuesta debe ser directa e inmediata, no debe contar con introducciones previas, ni encabezados previos ni con pregunta finales al usuario. Debe arrancar directamente con el encabezado "CONTRA REFERENCIA".
+FORMATO FINAL:
+- La respuesta debe arrancar directamente con el encabezado "CONTRA REFERENCIA"
+- NO incluir introducciones previas, ni encabezados previos, ni preguntas finales
+- NO incluir citation markers [1], [2], etc.
+- El texto debe ser listo para copiar y pegar en el software de Historias Clínicas
 
-Tampoco debe contener referencias tipo link a las fuentes, solo el texto disponible para copiar y pegar en el software de Historias Clínicas que es externo a gemini. No incluir citation markers [1], [2], etc.`
+LONGITUD ESPERADA: La contrarreferencia debe ser DETALLADA y COMPLETA (aproximadamente 300-500 palabras), no un simple listado.`
 
 export default async function handler(
     req: VercelRequest,
@@ -125,8 +134,8 @@ export default async function handler(
                     parts: [{ text: promptFinal }]
                 }],
                 generationConfig: {
-                    temperature: 0,
-                    maxOutputTokens: 1000,  // Reducido de 2048 a 1000
+                    temperature: 0.1,  // Aumentado ligeramente para respuestas más completas
+                    maxOutputTokens: 1800,  // Balance entre velocidad y calidad médica
                     topP: 0.95,
                     topK: 40
                 }
