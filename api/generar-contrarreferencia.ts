@@ -53,7 +53,7 @@ CRITERIOS DE EVALUACIÓN PARA CONTRA REFERENCIA:
 
 FORMATO DE RESPUESTA - CONTRA REFERENCIA:
 
-Cuando encuentres que la remisión NO cumple criterios de pertinencia, debes generar una CONTRA REFERENCIA técnica y DETALLADA con el siguiente formato:
+Genera una CONTRA REFERENCIA técnica y concisa con el siguiente formato:
 
 ---
 
@@ -61,32 +61,20 @@ Cuando encuentres que la remisión NO cumple criterios de pertinencia, debes gen
 
 Se contra remite el caso al primer nivel de atención por las siguientes razones:
 
-1. **Completitud documental:** [Especificar DETALLADAMENTE si faltan elementos de la HC, cuáles exactamente]
-2. **Criterios clínicos:** [Indicar TODAS las incongruencias o faltas de justificación encontradas]
-3. **Tratamiento previo:** [Señalar ESPECÍFICAMENTE qué tratamientos de primer nivel no se instauraron y deberían aplicarse]
-4. **Estudios paraclínicos:** [Indicar TODOS los estudios básicos pendientes del primer nivel, justificando por qué son necesarios]
-
-**Recomendaciones para el primer nivel:**
-[Proporcionar alternativas terapéuticas CONCRETAS y DETALLADAS]
+1. **Criterios clínicos:** [Indicar incongruencias o falta de justificación clínica]
+2. **Tratamiento previo:** [Señalar tratamientos de primer nivel no instaurados]
+3. **Estudios paraclínicos:** [Indicar estudios básicos pendientes del primer nivel]
+4. **Completitud documental:** [Especificar si faltan elementos de la HC o hay inconsistencias]
 
 ---
 
-IMPORTANTE - REQUISITOS DE CALIDAD:
-- Cada punto (1-4) debe tener AL MENOS 2-3 oraciones explicativas
+INSTRUCCIONES:
 - Sé técnico pero claro en tu lenguaje médico
-- Fundamenta cada contra referencia en criterios clínicos objetivos y específicos
-- Proporciona alternativas terapéuticas CONCRETAS para el primer nivel
-- Mantén un tono profesional orientado a mejorar la calidad de atención
-- La respuesta debe ser COMPLETA y RIGUROSA, no un resumen superficial
-- No debes recomendar: terapias físicas, ecografías, resonancias, pruebas de aliento para helicobacter, ni tomografías (no son de manejo del primer nivel)
-
-FORMATO FINAL:
-- La respuesta debe arrancar directamente con el encabezado "CONTRA REFERENCIA"
-- NO incluir introducciones previas, ni encabezados previos, ni preguntas finales
-- NO incluir citation markers [1], [2], etc.
-- El texto debe ser listo para copiar y pegar en el software de Historias Clínicas
-
-LONGITUD ESPERADA: La contrarreferencia debe ser DETALLADA y COMPLETA (aproximadamente 300-500 palabras), no un simple listado.`
+- Cada punto debe tener 1-2 oraciones explicativas (no más)
+- No recomendar: terapias físicas, ecografías, resonancias, pruebas de aliento para helicobacter, ni tomografías
+- La respuesta debe arrancar directamente con "CONTRA REFERENCIA"
+- NO incluir introducciones, encabezados previos, ni preguntas finales
+- NO incluir citation markers [1], [2], etc.`
 
 export default async function handler(
     req: VercelRequest,
@@ -123,7 +111,7 @@ export default async function handler(
             .replace('{texto_soporte}', textoSoporte)
             .replace('{especialidad}', especialidad)
 
-        // Llamar a Gemini API - gemini-3-flash-preview (rápido + respuestas completas)
+        // Llamar a Gemini API - gemini-3-flash-preview (rápido + conciso)
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`
 
         const geminiResponse = await fetch(apiUrl, {
@@ -134,8 +122,8 @@ export default async function handler(
                     parts: [{ text: promptFinal }]
                 }],
                 generationConfig: {
-                    temperature: 0.2,
-                    maxOutputTokens: 4096,  // Suficiente para contrarreferencias médicas completas
+                    temperature: 0.1,  // Más determinístico
+                    maxOutputTokens: 1500,  // Respuestas concisas como Gemini Web
                     topP: 0.95,
                     topK: 40
                 }
