@@ -357,6 +357,8 @@ export interface FiltrosCasosBack {
     estadoRadicado?: EstadoRadicado | 'Todos'
     fechaInicio?: string
     fechaFin?: string
+    sortField?: 'radicado' | 'id' | 'tipo_solicitud' | 'especialidad' | 'estado_radicado' | 'created_at'
+    sortOrder?: 'asc' | 'desc'
 }
 
 // Conteos para las cards de estadísticas

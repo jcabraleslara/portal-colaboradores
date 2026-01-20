@@ -350,11 +350,17 @@ export const backService = {
                 query = query.or(`radicado.ilike.%${termino}%,id.ilike.%${termino}%`)
             }
 
-            // Ordenamiento: pendientes primero (DESC por alfabeto P->G->D->C->A), luego por fecha descendente
-            query = query
-                .order('estado_radicado', { ascending: false, nullsFirst: false })
-                .order('created_at', { ascending: false })
-                .range(offset, offset + limit - 1)
+            // Ordenamiento
+            if (filtros.sortField && filtros.sortOrder) {
+                query = query.order(filtros.sortField, { ascending: filtros.sortOrder === 'asc' })
+            } else {
+                // Default: pendientes primero, luego por fecha descendente
+                query = query
+                    .order('estado_radicado', { ascending: false, nullsFirst: false })
+                    .order('created_at', { ascending: false })
+            }
+
+            query = query.range(offset, offset + limit - 1)
 
             const { data, error, count } = await query
 

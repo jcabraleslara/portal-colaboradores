@@ -86,6 +86,8 @@ export function GestionBackPage() {
     // Filtros
     const [filtros, setFiltros] = useState<FiltrosCasosBack>({
         estadoRadicado: 'Pendiente',
+        sortField: 'created_at',
+        sortOrder: 'desc',
     })
     const [busquedaInput, setBusquedaInput] = useState('')
     const [mostrarFiltros, setMostrarFiltros] = useState(false)
@@ -186,7 +188,33 @@ export function GestionBackPage() {
 
     const handleLimpiarFiltros = useCallback(() => {
         setBusquedaInput('')
-        setFiltros({ estadoRadicado: 'Pendiente' })
+        setFiltros({
+            estadoRadicado: 'Pendiente',
+            sortField: 'created_at',
+            sortOrder: 'desc'
+        })
+    }, [])
+
+    const handleSort = useCallback((field: 'radicado' | 'id' | 'tipo_solicitud' | 'especialidad' | 'estado_radicado' | 'created_at') => {
+        setFiltros(prev => {
+            if (prev.sortField === field) {
+                // Si es el mismo campo, invertir orden
+                return {
+                    ...prev,
+                    sortOrder: prev.sortOrder === 'asc' ? 'desc' : 'asc'
+                }
+            } else {
+                // Si es nuevo campo, definir default según naturaleza
+                // Fechas: Descendente (más reciente primero)
+                // Textos/IDs: Ascendente (A-Z, 0-9)
+                const defaultOrder = field === 'created_at' ? 'desc' : 'asc'
+                return {
+                    ...prev,
+                    sortField: field,
+                    sortOrder: defaultOrder
+                }
+            }
+        })
     }, [])
 
     // ============================================
@@ -595,12 +623,84 @@ export function GestionBackPage() {
                                     <table className="w-full">
                                         <thead>
                                             <tr className="border-b border-gray-100">
-                                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Radicado</th>
-                                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Paciente</th>
-                                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tipo</th>
-                                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Especialidad</th>
-                                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
-                                                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Fecha</th>
+                                                <th
+                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                                    onClick={() => handleSort('radicado')}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        Radicado
+                                                        {filtros.sortField === 'radicado' && (
+                                                            <span className="text-[var(--color-primary)]">
+                                                                {filtros.sortOrder === 'asc' ? '↑' : '↓'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </th>
+                                                <th
+                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                                    onClick={() => handleSort('id')}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        Paciente
+                                                        {filtros.sortField === 'id' && (
+                                                            <span className="text-[var(--color-primary)]">
+                                                                {filtros.sortOrder === 'asc' ? '↑' : '↓'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </th>
+                                                <th
+                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                                    onClick={() => handleSort('tipo_solicitud')}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        Tipo
+                                                        {filtros.sortField === 'tipo_solicitud' && (
+                                                            <span className="text-[var(--color-primary)]">
+                                                                {filtros.sortOrder === 'asc' ? '↑' : '↓'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </th>
+                                                <th
+                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                                    onClick={() => handleSort('especialidad')}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        Especialidad
+                                                        {filtros.sortField === 'especialidad' && (
+                                                            <span className="text-[var(--color-primary)]">
+                                                                {filtros.sortOrder === 'asc' ? '↑' : '↓'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </th>
+                                                <th
+                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                                    onClick={() => handleSort('estado_radicado')}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        Estado
+                                                        {filtros.sortField === 'estado_radicado' && (
+                                                            <span className="text-[var(--color-primary)]">
+                                                                {filtros.sortOrder === 'asc' ? '↑' : '↓'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </th>
+                                                <th
+                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                                    onClick={() => handleSort('created_at')}
+                                                >
+                                                    <div className="flex items-center gap-1">
+                                                        Fecha
+                                                        {filtros.sortField === 'created_at' && (
+                                                            <span className="text-[var(--color-primary)]">
+                                                                {filtros.sortOrder === 'asc' ? '↑' : '↓'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-50">
