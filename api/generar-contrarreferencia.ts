@@ -53,7 +53,7 @@ CRITERIOS DE EVALUACIÓN PARA CONTRA REFERENCIA:
 
 FORMATO DE RESPUESTA - CONTRA REFERENCIA:
 
-Cuando encuentres que la remisión NO cumple criterios de pertinencia, debes generar una CONTRA REFERENCIA concisa y técnica con el siguiente formato:
+Cuando encuentres que la remisión NO cumple criterios de pertinencia, debes generar una CONTRA REFERENCIA técnica y DETALLADA con el siguiente formato:
 
 ---
 
@@ -123,8 +123,8 @@ export default async function handler(
             .replace('{texto_soporte}', textoSoporte)
             .replace('{especialidad}', especialidad)
 
-        // Llamar a Gemini API de forma segura
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`
+        // Llamar a Gemini API - Usando Pro para respuestas médicas completas
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`
 
         const geminiResponse = await fetch(apiUrl, {
             method: 'POST',
@@ -134,8 +134,8 @@ export default async function handler(
                     parts: [{ text: promptFinal }]
                 }],
                 generationConfig: {
-                    temperature: 0.1,  // Aumentado ligeramente para respuestas más completas
-                    maxOutputTokens: 1800,  // Balance entre velocidad y calidad médica
+                    temperature: 0.2,  // Mayor creatividad para respuestas completas
+                    maxOutputTokens: 3000,  // Suficiente para contrarreferencias médicas detalladas
                     topP: 0.95,
                     topK: 40
                 }
