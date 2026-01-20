@@ -70,6 +70,13 @@ export interface DemandaFilters {
     colaborador?: string
     programa?: string
     clasificacion?: 'Efectivo' | 'No Efectivo'
+    page?: number
+    pageSize?: number
+}
+
+export interface PaginatedResponse<T> {
+    data: T[]
+    count: number
 }
 
 export interface DemandaMetrics {

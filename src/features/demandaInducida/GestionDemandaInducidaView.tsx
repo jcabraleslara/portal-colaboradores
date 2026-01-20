@@ -16,11 +16,20 @@ import {
     Search,
 } from 'lucide-react'
 
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+
+// ... (imports existentes)
+
 export default function GestionDemandaInducidaView() {
     const [vistaActual, setVistaActual] = useState<'lista' | 'formulario'>('lista')
     const [casos, setCasos] = useState<DemandaInducida[]>([])
     const [metrics, setMetrics] = useState<DemandaMetrics | null>(null)
     const [loading, setLoading] = useState(true)
+
+    // Paginación
+    const [currentPage, setCurrentPage] = useState(1)
+    const [totalItems, setTotalItems] = useState(0)
+    const ITEMS_PER_PAGE = 20
 
     const [colaboradores, setColaboradores] = useState<string[]>([])
     const [programas, setProgramas] = useState<string[]>([])
@@ -43,23 +52,24 @@ export default function GestionDemandaInducidaView() {
     }, [])
 
     /**
-     * Recargar cuando cambian filtros
+     * Recargar cuando cambian filtros o página
      */
     useEffect(() => {
         if (!loading) {
             loadData()
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filters])
+    }, [filters, currentPage])
 
     const loadData = async () => {
         setLoading(true)
         try {
-            const [casosData, metricsData] = await Promise.all([
-                demandaInducidaService.getAll(filters),
+            const [response, metricsData] = await Promise.all([
+                demandaInducidaService.getAll({ ...filters, page: currentPage, pageSize: ITEMS_PER_PAGE }),
                 demandaInducidaService.getMetrics(filters),
             ])
-            setCasos(casosData)
+            setCasos(response.data)
+            setTotalItems(response.count)
             setMetrics(metricsData)
         } catch (error) {
             console.error('Error cargando datos:', error)
@@ -79,6 +89,7 @@ export default function GestionDemandaInducidaView() {
 
     const handleFilterChange = (name: string, value: string) => {
         setFilters((prev) => ({ ...prev, [name]: value || undefined }))
+        setCurrentPage(1) // Resetear a página 1 al filtrar
     }
 
     const limpiarFiltros = () => {
@@ -89,9 +100,13 @@ export default function GestionDemandaInducidaView() {
             programa: '',
             clasificacion: undefined,
         })
+        setCurrentPage(1)
     }
 
+    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE)
+
     if (vistaActual === 'formulario') {
+        // ... (código existente del formulario)
         return (
             <div className="p-6 max-w-6xl mx-auto">
                 <div className="mb-6">
@@ -116,6 +131,8 @@ export default function GestionDemandaInducidaView() {
 
     return (
         <div className="p-6 space-y-6">
+            {/* ... (Header, Metrics, Filters existentes) ... */}
+
             {/* Header */}
             <div className="flex justify-between items-center">
                 <div>
@@ -265,7 +282,7 @@ export default function GestionDemandaInducidaView() {
                     <div>
                         <h3 className="font-bold text-slate-900">Casos Registrados</h3>
                         <p className="text-sm text-slate-500 mt-0.5">
-                            {casos.length} resultado{casos.length !== 1 ? 's' : ''}
+                            Mostrando {casos.length} de {totalItems} resultados
                         </p>
                     </div>
                 </div>
@@ -282,66 +299,91 @@ export default function GestionDemandaInducidaView() {
                         <p className="text-sm mt-1">Intenta ajustar los filtros de búsqueda</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-slate-50 border-b border-slate-200">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                        Fecha
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                        Identificación
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                        Clasificación
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                        Programa
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                        Colaborador
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                        Resultado
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {casos.map((caso) => (
-                                    <tr key={caso.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-4 py-3 text-sm text-slate-900">
-                                            {new Date(caso.fechaGestion).toLocaleDateString('es-CO')}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="text-sm font-semibold text-slate-900">
-                                                {caso.pacienteTipoId} - {caso.pacienteId}
-                                            </div>
-                                            {caso.celular && (
-                                                <div className="text-xs text-slate-500">{caso.celular}</div>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span
-                                                className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${caso.clasificacion === 'Efectivo'
+                    <>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                            Fecha
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                            Identificación
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                            Clasificación
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                            Programa
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                            Colaborador
+                                        </th>
+                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                            Resultado
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {casos.map((caso) => (
+                                        <tr key={caso.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-4 py-3 text-sm text-slate-900">
+                                                {new Date(caso.fechaGestion).toLocaleDateString('es-CO')}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <div className="text-sm font-semibold text-slate-900">
+                                                    {caso.pacienteTipoId} - {caso.pacienteId}
+                                                </div>
+                                                {caso.celular && (
+                                                    <div className="text-xs text-slate-500">{caso.celular}</div>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3">
+                                                <span
+                                                    className={`inline-flex px-2.5 py-1 rounded-full text-xs font-bold ${caso.clasificacion === 'Efectivo'
                                                         ? 'bg-green-100 text-green-700'
                                                         : 'bg-amber-100 text-amber-700'
-                                                    }`}
-                                            >
-                                                {caso.clasificacion}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-slate-700">
-                                            {caso.programaDireccionado || '-'}
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-slate-700">{caso.colaborador}</td>
-                                        <td className="px-4 py-3 text-sm text-slate-600">
-                                            {caso.resultadoLlamada || '-'}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                                        }`}
+                                                >
+                                                    {caso.clasificacion}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-slate-700">
+                                                {caso.programaDireccionado || '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm text-slate-700">{caso.colaborador}</td>
+                                            <td className="px-4 py-3 text-sm text-slate-600">
+                                                {caso.resultadoLlamada || '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Paginación */}
+                        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200">
+                            <div className="text-sm text-slate-500">
+                                Página {currentPage} de {totalPages}
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600"
+                                >
+                                    <ChevronLeft size={20} />
+                                </button>
+                                <button
+                                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="p-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-slate-600"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    </>
                 )}
             </div>
         </div>

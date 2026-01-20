@@ -99,13 +99,15 @@ async function crearPacienteBasico(data: {
     return result
 }
 
+import type { PaginatedResponse } from '@/types/demandaInducida' // Asegurar import
+
 /**
- * Obtiene todos los casos con filtros opcionales
+ * Obtiene todos los casos con filtros opcionales y paginación
  */
-async function getAll(filters?: DemandaFilters): Promise<DemandaInducida[]> {
+async function getAll(filters?: DemandaFilters): Promise<PaginatedResponse<DemandaInducida>> {
     let query = supabase
         .from('demanda_inducida')
-        .select('*')
+        .select('*', { count: 'exact' }) // Solicitar conteo exacto
         .order('fecha_gestion', { ascending: false })
 
     // Aplicar filtros
@@ -129,13 +131,24 @@ async function getAll(filters?: DemandaFilters): Promise<DemandaInducida[]> {
         query = query.eq('clasificacion', filters.clasificacion)
     }
 
-    const { data, error } = await query
+    // Paginación
+    const page = filters?.page || 1
+    const pageSize = filters?.pageSize || 20
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+
+    query = query.range(from, to)
+
+    const { data, error, count } = await query
 
     if (error) {
         throw new Error(`Error obteniendo demandas: ${error.message}`)
     }
 
-    return (data || []).map(transformDemandaFromDB)
+    return {
+        data: (data || []).map(transformDemandaFromDB),
+        count: count || 0
+    }
 }
 
 /**
@@ -220,8 +233,8 @@ async function create(
  * Obtiene métricas/estadísticas
  */
 async function getMetrics(filters?: DemandaFilters): Promise<DemandaMetrics> {
-    // Obtener todos los casos con filtros
-    const casos = await getAll(filters)
+    // Obtener todos los casos para métricas (sin paginación efectiva, límite alto)
+    const { data: casos } = await getAll({ ...filters, page: 1, pageSize: 10000 })
 
     // Obtener casos del mes actual (sin filtros de fecha)
     const hoy = new Date()
