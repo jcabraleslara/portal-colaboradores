@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
     Search,
-    ArrowRight,
     Loader2,
     FileText,
 } from 'lucide-react'
@@ -247,13 +246,12 @@ export function GestionRadicadosView() {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Radicador</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">EPS</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {cargando ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center">
+                                    <td colSpan={6} className="px-6 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center text-gray-500">
                                             <Loader2 className="animate-spin mb-2" size={32} />
                                             <p>Cargando radicados...</p>
@@ -262,7 +260,7 @@ export function GestionRadicadosView() {
                                 </tr>
                             ) : casos.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                                         No se encontraron radicados con los filtros seleccionados
                                     </td>
                                 </tr>
@@ -309,20 +307,7 @@ export function GestionRadicadosView() {
                                                 {caso.estado}
                                             </Badge>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                className="text-[var(--color-primary)] bg-blue-50 hover:bg-blue-100"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleVerDetalle(caso);
-                                                }}
-                                            >
-                                                Ver Detalle
-                                                <ArrowRight size={14} className="ml-1" />
-                                            </Button>
-                                        </td>
+
                                     </tr>
                                 ))
                             )}
