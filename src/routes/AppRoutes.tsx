@@ -22,6 +22,7 @@ const PlaceholderPage = lazy(() => import('@/features/placeholder/PlaceholderPag
 const AdminUsuariosPage = lazy(() => import('@/features/admin/AdminUsuariosPage'))
 const Anexo8Page = lazy(() => import('@/features/anexo8/Anexo8Page'))
 const ConsultarCupsPage = lazy(() => import('@/features/consultarCups/ConsultarCupsPage'))
+const SoportesFacturacionPage = lazy(() => import('@/features/soportesFacturacion/SoportesFacturacionPage'))
 
 /**
  * Componente de protección de rutas
@@ -160,12 +161,12 @@ export function AppRoutes() {
                     }
                 />
 
-                {/* Módulos en planeación - Placeholders */}
+                {/* Soportes de Facturación */}
                 <Route
                     path={ROUTES.SOPORTES_FACTURACION}
                     element={
                         <LazyWrapper>
-                            <PlaceholderPage moduleName="Soportes de Facturación" />
+                            <SoportesFacturacionPage />
                         </LazyWrapper>
                     }
                 />

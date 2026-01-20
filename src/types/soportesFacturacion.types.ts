@@ -1,0 +1,353 @@
+/**
+ * Tipos para el módulo de Soportes de Facturación
+ * Portal de Colaboradores GESTAR SALUD IPS
+ */
+
+// EPS disponibles para facturación
+export type EpsFacturacion = 
+    | 'NUEVA EPS'
+    | 'SALUD TOTAL'
+    | 'MUTUAL SER'
+    | 'FAMILIAR'
+
+// Régimen del afiliado
+export type RegimenFacturacion = 
+    | 'CONTRIBUTIVO'
+    | 'SUBSIDIADO'
+
+// Servicios prestados
+export type ServicioPrestado =
+    | 'Laboratorio'
+    | 'Imágenes'
+    | 'Consulta Especializada'
+    | 'Procedimiento'
+    | 'Cirugía'
+    | 'Hospitalización'
+    | 'Urgencias'
+    | 'Terapias'
+
+// Estados del radicado
+export type EstadoSoporteFacturacion =
+    | 'Pendiente'
+    | 'En Revisión'
+    | 'Aprobado'
+    | 'Rechazado'
+    | 'Facturado'
+
+// Estado de sincronización OneDrive
+export type OneDriveSyncStatus =
+    | 'pending'
+    | 'syncing'
+    | 'synced'
+    | 'error'
+
+// Categorías de archivos
+export type CategoriaArchivo =
+    | 'validacion_derechos'
+    | 'autorizacion'
+    | 'soporte_clinico'
+    | 'comprobante_recibo'
+    | 'recibo_caja'
+    | 'orden_medica'
+    | 'descripcion_quirurgica'
+    | 'registro_anestesia'
+    | 'hoja_medicamentos'
+    | 'notas_enfermeria'
+
+// Interfaz principal del registro (camelCase para frontend)
+export interface SoporteFacturacion {
+    id: string
+    radicado: string
+    fechaRadicacion: Date
+    radicadorEmail: string
+    radicadorNombre: string | null
+    
+    // Datos del servicio
+    eps: EpsFacturacion
+    regimen: RegimenFacturacion
+    servicioPrestado: ServicioPrestado
+    fechaAtencion: Date
+    
+    // Datos del paciente
+    tipoId: string | null
+    identificacion: string | null
+    nombresCompletos: string | null
+    bdId: string | null
+    
+    // Estado
+    estado: EstadoSoporteFacturacion
+    observacionesFacturacion: string | null
+    
+    // URLs de archivos
+    urlsValidacionDerechos: string[]
+    urlsAutorizacion: string[]
+    urlsSoporteClinico: string[]
+    urlsComprobanteRecibo: string[]
+    urlsReciboCaja: string[]
+    urlsOrdenMedica: string[]
+    urlsDescripcionQuirurgica: string[]
+    urlsRegistroAnestesia: string[]
+    urlsHojaMedicamentos: string[]
+    urlsNotasEnfermeria: string[]
+    
+    // OneDrive
+    onedriveFolderId: string | null
+    onedriveFolderUrl: string | null
+    onedriveSyncStatus: OneDriveSyncStatus
+    onedriveSyncAt: Date | null
+    
+    // Auditoría
+    createdAt: Date
+    updatedAt: Date
+}
+
+// Interfaz raw de Supabase (snake_case)
+export interface SoporteFacturacionRaw {
+    id: string
+    radicado: string
+    fecha_radicacion: string
+    radicador_email: string
+    radicador_nombre: string | null
+    eps: string
+    regimen: string
+    servicio_prestado: string
+    fecha_atencion: string
+    tipo_id: string | null
+    identificacion: string | null
+    nombres_completos: string | null
+    bd_id: string | null
+    estado: string
+    observaciones_facturacion: string | null
+    urls_validacion_derechos: string[]
+    urls_autorizacion: string[]
+    urls_soporte_clinico: string[]
+    urls_comprobante_recibo: string[]
+    urls_recibo_caja: string[]
+    urls_orden_medica: string[]
+    urls_descripcion_quirurgica: string[]
+    urls_registro_anestesia: string[]
+    urls_hoja_medicamentos: string[]
+    urls_notas_enfermeria: string[]
+    onedrive_folder_id: string | null
+    onedrive_folder_url: string | null
+    onedrive_sync_status: string
+    onedrive_sync_at: string | null
+    created_at: string
+    updated_at: string
+}
+
+// Datos para crear nueva radicación
+export interface CrearSoporteFacturacionData {
+    radicadorEmail: string
+    radicadorNombre?: string
+    eps: EpsFacturacion
+    regimen: RegimenFacturacion
+    servicioPrestado: ServicioPrestado
+    fechaAtencion: string // YYYY-MM-DD
+    tipoId?: string
+    identificacion?: string
+    nombresCompletos?: string
+    observaciones?: string
+    archivos: {
+        categoria: CategoriaArchivo
+        files: File[]
+    }[]
+}
+
+// Filtros de búsqueda
+export interface FiltrosSoportesFacturacion {
+    busqueda?: string
+    eps?: EpsFacturacion | null
+    estado?: EstadoSoporteFacturacion | 'Todos'
+    fechaInicio?: string
+    fechaFin?: string
+}
+
+// Configuración de categorías de archivos
+export interface CategoriaArchivoConfig {
+    id: CategoriaArchivo
+    label: string
+    descripcion: string
+    requerido: boolean
+    maxArchivos: number
+    prefijos: Record<EpsFacturacion, string>
+}
+
+// Lista de EPS
+export const EPS_FACTURACION_LISTA: EpsFacturacion[] = [
+    'NUEVA EPS',
+    'SALUD TOTAL',
+    'MUTUAL SER',
+    'FAMILIAR',
+]
+
+// Lista de Regímenes
+export const REGIMEN_FACTURACION_LISTA: { value: RegimenFacturacion; label: string }[] = [
+    { value: 'CONTRIBUTIVO', label: 'Contributivo' },
+    { value: 'SUBSIDIADO', label: 'Subsidiado' },
+]
+
+// Lista de Servicios
+export const SERVICIOS_PRESTADOS_LISTA: ServicioPrestado[] = [
+    'Laboratorio',
+    'Imágenes',
+    'Consulta Especializada',
+    'Procedimiento',
+    'Cirugía',
+    'Hospitalización',
+    'Urgencias',
+    'Terapias',
+]
+
+// Lista de Estados
+export const ESTADOS_SOPORTE_LISTA: (EstadoSoporteFacturacion | 'Todos')[] = [
+    'Pendiente',
+    'En Revisión',
+    'Aprobado',
+    'Rechazado',
+    'Facturado',
+    'Todos',
+]
+
+// Configuración de categorías de archivos con prefijos por EPS
+export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
+    {
+        id: 'validacion_derechos',
+        label: 'Validación de Derechos',
+        descripcion: 'Documento de validación de derechos del afiliado',
+        requerido: true,
+        maxArchivos: 3,
+        prefijos: {
+            'NUEVA EPS': 'PDE2_900842629_',
+            'SALUD TOTAL': 'OPF_900842629_',
+            'MUTUAL SER': 'VAL_900842629_',
+            'FAMILIAR': 'OPF_900842629_',
+        },
+    },
+    {
+        id: 'autorizacion',
+        label: 'Autorización',
+        descripcion: 'Autorización del servicio',
+        requerido: true,
+        maxArchivos: 5,
+        prefijos: {
+            'NUEVA EPS': 'PDE_900842629_',
+            'SALUD TOTAL': 'OPF_900842629_',
+            'MUTUAL SER': 'AUT_900842629_',
+            'FAMILIAR': 'PDE_900842629_',
+        },
+    },
+    {
+        id: 'soporte_clinico',
+        label: 'Soporte Clínico / Historia Clínica',
+        descripcion: 'Historia clínica o evolución del paciente',
+        requerido: true,
+        maxArchivos: 10,
+        prefijos: {
+            'NUEVA EPS': 'HEV_900842629_',
+            'SALUD TOTAL': 'HEV_900842629_',
+            'MUTUAL SER': 'HCL_900842629_',
+            'FAMILIAR': 'HEV_900842629_',
+        },
+    },
+    {
+        id: 'comprobante_recibo',
+        label: 'Comprobante de Recibo',
+        descripcion: 'Comprobante de recepción del servicio',
+        requerido: false,
+        maxArchivos: 2,
+        prefijos: {
+            'NUEVA EPS': 'CRC_900842629_',
+            'SALUD TOTAL': 'CRC_900842629_',
+            'MUTUAL SER': 'CRC_900842629_',
+            'FAMILIAR': 'CRC_900842629_',
+        },
+    },
+    {
+        id: 'recibo_caja',
+        label: 'Recibo de Caja',
+        descripcion: 'Recibo de pago o copago',
+        requerido: false,
+        maxArchivos: 2,
+        prefijos: {
+            'NUEVA EPS': 'PDE3_900842629_',
+            'SALUD TOTAL': 'DFV_900842629_',
+            'MUTUAL SER': 'RCJ_900842629_',
+            'FAMILIAR': 'RCJ_900842629_',
+        },
+    },
+    {
+        id: 'orden_medica',
+        label: 'Orden Médica',
+        descripcion: 'Orden médica del procedimiento',
+        requerido: false,
+        maxArchivos: 5,
+        prefijos: {
+            'NUEVA EPS': 'PDX_900842629_',
+            'SALUD TOTAL': 'PDX_900842629_',
+            'MUTUAL SER': 'ORD_900842629_',
+            'FAMILIAR': 'PDX_900842629_',
+        },
+    },
+    {
+        id: 'descripcion_quirurgica',
+        label: 'Descripción Quirúrgica',
+        descripcion: 'Descripción del procedimiento quirúrgico',
+        requerido: false,
+        maxArchivos: 3,
+        prefijos: {
+            'NUEVA EPS': 'DQX_900842629_',
+            'SALUD TOTAL': 'DQX_900842629_',
+            'MUTUAL SER': 'DQX_900842629_',
+            'FAMILIAR': 'DQX_900842629_',
+        },
+    },
+    {
+        id: 'registro_anestesia',
+        label: 'Registro de Anestesia',
+        descripcion: 'Registro del procedimiento anestésico',
+        requerido: false,
+        maxArchivos: 3,
+        prefijos: {
+            'NUEVA EPS': 'RAN_900842629_',
+            'SALUD TOTAL': 'RAN_900842629_',
+            'MUTUAL SER': 'RAN_900842629_',
+            'FAMILIAR': 'RAN_900842629_',
+        },
+    },
+    {
+        id: 'hoja_medicamentos',
+        label: 'Hoja de Medicamentos',
+        descripcion: 'Registro de medicamentos administrados',
+        requerido: false,
+        maxArchivos: 5,
+        prefijos: {
+            'NUEVA EPS': 'HAM_900842629_',
+            'SALUD TOTAL': 'HAM_900842629_',
+            'MUTUAL SER': 'HAM_900842629_',
+            'FAMILIAR': 'HAM_900842629_',
+        },
+    },
+    {
+        id: 'notas_enfermeria',
+        label: 'Notas de Enfermería',
+        descripcion: 'Registro de notas de enfermería',
+        requerido: false,
+        maxArchivos: 5,
+        prefijos: {
+            'NUEVA EPS': 'NEF_900842629_',
+            'SALUD TOTAL': 'NEF_900842629_',
+            'MUTUAL SER': 'NEF_900842629_',
+            'FAMILIAR': 'NEF_900842629_',
+        },
+    },
+]
+
+// Colores para estados
+export const ESTADO_COLORES: Record<EstadoSoporteFacturacion, { bg: string; text: string; border: string }> = {
+    'Pendiente': { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300' },
+    'En Revisión': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' },
+    'Aprobado': { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300' },
+    'Rechazado': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' },
+    'Facturado': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
+}

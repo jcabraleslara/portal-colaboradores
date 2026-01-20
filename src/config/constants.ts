@@ -157,8 +157,9 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         name: 'Soportes de Facturación',
         path: ROUTES.SOPORTES_FACTURACION,
         icon: 'FileText',
-        enabled: false,
-        description: 'En planeación',
+        enabled: true,
+        description: 'Radicar soportes para facturación',
+        requiredRoles: ['superadmin', 'operativo', 'administrador'],
     },
     {
         id: 'anexo-8',

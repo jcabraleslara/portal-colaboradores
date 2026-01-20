@@ -20,6 +20,7 @@
         "@types/pdf-parse": "^1.1.5",
         "@types/turndown": "^5.0.6",
         "clsx": "^2.1.1",
+        "csv-parser": "^3.2.0",
         "html2pdf.js": "^0.14.0",
         "lucide-react": "^0.469.0",
         "markdown-it": "^14.1.0",
