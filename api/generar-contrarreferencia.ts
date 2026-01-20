@@ -111,53 +111,91 @@ export default async function handler(
             .replace('{texto_soporte}', textoSoporte)
             .replace('{especialidad}', especialidad)
 
-        // Llamar a Gemini API - gemini-3-flash-preview (rápido + conciso)
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${GEMINI_API_KEY}`
+        // Sistema de fallback robusto: modelos estables de producción
+        const MODELS_FALLBACK = [
+            'gemini-2.5-flash',    // Modelo principal (estable, rápido)
+            'gemini-2.0-flash',    // Fallback 1 (muy estable)
+            'gemini-1.5-flash'     // Fallback 2 (legacy pero confiable)
+        ]
 
-        const geminiResponse = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: promptFinal }]
-                }],
-                generationConfig: {
-                    temperature: 0.1,  // Más determinístico
-                    maxOutputTokens: 1500,  // Respuestas concisas como Gemini Web
-                    topP: 0.95,
-                    topK: 40
+        let lastError: any = null
+
+        // Intentar con cada modelo hasta que uno funcione
+        for (const modelName of MODELS_FALLBACK) {
+            try {
+                console.log(`[API] Intentando con modelo: ${modelName}`)
+
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`
+
+                const geminiResponse = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: promptFinal }]
+                        }],
+                        generationConfig: {
+                            temperature: 0.1,
+                            maxOutputTokens: 1500,
+                            topP: 0.95,
+                            topK: 40
+                        }
+                    })
+                })
+
+                // Si es 503 (Service Unavailable), intentar siguiente modelo
+                if (geminiResponse.status === 503) {
+                    console.log(`[API] ⚠️ Modelo ${modelName} no disponible (503), intentando siguiente...`)
+                    lastError = { status: 503, model: modelName }
+                    continue
                 }
-            })
-        })
 
-        if (!geminiResponse.ok) {
-            const errorText = await geminiResponse.text()
-            console.error('[API] Gemini error:', geminiResponse.status, errorText)
-            return res.status(geminiResponse.status).json({
-                error: `Error de Gemini API: ${geminiResponse.status}`,
-                details: errorText
-            })
+                // Si es otro error, retornar inmediatamente
+                if (!geminiResponse.ok) {
+                    const errorText = await geminiResponse.text()
+                    console.error(`[API] Error ${geminiResponse.status} con ${modelName}:`, errorText)
+                    return res.status(geminiResponse.status).json({
+                        error: `Error de Gemini API: ${geminiResponse.status}`,
+                        details: errorText,
+                        model: modelName
+                    })
+                }
+
+                // Éxito - procesar respuesta
+                const data = await geminiResponse.json()
+
+                if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    const textoGenerado = data.candidates[0].content.parts[0].text.trim()
+                    console.log(`[API] ✅ Contrarreferencia generada con ${modelName} (${textoGenerado.length} caracteres)`)
+
+                    return res.status(200).json({
+                        success: true,
+                        texto: textoGenerado,
+                        model: modelName  // Informar qué modelo se usó
+                    })
+                }
+
+                console.error(`[API] Respuesta de ${modelName} sin contenido válido`)
+                lastError = { status: 'no_content', model: modelName }
+                continue
+
+            } catch (error) {
+                console.error(`[API] Excepción con modelo ${modelName}:`, error)
+                lastError = { error, model: modelName }
+                continue
+            }
         }
 
-        const data = await geminiResponse.json()
-
-        if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-            const textoGenerado = data.candidates[0].content.parts[0].text.trim()
-            console.log(`[API] ✅ Contrarreferencia generada exitosamente (${textoGenerado.length} caracteres)`)
-
-            return res.status(200).json({
-                success: true,
-                texto: textoGenerado
-            })
-        }
-
-        console.error('[API] Respuesta de Gemini sin contenido válido')
-        return res.status(500).json({
-            error: 'Respuesta de Gemini sin contenido válido'
+        // Si llegamos aquí, todos los modelos fallaron
+        console.error('[API] ❌ TODOS los modelos fallaron:', lastError)
+        return res.status(503).json({
+            error: 'Servicio de IA temporalmente no disponible. Intenta nuevamente en unos momentos.',
+            details: 'Todos los modelos de respaldo fallaron',
+            lastError
         })
 
     } catch (error) {
-        console.error('[API] Error en generación:', error)
+        console.error('[API] Error general en generación:', error)
         return res.status(500).json({
             error: 'Error interno del servidor',
             details: error instanceof Error ? error.message : 'Error desconocido'
