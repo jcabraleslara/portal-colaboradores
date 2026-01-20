@@ -11,72 +11,40 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY // Sin prefijo VITE_
 
 /**
  * Prompt especializado de auditor médico senior
+ * IMPORTANTE: Las instrucciones OBLIGATORIAS son críticas para que el modelo complete los 4 puntos
  */
-const PROMPT_CONTRARREFERENCIA = `RESPUESTAS SIN CITATION MARKERS
+const PROMPT_CONTRARREFERENCIA = `Eres un auditor médico senior con más de 15 años de experiencia en revisión de pertinencia médica en el sistema de salud colombiano.
 
-Eres un auditor médico senior con más de 15 años de experiencia en revisión de pertinencia médica de remisiones a especialidades en el sistema de salud colombiano. Tu función es evaluar la justificación clínica de remisiones desde niveles de baja complejidad hacia especialidades de mayor complejidad.
-
-DOCUMENTO DE SOPORTE CLÍNICO (Historia Clínica):
+HISTORIA CLÍNICA A EVALUAR:
 {texto_soporte}
 
 ESPECIALIDAD DE DESTINO: {especialidad}
 
-CRITERIOS DE EVALUACIÓN PARA CONTRA REFERENCIA:
-
-**A. Completitud de soportes documentales:**
-- Identificación completa del paciente
-- Anamnesis detallada con evolución del cuadro clínico
-- Examen físico completo y signos vitales
-- Impresión diagnóstica coherente con el contenido de la Historia Clínica
-
-**B. Criterios de pertinencia médica:**
-- Justificación clara del motivo de remisión
-- Concordancia entre hallazgos clínicos y especialidad solicitada
-- Agotamiento de capacidad resolutiva del primer nivel de atención
-- Existencia de criterios de complejidad que justifiquen el nivel superior
-
-**C. Tratamientos previos:**
-- Verificar qué tratamientos farmacológicos se han prescrito previamente
-- Evaluar tiempo de evolución y respuesta a tratamientos instaurados
-- Confirmar si se han aplicado medidas terapéuticas disponibles en primer nivel
-- Si la HC no especifica tratamientos previos, debe ser parte de los motivos de la contra referencia
-
-**D. Estudios paraclínicos:**
-- Verificar si se han solicitado y realizado estudios básicos disponibles en primer nivel (laboratorios, EKG, radiografías simples, etc.)
-- Confirmar que NO se soliciten desde nivel bajo de complejidad ambulatorio: resonancias magnéticas, tomografías axiales computarizadas, ni ecografías (estos estudios solo pueden ordenarse desde niveles superiores)
-- Si faltan paraclínicos básicos, identificarlos
-
-**E. Criterios diagnósticos:**
-- Evaluar si el diagnóstico está claramente establecido o es presuntivo
-- Verificar coherencia entre síntomas, signos y diagnóstico propuesto
-- Determinar si se requieren estudios adicionales del primer nivel antes de remitir
-
-FORMATO DE RESPUESTA - CONTRA REFERENCIA:
-
-Genera una CONTRA REFERENCIA técnica y completa con el siguiente formato:
-
----
+=== GENERA EXACTAMENTE ESTE FORMATO ===
 
 **CONTRA REFERENCIA**
 
 Se contra remite el caso al primer nivel de atención por las siguientes razones:
 
-1. **Criterios clínicos:** [Indicar incongruencias o falta de justificación clínica]
-2. **Tratamiento previo:** [Señalar tratamientos de primer nivel no instaurados]
-3. **Estudios paraclínicos:** [Indicar estudios básicos pendientes del primer nivel]
-4. **Completitud documental:** [Especificar si faltan elementos de la HC o hay inconsistencias]
+1. **Criterios clínicos:** 
+[OBLIGATORIO: Escribe MÍNIMO 3 oraciones completas explicando las incongruencias clínicas, falta de justificación para la remisión, o por qué no se justifica el nivel de complejidad solicitado.]
 
----
+2. **Tratamiento previo:** 
+[OBLIGATORIO: Escribe MÍNIMO 3 oraciones completas sobre qué tratamientos del primer nivel NO se han instaurado antes de remitir. Si no hay registro de tratamiento previo, indica que es motivo de contra referencia.]
 
-INSTRUCCIONES IMPORTANTES:
-- Cada punto (1-4) debe tener 2-3 oraciones explicativas que fundamenten la decisión
-- Sé técnico pero claro en tu lenguaje médico
-- Proporciona criterios clínicos específicos y objetivos
-- No recomendar: terapias físicas, ecografías, resonancias, pruebas de aliento para helicobacter, ni tomografías
+3. **Estudios paraclínicos:** 
+[OBLIGATORIO: Escribe MÍNIMO 3 oraciones completas indicando qué estudios básicos del primer nivel faltan (hemograma, glicemia, EKG, radiografías simples). NO recomendar ecografías, resonancias ni tomografías.]
+
+4. **Completitud documental:** 
+[OBLIGATORIO: Escribe MÍNIMO 3 oraciones completas sobre elementos faltantes o inconsistencias en la historia clínica, anamnesis incompleta, o examen físico deficiente.]
+
+=== REGLAS ESTRICTAS ===
+- DEBES completar los 4 puntos OBLIGATORIAMENTE
+- Cada punto DEBE tener mínimo 3 oraciones explicativas
+- NO puedes terminar antes de completar los 4 puntos
 - La respuesta debe arrancar directamente con "CONTRA REFERENCIA"
-- NO incluir introducciones, encabezados previos, ni preguntas finales
-- NO incluir citation markers [1], [2], etc.
-- Asegurar que TODOS los 4 puntos estén desarrollados`
+- NO incluir introducciones ni citation markers [1], [2]
+- Sé técnico pero claro en tu lenguaje médico`
 
 export default async function handler(
     req: VercelRequest,
@@ -137,8 +105,8 @@ export default async function handler(
                             parts: [{ text: promptFinal }]
                         }],
                         generationConfig: {
-                            temperature: 0.1,
-                            maxOutputTokens: 2000,  // Balance entre concisión y rigor médico
+                            temperature: 0.3,  // Mayor variabilidad para respuestas completas
+                            maxOutputTokens: 4000,  // Espacio suficiente para 4 puntos completos
                             topP: 0.95,
                             topK: 40
                         }
