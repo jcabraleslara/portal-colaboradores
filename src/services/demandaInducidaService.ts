@@ -1,0 +1,297 @@
+/**
+ * Servicio para Demanda Inducida
+ * Maneja CRUD y lógica de negocio para casos de demanda inducida
+ */
+
+import { supabase } from '@/lib/supabase'
+import type {
+    DemandaInducida,
+    DemandaInducidaFormData,
+    DemandaFilters,
+    DemandaMetrics,
+} from '@/types/demandaInducida'
+
+/**
+ * Transforma datos de Supabase a formato frontend
+ */
+function transformDemandaFromDB(data: any): DemandaInducida {
+    return {
+        id: data.id,
+        pacienteTipoId: data.paciente_tipo_id,
+        pacienteId: data.paciente_id,
+        fechaGestion: data.fecha_gestion,
+        celular: data.celular,
+        horaLlamada: data.hora_llamada,
+        clasificacion: data.clasificacion,
+        quienRecibeLlamada: data.quien_recibe_llamada,
+        relacionUsuario: data.relacion_usuario,
+        textoLlamada: data.texto_llamada,
+        actividadesRealizadas: data.actividades_realizadas,
+        condicionUsuario: data.condicion_usuario,
+        soportesRecuperados: data.soportes_recuperados,
+        fechaAsignacionCita: data.fecha_asignacion_cita,
+        departamento: data.departamento,
+        municipio: data.municipio,
+        barrioVereda: data.barrio_vereda,
+        telefonoActualizado: data.telefono_actualizado,
+        correoActualizado: data.correo_actualizado,
+        resultadoLlamada: data.resultado_llamada,
+        colaborador: data.colaborador,
+        programaDireccionado: data.programa_direccionado,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+        radicadoPor: data.radicado_por,
+    }
+}
+
+/**
+ * Verifica si un paciente existe en la base de datos
+ */
+async function verificarPacienteExiste(
+    tipoId: string,
+    identificacion: string
+): Promise<{ existe: boolean; data?: any }> {
+    const { data, error } = await supabase
+        .from('bd')
+        .select('*')
+        .eq('tipo_id', tipoId)
+        .eq('id', identificacion)
+        .single()
+
+    if (error || !data) {
+        return { existe: false }
+    }
+
+    return { existe: true, data }
+}
+
+/**
+ * Crea un paciente básico en BD con fuente PORTAL_COLABORADORES
+ */
+async function crearPacienteBasico(data: {
+    tipoId: string
+    identificacion: string
+    celular?: string
+    departamento?: string
+    municipio?: string
+    correoActualizado?: string
+}) {
+    const paciente = {
+        tipo_id: data.tipoId,
+        id: data.identificacion,
+        nombres: 'POR DEFINIR',
+        apellido1: 'POR DEFINIR',
+        apellido2: '',
+        telefono: data.celular || null,
+        departamento: data.departamento || null,
+        municipio: data.municipio || null,
+        email: data.correoActualizado || null,
+        fuente: 'PORTAL_COLABORADORES',
+        estado: 'ACTIVO',
+    }
+
+    const { data: result, error } = await supabase.from('bd').insert(paciente).select().single()
+
+    if (error) {
+        throw new Error(`Error creando paciente: ${error.message}`)
+    }
+
+    return result
+}
+
+/**
+ * Obtiene todos los casos con filtros opcionales
+ */
+async function getAll(filters?: DemandaFilters): Promise<DemandaInducida[]> {
+    let query = supabase
+        .from('demanda_inducida')
+        .select('*')
+        .order('fecha_gestion', { ascending: false })
+
+    // Aplicar filtros
+    if (filters?.fechaInicio) {
+        query = query.gte('fecha_gestion', filters.fechaInicio)
+    }
+
+    if (filters?.fechaFin) {
+        query = query.lte('fecha_gestion', filters.fechaFin)
+    }
+
+    if (filters?.colaborador) {
+        query = query.eq('colaborador', filters.colaborador)
+    }
+
+    if (filters?.programa) {
+        query = query.eq('programa_direccionado', filters.programa)
+    }
+
+    if (filters?.clasificacion) {
+        query = query.eq('clasificacion', filters.clasificacion)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+        throw new Error(`Error obteniendo demandas: ${error.message}`)
+    }
+
+    return (data || []).map(transformDemandaFromDB)
+}
+
+/**
+ * Obtiene un caso por ID
+ */
+async function getById(id: number): Promise<DemandaInducida | null> {
+    const { data, error } = await supabase
+        .from('demanda_inducida')
+        .select('*')
+        .eq('id', id)
+        .single()
+
+    if (error || !data) {
+        return null
+    }
+
+    return transformDemandaFromDB(data)
+}
+
+/**
+ * Crea un nuevo caso de demanda inducida
+ */
+async function create(
+    formData: DemandaInducidaFormData,
+    nombreColaborador: string
+): Promise<DemandaInducida> {
+    // Verificar si el paciente existe
+    const { existe } = await verificarPacienteExiste(formData.tipoId, formData.identificacion)
+
+    // Si no existe, crearlo
+    if (!existe) {
+        await crearPacienteBasico({
+            tipoId: formData.tipoId,
+            identificacion: formData.identificacion,
+            celular: formData.celular,
+            departamento: formData.departamento,
+            municipio: formData.municipio,
+            correoActualizado: formData.correoActualizado,
+        })
+    }
+
+    // Preparar datos para inserción
+    const demandaData = {
+        paciente_tipo_id: formData.tipoId,
+        paciente_id: formData.identificacion,
+        fecha_gestion: formData.fechaGestion,
+        celular: formData.celular || null,
+        hora_llamada: formData.horaLlamada || null,
+        clasificacion: formData.clasificacion,
+        quien_recibe_llamada: formData.quienRecibeLlamada || null,
+        relacion_usuario: formData.relacionUsuario || null,
+        texto_llamada: formData.textoLlamada || null,
+        actividades_realizadas: formData.actividadesRealizadas || null,
+        condicion_usuario: formData.condicionUsuario || null,
+        soportes_recuperados: formData.soportesRecuperados || null,
+        fecha_asignacion_cita: formData.fechaAsignacionCita || null,
+        departamento: formData.departamento || null,
+        municipio: formData.municipio || null,
+        barrio_vereda: formData.barrioVereda || null,
+        telefono_actualizado: formData.telefonoActualizado || null,
+        correo_actualizado: formData.correoActualizado || null,
+        resultado_llamada: formData.resultadoLlamada || null,
+        colaborador: nombreColaborador,
+        programa_direccionado: formData.programaDireccionado || null,
+        radicado_por: nombreColaborador,
+    }
+
+    const { data, error } = await supabase
+        .from('demanda_inducida')
+        .insert(demandaData)
+        .select()
+        .single()
+
+    if (error) {
+        throw new Error(`Error creando demanda inducida: ${error.message}`)
+    }
+
+    return transformDemandaFromDB(data)
+}
+
+/**
+ * Obtiene métricas/estadísticas
+ */
+async function getMetrics(filters?: DemandaFilters): Promise<DemandaMetrics> {
+    // Obtener todos los casos con filtros
+    const casos = await getAll(filters)
+
+    // Obtener casos del mes actual (sin filtros de fecha)
+    const hoy = new Date()
+    const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+        .toISOString()
+        .split('T')[0]
+
+    const { data: casosMes, error: errorMes } = await supabase
+        .from('demanda_inducida')
+        .select('id')
+        .gte('fecha_gestion', primerDiaMes)
+
+    const totalCasos = casos.length
+    const casosEfectivos = casos.filter((c) => c.clasificacion === 'Efectivo').length
+    const casosNoEfectivos = casos.filter((c) => c.clasificacion === 'No Efectivo').length
+    const casosMesActual = casosMes?.length || 0
+    const porcentajeEfectividad = totalCasos > 0 ? (casosEfectivos / totalCasos) * 100 : 0
+
+    return {
+        totalCasos,
+        casosEfectivos,
+        casosNoEfectivos,
+        casosMesActual,
+        porcentajeEfectividad,
+    }
+}
+
+/**
+ * Obtiene lista única de colaboradores
+ */
+async function getColaboradores(): Promise<string[]> {
+    const { data, error } = await supabase
+        .from('demanda_inducida')
+        .select('colaborador')
+        .order('colaborador')
+
+    if (error) {
+        return []
+    }
+
+    // Obtener valores únicos
+    const colaboradores = [...new Set(data.map((d) => d.colaborador))].filter(Boolean)
+    return colaboradores as string[]
+}
+
+/**
+ * Obtiene lista única de programas
+ */
+async function getProgramas(): Promise<string[]> {
+    const { data, error } = await supabase
+        .from('demanda_inducida')
+        .select('programa_direccionado')
+        .order('programa_direccionado')
+
+    if (error) {
+        return []
+    }
+
+    // Obtener valores únicos
+    const programas = [...new Set(data.map((d) => d.programa_direccionado))].filter(Boolean)
+    return programas as string[]
+}
+
+export const demandaInducidaService = {
+    getAll,
+    getById,
+    create,
+    getMetrics,
+    verificarPacienteExiste,
+    crearPacienteBasico,
+    getColaboradores,
+    getProgramas,
+}

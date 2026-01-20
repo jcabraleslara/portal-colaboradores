@@ -23,6 +23,7 @@ const AdminUsuariosPage = lazy(() => import('@/features/admin/AdminUsuariosPage'
 const Anexo8Page = lazy(() => import('@/features/anexo8/Anexo8Page'))
 const ConsultarCupsPage = lazy(() => import('@/features/consultarCups/ConsultarCupsPage'))
 const SoportesFacturacionPage = lazy(() => import('@/features/soportesFacturacion/SoportesFacturacionPage'))
+const GestionDemandaInducidaView = lazy(() => import('@/features/demandaInducida/GestionDemandaInducidaView'))
 
 /**
  * Componente de protección de rutas
@@ -208,7 +209,7 @@ export function AppRoutes() {
                     path={ROUTES.DEMANDA_INDUCIDA}
                     element={
                         <LazyWrapper>
-                            <PlaceholderPage moduleName="Demanda Inducida" />
+                            <GestionDemandaInducidaView />
                         </LazyWrapper>
                     }
                 />

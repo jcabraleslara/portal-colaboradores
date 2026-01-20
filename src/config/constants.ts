@@ -190,9 +190,10 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         id: 'demanda-inducida',
         name: 'Demanda Inducida',
         path: ROUTES.DEMANDA_INDUCIDA,
-        icon: 'BarChart3',
-        enabled: false,
-        description: 'En planeación',
+        icon: 'ClipboardList',
+        enabled: true,
+        description: 'Gestión y radicación de casos',
+        requiredRoles: ['superadmin', 'auditor', 'operativo', 'asistencial'],
     },
 
     {
