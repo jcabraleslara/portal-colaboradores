@@ -123,8 +123,8 @@ export default async function handler(
             .replace('{texto_soporte}', textoSoporte)
             .replace('{especialidad}', especialidad)
 
-        // Llamar a Gemini API - Usando Pro para respuestas médicas completas
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${GEMINI_API_KEY}`
+        // Llamar a Gemini API - Usando Pro para respuestas médicas completas (Nombre verificado: gemini-2.5-pro)
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${GEMINI_API_KEY}`
 
         const geminiResponse = await fetch(apiUrl, {
             method: 'POST',
