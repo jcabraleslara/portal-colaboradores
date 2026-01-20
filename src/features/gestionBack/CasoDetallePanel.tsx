@@ -197,12 +197,26 @@ export function CasoDetallePanel({
             )
 
             if (resultado.success && resultado.texto) {
-                console.log(`[UI] ✅ Contrarreferencia generada en ${resultado.tiempoMs}ms (${resultado.metodo})`)
+                // Mostrar feedback según el método
+                if (resultado.metodo === 'cache') {
+                    console.log(`[UI] ✅ Contrarreferencia obtenida desde caché en ${resultado.tiempoMs}ms`)
+                } else {
+                    console.log(`[UI] ✅ Contrarreferencia generada en ${resultado.tiempoMs}ms (${resultado.metodo})`)
+                }
+
                 // Actualizar el campo respuesta_back (esto también activará auto-cambio de estado)
                 handleRespuestaBackChange(resultado.texto)
             } else {
                 console.error('[UI] Error en generación:', resultado.error)
-                setErrorGuardado(resultado.error || 'Error al generar contrarreferencia')
+
+                // Mensaje específico para error 429 con tiempo de espera
+                if (resultado.retryAfter) {
+                    setErrorGuardado(
+                        `⏳ Límite de solicitudes alcanzado. Por favor espera ${resultado.retryAfter} segundos antes de reintentar.`
+                    )
+                } else {
+                    setErrorGuardado(resultado.error || 'Error al generar contrarreferencia')
+                }
             }
         } catch (error) {
             console.error('[UI] Excepción al generar contrarreferencia:', error)
