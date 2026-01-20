@@ -178,6 +178,7 @@ export function CasoDetallePanel({
     const handleGenerarContrarreferencia = async () => {
         setGenerandoContrarreferencia(true)
         setErrorGuardado(null)
+        setMensajeProgreso('Analizando documento...')
 
         try {
             // Obtener el primer soporte (PDF)
@@ -185,10 +186,18 @@ export function CasoDetallePanel({
             if (!pdfUrl) {
                 setErrorGuardado('No hay soporte adjunto para generar contrarreferencia')
                 setGenerandoContrarreferencia(false)
+                setMensajeProgreso('')
                 return
             }
 
             console.log('[UI] Iniciando generación de contrarreferencia...')
+
+            // Simulador de progreso para mejor UX
+            const intervalos = [
+                setTimeout(() => setMensajeProgreso('Procesando historia clínica...'), 1000),
+                setTimeout(() => setMensajeProgreso('Evaluando criterios médicos...'), 3000),
+                setTimeout(() => setMensajeProgreso('Generando respuesta de auditoría...'), 5000),
+            ]
 
             const resultado = await generarContrarreferenciaAutomatica(
                 caso.radicado,
@@ -196,13 +205,21 @@ export function CasoDetallePanel({
                 caso.especialidad || undefined
             )
 
+            // Limpiar timeouts
+            intervalos.forEach(clearTimeout)
+
             if (resultado.success && resultado.texto) {
                 // Mostrar feedback según el método
                 if (resultado.metodo === 'cache') {
                     console.log(`[UI] ✅ Contrarreferencia obtenida desde caché en ${resultado.tiempoMs}ms`)
+                    setMensajeProgreso('✓ Cargado desde caché')
                 } else {
                     console.log(`[UI] ✅ Contrarreferencia generada en ${resultado.tiempoMs}ms (${resultado.metodo})`)
+                    setMensajeProgreso('✓ Contrarreferencia generada')
                 }
+
+                // Pequeña pausa para que el usuario vea el mensaje de éxito
+                await new Promise(resolve => setTimeout(resolve, 500))
 
                 // Actualizar el campo respuesta_back (esto también activará auto-cambio de estado)
                 handleRespuestaBackChange(resultado.texto)
@@ -223,6 +240,7 @@ export function CasoDetallePanel({
             setErrorGuardado('Error inesperado al generar contrarreferencia')
         } finally {
             setGenerandoContrarreferencia(false)
+            setMensajeProgreso('')
         }
     }
 
@@ -235,6 +253,7 @@ export function CasoDetallePanel({
 
     // Estado de generación de contrarreferencia con IA
     const [generandoContrarreferencia, setGenerandoContrarreferencia] = useState(false)
+    const [mensajeProgreso, setMensajeProgreso] = useState<string>('')
 
     // Visor de PDF
     const [pdfActivo, setPdfActivo] = useState<string | null>(null)
@@ -769,7 +788,7 @@ export function CasoDetallePanel({
                                         {generandoContrarreferencia ? (
                                             <>
                                                 <Loader2 className="w-4 h-4 animate-spin" />
-                                                Generando contrarreferencia...
+                                                {mensajeProgreso || 'Generando contrarreferencia...'}
                                             </>
                                         ) : (
                                             <>
