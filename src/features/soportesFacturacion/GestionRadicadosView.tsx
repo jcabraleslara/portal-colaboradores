@@ -243,7 +243,8 @@ export function GestionRadicadosView() {
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Radicado</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Paciente</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Servicio</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Radicador</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">EPS</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
@@ -252,7 +253,7 @@ export function GestionRadicadosView() {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {cargando ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center">
+                                    <td colSpan={7} className="px-6 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center text-gray-500">
                                             <Loader2 className="animate-spin mb-2" size={32} />
                                             <p>Cargando radicados...</p>
@@ -261,7 +262,7 @@ export function GestionRadicadosView() {
                                 </tr>
                             ) : casos.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                                         No se encontraron radicados con los filtros seleccionados
                                     </td>
                                 </tr>
@@ -272,24 +273,26 @@ export function GestionRadicadosView() {
                                             <div className="text-sm font-bold text-[var(--color-primary)]">
                                                 {caso.radicado}
                                             </div>
-                                            <div className="text-xs text-gray-500">
-                                                {caso.servicioPrestado}
-                                            </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">
                                                 {caso.fechaRadicacion.toLocaleDateString('es-CO')}
                                             </div>
                                             <div className="text-xs text-gray-500">
-                                                {caso.radicadorNombre?.split(' ')[0]}
+                                                {caso.fechaRadicacion.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="text-sm text-gray-700">
+                                                {caso.servicioPrestado}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-gray-900">
-                                                {caso.nombresCompletos || 'Sin Nombre'}
+                                                {caso.radicadorNombre || 'Sin nombre'}
                                             </div>
                                             <div className="text-xs text-gray-500">
-                                                {caso.tipoId} {caso.identificacion}
+                                                {caso.radicadorEmail.split('@')[0]}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">

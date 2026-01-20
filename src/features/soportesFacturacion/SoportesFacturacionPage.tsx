@@ -175,16 +175,7 @@ export function SoportesFacturacionPage() {
         if (result.success && result.data) {
             setAfiliado(result.data)
             setSearchState('success')
-            // Pre-llenar EPS y régimen si están disponibles
-            if (result.data.eps) {
-                const epsMatch = EPS_FACTURACION_LISTA.find(e =>
-                    result.data!.eps?.toUpperCase().includes(e.toUpperCase())
-                )
-                if (epsMatch) setEps(epsMatch)
-            }
-            if (result.data.regimen) {
-                setRegimen(result.data.regimen.toUpperCase() as RegimenFacturacion)
-            }
+            // NO pre-llenar EPS ni régimen - respetar la selección manual del usuario
         } else {
             // Afiliado no encontrado - mostrar modal para crear
             setSearchError('')
@@ -224,10 +215,7 @@ export function SoportesFacturacionPage() {
         setAfiliado(afiliadoCompleto)
         setSearchState('success')
         setMostrarModalCrearAfiliado(false)
-
-        // Pre-llenar datos
-        setEps(nuevoAfiliado.eps as EpsFacturacion)
-        setRegimen(nuevoAfiliado.regimen as RegimenFacturacion)
+        // NO pre-llenar EPS ni régimen - respetar la selección manual del usuario
     }
 
     // ============================================
@@ -735,13 +723,13 @@ export function SoportesFacturacionPage() {
                                 <div className="lg:col-span-2 space-y-4">
                                     <Card>
                                         <Card.Header>
-                                            <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-3">
                                                 <div className="flex items-center gap-2">
                                                     <Upload size={20} className="text-[var(--color-primary)]" />
                                                     Soportes Documentales
                                                 </div>
-                                                <span className="text-sm text-gray-500">
-                                                    {getTotalArchivos()} archivo(s)
+                                                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+                                                    {getTotalArchivos()} archivo{getTotalArchivos() !== 1 ? 's' : ''}
                                                 </span>
                                             </div>
                                         </Card.Header>
@@ -782,8 +770,8 @@ export function SoportesFacturacionPage() {
                                                                         {categoria.descripcion}
                                                                     </p>
                                                                 </div>
-                                                                <span className="text-xs text-gray-400">
-                                                                    {archivosCategoria.length}/{categoria.maxArchivos}
+                                                                <span className="text-xs font-medium text-gray-600">
+                                                                    {archivosCategoria.length} archivo{archivosCategoria.length !== 1 ? 's' : ''}
                                                                 </span>
                                                             </div>
 
