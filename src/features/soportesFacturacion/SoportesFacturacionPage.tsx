@@ -65,11 +65,47 @@ export function SoportesFacturacionPage() {
     // ============================================
     // ESTADO - Datos del Formulario
     // ============================================
-    const [eps, setEps] = useState<EpsFacturacion>('NUEVA EPS')
-    const [regimen, setRegimen] = useState<RegimenFacturacion>('CONTRIBUTIVO')
-    const [servicioPrestado, setServicioPrestado] = useState<ServicioPrestado>('Consulta Especializada')
+    const [eps, setEps] = useState<EpsFacturacion>('SALUD TOTAL')
+    const [regimen, setRegimen] = useState<RegimenFacturacion>('SUBSIDIADO')
+    const [servicioPrestado, setServicioPrestado] = useState<ServicioPrestado>('Consulta Ambulatoria')
     const [fechaAtencion, setFechaAtencion] = useState('')
     const [observaciones, setObservaciones] = useState('')
+
+    // ============================================
+    // LÓGICA CONDICIONAL (según JotForm)
+    // ============================================
+    // Solo Cirugía ambulatoria de SALUD TOTAL requiere identificación del paciente
+    const requiereIdentificacion = eps === 'SALUD TOTAL' && servicioPrestado === 'Cirugía ambulatoria'
+
+    // Determinar qué campos de archivos mostrar según EPS y Servicio
+    const mostrarValidacionDerechos = eps !== 'SALUD TOTAL' ||
+        !['Consulta Ambulatoria'].includes(servicioPrestado)
+
+    const mostrarComprobanteRecibo = eps !== 'SALUD TOTAL' || servicioPrestado === 'Terapias'
+
+    const mostrarReciboCaja = !(eps === 'SALUD TOTAL' &&
+        ['Consulta Ambulatoria', 'Procedimientos Menores', 'Aplicación de medicamentos', 'Laboratorio clínico'].includes(servicioPrestado))
+
+    const mostrarOrdenMedica = eps === 'FAMILIAR' && servicioPrestado === 'Procedimientos Menores'
+
+    // Campos quirúrgicos solo para Cirugía ambulatoria de SALUD TOTAL
+    const mostrarCamposQuirurgicos = eps === 'SALUD TOTAL' && servicioPrestado === 'Cirugía ambulatoria'
+
+    // Función para filtrar categorías de archivos según lógica condicional
+    const categoriasVisibles = CATEGORIAS_ARCHIVOS.filter(cat => {
+        switch (cat.id) {
+            case 'validacion_derechos': return mostrarValidacionDerechos
+            case 'comprobante_recibo': return mostrarComprobanteRecibo
+            case 'recibo_caja': return mostrarReciboCaja
+            case 'orden_medica': return mostrarOrdenMedica
+            case 'descripcion_quirurgica':
+            case 'registro_anestesia':
+            case 'hoja_medicamentos':
+            case 'notas_enfermeria':
+                return mostrarCamposQuirurgicos
+            default: return true // autorizacion, soporte_clinico siempre visibles
+        }
+    })
 
     // ============================================
     // ESTADO - Archivos por Categoría
@@ -84,7 +120,6 @@ export function SoportesFacturacionPage() {
     const [submitState, setSubmitState] = useState<LoadingState>('idle')
     const [submitError, setSubmitError] = useState('')
     const [radicacionExitosa, setRadicacionExitosa] = useState<SoporteFacturacion | null>(null)
-    const [sincronizandoOneDrive, setSincronizandoOneDrive] = useState(false)
 
     // ============================================
     // ESTADO - Historial
@@ -221,11 +256,14 @@ export function SoportesFacturacionPage() {
     // HANDLERS - Formulario
     // ============================================
     const resetFormulario = () => {
-        setEps('NUEVA EPS')
-        setRegimen('CONTRIBUTIVO')
-        setServicioPrestado('Consulta Especializada')
+        setEps('SALUD TOTAL')
+        setRegimen('SUBSIDIADO')
+        setServicioPrestado('Consulta Ambulatoria')
         setFechaAtencion('')
         setObservaciones('')
+        setAfiliado(null)
+        setDocumento('')
+        setSearchState('idle')
         setArchivosPorCategoria(CATEGORIAS_ARCHIVOS.map(cat => ({ categoria: cat.id, files: [] })))
         setSubmitState('idle')
         setSubmitError('')
@@ -235,8 +273,9 @@ export function SoportesFacturacionPage() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (!afiliado) {
-            setSubmitError('Primero selecciona un afiliado')
+        // Solo requerir afiliado si es Cirugía ambulatoria
+        if (requiereIdentificacion && !afiliado) {
+            setSubmitError('Para Cirugía ambulatoria debes seleccionar un afiliado')
             return
         }
 
@@ -245,8 +284,8 @@ export function SoportesFacturacionPage() {
             return
         }
 
-        // Validar archivos requeridos
-        const categoriasRequeridas = CATEGORIAS_ARCHIVOS.filter(c => c.requerido)
+        // Validar archivos requeridos solo de las categorías visibles
+        const categoriasRequeridas = categoriasVisibles.filter(c => c.requerido)
         for (const cat of categoriasRequeridas) {
             const archivos = archivosPorCategoria.find(a => a.categoria === cat.id)
             if (!archivos || archivos.files.length === 0) {
@@ -265,42 +304,25 @@ export function SoportesFacturacionPage() {
             regimen,
             servicioPrestado,
             fechaAtencion,
-            tipoId: afiliado.tipoId || undefined,
-            identificacion: afiliado.id || undefined,
-            nombresCompletos: getNombreCompleto(afiliado) || undefined,
+            tipoId: afiliado?.tipoId || undefined,
+            identificacion: afiliado?.id || undefined,
+            nombresCompletos: afiliado ? getNombreCompleto(afiliado) : undefined,
             observaciones: observaciones || undefined,
-            archivos: archivosPorCategoria.filter(a => a.files.length > 0),
+            archivos: archivosPorCategoria.filter(a =>
+                a.files.length > 0 && categoriasVisibles.some(v => v.id === a.categoria)
+            ),
         })
 
         if (result.success && result.data) {
             setSubmitState('success')
             setRadicacionExitosa(result.data)
-            if (afiliado.id) {
+            if (afiliado?.id) {
                 await cargarHistorial(afiliado.id)
             }
         } else {
             setSubmitError(result.error || 'Error al radicar')
             setSubmitState('error')
         }
-    }
-
-    // ============================================
-    // HANDLERS - OneDrive
-    // ============================================
-    const handleSincronizarOneDrive = async () => {
-        if (!radicacionExitosa) return
-
-        setSincronizandoOneDrive(true)
-        const result = await soportesFacturacionService.sincronizarOneDrive(radicacionExitosa.radicado)
-
-        if (result.success) {
-            setRadicacionExitosa(prev => prev ? {
-                ...prev,
-                onedriveSyncStatus: 'synced',
-                onedriveFolderUrl: result.data?.folderUrl || null,
-            } : null)
-        }
-        setSincronizandoOneDrive(false)
     }
 
     // ============================================
@@ -335,6 +357,18 @@ export function SoportesFacturacionPage() {
     const getTotalArchivos = () => {
         return archivosPorCategoria.reduce((sum, cat) => sum + cat.files.length, 0)
     }
+
+    // ============================================
+    // PERMISOS
+    // ============================================
+    const isAdmin = ['admin', 'superadmin', 'administrador'].includes(user?.rol || '')
+
+    // Redireccionar si está en gestión y no es admin
+    useEffect(() => {
+        if (vistaActual === 'gestion' && !isAdmin) {
+            setVistaActual('radicacion')
+        }
+    }, [vistaActual, isAdmin])
 
     // ============================================
     // RENDER
@@ -380,18 +414,20 @@ export function SoportesFacturacionPage() {
                     >
                         📄 Nueva Radicación
                     </button>
-                    <button
-                        onClick={() => setVistaActual('gestion')}
-                        className={`
-                            px-6 py-3 text-sm font-medium border-b-2 transition-colors
-                            ${vistaActual === 'gestion'
-                                ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }
-                        `}
-                    >
-                        📋 Gestión de Radicados
-                    </button>
+                    {isAdmin && (
+                        <button
+                            onClick={() => setVistaActual('gestion')}
+                            className={`
+                                px-6 py-3 text-sm font-medium border-b-2 transition-colors
+                                ${vistaActual === 'gestion'
+                                    ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                }
+                            `}
+                        >
+                            📋 Gestión de Radicados
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -426,19 +462,30 @@ export function SoportesFacturacionPage() {
                                         >
                                             Nueva radicación
                                         </Button>
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={handleSincronizarOneDrive}
-                                            isLoading={sincronizandoOneDrive}
-                                            leftIcon={<RefreshCw size={16} />}
-                                            disabled={radicacionExitosa.onedriveSyncStatus === 'synced'}
-                                        >
-                                            {radicacionExitosa.onedriveSyncStatus === 'synced'
-                                                ? 'Sincronizado ✓'
-                                                : 'Sincronizar OneDrive'
-                                            }
-                                        </Button>
+                                        {/* Indicador de sincronización automática */}
+                                        <div className="flex items-center gap-2 text-sm">
+                                            {radicacionExitosa.onedriveSyncStatus === 'synced' ? (
+                                                <span className="flex items-center gap-1 text-green-600">
+                                                    <CheckCircle size={14} />
+                                                    Sincronizado con OneDrive
+                                                </span>
+                                            ) : radicacionExitosa.onedriveSyncStatus === 'syncing' ? (
+                                                <span className="flex items-center gap-1 text-blue-600 animate-pulse">
+                                                    <RefreshCw size={14} className="animate-spin" />
+                                                    Sincronizando...
+                                                </span>
+                                            ) : radicacionExitosa.onedriveSyncStatus === 'error' ? (
+                                                <span className="flex items-center gap-1 text-red-500">
+                                                    <AlertCircle size={14} />
+                                                    Error de sincronización
+                                                </span>
+                                            ) : (
+                                                <span className="flex items-center gap-1 text-gray-500">
+                                                    <RefreshCw size={14} />
+                                                    Pendiente sincronización
+                                                </span>
+                                            )}
+                                        </div>
                                         {radicacionExitosa.onedriveFolderUrl && (
                                             <a
                                                 href={radicacionExitosa.onedriveFolderUrl}
@@ -510,281 +557,292 @@ export function SoportesFacturacionPage() {
                     {!radicacionExitosa && (
                         <LoadingOverlay isLoading={submitState === 'loading'} label="Radicando soportes...">
                             <div className="grid gap-6 lg:grid-cols-3">
-                                {/* Columna Izquierda: Búsqueda y Datos */}
+                                {/* Columna Izquierda: Datos del Servicio y Búsqueda */}
                                 <div className="lg:col-span-1 space-y-6">
-                                    {/* Búsqueda de Afiliado */}
+                                    {/* Datos del Servicio - SIEMPRE VISIBLE */}
                                     <Card>
                                         <Card.Header>
                                             <div className="flex items-center gap-2">
-                                                <Search size={20} className="text-[var(--color-primary)]" />
-                                                Buscar Afiliado
+                                                <Stethoscope size={20} className="text-[var(--color-primary)]" />
+                                                Datos del Servicio
                                             </div>
                                         </Card.Header>
                                         <Card.Body>
-                                            <div className="space-y-4">
-                                                <div className="flex gap-2">
-                                                    <Input
-                                                        placeholder="Número de documento"
-                                                        value={documento}
-                                                        onChange={(e) => {
-                                                            setDocumento(e.target.value.replace(/\D/g, ''))
-                                                            setSearchError('')
-                                                        }}
-                                                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                                        leftIcon={<User size={18} />}
-                                                        disabled={searchState === 'loading' || !!afiliado}
-                                                    />
-                                                    {!afiliado ? (
-                                                        <Button
-                                                            onClick={handleSearch}
-                                                            isLoading={searchState === 'loading'}
-                                                        >
-                                                            <Search size={18} />
-                                                        </Button>
-                                                    ) : (
-                                                        <Button
-                                                            variant="ghost"
-                                                            onClick={handleNuevaRadicacion}
-                                                            className="border"
-                                                        >
-                                                            <X size={18} />
-                                                        </Button>
-                                                    )}
+                                            <form className="space-y-4">
+                                                {/* EPS */}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        EPS <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <select
+                                                        value={eps}
+                                                        onChange={(e) => setEps(e.target.value as EpsFacturacion)}
+                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
+                                                    >
+                                                        {EPS_FACTURACION_LISTA.map(e => (
+                                                            <option key={e} value={e}>{e}</option>
+                                                        ))}
+                                                    </select>
                                                 </div>
 
-                                                {searchError && (
-                                                    <div className="p-2 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-                                                        <AlertCircle size={16} className="text-red-500" />
-                                                        <p className="text-sm text-red-600">{searchError}</p>
-                                                    </div>
-                                                )}
+                                                {/* Régimen */}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Régimen <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <select
+                                                        value={regimen}
+                                                        onChange={(e) => setRegimen(e.target.value as RegimenFacturacion)}
+                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
+                                                    >
+                                                        {REGIMEN_FACTURACION_LISTA.map(r => (
+                                                            <option key={r.value} value={r.value}>{r.label}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
 
-                                                {afiliado && (
-                                                    <div className="p-3 bg-[var(--color-primary-50)] rounded-lg">
-                                                        <p className="font-semibold text-[var(--color-primary)]">
-                                                            {getNombreCompleto(afiliado)}
-                                                        </p>
-                                                        <p className="text-sm text-gray-600">
-                                                            {afiliado.tipoId} {afiliado.id}
-                                                        </p>
+                                                {/* Servicio Prestado */}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Servicio Prestado <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <select
+                                                        value={servicioPrestado}
+                                                        onChange={(e) => setServicioPrestado(e.target.value as ServicioPrestado)}
+                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
+                                                    >
+                                                        {SERVICIOS_PRESTADOS_LISTA.map(s => (
+                                                            <option key={s} value={s}>{s}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                {/* Fecha de Atención */}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Fecha de Atención <span className="text-red-500">*</span>
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input
+                                                            type="date"
+                                                            value={fechaAtencion}
+                                                            onChange={(e) => setFechaAtencion(e.target.value)}
+                                                            className="w-full px-3 py-2 pl-10 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
+                                                        />
+                                                        <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                                                     </div>
-                                                )}
-                                            </div>
+                                                </div>
+
+                                                {/* Observaciones */}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Observaciones
+                                                    </label>
+                                                    <textarea
+                                                        value={observaciones}
+                                                        onChange={(e) => setObservaciones(e.target.value)}
+                                                        placeholder="Observaciones adicionales..."
+                                                        rows={3}
+                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent resize-none"
+                                                    />
+                                                </div>
+                                            </form>
                                         </Card.Body>
                                     </Card>
 
-                                    {/* Datos del Servicio */}
-                                    {afiliado && (
-                                        <Card>
+                                    {/* Búsqueda de Afiliado - SOLO PARA CIRUGÍA AMBULATORIA */}
+                                    {requiereIdentificacion && (
+                                        <Card className="border-amber-300 bg-amber-50">
                                             <Card.Header>
                                                 <div className="flex items-center gap-2">
-                                                    <Stethoscope size={20} className="text-[var(--color-primary)]" />
-                                                    Datos del Servicio
+                                                    <Search size={20} className="text-amber-600" />
+                                                    <span className="text-amber-800">Identificación del Paciente</span>
+                                                    <span className="text-red-500 text-sm">(Requerido para Cirugía)</span>
                                                 </div>
                                             </Card.Header>
                                             <Card.Body>
-                                                <form className="space-y-4">
-                                                    {/* EPS */}
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            EPS <span className="text-red-500">*</span>
-                                                        </label>
-                                                        <select
-                                                            value={eps}
-                                                            onChange={(e) => setEps(e.target.value as EpsFacturacion)}
-                                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
-                                                        >
-                                                            {EPS_FACTURACION_LISTA.map(e => (
-                                                                <option key={e} value={e}>{e}</option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-
-                                                    {/* Régimen */}
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Régimen <span className="text-red-500">*</span>
-                                                        </label>
-                                                        <select
-                                                            value={regimen}
-                                                            onChange={(e) => setRegimen(e.target.value as RegimenFacturacion)}
-                                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
-                                                        >
-                                                            {REGIMEN_FACTURACION_LISTA.map(r => (
-                                                                <option key={r.value} value={r.value}>{r.label}</option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-
-                                                    {/* Servicio Prestado */}
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Servicio Prestado <span className="text-red-500">*</span>
-                                                        </label>
-                                                        <select
-                                                            value={servicioPrestado}
-                                                            onChange={(e) => setServicioPrestado(e.target.value as ServicioPrestado)}
-                                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
-                                                        >
-                                                            {SERVICIOS_PRESTADOS_LISTA.map(s => (
-                                                                <option key={s} value={s}>{s}</option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-
-                                                    {/* Fecha de Atención */}
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Fecha de Atención <span className="text-red-500">*</span>
-                                                        </label>
-                                                        <div className="relative">
-                                                            <input
-                                                                type="date"
-                                                                value={fechaAtencion}
-                                                                onChange={(e) => setFechaAtencion(e.target.value)}
-                                                                className="w-full px-3 py-2 pl-10 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
-                                                            />
-                                                            <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Observaciones */}
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Observaciones
-                                                        </label>
-                                                        <textarea
-                                                            value={observaciones}
-                                                            onChange={(e) => setObservaciones(e.target.value)}
-                                                            placeholder="Observaciones adicionales..."
-                                                            rows={3}
-                                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent resize-none"
+                                                <div className="space-y-4">
+                                                    <div className="flex gap-2">
+                                                        <Input
+                                                            placeholder="Número de documento"
+                                                            value={documento}
+                                                            onChange={(e) => {
+                                                                setDocumento(e.target.value.replace(/\D/g, ''))
+                                                                setSearchError('')
+                                                            }}
+                                                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                                            leftIcon={<User size={18} />}
+                                                            disabled={searchState === 'loading' || !!afiliado}
                                                         />
+                                                        {!afiliado ? (
+                                                            <Button
+                                                                onClick={handleSearch}
+                                                                isLoading={searchState === 'loading'}
+                                                            >
+                                                                <Search size={18} />
+                                                            </Button>
+                                                        ) : (
+                                                            <Button
+                                                                variant="ghost"
+                                                                onClick={() => {
+                                                                    setAfiliado(null)
+                                                                    setDocumento('')
+                                                                    setSearchState('idle')
+                                                                }}
+                                                                className="border"
+                                                            >
+                                                                <X size={18} />
+                                                            </Button>
+                                                        )}
                                                     </div>
-                                                </form>
+
+                                                    {searchError && (
+                                                        <div className="p-2 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                                                            <AlertCircle size={16} className="text-red-500" />
+                                                            <p className="text-sm text-red-600">{searchError}</p>
+                                                        </div>
+                                                    )}
+
+                                                    {afiliado && (
+                                                        <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                                                            <p className="font-semibold text-green-700">
+                                                                {getNombreCompleto(afiliado)}
+                                                            </p>
+                                                            <p className="text-sm text-green-600">
+                                                                {afiliado.tipoId} {afiliado.id}
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </Card.Body>
                                         </Card>
                                     )}
                                 </div>
 
-                                {/* Columna Derecha: Carga de Archivos */}
-                                {afiliado && (
-                                    <div className="lg:col-span-2 space-y-4">
-                                        <Card>
-                                            <Card.Header>
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <Upload size={20} className="text-[var(--color-primary)]" />
-                                                        Soportes Documentales
-                                                    </div>
-                                                    <span className="text-sm text-gray-500">
-                                                        {getTotalArchivos()} archivo(s)
-                                                    </span>
+                                {/* Columna Derecha: Carga de Archivos - SIEMPRE VISIBLE */}
+                                <div className="lg:col-span-2 space-y-4">
+                                    <Card>
+                                        <Card.Header>
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <Upload size={20} className="text-[var(--color-primary)]" />
+                                                    Soportes Documentales
                                                 </div>
-                                            </Card.Header>
-                                            <Card.Body>
-                                                <div className="grid gap-4 sm:grid-cols-2">
-                                                    {CATEGORIAS_ARCHIVOS.map(categoria => {
-                                                        const archivosCategoria = archivosPorCategoria.find(
-                                                            a => a.categoria === categoria.id
-                                                        )?.files || []
+                                                <span className="text-sm text-gray-500">
+                                                    {getTotalArchivos()} archivo(s)
+                                                </span>
+                                            </div>
+                                        </Card.Header>
+                                        <Card.Body>
+                                            {/* Leyenda de campos condicionales */}
+                                            <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded-lg text-sm">
+                                                <p className="font-medium">📋 Campos dinámicos según EPS y Servicio</p>
+                                                <p className="text-xs text-blue-600 mt-1">
+                                                    Los documentos requeridos cambian según la combinación de EPS y Servicio Prestado seleccionado.
+                                                </p>
+                                            </div>
 
-                                                        return (
-                                                            <div
-                                                                key={categoria.id}
-                                                                className={`p-4 rounded-lg border-2 border-dashed transition-colors ${archivosCategoria.length > 0
-                                                                    ? 'border-green-300 bg-green-50'
-                                                                    : categoria.requerido
-                                                                        ? 'border-amber-300 bg-amber-50'
-                                                                        : 'border-gray-200 bg-gray-50'
-                                                                    }`}
-                                                            >
-                                                                <div className="flex items-start justify-between mb-2">
-                                                                    <div>
-                                                                        <h4 className="font-medium text-gray-800 text-sm">
-                                                                            {categoria.label}
-                                                                            {categoria.requerido && (
-                                                                                <span className="text-red-500 ml-1">*</span>
-                                                                            )}
-                                                                        </h4>
-                                                                        <p className="text-xs text-gray-500">
-                                                                            {categoria.descripcion}
-                                                                        </p>
-                                                                    </div>
-                                                                    <span className="text-xs text-gray-400">
-                                                                        {archivosCategoria.length}/{categoria.maxArchivos}
-                                                                    </span>
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                {categoriasVisibles.map(categoria => {
+                                                    const archivosCategoria = archivosPorCategoria.find(
+                                                        a => a.categoria === categoria.id
+                                                    )?.files || []
+
+                                                    return (
+                                                        <div
+                                                            key={categoria.id}
+                                                            className={`p-4 rounded-lg border-2 border-dashed transition-colors ${archivosCategoria.length > 0
+                                                                ? 'border-green-300 bg-green-50'
+                                                                : categoria.requerido
+                                                                    ? 'border-amber-300 bg-amber-50'
+                                                                    : 'border-gray-200 bg-gray-50'
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-start justify-between mb-2">
+                                                                <div>
+                                                                    <h4 className="font-medium text-gray-800 text-sm">
+                                                                        {categoria.label}
+                                                                        {categoria.requerido && (
+                                                                            <span className="text-red-500 ml-1">*</span>
+                                                                        )}
+                                                                    </h4>
+                                                                    <p className="text-xs text-gray-500">
+                                                                        {categoria.descripcion}
+                                                                    </p>
                                                                 </div>
-
-                                                                {/* Lista de archivos */}
-                                                                {archivosCategoria.length > 0 && (
-                                                                    <div className="space-y-1 mb-2">
-                                                                        {archivosCategoria.map((file, index) => (
-                                                                            <div
-                                                                                key={index}
-                                                                                className="flex items-center justify-between bg-white px-2 py-1 rounded text-xs"
-                                                                            >
-                                                                                <div className="flex items-center gap-1 truncate flex-1">
-                                                                                    <FileText size={12} className="text-gray-400 flex-shrink-0" />
-                                                                                    <span className="truncate">{file.name}</span>
-                                                                                </div>
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={() => handleRemoveFile(categoria.id, index)}
-                                                                                    className="p-0.5 hover:bg-red-100 rounded text-red-500"
-                                                                                >
-                                                                                    <Trash2 size={12} />
-                                                                                </button>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                )}
-
-                                                                {/* Input de archivo */}
-                                                                {archivosCategoria.length < categoria.maxArchivos && (
-                                                                    <label className="flex items-center justify-center gap-2 p-2 bg-white rounded border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
-                                                                        <Plus size={16} className="text-gray-400" />
-                                                                        <span className="text-xs text-gray-500">
-                                                                            Agregar archivo
-                                                                        </span>
-                                                                        <input
-                                                                            type="file"
-                                                                            accept=".pdf,.jpg,.jpeg,.png"
-                                                                            multiple
-                                                                            onChange={(e) => handleFilesChange(categoria.id, e.target.files)}
-                                                                            className="hidden"
-                                                                        />
-                                                                    </label>
-                                                                )}
+                                                                <span className="text-xs text-gray-400">
+                                                                    {archivosCategoria.length}/{categoria.maxArchivos}
+                                                                </span>
                                                             </div>
-                                                        )
-                                                    })}
-                                                </div>
 
-                                                {/* Error de envío */}
-                                                {submitError && (
-                                                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
-                                                        <AlertCircle size={18} className="text-red-500" />
-                                                        <p className="text-sm text-red-600">{submitError}</p>
-                                                    </div>
-                                                )}
+                                                            {/* Lista de archivos */}
+                                                            {archivosCategoria.length > 0 && (
+                                                                <div className="space-y-1 mb-2">
+                                                                    {archivosCategoria.map((file, index) => (
+                                                                        <div
+                                                                            key={index}
+                                                                            className="flex items-center justify-between bg-white px-2 py-1 rounded text-xs"
+                                                                        >
+                                                                            <div className="flex items-center gap-1 truncate flex-1">
+                                                                                <FileText size={12} className="text-gray-400 flex-shrink-0" />
+                                                                                <span className="truncate">{file.name}</span>
+                                                                            </div>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleRemoveFile(categoria.id, index)}
+                                                                                className="p-0.5 hover:bg-red-100 rounded text-red-500"
+                                                                            >
+                                                                                <Trash2 size={12} />
+                                                                            </button>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
 
-                                                {/* Botón de Envío */}
-                                                <div className="mt-6 flex justify-end">
-                                                    <Button
-                                                        onClick={handleSubmit}
-                                                        isLoading={submitState === 'loading'}
-                                                        leftIcon={<Send size={18} />}
-                                                        disabled={getTotalArchivos() === 0}
-                                                        className="px-8"
-                                                    >
-                                                        Radicar Soportes
-                                                    </Button>
+                                                            {/* Input de archivo */}
+                                                            {archivosCategoria.length < categoria.maxArchivos && (
+                                                                <label className="flex items-center justify-center gap-2 p-2 bg-white rounded border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors">
+                                                                    <Plus size={16} className="text-gray-400" />
+                                                                    <span className="text-xs text-gray-500">
+                                                                        Agregar archivo
+                                                                    </span>
+                                                                    <input
+                                                                        type="file"
+                                                                        accept=".pdf,.jpg,.jpeg,.png"
+                                                                        multiple
+                                                                        onChange={(e) => handleFilesChange(categoria.id, e.target.files)}
+                                                                        className="hidden"
+                                                                    />
+                                                                </label>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+
+                                            {/* Error de envío */}
+                                            {submitError && (
+                                                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                                                    <AlertCircle size={18} className="text-red-500" />
+                                                    <p className="text-sm text-red-600">{submitError}</p>
                                                 </div>
-                                            </Card.Body>
-                                        </Card>
-                                    </div>
-                                )}
+                                            )}
+
+                                            {/* Botón de Envío */}
+                                            <div className="mt-6 flex justify-end">
+                                                <Button
+                                                    onClick={handleSubmit}
+                                                    isLoading={submitState === 'loading'}
+                                                    leftIcon={<Send size={18} />}
+                                                    disabled={getTotalArchivos() === 0 || !fechaAtencion || (requiereIdentificacion && !afiliado)}
+                                                    className="px-8"
+                                                >
+                                                    Radicar Soportes
+                                                </Button>
+                                            </div>
+                                        </Card.Body>
+                                    </Card>
+                                </div>
                             </div>
                         </LoadingOverlay>
                     )}
@@ -805,7 +863,10 @@ export function SoportesFacturacionPage() {
             {/* ============================================ */}
             {/* CONTENIDO: GESTIÓN DE RADICADOS */}
             {/* ============================================ */}
-            {vistaActual === 'gestion' && (
+            {/* ============================================ */}
+            {/* CONTENIDO: GESTIÓN DE RADICADOS */}
+            {/* ============================================ */}
+            {vistaActual === 'gestion' && isAdmin && (
                 <GestionRadicadosView />
             )}
         </div>

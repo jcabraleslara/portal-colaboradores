@@ -11,7 +11,7 @@ import {
     CheckCircle,
     Cloud,
 } from 'lucide-react'
-import { Button } from '@/components/common'
+import { Button, PdfViewerModal } from '@/components/common'
 import { soportesFacturacionService } from '@/services/soportesFacturacion.service'
 import {
     SoporteFacturacion,
@@ -32,6 +32,7 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
     const [guardando, setGuardando] = useState(false)
     const [nuevoEstado, setNuevoEstado] = useState<EstadoSoporteFacturacion>(caso.estado)
     const [observaciones, setObservaciones] = useState(caso.observacionesFacturacion || '')
+    const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null)
 
     // ============================================
     // AGREGAR ARCHIVOS
@@ -231,17 +232,15 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {archivos.map((file, idx) => (
-                                    <a
+                                    <button
                                         key={idx}
-                                        href={file.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-start p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm hover:bg-blue-50 transition-all group"
+                                        onClick={() => setPdfModal({ url: file.url, title: file.nombre })}
+                                        className="flex items-start p-3 w-full text-left rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm hover:bg-blue-50 transition-all group"
                                     >
                                         <div className="p-2 bg-blue-100 text-blue-600 rounded-md mr-3 group-hover:bg-blue-200 transaction-colors">
                                             <FileText size={18} />
                                         </div>
-                                        <div className="overflow-hidden">
+                                        <div className="overflow-hidden flex-1">
                                             <p className="text-sm font-medium text-gray-900 truncate" title={file.nombre}>
                                                 {file.nombre}
                                             </p>
@@ -249,8 +248,8 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                                                 {CATEGORIAS_ARCHIVOS.find(c => c.id === file.categoria)?.label || file.categoria}
                                             </p>
                                         </div>
-                                        <ExternalLink size={14} className="ml-auto text-gray-300 group-hover:text-blue-400" />
-                                    </a>
+                                        <ExternalLink size={14} className="ml-2 text-gray-300 group-hover:text-blue-400" />
+                                    </button>
                                 ))}
                             </div>
                         )}
@@ -314,6 +313,15 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                     </Button>
                 </div>
             </div>
+
+            {/* Modal de PDF */}
+            {pdfModal && (
+                <PdfViewerModal
+                    url={pdfModal.url}
+                    title={pdfModal.title}
+                    onClose={() => setPdfModal(null)}
+                />
+            )}
         </>
     )
 }

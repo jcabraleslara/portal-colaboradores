@@ -40,7 +40,6 @@ const TIPOS_ID = [
 const EPS_LISTA = [
     'NUEVA EPS',
     'SALUD TOTAL',
-    'MUTUAL SER',
     'FAMILIAR',
     'SANITAS',
     'COMPENSAR',

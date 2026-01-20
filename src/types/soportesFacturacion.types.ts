@@ -4,27 +4,25 @@
  */
 
 // EPS disponibles para facturación
-export type EpsFacturacion = 
+export type EpsFacturacion =
     | 'NUEVA EPS'
     | 'SALUD TOTAL'
-    | 'MUTUAL SER'
     | 'FAMILIAR'
 
 // Régimen del afiliado
-export type RegimenFacturacion = 
+export type RegimenFacturacion =
     | 'CONTRIBUTIVO'
     | 'SUBSIDIADO'
 
-// Servicios prestados
+// Servicios prestados (según JotForm)
 export type ServicioPrestado =
-    | 'Laboratorio'
-    | 'Imágenes'
-    | 'Consulta Especializada'
-    | 'Procedimiento'
-    | 'Cirugía'
-    | 'Hospitalización'
-    | 'Urgencias'
+    | 'Consulta Ambulatoria'
+    | 'Procedimientos Menores'
+    | 'Imágenes Diagnósticas'
+    | 'Cirugía ambulatoria'
     | 'Terapias'
+    | 'Aplicación de medicamentos'
+    | 'Laboratorio clínico'
 
 // Estados del radicado
 export type EstadoSoporteFacturacion =
@@ -61,23 +59,23 @@ export interface SoporteFacturacion {
     fechaRadicacion: Date
     radicadorEmail: string
     radicadorNombre: string | null
-    
+
     // Datos del servicio
     eps: EpsFacturacion
     regimen: RegimenFacturacion
     servicioPrestado: ServicioPrestado
     fechaAtencion: Date
-    
+
     // Datos del paciente
     tipoId: string | null
     identificacion: string | null
     nombresCompletos: string | null
     bdId: string | null
-    
+
     // Estado
     estado: EstadoSoporteFacturacion
     observacionesFacturacion: string | null
-    
+
     // URLs de archivos
     urlsValidacionDerechos: string[]
     urlsAutorizacion: string[]
@@ -89,13 +87,13 @@ export interface SoporteFacturacion {
     urlsRegistroAnestesia: string[]
     urlsHojaMedicamentos: string[]
     urlsNotasEnfermeria: string[]
-    
+
     // OneDrive
     onedriveFolderId: string | null
     onedriveFolderUrl: string | null
     onedriveSyncStatus: OneDriveSyncStatus
     onedriveSyncAt: Date | null
-    
+
     // Auditoría
     createdAt: Date
     updatedAt: Date
@@ -177,7 +175,6 @@ export interface CategoriaArchivoConfig {
 export const EPS_FACTURACION_LISTA: EpsFacturacion[] = [
     'NUEVA EPS',
     'SALUD TOTAL',
-    'MUTUAL SER',
     'FAMILIAR',
 ]
 
@@ -187,16 +184,15 @@ export const REGIMEN_FACTURACION_LISTA: { value: RegimenFacturacion; label: stri
     { value: 'SUBSIDIADO', label: 'Subsidiado' },
 ]
 
-// Lista de Servicios
+// Lista de Servicios (según JotForm)
 export const SERVICIOS_PRESTADOS_LISTA: ServicioPrestado[] = [
-    'Laboratorio',
-    'Imágenes',
-    'Consulta Especializada',
-    'Procedimiento',
-    'Cirugía',
-    'Hospitalización',
-    'Urgencias',
+    'Consulta Ambulatoria',
+    'Procedimientos Menores',
+    'Imágenes Diagnósticas',
+    'Cirugía ambulatoria',
     'Terapias',
+    'Aplicación de medicamentos',
+    'Laboratorio clínico',
 ]
 
 // Lista de Estados
@@ -220,7 +216,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         prefijos: {
             'NUEVA EPS': 'PDE2_900842629_',
             'SALUD TOTAL': 'OPF_900842629_',
-            'MUTUAL SER': 'VAL_900842629_',
             'FAMILIAR': 'OPF_900842629_',
         },
     },
@@ -233,7 +228,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         prefijos: {
             'NUEVA EPS': 'PDE_900842629_',
             'SALUD TOTAL': 'OPF_900842629_',
-            'MUTUAL SER': 'AUT_900842629_',
             'FAMILIAR': 'PDE_900842629_',
         },
     },
@@ -246,7 +240,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         prefijos: {
             'NUEVA EPS': 'HEV_900842629_',
             'SALUD TOTAL': 'HEV_900842629_',
-            'MUTUAL SER': 'HCL_900842629_',
             'FAMILIAR': 'HEV_900842629_',
         },
     },
@@ -259,7 +252,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         prefijos: {
             'NUEVA EPS': 'CRC_900842629_',
             'SALUD TOTAL': 'CRC_900842629_',
-            'MUTUAL SER': 'CRC_900842629_',
             'FAMILIAR': 'CRC_900842629_',
         },
     },
@@ -272,7 +264,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         prefijos: {
             'NUEVA EPS': 'PDE3_900842629_',
             'SALUD TOTAL': 'DFV_900842629_',
-            'MUTUAL SER': 'RCJ_900842629_',
             'FAMILIAR': 'RCJ_900842629_',
         },
     },
@@ -285,7 +276,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         prefijos: {
             'NUEVA EPS': 'PDX_900842629_',
             'SALUD TOTAL': 'PDX_900842629_',
-            'MUTUAL SER': 'ORD_900842629_',
             'FAMILIAR': 'PDX_900842629_',
         },
     },
@@ -298,7 +288,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         prefijos: {
             'NUEVA EPS': 'DQX_900842629_',
             'SALUD TOTAL': 'DQX_900842629_',
-            'MUTUAL SER': 'DQX_900842629_',
             'FAMILIAR': 'DQX_900842629_',
         },
     },
@@ -311,7 +300,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         prefijos: {
             'NUEVA EPS': 'RAN_900842629_',
             'SALUD TOTAL': 'RAN_900842629_',
-            'MUTUAL SER': 'RAN_900842629_',
             'FAMILIAR': 'RAN_900842629_',
         },
     },
@@ -324,7 +312,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         prefijos: {
             'NUEVA EPS': 'HAM_900842629_',
             'SALUD TOTAL': 'HAM_900842629_',
-            'MUTUAL SER': 'HAM_900842629_',
             'FAMILIAR': 'HAM_900842629_',
         },
     },
@@ -337,7 +324,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         prefijos: {
             'NUEVA EPS': 'NEF_900842629_',
             'SALUD TOTAL': 'NEF_900842629_',
-            'MUTUAL SER': 'NEF_900842629_',
             'FAMILIAR': 'NEF_900842629_',
         },
     },
