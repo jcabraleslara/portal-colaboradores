@@ -53,7 +53,7 @@ CRITERIOS DE EVALUACIÓN PARA CONTRA REFERENCIA:
 
 FORMATO DE RESPUESTA - CONTRA REFERENCIA:
 
-Genera una CONTRA REFERENCIA técnica y concisa con el siguiente formato:
+Genera una CONTRA REFERENCIA técnica y completa con el siguiente formato:
 
 ---
 
@@ -68,13 +68,15 @@ Se contra remite el caso al primer nivel de atención por las siguientes razones
 
 ---
 
-INSTRUCCIONES:
+INSTRUCCIONES IMPORTANTES:
+- Cada punto (1-4) debe tener 2-3 oraciones explicativas que fundamenten la decisión
 - Sé técnico pero claro en tu lenguaje médico
-- Cada punto debe tener 1-2 oraciones explicativas (no más)
+- Proporciona criterios clínicos específicos y objetivos
 - No recomendar: terapias físicas, ecografías, resonancias, pruebas de aliento para helicobacter, ni tomografías
 - La respuesta debe arrancar directamente con "CONTRA REFERENCIA"
 - NO incluir introducciones, encabezados previos, ni preguntas finales
-- NO incluir citation markers [1], [2], etc.`
+- NO incluir citation markers [1], [2], etc.
+- Asegurar que TODOS los 4 puntos estén desarrollados`
 
 export default async function handler(
     req: VercelRequest,
@@ -136,7 +138,7 @@ export default async function handler(
                         }],
                         generationConfig: {
                             temperature: 0.1,
-                            maxOutputTokens: 1500,
+                            maxOutputTokens: 2000,  // Balance entre concisión y rigor médico
                             topP: 0.95,
                             topK: 40
                         }
