@@ -72,6 +72,9 @@ export interface DemandaFilters {
     clasificacion?: 'Efectivo' | 'No Efectivo'
     page?: number
     pageSize?: number
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+    busqueda?: string
 }
 
 export interface PaginatedResponse<T> {
@@ -80,11 +83,16 @@ export interface PaginatedResponse<T> {
 }
 
 export interface DemandaMetrics {
-    totalCasos: number
+    topColaborador: {
+        nombre: string
+        totalCasos: number
+        efectividad: number
+    } | null
     casosEfectivos: number
     casosNoEfectivos: number
     casosMesActual: number
     porcentajeEfectividad: number
+    porcentajeNoEfectividad: number
 }
 
 // Opciones para los selectsdel formulario

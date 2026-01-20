@@ -14,6 +14,9 @@ import {
     Filter,
     FileText,
     Search,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
 } from 'lucide-react'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -26,9 +29,10 @@ export default function GestionDemandaInducidaView() {
     const [metrics, setMetrics] = useState<DemandaMetrics | null>(null)
     const [loading, setLoading] = useState(true)
 
-    // Paginación
+    // Paginación y Ordenamiento
     const [currentPage, setCurrentPage] = useState(1)
     const [totalItems, setTotalItems] = useState(0)
+    const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null)
     const ITEMS_PER_PAGE = 20
 
     const [colaboradores, setColaboradores] = useState<string[]>([])
@@ -41,6 +45,7 @@ export default function GestionDemandaInducidaView() {
         colaborador: '',
         programa: '',
         clasificacion: undefined,
+        busqueda: '',
     })
 
     /**
@@ -52,21 +57,29 @@ export default function GestionDemandaInducidaView() {
     }, [])
 
     /**
-     * Recargar cuando cambian filtros o página
+     * Recargar cuando cambian filtros, página u ordenamiento
      */
     useEffect(() => {
         if (!loading) {
             loadData()
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filters, currentPage])
+    }, [filters, currentPage, sortConfig])
 
     const loadData = async () => {
         setLoading(true)
         try {
+            const queryFilters: DemandaFilters = {
+                ...filters,
+                page: currentPage,
+                pageSize: ITEMS_PER_PAGE,
+                sortBy: sortConfig?.key,
+                sortOrder: sortConfig?.direction
+            }
+
             const [response, metricsData] = await Promise.all([
-                demandaInducidaService.getAll({ ...filters, page: currentPage, pageSize: ITEMS_PER_PAGE }),
-                demandaInducidaService.getMetrics(filters),
+                demandaInducidaService.getAll(queryFilters),
+                demandaInducidaService.getMetrics(filters), // Métricas usan filtros base
             ])
             setCasos(response.data)
             setTotalItems(response.count)
@@ -76,6 +89,56 @@ export default function GestionDemandaInducidaView() {
         } finally {
             setLoading(false)
         }
+    }
+
+    // Renderizar icono de ordenamiento
+    const renderSortIcon = (columnKey: string) => {
+        if (sortConfig?.key !== columnKey) return <ArrowUpDown size={14} className="text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+        return sortConfig.direction === 'asc'
+            ? <ArrowUp size={14} className="text-primary-500" />
+            : <ArrowDown size={14} className="text-primary-500" />
+    }
+
+    // Manejador de ordenamiento
+    const handleSort = (key: string) => {
+        setSortConfig((current) => {
+            if (current?.key === key) {
+                if (current.direction === 'asc') return { key, direction: 'desc' }
+                return null // Tercer clic quita ordenamiento
+            }
+            return { key, direction: 'asc' }
+        })
+    }
+
+    // Clic en tarjetas filtra la tabla
+    const handleCardClick = (type: 'top' | 'efectivas' | 'no-efectivas' | 'mes') => {
+        if (!metrics) return
+
+        const nuevosFiltros = { ...filters }
+
+        switch (type) {
+            case 'top':
+                if (metrics.topColaborador) {
+                    nuevosFiltros.colaborador = metrics.topColaborador.nombre
+                }
+                break
+            case 'efectivas':
+                nuevosFiltros.clasificacion = 'Efectivo'
+                break
+            case 'no-efectivas':
+                nuevosFiltros.clasificacion = 'No Efectivo'
+                break
+            case 'mes':
+                const hoy = new Date()
+                const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0]
+                const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0]
+                nuevosFiltros.fechaInicio = primerDia
+                nuevosFiltros.fechaFin = ultimoDia
+                break
+        }
+
+        setFilters(nuevosFiltros)
+        setCurrentPage(1)
     }
 
     const loadOptions = async () => {
@@ -99,8 +162,10 @@ export default function GestionDemandaInducidaView() {
             colaborador: '',
             programa: '',
             clasificacion: undefined,
+            busqueda: '',
         })
         setCurrentPage(1)
+        setSortConfig(null)
     }
 
     const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE)
@@ -148,42 +213,80 @@ export default function GestionDemandaInducidaView() {
                 </button>
             </div>
 
-            {/* Tarjetas de Métricas */}
+            {/* Tarjetas de Métricas Clickeables */}
             {metrics && (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    {/* Top Colaborador */}
+                    <div
+                        onClick={() => handleCardClick('top')}
+                        className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg transition-all cursor-pointer hover:scale-[1.02]"
+                    >
+                        <div className="flex items-start justify-between mb-4">
+                            <div className="p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl">
+                                <FileText className="text-white" size={20} />
+                            </div>
+                        </div>
+                        <h3 className="text-sm font-semibold text-slate-600 mb-1">Top Colaborador</h3>
+                        {metrics.topColaborador ? (
+                            <>
+                                <p className="text-lg font-bold text-slate-900 truncate" title={metrics.topColaborador.nombre}>
+                                    {metrics.topColaborador.nombre}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                    {metrics.topColaborador.totalCasos} casos • {metrics.topColaborador.efectividad.toFixed(1)}% efectividad
+                                </p>
+                            </>
+                        ) : (
+                            <p className="text-lg font-bold text-slate-400">Sin datos</p>
+                        )}
+                    </div>
                     <MetricCard
-                        titulo="Total Casos"
-                        valor={metrics.totalCasos}
-                        icono={<FileText className="text-primary-500" />}
-                        color="primary"
-                    />
-                    <MetricCard
+                        onClick={() => handleCardClick('efectivas')}
                         titulo="Llamadas Efectivas"
                         valor={metrics.casosEfectivos}
                         subtitulo={`${metrics.porcentajeEfectividad.toFixed(1)}%`}
-                        icono={<Phone className="text-green-500" />}
+                        subtituloColor="green"
+                        icono={<Phone className="text-white" size={20} />}
                         color="green"
                     />
                     <MetricCard
+                        onClick={() => handleCardClick('no-efectivas')}
                         titulo="Llamadas No Efectivas"
                         valor={metrics.casosNoEfectivos}
-                        icono={<PhoneOff className="text-amber-500" />}
+                        subtitulo={`${metrics.porcentajeNoEfectividad.toFixed(1)}%`}
+                        subtituloColor="red"
+                        icono={<PhoneOff className="text-white" size={20} />}
                         color="amber"
                     />
                     <MetricCard
+                        onClick={() => handleCardClick('mes')}
                         titulo="Casos Este Mes"
                         valor={metrics.casosMesActual}
-                        icono={<Calendar className="text-blue-500" />}
+                        icono={<Calendar className="text-white" size={20} />}
                         color="blue"
                     />
                 </div>
             )}
 
-            {/* Filtros */}
+            {/* Filtros y Buscador */}
             <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border border-slate-200 p-6">
-                <div className="flex items-center gap-3 mb-4">
-                    <Filter size={20} className="text-slate-600" />
-                    <h3 className="font-bold text-slate-900">Filtros de Búsqueda</h3>
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <div className="flex items-center gap-3">
+                        <Filter size={20} className="text-slate-600" />
+                        <h3 className="font-bold text-slate-900">Filtros de Búsqueda</h3>
+                    </div>
+
+                    {/* Buscador Potente */}
+                    <div className="relative w-full md:w-96">
+                        <input
+                            type="text"
+                            placeholder="Buscar por identificación del paciente..."
+                            value={filters.busqueda}
+                            onChange={(e) => handleFilterChange('busqueda', e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-primary-500 shadow-sm"
+                        />
+                        <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -304,20 +407,50 @@ export default function GestionDemandaInducidaView() {
                             <table className="w-full">
                                 <thead className="bg-slate-50 border-b border-slate-200">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                            Fecha
+                                        <th
+                                            className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer group hover:bg-slate-100 transition-colors"
+                                            onClick={() => handleSort('fechaGestion')}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                Fecha
+                                                {renderSortIcon('fechaGestion')}
+                                            </div>
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                            Identificación
+                                        <th
+                                            className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer group hover:bg-slate-100 transition-colors"
+                                            onClick={() => handleSort('pacienteId')}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                Identificación
+                                                {renderSortIcon('pacienteId')}
+                                            </div>
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                            Clasificación
+                                        <th
+                                            className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer group hover:bg-slate-100 transition-colors"
+                                            onClick={() => handleSort('clasificacion')}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                Clasificación
+                                                {renderSortIcon('clasificacion')}
+                                            </div>
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                            Programa
+                                        <th
+                                            className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer group hover:bg-slate-100 transition-colors"
+                                            onClick={() => handleSort('programaDireccionado')}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                Programa
+                                                {renderSortIcon('programaDireccionado')}
+                                            </div>
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
-                                            Colaborador
+                                        <th
+                                            className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider cursor-pointer group hover:bg-slate-100 transition-colors"
+                                            onClick={() => handleSort('colaborador')}
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                Colaborador
+                                                {renderSortIcon('colaborador')}
+                                            </div>
                                         </th>
                                         <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
                                             Resultado
@@ -397,14 +530,18 @@ function MetricCard({
     titulo,
     valor,
     subtitulo,
+    subtituloColor,
     icono,
     color,
+    onClick,
 }: {
     titulo: string
     valor: number
     subtitulo?: string
+    subtituloColor?: 'green' | 'red'
     icono: React.ReactNode
     color: 'primary' | 'green' | 'amber' | 'blue'
+    onClick?: () => void
 }) {
     const colorClasses = {
         primary: 'from-primary-500 to-primary-600',
@@ -413,15 +550,27 @@ function MetricCard({
         blue: 'from-blue-500 to-blue-600',
     }
 
+    const subtituloClasses = {
+        green: 'text-green-600',
+        red: 'text-red-600',
+    }
+
     return (
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg transition-shadow">
+        <div
+            onClick={onClick}
+            className={`bg-white rounded-2xl border border-slate-200 p-6 transition-all ${onClick ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02]' : 'hover:shadow-lg'}`}
+        >
             <div className="flex items-start justify-between mb-4">
                 <div className={`p-3 bg-gradient-to-br ${colorClasses[color]} rounded-xl`}>{icono}</div>
             </div>
             <h3 className="text-sm font-semibold text-slate-600 mb-1">{titulo}</h3>
             <div className="flex items-baseline gap-2">
                 <p className="text-3xl font-bold text-slate-900">{valor.toLocaleString()}</p>
-                {subtitulo && <p className="text-sm font-semibold text-green-600">{subtitulo}</p>}
+                {subtitulo && (
+                    <p className={`text-sm font-semibold ${subtituloClasses[subtituloColor || 'green']}`}>
+                        {subtitulo}
+                    </p>
+                )}
             </div>
         </div>
     )

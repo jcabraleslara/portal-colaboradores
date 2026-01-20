@@ -107,10 +107,29 @@ import type { PaginatedResponse } from '@/types/demandaInducida' // Asegurar imp
 async function getAll(filters?: DemandaFilters): Promise<PaginatedResponse<DemandaInducida>> {
     let query = supabase
         .from('demanda_inducida')
-        .select('*', { count: 'exact' }) // Solicitar conteo exacto
-        .order('fecha_gestion', { ascending: false })
+        .select('*', { count: 'exact' })
+
+    // Ordenamiento
+    if (filters?.sortBy) {
+        // Mapeo de campos frontend a DB si es necesario
+        const sortField = filters.sortBy === 'fechaGestion' ? 'fecha_gestion' :
+            filters.sortBy === 'pacienteId' ? 'paciente_id' :
+                filters.sortBy === 'clasificacion' ? 'clasificacion' :
+                    filters.sortBy === 'programaDireccionado' ? 'programa_direccionado' :
+                        filters.sortBy === 'colaborador' ? 'colaborador' :
+                            'fecha_gestion'
+
+        query = query.order(sortField, { ascending: filters.sortOrder === 'asc' })
+    } else {
+        query = query.order('fecha_gestion', { ascending: false })
+    }
 
     // Aplicar filtros
+    if (filters?.busqueda) {
+        // Búsqueda por identificación del paciente
+        query = query.ilike('paciente_id', `%${filters.busqueda}%`)
+    }
+
     if (filters?.fechaInicio) {
         query = query.gte('fecha_gestion', filters.fechaInicio)
     }
@@ -252,13 +271,43 @@ async function getMetrics(filters?: DemandaFilters): Promise<DemandaMetrics> {
     const casosNoEfectivos = casos.filter((c) => c.clasificacion === 'No Efectivo').length
     const casosMesActual = casosMes?.length || 0
     const porcentajeEfectividad = totalCasos > 0 ? (casosEfectivos / totalCasos) * 100 : 0
+    const porcentajeNoEfectividad = totalCasos > 0 ? (casosNoEfectivos / totalCasos) * 100 : 0
+
+    // Calcular top colaborador (mayor registros + mayor efectividad)
+    const colaboradorStats = new Map<string, { total: number; efectivos: number }>()
+    casos.forEach((c) => {
+        const nombre = c.colaborador
+        if (!nombre) return
+        const stats = colaboradorStats.get(nombre) || { total: 0, efectivos: 0 }
+        stats.total++
+        if (c.clasificacion === 'Efectivo') stats.efectivos++
+        colaboradorStats.set(nombre, stats)
+    })
+
+    // Ordenar por: 1) Mayor efectividad, 2) Mayor registros
+    let topColaborador: { nombre: string; totalCasos: number; efectividad: number } | null = null
+    let maxScore = -1
+    colaboradorStats.forEach((stats, nombre) => {
+        const efectividad = stats.total > 0 ? (stats.efectivos / stats.total) * 100 : 0
+        // Score = efectividad ponderada + bonus por volumen
+        const score = efectividad + (stats.total / 100)
+        if (score > maxScore) {
+            maxScore = score
+            topColaborador = {
+                nombre,
+                totalCasos: stats.total,
+                efectividad,
+            }
+        }
+    })
 
     return {
-        totalCasos,
+        topColaborador,
         casosEfectivos,
         casosNoEfectivos,
         casosMesActual,
         porcentajeEfectividad,
+        porcentajeNoEfectividad,
     }
 }
 

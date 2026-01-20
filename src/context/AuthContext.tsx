@@ -234,17 +234,54 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 const currentEmail = session?.user?.email || null
 
                 // IMPORTANTE: Manejar sesión inicial y login
+                // Priorizar INITIAL_SESSION (refresh de página) sobre SIGNED_IN para evitar race conditions
                 if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session?.user) {
 
                     // Si ya procesamos este email, no hacer nada (evita bucles por re-renders del context)
                     if (lastProcessedEmail.current === currentEmail) {
+                        console.info('📦 Email ya procesado, omitiendo evento:', event)
                         setIsLoading(false)
                         return
+                    }
+
+                    // En refresh de página, INITIAL_SESSION es el evento "definitivo"
+                    // SIGNED_IN a veces llega antes pero la sesión aún no está lista
+                    // Estrategia: Para SIGNED_IN, esperar un pequeño delay antes de procesar
+                    // para dar chance a que INITIAL_SESSION llegue primero
+                    if (event === 'SIGNED_IN') {
+                        // Dar 100ms de gracia para que INITIAL_SESSION llegue primero si es refresh
+                        await new Promise(resolve => setTimeout(resolve, 100))
+                        // Re-verificar si ya fue procesado (INITIAL_SESSION pudo haber llegado)
+                        if (lastProcessedEmail.current === currentEmail) {
+                            console.info('📦 Email procesado durante delay, omitiendo SIGNED_IN')
+                            setIsLoading(false)
+                            return
+                        }
                     }
 
                     console.log('👤 Usuario detectado (Event:', event, '):', currentEmail)
                     lastProcessedEmail.current = currentEmail
 
+                    // Intentar obtener desde caché primero (para refreshes rápidos)
+                    const cachedProfile = getCachedProfile()
+                    if (cachedProfile && cachedProfile.email === currentEmail) {
+                        console.info('📦 Usando perfil desde caché para carga rápida')
+                        if (mounted) {
+                            setUser(cachedProfile)
+                            setIsLoading(false)
+                        }
+                        // Refrescar perfil en background sin bloquear
+                        fetchUserProfile(session.user.id, currentEmail || '').then(freshProfile => {
+                            if (mounted && freshProfile) {
+                                setUser(freshProfile)
+                            }
+                        }).catch(() => {
+                            // Ignorar errores en background refresh
+                        })
+                        return
+                    }
+
+                    // Sin caché, hacer fetch normal
                     const profile = await fetchUserProfile(
                         session.user.id,
                         currentEmail || ''
@@ -298,7 +335,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             clearTimeout(timeoutId)
             subscription.unsubscribe()
         }
-    }, [fetchUserProfile, clearProfileCache])
+    }, [fetchUserProfile, clearProfileCache, getCachedProfile])
 
     const value: AuthContextType = {
         user,
