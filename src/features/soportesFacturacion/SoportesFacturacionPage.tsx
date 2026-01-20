@@ -74,19 +74,26 @@ export function SoportesFacturacionPage() {
     // ============================================
     // LÓGICA CONDICIONAL (según JotForm)
     // ============================================
+    // Filtrar servicios disponibles según EPS
+    const serviciosDisponibles = SERVICIOS_PRESTADOS_LISTA.filter(servicio => {
+        // Cirugía ambulatoria SOLO disponible para SALUD TOTAL
+        if (servicio === 'Cirugía ambulatoria') {
+            return eps === 'SALUD TOTAL'
+        }
+        return true
+    })
+
     // Solo Cirugía ambulatoria de SALUD TOTAL requiere identificación del paciente
     const requiereIdentificacion = eps === 'SALUD TOTAL' && servicioPrestado === 'Cirugía ambulatoria'
 
     // Determinar qué campos de archivos mostrar según EPS y Servicio
-    const mostrarValidacionDerechos = eps !== 'SALUD TOTAL' ||
-        !['Consulta Ambulatoria'].includes(servicioPrestado)
+    // Validación de Derechos: NO mostrar para SALUD TOTAL (sin importar servicio)
+    const mostrarValidacionDerechos = eps !== 'SALUD TOTAL'
 
     const mostrarComprobanteRecibo = eps !== 'SALUD TOTAL' || servicioPrestado === 'Terapias'
 
-    const mostrarReciboCaja = !(eps === 'SALUD TOTAL' &&
-        ['Consulta Ambulatoria', 'Procedimientos Menores', 'Aplicación de medicamentos', 'Laboratorio clínico'].includes(servicioPrestado))
-
-    const mostrarOrdenMedica = eps === 'FAMILIAR' && servicioPrestado === 'Procedimientos Menores'
+    // Orden Médica: Siempre visible para FAMILIAR, o para NUEVA EPS en Procedimientos Menores
+    const mostrarOrdenMedica = eps === 'FAMILIAR' || (eps === 'NUEVA EPS' && servicioPrestado === 'Procedimientos Menores')
 
     // Campos quirúrgicos solo para Cirugía ambulatoria de SALUD TOTAL
     const mostrarCamposQuirurgicos = eps === 'SALUD TOTAL' && servicioPrestado === 'Cirugía ambulatoria'
@@ -96,7 +103,6 @@ export function SoportesFacturacionPage() {
         switch (cat.id) {
             case 'validacion_derechos': return mostrarValidacionDerechos
             case 'comprobante_recibo': return mostrarComprobanteRecibo
-            case 'recibo_caja': return mostrarReciboCaja
             case 'orden_medica': return mostrarOrdenMedica
             case 'descripcion_quirurgica':
             case 'registro_anestesia':
@@ -143,6 +149,13 @@ export function SoportesFacturacionPage() {
         }
     }, [afiliado?.id])
 
+    // Efecto para resetear servicioPrestado si ya no está disponible al cambiar EPS
+    useEffect(() => {
+        if (!serviciosDisponibles.includes(servicioPrestado)) {
+            setServicioPrestado(serviciosDisponibles[0])
+        }
+    }, [eps, serviciosDisponibles, servicioPrestado])
+
     // ============================================
     // HANDLERS - Búsqueda
     // ============================================
@@ -156,7 +169,6 @@ export function SoportesFacturacionPage() {
         setSearchError('')
         setAfiliado(null)
         setMostrarModalCrearAfiliado(false)
-        resetFormulario()
 
         const result = await afiliadosService.buscarPorDocumento(documento.trim())
 
@@ -611,7 +623,7 @@ export function SoportesFacturacionPage() {
                                                         onChange={(e) => setServicioPrestado(e.target.value as ServicioPrestado)}
                                                         className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
                                                     >
-                                                        {SERVICIOS_PRESTADOS_LISTA.map(s => (
+                                                        {serviciosDisponibles.map(s => (
                                                             <option key={s} value={s}>{s}</option>
                                                         ))}
                                                     </select>

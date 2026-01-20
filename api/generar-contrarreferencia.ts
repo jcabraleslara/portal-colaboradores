@@ -27,20 +27,20 @@ ESPECIALIDAD DE DESTINO: {especialidad}
 Se contra remite el caso al primer nivel de atención por las siguientes razones:
 
 1. **Criterios clínicos:** 
-[OBLIGATORIO: Escribe MÍNIMO 3 oraciones completas explicando las incongruencias clínicas, falta de justificación para la remisión, o por qué no se justifica el nivel de complejidad solicitado.]
+[OBLIGATORIO: Escribe MÍNIMO 2 oraciones completas explicando las incongruencias clínicas, falta de justificación para la remisión, o por qué no se justifica el nivel de complejidad solicitado.]
 
 2. **Tratamiento previo:** 
-[OBLIGATORIO: Escribe MÍNIMO 3 oraciones completas sobre qué tratamientos del primer nivel NO se han instaurado antes de remitir. Si no hay registro de tratamiento previo, indica que es motivo de contra referencia.]
+[OBLIGATORIO: Escribe MÍNIMO 2 oraciones completas sobre qué tratamientos del primer nivel NO se han instaurado antes de remitir. Si no hay registro de tratamiento previo, indica que es motivo de contra referencia.]
 
 3. **Estudios paraclínicos:** 
-[OBLIGATORIO: Escribe MÍNIMO 3 oraciones completas indicando qué estudios básicos del primer nivel faltan (hemograma, glicemia, EKG, radiografías simples). NO recomendar ecografías, resonancias ni tomografías.]
+[OBLIGATORIO: Escribe MÍNIMO 2 oraciones completas indicando qué estudios básicos del primer nivel faltan (hemograma, glicemia, EKG, radiografías simples). NO recomendar ecografías, resonancias ni tomografías.]
 
 4. **Completitud documental:** 
-[OBLIGATORIO: Escribe MÍNIMO 3 oraciones completas sobre elementos faltantes o inconsistencias en la historia clínica, anamnesis incompleta, o examen físico deficiente.]
+[OBLIGATORIO: Escribe MÍNIMO 2 oraciones completas sobre elementos faltantes o inconsistencias en la historia clínica, anamnesis incompleta, o examen físico deficiente.]
 
 === REGLAS ESTRICTAS ===
 - DEBES completar los 4 puntos OBLIGATORIAMENTE
-- Cada punto DEBE tener mínimo 3 oraciones explicativas
+- Cada punto DEBE tener mínimo 2 oraciones explicativas
 - NO puedes terminar antes de completar los 4 puntos
 - La respuesta debe arrancar directamente con "CONTRA REFERENCIA"
 - NO incluir introducciones ni citation markers [1], [2]

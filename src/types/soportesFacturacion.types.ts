@@ -45,7 +45,6 @@ export type CategoriaArchivo =
     | 'autorizacion'
     | 'soporte_clinico'
     | 'comprobante_recibo'
-    | 'recibo_caja'
     | 'orden_medica'
     | 'descripcion_quirurgica'
     | 'registro_anestesia'
@@ -81,7 +80,6 @@ export interface SoporteFacturacion {
     urlsAutorizacion: string[]
     urlsSoporteClinico: string[]
     urlsComprobanteRecibo: string[]
-    urlsReciboCaja: string[]
     urlsOrdenMedica: string[]
     urlsDescripcionQuirurgica: string[]
     urlsRegistroAnestesia: string[]
@@ -120,7 +118,6 @@ export interface SoporteFacturacionRaw {
     urls_autorizacion: string[]
     urls_soporte_clinico: string[]
     urls_comprobante_recibo: string[]
-    urls_recibo_caja: string[]
     urls_orden_medica: string[]
     urls_descripcion_quirurgica: string[]
     urls_registro_anestesia: string[]
@@ -212,7 +209,7 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         label: 'Validación de Derechos',
         descripcion: 'Documento de validación de derechos del afiliado',
         requerido: true,
-        maxArchivos: 3,
+        maxArchivos: Infinity,
         prefijos: {
             'NUEVA EPS': 'PDE2_900842629_',
             'SALUD TOTAL': 'OPF_900842629_',
@@ -224,7 +221,7 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         label: 'Autorización',
         descripcion: 'Autorización del servicio',
         requerido: true,
-        maxArchivos: 5,
+        maxArchivos: Infinity,
         prefijos: {
             'NUEVA EPS': 'PDE_900842629_',
             'SALUD TOTAL': 'OPF_900842629_',
@@ -236,7 +233,7 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         label: 'Soporte Clínico / Historia Clínica',
         descripcion: 'Historia clínica o evolución del paciente',
         requerido: true,
-        maxArchivos: 10,
+        maxArchivos: Infinity,
         prefijos: {
             'NUEVA EPS': 'HEV_900842629_',
             'SALUD TOTAL': 'HEV_900842629_',
@@ -248,7 +245,7 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         label: 'Comprobante de Recibo',
         descripcion: 'Comprobante de recepción del servicio',
         requerido: false,
-        maxArchivos: 2,
+        maxArchivos: Infinity,
         prefijos: {
             'NUEVA EPS': 'CRC_900842629_',
             'SALUD TOTAL': 'CRC_900842629_',
@@ -256,23 +253,11 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         },
     },
     {
-        id: 'recibo_caja',
-        label: 'Recibo de Caja',
-        descripcion: 'Recibo de pago o copago',
-        requerido: false,
-        maxArchivos: 2,
-        prefijos: {
-            'NUEVA EPS': 'PDE3_900842629_',
-            'SALUD TOTAL': 'DFV_900842629_',
-            'FAMILIAR': 'RCJ_900842629_',
-        },
-    },
-    {
         id: 'orden_medica',
         label: 'Orden Médica',
         descripcion: 'Orden médica del procedimiento',
         requerido: false,
-        maxArchivos: 5,
+        maxArchivos: Infinity,
         prefijos: {
             'NUEVA EPS': 'PDX_900842629_',
             'SALUD TOTAL': 'PDX_900842629_',
@@ -284,7 +269,7 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         label: 'Descripción Quirúrgica',
         descripcion: 'Descripción del procedimiento quirúrgico',
         requerido: false,
-        maxArchivos: 3,
+        maxArchivos: Infinity,
         prefijos: {
             'NUEVA EPS': 'DQX_900842629_',
             'SALUD TOTAL': 'DQX_900842629_',
@@ -296,7 +281,7 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         label: 'Registro de Anestesia',
         descripcion: 'Registro del procedimiento anestésico',
         requerido: false,
-        maxArchivos: 3,
+        maxArchivos: Infinity,
         prefijos: {
             'NUEVA EPS': 'RAN_900842629_',
             'SALUD TOTAL': 'RAN_900842629_',
@@ -308,7 +293,7 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         label: 'Hoja de Medicamentos',
         descripcion: 'Registro de medicamentos administrados',
         requerido: false,
-        maxArchivos: 5,
+        maxArchivos: Infinity,
         prefijos: {
             'NUEVA EPS': 'HAM_900842629_',
             'SALUD TOTAL': 'HAM_900842629_',
@@ -320,7 +305,7 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         label: 'Notas de Enfermería',
         descripcion: 'Registro de notas de enfermería',
         requerido: false,
-        maxArchivos: 5,
+        maxArchivos: Infinity,
         prefijos: {
             'NUEVA EPS': 'NEF_900842629_',
             'SALUD TOTAL': 'NEF_900842629_',

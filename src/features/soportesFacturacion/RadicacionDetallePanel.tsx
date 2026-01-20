@@ -63,7 +63,6 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
         procesar(caso.urlsAutorizacion, 'autorizacion')
         procesar(caso.urlsSoporteClinico, 'soporte_clinico')
         procesar(caso.urlsComprobanteRecibo, 'comprobante_recibo')
-        procesar(caso.urlsReciboCaja, 'recibo_caja')
         procesar(caso.urlsOrdenMedica, 'orden_medica')
         procesar(caso.urlsDescripcionQuirurgica, 'descripcion_quirurgica')
         procesar(caso.urlsRegistroAnestesia, 'registro_anestesia')
@@ -189,6 +188,19 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                                 <div className="flex items-center gap-2">
                                     <Activity size={16} className="text-gray-400" />
                                     <p className="text-sm text-gray-900">{caso.servicioPrestado}</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-xs text-gray-500 block mb-1">Radicado Por</label>
+                                <div className="flex items-start gap-2">
+                                    <User size={16} className="text-gray-400 mt-0.5" />
+                                    <div>
+                                        <p className="text-sm font-medium text-gray-900">
+                                            {caso.radicadorNombre || 'Sin nombre'}
+                                        </p>
+                                        <p className="text-xs text-gray-500">{caso.radicadorEmail}</p>
+                                    </div>
                                 </div>
                             </div>
 
