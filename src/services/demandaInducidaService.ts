@@ -3,7 +3,7 @@
  * Maneja CRUD y lógica de negocio para casos de demanda inducida
  */
 
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/config/supabase.config'
 import type {
     DemandaInducida,
     DemandaInducidaFormData,
@@ -229,7 +229,7 @@ async function getMetrics(filters?: DemandaFilters): Promise<DemandaMetrics> {
         .toISOString()
         .split('T')[0]
 
-    const { data: casosMes, error: errorMes } = await supabase
+    const { data: casosMes } = await supabase
         .from('demanda_inducida')
         .select('id')
         .gte('fecha_gestion', primerDiaMes)
@@ -263,7 +263,7 @@ async function getColaboradores(): Promise<string[]> {
     }
 
     // Obtener valores únicos
-    const colaboradores = [...new Set(data.map((d) => d.colaborador))].filter(Boolean)
+    const colaboradores = [...new Set(data.map((d: any) => d.colaborador))].filter(Boolean)
     return colaboradores as string[]
 }
 
@@ -281,7 +281,7 @@ async function getProgramas(): Promise<string[]> {
     }
 
     // Obtener valores únicos
-    const programas = [...new Set(data.map((d) => d.programa_direccionado))].filter(Boolean)
+    const programas = [...new Set(data.map((d: any) => d.programa_direccionado))].filter(Boolean)
     return programas as string[]
 }
 
