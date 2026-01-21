@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     X, User, Calendar, Phone, MapPin, ClipboardList,
     Info, Timer, FileText, Edit2, Save, Activity,
@@ -104,6 +104,26 @@ export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetalleP
     const [formData, setFormData] = useState<Partial<DemandaInducida>>({ ...caso })
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [pacienteNombre, setPacienteNombre] = useState<string>('Cargando...')
+
+    // Cargar nombre del paciente si no viene en el caso
+    useEffect(() => {
+        const fetchPaciente = async () => {
+            try {
+                const results = await demandaInducidaService.buscarPacientes(caso.pacienteId)
+                const p = results.find(r => r.id === caso.pacienteId)
+                if (p) {
+                    setPacienteNombre(`${p.nombres} ${p.apellido1} ${p.apellido2}`.trim())
+                } else {
+                    setPacienteNombre('No encontrado en base de datos')
+                }
+            } catch (err) {
+                console.error('Error cargando paciente:', err)
+                setPacienteNombre('Error al cargar')
+            }
+        }
+        fetchPaciente()
+    }, [caso.pacienteId])
 
     // Verificar permisos
     const canEdit = user?.rol === 'superadmin' ||
@@ -222,6 +242,8 @@ export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetalleP
                             <User size={16} /> Información del Paciente
                         </h3>
                         <div className="bg-slate-50 rounded-2xl p-4 space-y-1">
+                            <DetailRow label="Nombre Completo" value={pacienteNombre} name="pacienteNombre" icon={User} isEditing={false} onChange={() => { }} />
+                            <DetailRow label="Identificación" value={`${caso.pacienteTipoId} ${caso.pacienteId}`} name="pacienteId" icon={Info} isEditing={false} onChange={() => { }} />
                             <DetailRow label="Celular de Contacto" value={formData.celular} name="celular" icon={Phone} isEditing={isEditing} onChange={handleChange} />
                             <DetailRow label="Teléfono Actualizado" value={formData.telefonoActualizado} name="telefonoActualizado" icon={Phone} isEditing={isEditing} onChange={handleChange} />
                         </div>

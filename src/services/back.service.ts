@@ -21,6 +21,7 @@ import {
 } from '@/types/back.types'
 import { ragService } from './rag.service'
 import { smsService } from './sms.service'
+import { pacientesService } from './pacientes.service'
 
 /**
  * Normalizar texto a mayúsculas sin tildes
@@ -250,56 +251,35 @@ export const backService = {
     /**
      * Crear un nuevo afiliado en la tabla bd
      * (para cuando no existe en el sistema)
+     * 
+     * Usa servicio centralizado que previene duplicados de bd.id
      */
     async crearAfiliado(data: CrearAfiliadoData): Promise<ApiResponse<{ id: string }>> {
         try {
-            const { error } = await supabase
-                .from('bd')
-                .insert({
-                    tipo_id: normalizarTexto(data.tipoId),
-                    id: data.id,
-                    nombres: normalizarTexto(data.nombres),
-                    apellido1: normalizarTexto(data.apellido1),
-                    apellido2: data.apellido2 ? normalizarTexto(data.apellido2) : null,
-                    sexo: data.sexo || null,
-                    direccion: data.direccion ? normalizarTexto(data.direccion) : null,
-                    telefono: data.telefono || null,
-                    fecha_nacimiento: data.fechaNacimiento || null,
-                    municipio: data.municipio || null,
-                    departamento: data.departamento || null,
-                    regimen: data.regimen || null,
-                    ips_primaria: data.ipsPrimaria || null,
-                    tipo_cotizante: data.tipoCotizante || null,
-                    eps: data.eps || null,
-                    fuente: 'PORTAL_COLABORADORES',
-                    estado: 'ACTIVO',
-                })
+            const resultado = await pacientesService.crearPacienteSeguro({
+                tipoId: data.tipoId,
+                id: data.id,
+                nombres: data.nombres,
+                apellido1: data.apellido1,
+                apellido2: data.apellido2,
+                sexo: data.sexo,
+                direccion: data.direccion,
+                telefono: data.telefono,
+                fechaNacimiento: data.fechaNacimiento,
+                municipio: data.municipio,
+                departamento: data.departamento,
+                regimen: data.regimen,
+                ipsPrimaria: data.ipsPrimaria,
+                tipoCotizante: data.tipoCotizante,
+                eps: data.eps
+            })
 
-            if (error) {
-                // Verificar si es duplicado
-                if (error.code === '23505') {
-                    return {
-                        success: false,
-                        error: 'Este afiliado ya existe en el sistema',
-                    }
-                }
-                console.error('Error creando afiliado:', error)
-                return {
-                    success: false,
-                    error: 'Error al crear el afiliado: ' + error.message,
-                }
-            }
-
-            return {
-                success: true,
-                data: { id: data.id },
-                message: 'Afiliado creado exitosamente',
-            }
+            return resultado
         } catch (error) {
             console.error('Error en crearAfiliado:', error)
             return {
                 success: false,
-                error: ERROR_MESSAGES.SERVER_ERROR,
+                error: ERROR_MESSAGES.SERVER_ERROR
             }
         }
     },

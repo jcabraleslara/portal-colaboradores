@@ -80,6 +80,8 @@ export const afiliadosService = {
                 .from('afiliados')
                 .select('*')
                 .eq('id', documentoLimpio)
+                .order('updated_at', { ascending: false })
+                .limit(1)
                 .maybeSingle()
 
             if (error) {

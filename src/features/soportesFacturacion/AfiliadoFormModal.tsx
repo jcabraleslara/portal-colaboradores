@@ -7,7 +7,7 @@
 import { useState } from 'react'
 import { X, User, Mail, Phone, Building2, FileText } from 'lucide-react'
 import { Card, Button, Input } from '@/components/common'
-import { supabase } from '@/config/supabase.config'
+import { pacientesService } from '@/services/pacientes.service'
 
 interface AfiliadoFormModalProps {
     identificacion: string
@@ -89,40 +89,34 @@ export function AfiliadoFormModal({ identificacion, onClose, onSuccess }: Afilia
         setGuardando(true)
 
         try {
-            // Insertar en public.bd
-            const { data, error: insertError } = await supabase
-                .from('bd')
-                .insert({
-                    tipo_id: formData.tipoId,
-                    id: identificacion,
-                    nombres: formData.nombres.trim(),
-                    apellido1: formData.apellido1.trim(),
-                    apellido2: formData.apellido2.trim() || null,
-                    eps: formData.eps,
-                    regimen: formData.regimen,
-                    telefono: formData.telefonoPrincipal.trim() || null,
-                    email: formData.email.trim() || null,
-                    fuente: 'PORTAL_COLABORADORES',
-                })
-                .select()
-                .single()
+            // Usar servicio centralizado que previene duplicados
+            const resultado = await pacientesService.crearPacienteSeguro({
+                tipoId: formData.tipoId,
+                id: identificacion,
+                nombres: formData.nombres.trim(),
+                apellido1: formData.apellido1.trim(),
+                apellido2: formData.apellido2.trim() || undefined,
+                eps: formData.eps,
+                regimen: formData.regimen,
+                telefono: formData.telefonoPrincipal.trim() || undefined,
+                email: formData.email.trim() || undefined
+            })
 
-            if (insertError) {
-                console.error('Error insertando afiliado:', insertError)
-                throw new Error(insertError.message)
+            if (!resultado.success) {
+                throw new Error(resultado.error || 'Error al crear afiliado')
             }
 
             // Retornar datos normalizados
             onSuccess({
-                tipoId: data.tipo_id,
-                id: data.id,
-                nombres: data.nombres,
-                apellido1: data.apellido1,
-                apellido2: data.apellido2 || '',
-                eps: data.eps,
-                regimen: data.regimen,
-                telefonoPrincipal: data.telefono,
-                email: data.email,
+                tipoId: formData.tipoId,
+                id: identificacion,
+                nombres: formData.nombres.trim().toUpperCase(),
+                apellido1: formData.apellido1.trim().toUpperCase(),
+                apellido2: formData.apellido2.trim().toUpperCase() || '',
+                eps: formData.eps,
+                regimen: formData.regimen,
+                telefonoPrincipal: formData.telefonoPrincipal.trim() || undefined,
+                email: formData.email.trim() || undefined,
             })
 
         } catch (err) {

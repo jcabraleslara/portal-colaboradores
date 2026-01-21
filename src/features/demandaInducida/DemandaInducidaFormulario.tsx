@@ -15,6 +15,8 @@ import {
     PROGRAMAS_DIRECCIONADOS,
 } from '@/types/demandaInducida'
 import { Search, AlertCircle, CheckCircle, UserPlus, User, MapPin, X } from 'lucide-react'
+import { NuevoPacienteForm } from '@/features/pacientes/components/NuevoPacienteForm'
+import { Afiliado } from '@/types'
 
 export function DemandaInducidaFormulario() {
     const { user } = useAuth()
@@ -37,6 +39,7 @@ export function DemandaInducidaFormulario() {
     const [guardando, setGuardando] = useState(false)
     const [resultadosBusqueda, setResultadosBusqueda] = useState<any[]>([])
     const [mensaje, setMensaje] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null)
+    const [mostrarNuevoPaciente, setMostrarNuevoPaciente] = useState(false)
 
     const handleBuscarPaciente = async () => {
         if (!formData.identificacion) {
@@ -48,6 +51,7 @@ export function DemandaInducidaFormulario() {
         setMensaje(null)
         setPacienteBuscado(null)
         setResultadosBusqueda([])
+        setMostrarNuevoPaciente(false)
 
         try {
             const results = await demandaInducidaService.buscarPacientes(
@@ -55,10 +59,7 @@ export function DemandaInducidaFormulario() {
             )
 
             if (results.length === 0) {
-                setMensaje({
-                    tipo: 'error',
-                    texto: 'Paciente no encontrado. Se creará uno nuevo al radicar.',
-                })
+                setMostrarNuevoPaciente(true)
             } else if (results.length === 1) {
                 // Si solo hay uno, seleccionarlo automáticamente
                 handleSeleccionarPaciente(results[0])
@@ -71,10 +72,23 @@ export function DemandaInducidaFormulario() {
                 })
             }
         } catch (error) {
+            console.error(error)
             setMensaje({ tipo: 'error', texto: 'Error al buscar paciente' })
         } finally {
             setBuscandoPaciente(false)
         }
+    }
+
+    /**
+     * Manejar paciente creado exitosamente desde el formulario de nuevo paciente
+     */
+    const handlePacienteCreado = (paciente: Afiliado) => {
+        setMostrarNuevoPaciente(false)
+        handleSeleccionarPaciente(paciente)
+        setMensaje({
+            tipo: 'success',
+            texto: 'Paciente creado y seleccionado exitosamente'
+        })
     }
 
     /**
@@ -218,6 +232,15 @@ export function DemandaInducidaFormulario() {
                         </button>
                     </div>
                 </div>
+
+                {/* Formulario de Nuevo Paciente (si no se encuentra) */}
+                {mostrarNuevoPaciente && (
+                    <NuevoPacienteForm
+                        defaultDocumento={formData.identificacion}
+                        onSuccess={handlePacienteCreado}
+                        onCancel={() => setMostrarNuevoPaciente(false)}
+                    />
+                )}
 
                 {/* Lista de Resultados de Búsqueda */}
                 {resultadosBusqueda.length > 0 && (

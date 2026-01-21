@@ -10,6 +10,7 @@ import type {
     DemandaFilters,
     DemandaMetrics,
 } from '@/types/demandaInducida'
+import { pacientesService } from './pacientes.service'
 
 /**
  * Transforma datos de Supabase a formato frontend
@@ -62,6 +63,7 @@ async function buscarPacientes(
 
 /**
  * Crea un paciente básico en BD con fuente PORTAL_COLABORADORES
+ * Usa servicio centralizado que previene duplicados de bd.id
  */
 async function crearPacienteBasico(data: {
     tipoId: string
@@ -71,7 +73,24 @@ async function crearPacienteBasico(data: {
     municipio?: string
     correoActualizado?: string
 }) {
-    const paciente = {
+    const resultado = await pacientesService.crearPacienteSeguro({
+        tipoId: data.tipoId,
+        id: data.identificacion,
+        nombres: 'POR DEFINIR',
+        apellido1: 'POR DEFINIR',
+        apellido2: '',
+        telefono: data.celular || undefined,
+        departamento: data.departamento || undefined,
+        municipio: data.municipio || undefined,
+        email: data.correoActualizado || undefined
+    })
+
+    if (!resultado.success) {
+        throw new Error(resultado.error || 'Error creando paciente')
+    }
+
+    // Retornar objeto compatible con la lógica existente
+    return {
         tipo_id: data.tipoId,
         id: data.identificacion,
         nombres: 'POR DEFINIR',
@@ -82,16 +101,8 @@ async function crearPacienteBasico(data: {
         municipio: data.municipio || null,
         email: data.correoActualizado || null,
         fuente: 'PORTAL_COLABORADORES',
-        estado: 'ACTIVO',
+        estado: 'ACTIVO'
     }
-
-    const { data: result, error } = await supabase.from('bd').insert(paciente).select().single()
-
-    if (error) {
-        throw new Error(`Error creando paciente: ${error.message}`)
-    }
-
-    return result
 }
 
 import type { PaginatedResponse } from '@/types/demandaInducida' // Asegurar import
