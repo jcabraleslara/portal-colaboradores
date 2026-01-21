@@ -294,9 +294,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 measurePerformance('Fetch total (RPC exitosa)', totalDuration)
 
                 // Actualizar last_sign_in_at en background
-                supabase.rpc('update_last_login', { user_email: email }).catch(err => {
-                    console.warn('⚠️ Error actualizando last_login:', err)
-                })
+                supabase.rpc('update_last_login', { user_email: email })
+                    .then(({ error }) => {
+                        if (error) console.warn('⚠️ Error actualizando last_login:', error.message)
+                    })
 
                 return rpcProfile
             }
@@ -311,9 +312,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 measurePerformance('Fetch total (Query exitosa)', totalDuration)
 
                 // Actualizar last_sign_in_at en background
-                supabase.rpc('update_last_login', { user_email: email }).catch(err => {
-                    console.warn('⚠️ Error actualizando last_login:', err)
-                })
+                supabase.rpc('update_last_login', { user_email: email })
+                    .then(({ error }) => {
+                        if (error) console.warn('⚠️ Error actualizando last_login:', error.message)
+                    })
 
                 return queryProfile
             }
