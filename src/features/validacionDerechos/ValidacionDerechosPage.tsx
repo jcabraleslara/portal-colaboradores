@@ -5,7 +5,7 @@
 
 import { useState, useCallback } from 'react'
 import { Search, User, MapPin, Phone, Mail, Calendar, Building, FileText, Eraser } from 'lucide-react'
-import { Card, Button, Input, LoadingOverlay } from '@/components/common'
+import { Card, Button, Input, LoadingOverlay, EditablePhone } from '@/components/common'
 import { afiliadosService } from '@/services/afiliados.service'
 import { Afiliado, LoadingState } from '@/types'
 import { UI } from '@/config/constants'
@@ -52,6 +52,12 @@ export function ValidacionDerechosPage() {
         setAfiliado(null)
         setError('')
         setLoadingState('idle')
+    }
+
+    const handlePhoneUpdate = (newPhone: string) => {
+        if (afiliado) {
+            setAfiliado({ ...afiliado, telefono: newPhone })
+        }
     }
 
     return (
@@ -211,7 +217,14 @@ export function ValidacionDerechosPage() {
                                     />
                                     <DataItem
                                         label="Teléfono"
-                                        value={afiliado.telefono}
+                                        value={
+                                            <EditablePhone
+                                                initialValue={afiliado.telefono}
+                                                tipoId={afiliado.tipoId || ''}
+                                                id={afiliado.id || ''}
+                                                onUpdate={handlePhoneUpdate}
+                                            />
+                                        }
                                         icon={<Phone size={14} />}
                                     />
                                     <DataItem
@@ -326,5 +339,7 @@ function DataItem({
         </div>
     )
 }
+
+
 
 export default ValidacionDerechosPage

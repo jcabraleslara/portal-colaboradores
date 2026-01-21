@@ -160,6 +160,38 @@ export const afiliadosService = {
             }
         }
     },
+
+    /**
+     * Actualizar teléfono del afiliado
+     */
+    async actualizarTelefono(tipoId: string, id: string, nuevoTelefono: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ telefono: nuevoTelefono })
+                .eq('tipo_id', tipoId) // Asegurar correspondencia única
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando teléfono', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarTelefono', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
 }
 
 export default afiliadosService

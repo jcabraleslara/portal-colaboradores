@@ -43,7 +43,7 @@ export default function GestionDemandaInducidaView() {
     const [currentPage, setCurrentPage] = useState(1)
     const [totalItems, setTotalItems] = useState(0)
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null)
-    const ITEMS_PER_PAGE = 20
+    const ITEMS_PER_PAGE = 10
 
     const [colaboradores, setColaboradores] = useState<string[]>([])
     const [programas, setProgramas] = useState<string[]>([])

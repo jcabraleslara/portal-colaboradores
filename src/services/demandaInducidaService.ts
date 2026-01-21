@@ -260,30 +260,70 @@ async function create(
  * Obtiene métricas/estadísticas
  */
 async function getMetrics(filters?: DemandaFilters): Promise<DemandaMetrics> {
-    // Obtener todos los casos para métricas (sin paginación efectiva, límite alto)
-    const { data: casos } = await getAll({ ...filters, page: 1, pageSize: 10000 })
+    // 1. Construir query optimizada solo con campos necesarios
+    let query = supabase
+        .from('demanda_inducida')
+        .select('colaborador, clasificacion')
 
-    // Obtener casos del mes actual (sin filtros de fecha)
+    // Aplicar los mismos filtros que getAll
+    if (filters?.busqueda) {
+        query = query.or(`paciente_id.ilike.%${filters.busqueda}%`)
+    }
+    if (filters?.fechaInicio) {
+        query = query.gte('fecha_gestion', filters.fechaInicio)
+    }
+    if (filters?.fechaFin) {
+        query = query.lte('fecha_gestion', filters.fechaFin)
+    }
+    if (filters?.colaborador) {
+        query = query.eq('colaborador', filters.colaborador)
+    }
+    if (filters?.programa) {
+        query = query.eq('programa_direccionado', filters.programa)
+    }
+    if (filters?.clasificacion) {
+        query = query.eq('clasificacion', filters.clasificacion)
+    }
+
+    // Ejecutar query limitada (hasta 10000)
+    const { data: rawCasos, error } = await query.limit(10000)
+
+    if (error) {
+        console.error('Error calculando métricas:', error)
+        return {
+            casosEfectivos: 0,
+            casosNoEfectivos: 0,
+            casosMesActual: 0,
+            porcentajeEfectividad: 0,
+            porcentajeNoEfectividad: 0,
+            topColaborador: null
+        }
+    }
+
+    const casos = rawCasos || []
+
+    // 2. Obtener casos del mes actual (query liviana separada)
     const hoy = new Date()
     const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
         .toISOString()
         .split('T')[0]
 
-    const { data: casosMes } = await supabase
+    const { count: casosMesActual } = await supabase
         .from('demanda_inducida')
-        .select('id')
+        .select('id', { count: 'exact', head: true })
         .gte('fecha_gestion', primerDiaMes)
 
+    // 3. Cálculos en memoria (ahora con data ligera)
     const totalCasos = casos.length
-    const casosEfectivos = casos.filter((c) => c.clasificacion === 'Efectivo').length
-    const casosNoEfectivos = casos.filter((c) => c.clasificacion === 'No Efectivo').length
-    const casosMesActual = casosMes?.length || 0
+    const casosEfectivos = casos.filter((c: any) => c.clasificacion === 'Efectivo').length
+    const casosNoEfectivos = casos.filter((c: any) => c.clasificacion === 'No Efectivo').length
+
     const porcentajeEfectividad = totalCasos > 0 ? (casosEfectivos / totalCasos) * 100 : 0
     const porcentajeNoEfectividad = totalCasos > 0 ? (casosNoEfectivos / totalCasos) * 100 : 0
 
-    // Calcular top colaborador (mayor registros + mayor efectividad)
+    // Calcular top colaborador
     const colaboradorStats = new Map<string, { total: number; efectivos: number }>()
-    casos.forEach((c) => {
+    casos.forEach((c: any) => {
         const nombre = c.colaborador
         if (!nombre) return
         const stats = colaboradorStats.get(nombre) || { total: 0, efectivos: 0 }
@@ -292,32 +332,36 @@ async function getMetrics(filters?: DemandaFilters): Promise<DemandaMetrics> {
         colaboradorStats.set(nombre, stats)
     })
 
-    // Ordenar por: 1) Mayor efectividad, 2) Mayor registros
     let topColaborador: { nombre: string; totalCasos: number; efectividad: number } | null = null
     let maxScore = -1
+
     colaboradorStats.forEach((stats, nombre) => {
         const efectividad = stats.total > 0 ? (stats.efectivos / stats.total) * 100 : 0
-        // Score = efectividad ponderada + bonus por volumen
-        const score = efectividad + (stats.total / 100)
+        // Score simple: efectividad * log(total) para dar peso al volumen pero priorizar calidad
+        // O simplemente el de mayor efectividad con mínimo de casos? 
+        // Usaremos la lógica previa implícita o una simple ponderación
+        const score = efectividad * Math.log10(stats.total + 1)
+
         if (score > maxScore) {
             maxScore = score
             topColaborador = {
                 nombre,
                 totalCasos: stats.total,
-                efectividad,
+                efectividad
             }
         }
     })
 
     return {
-        topColaborador,
         casosEfectivos,
         casosNoEfectivos,
-        casosMesActual,
+        casosMesActual: casosMesActual || 0,
         porcentajeEfectividad,
         porcentajeNoEfectividad,
+        topColaborador
     }
 }
+
 
 /**
  * Obtiene lista única de colaboradores

@@ -31,7 +31,7 @@ import {
     Copy,
     Check,
 } from 'lucide-react'
-import { Card, Button, Input, LoadingOverlay, FileUpload, OrdenadorAutocomplete, Autocomplete, MarkdownRenderer } from '@/components/common'
+import { Card, Button, Input, LoadingOverlay, FileUpload, OrdenadorAutocomplete, Autocomplete, MarkdownRenderer, EditablePhone } from '@/components/common'
 import { copyRichText } from '@/utils/clipboard'
 import { parseDateLocal } from '@/utils/date.utils'
 import { afiliadosService } from '@/services/afiliados.service'
@@ -237,6 +237,12 @@ export function RadicacionCasosPage() {
             setSearchState('success')
         } else {
             setSearchError(result.error || 'Error al crear el afiliado')
+        }
+    }
+
+    const handlePhoneUpdate = (newPhone: string) => {
+        if (afiliado) {
+            setAfiliado({ ...afiliado, telefono: newPhone })
         }
     }
 
@@ -671,7 +677,7 @@ export function RadicacionCasosPage() {
                                 ? 'bg-rose-50 border-rose-200'
                                 : 'bg-[var(--color-primary-50)] border-transparent'
                                 }`}>
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                     <div>
                                         <p className="text-xs text-gray-500">Documento</p>
                                         <p className={`font-semibold ${afiliado.eps?.toUpperCase().includes('SALUD TOTAL')
@@ -689,6 +695,17 @@ export function RadicacionCasosPage() {
                                             ? 'text-rose-700'
                                             : 'font-medium'
                                             }`}>{afiliado.eps || '—'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500">Teléfono</p>
+                                        <div className="font-medium">
+                                            <EditablePhone
+                                                initialValue={afiliado.telefono}
+                                                tipoId={afiliado.tipoId || ''}
+                                                id={afiliado.id || ''}
+                                                onUpdate={handlePhoneUpdate}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
