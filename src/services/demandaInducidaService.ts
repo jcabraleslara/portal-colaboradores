@@ -42,23 +42,22 @@ function transformDemandaFromDB(data: any): DemandaInducida {
 }
 
 /**
- * Verifica si un paciente existe en la base de datos
+ * Busca pacientes en la base de datos por identificación o nombre
  */
-async function verificarPacienteExiste(
+async function buscarPacientes(
     criterio: string
-): Promise<{ existe: boolean; data?: any }> {
+): Promise<any[]> {
     const { data, error } = await supabase
         .from('afiliados')
         .select('*')
         .ilike('busqueda_texto', `%${criterio}%`)
-        .limit(1)
-        .single()
+        .limit(10) // Limitamos a 10 resultados para el selector
 
-    if (error || !data) {
-        return { existe: false }
+    if (error) {
+        throw new Error(`Error buscando pacientes: ${error.message}`)
     }
 
-    return { existe: true, data }
+    return data || []
 }
 
 /**
@@ -190,8 +189,9 @@ async function create(
     formData: DemandaInducidaFormData,
     nombreColaborador: string
 ): Promise<DemandaInducida> {
-    // Verificar si el paciente existe
-    const { existe } = await verificarPacienteExiste(formData.identificacion)
+    // Verificar si el paciente existe (búsqueda exacta por ID)
+    const result = await buscarPacientes(formData.identificacion)
+    const existe = result.some(p => p.id === formData.identificacion)
 
     // Si no existe, crearlo (usando lógica anterior o manejando el caso)
     if (!existe) {
@@ -359,14 +359,56 @@ async function deleteCase(id: number): Promise<void> {
     }
 }
 
+/**
+ * Actualiza un caso existente
+ */
+async function update(id: number, data: Partial<DemandaInducida>): Promise<DemandaInducida> {
+    // Mapear campos frontend a DB
+    const dbData: any = {}
+    if (data.pacienteTipoId !== undefined) dbData.paciente_tipo_id = data.pacienteTipoId
+    if (data.pacienteId !== undefined) dbData.paciente_id = data.pacienteId
+    if (data.fechaGestion !== undefined) dbData.fecha_gestion = data.fechaGestion
+    if (data.celular !== undefined) dbData.celular = data.celular
+    if (data.horaLlamada !== undefined) dbData.hora_llamada = data.horaLlamada
+    if (data.clasificacion !== undefined) dbData.clasificacion = data.clasificacion
+    if (data.quienRecibeLlamada !== undefined) dbData.quien_recibe_llamada = data.quienRecibeLlamada
+    if (data.relacionUsuario !== undefined) dbData.relacion_usuario = data.relacionUsuario
+    if (data.textoLlamada !== undefined) dbData.texto_llamada = data.textoLlamada
+    if (data.actividadesRealizadas !== undefined) dbData.actividades_realizadas = data.actividadesRealizadas
+    if (data.condicionUsuario !== undefined) dbData.condicion_usuario = data.condicionUsuario
+    if (data.soportesRecuperados !== undefined) dbData.soportes_recuperados = data.soportesRecuperados
+    if (data.fechaAsignacionCita !== undefined) dbData.fecha_asignacion_cita = data.fechaAsignacionCita
+    if (data.departamento !== undefined) dbData.departamento = data.departamento
+    if (data.municipio !== undefined) dbData.municipio = data.municipio
+    if (data.telefonoActualizado !== undefined) dbData.telefono_actualizado = data.telefonoActualizado
+    if (data.resultadoLlamada !== undefined) dbData.resultado_llamada = data.resultadoLlamada
+    if (data.programaDireccionado !== undefined) dbData.programa_direccionado = data.programaDireccionado
+
+    dbData.updated_at = new Date().toISOString()
+
+    const { data: updated, error } = await supabase
+        .from('demanda_inducida')
+        .update(dbData)
+        .eq('id', id)
+        .select()
+        .single()
+
+    if (error) {
+        throw new Error(`Error actualizando demanda inducida: ${error.message}`)
+    }
+
+    return transformDemandaFromDB(updated)
+}
+
 export const demandaInducidaService = {
     getAll,
     getById,
     create,
     delete: deleteCase,
     getMetrics,
-    verificarPacienteExiste,
+    buscarPacientes,
     crearPacienteBasico,
     getColaboradores,
     getProgramas,
+    update,
 }

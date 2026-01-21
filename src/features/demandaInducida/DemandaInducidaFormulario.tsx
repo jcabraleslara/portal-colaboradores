@@ -14,7 +14,7 @@ import {
     RESULTADOS_LLAMADA,
     PROGRAMAS_DIRECCIONADOS,
 } from '@/types/demandaInducida'
-import { Search, AlertCircle, CheckCircle, UserPlus } from 'lucide-react'
+import { Search, AlertCircle, CheckCircle, UserPlus, User, MapPin, X } from 'lucide-react'
 
 export function DemandaInducidaFormulario() {
     const { user } = useAuth()
@@ -35,46 +35,39 @@ export function DemandaInducidaFormulario() {
     const [pacienteBuscado, setPacienteBuscado] = useState<any | null>(null)
     const [buscandoPaciente, setBuscandoPaciente] = useState(false)
     const [guardando, setGuardando] = useState(false)
+    const [resultadosBusqueda, setResultadosBusqueda] = useState<any[]>([])
     const [mensaje, setMensaje] = useState<{ tipo: 'success' | 'error'; texto: string } | null>(null)
 
-    /**
-     * Buscar paciente en BD
-     */
     const handleBuscarPaciente = async () => {
         if (!formData.identificacion) {
-            setMensaje({ tipo: 'error', texto: 'Ingrese un número de identificación' })
+            setMensaje({ tipo: 'error', texto: 'Ingrese un número de identificación o nombre' })
             return
         }
 
         setBuscandoPaciente(true)
         setMensaje(null)
+        setPacienteBuscado(null)
+        setResultadosBusqueda([])
 
         try {
-            const { existe, data } = await demandaInducidaService.verificarPacienteExiste(
+            const results = await demandaInducidaService.buscarPacientes(
                 formData.identificacion
             )
 
-            if (existe && data) {
-                setPacienteBuscado(data)
-                // Autocompletar datos del formulario
-                setFormData((prev) => ({
-                    ...prev,
-                    tipoId: data.tipo_id || prev.tipoId,
-                    identificacion: data.id || prev.identificacion,
-                    celular: data.telefono || '',
-                    telefonoActualizado: data.telefono || '',
-                    departamento: data.departamento || '',
-                    municipio: data.municipio || '',
-                }))
-                setMensaje({
-                    tipo: 'success',
-                    texto: `Paciente encontrado: ${data.nombres} ${data.apellido1} ${data.apellido2}`,
-                })
-            } else {
-                setPacienteBuscado(null)
+            if (results.length === 0) {
                 setMensaje({
                     tipo: 'error',
                     texto: 'Paciente no encontrado. Se creará uno nuevo al radicar.',
+                })
+            } else if (results.length === 1) {
+                // Si solo hay uno, seleccionarlo automáticamente
+                handleSeleccionarPaciente(results[0])
+            } else {
+                // Si hay varios, mostrar la lista
+                setResultadosBusqueda(results)
+                setMensaje({
+                    tipo: 'success',
+                    texto: `Se encontraron ${results.length} coincidencias. Por favor seleccione el paciente correcto.`,
                 })
             }
         } catch (error) {
@@ -82,6 +75,30 @@ export function DemandaInducidaFormulario() {
         } finally {
             setBuscandoPaciente(false)
         }
+    }
+
+    /**
+     * Seleccionar un paciente de la lista de resultados
+     */
+    const handleSeleccionarPaciente = (data: any) => {
+        setPacienteBuscado(data)
+        setResultadosBusqueda([])
+
+        // Autocompletar datos del formulario
+        setFormData((prev) => ({
+            ...prev,
+            tipoId: data.tipo_id || prev.tipoId,
+            identificacion: data.id || prev.identificacion,
+            celular: data.telefono || '',
+            telefonoActualizado: data.telefono || '',
+            departamento: data.departamento || '',
+            municipio: data.municipio || '',
+        }))
+
+        setMensaje({
+            tipo: 'success',
+            texto: `Paciente seleccionado: ${data.nombres} ${data.apellido1} ${data.apellido2}`,
+        })
     }
 
     /**
@@ -194,16 +211,80 @@ export function DemandaInducidaFormulario() {
                     </div>
                 </div>
 
-                {/* Información del paciente encontrado */}
+                {/* Lista de Resultados de Búsqueda */}
+                {resultadosBusqueda.length > 0 && (
+                    <div className="mt-4 border border-slate-200 rounded-xl overflow-hidden shadow-sm bg-slate-50">
+                        <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                            <span className="text-xs font-bold text-slate-600 uppercase">Coincidencias encontradas ({resultadosBusqueda.length})</span>
+                            <button
+                                type="button"
+                                onClick={() => setResultadosBusqueda([])}
+                                className="text-slate-400 hover:text-slate-600"
+                            >
+                                <X size={14} />
+                            </button>
+                        </div>
+                        <div className="max-h-60 overflow-y-auto">
+                            {resultadosBusqueda.map((p) => (
+                                <div
+                                    key={p.id}
+                                    onClick={() => handleSeleccionarPaciente(p)}
+                                    className="p-4 border-b border-slate-100 last:border-0 hover:bg-primary-50 cursor-pointer transition-colors group"
+                                >
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex gap-3">
+                                            <div className="mt-1 p-2 bg-white rounded-lg border border-slate-200 text-slate-400 group-hover:text-primary-500 group-hover:border-primary-200 transition-colors">
+                                                <User size={16} />
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-slate-800 group-hover:text-primary-700 transition-colors">
+                                                    {p.nombres} {p.apellido1} {p.apellido2}
+                                                </p>
+                                                <div className="flex items-center gap-3 mt-1.5">
+                                                    <span className="text-xs font-semibold bg-slate-200 text-slate-600 px-2 py-0.5 rounded-md">
+                                                        {p.tipo_id} {p.id}
+                                                    </span>
+                                                    <div className="flex items-center gap-1 text-xs text-slate-500">
+                                                        <MapPin size={12} />
+                                                        {p.departamento} - {p.municipio}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="px-3 py-1 text-xs font-bold text-primary-600 hover:bg-primary-100 rounded-lg transition-colors border border-primary-200 shadow-sm"
+                                        >
+                                            Seleccionar
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Información del paciente seleccionado */}
                 {pacienteBuscado && (
-                    <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
-                        <p className="text-sm font-semibold text-green-800">
-                            ✓ {pacienteBuscado.nombres} {pacienteBuscado.apellido1}{' '}
-                            {pacienteBuscado.apellido2}
-                        </p>
-                        <p className="text-xs text-green-600 mt-1">
-                            {pacienteBuscado.departamento} - {pacienteBuscado.municipio}
-                        </p>
+                    <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm font-bold text-green-800 flex items-center gap-2">
+                                <CheckCircle size={16} className="text-green-600" />
+                                {pacienteBuscado.nombres} {pacienteBuscado.apellido1}{' '}
+                                {pacienteBuscado.apellido2}
+                            </p>
+                            <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
+                                <MapPin size={12} />
+                                {pacienteBuscado.departamento} - {pacienteBuscado.municipio}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setPacienteBuscado(null)}
+                            className="text-green-400 hover:text-green-600 p-1"
+                        >
+                            <X size={18} />
+                        </button>
                     </div>
                 )}
             </section>

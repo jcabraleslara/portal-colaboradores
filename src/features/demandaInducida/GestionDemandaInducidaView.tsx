@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 import { demandaInducidaService } from '@/services/demandaInducidaService'
 import { DemandaInducidaFormulario } from './DemandaInducidaFormulario'
+import { DemandaDetallePanel } from './DemandaDetallePanel'
 import type { DemandaInducida, DemandaFilters, DemandaMetrics } from '@/types/demandaInducida'
 import {
     Phone,
@@ -35,6 +36,7 @@ export default function GestionDemandaInducidaView() {
     const [casos, setCasos] = useState<DemandaInducida[]>([])
     const [metrics, setMetrics] = useState<DemandaMetrics | null>(null)
     const [loading, setLoading] = useState(true)
+    const [casoSeleccionado, setCasoSeleccionado] = useState<DemandaInducida | null>(null)
     const { user } = useAuth()
 
     // Paginación y Ordenamiento
@@ -208,24 +210,32 @@ export default function GestionDemandaInducidaView() {
 
         const nuevosFiltros = { ...filters }
 
+        const hoy = new Date()
+        const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0]
+        const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0]
+
         switch (type) {
             case 'top':
                 if (metrics.topColaborador) {
-                    nuevosFiltros.colaborador = metrics.topColaborador.nombre
+                    const esActivo = filters.colaborador === metrics.topColaborador.nombre
+                    nuevosFiltros.colaborador = esActivo ? '' : metrics.topColaborador.nombre
                 }
                 break
             case 'efectivas':
-                nuevosFiltros.clasificacion = 'Efectivo'
+                nuevosFiltros.clasificacion = filters.clasificacion === 'Efectivo' ? undefined : 'Efectivo'
                 break
             case 'no-efectivas':
-                nuevosFiltros.clasificacion = 'No Efectivo'
+                nuevosFiltros.clasificacion = filters.clasificacion === 'No Efectivo' ? undefined : 'No Efectivo'
                 break
             case 'mes':
-                const hoy = new Date()
-                const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0]
-                const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0]
-                nuevosFiltros.fechaInicio = primerDia
-                nuevosFiltros.fechaFin = ultimoDia
+                const esMesActivo = filters.fechaInicio === primerDia && filters.fechaFin === ultimoDia
+                if (esMesActivo) {
+                    nuevosFiltros.fechaInicio = ''
+                    nuevosFiltros.fechaFin = ''
+                } else {
+                    nuevosFiltros.fechaInicio = primerDia
+                    nuevosFiltros.fechaFin = ultimoDia
+                }
                 break
         }
 
@@ -322,29 +332,39 @@ export default function GestionDemandaInducidaView() {
             {metrics && (
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     {/* Top Colaborador */}
-                    <div
-                        onClick={() => handleCardClick('top')}
-                        className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg transition-all cursor-pointer hover:scale-[1.02]"
-                    >
-                        <div className="flex items-start justify-between mb-4">
-                            <div className="p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl">
-                                <FileText className="text-white" size={20} />
+                    {(() => {
+                        const isTopColabActive = !!filters.colaborador && filters.colaborador === metrics.topColaborador?.nombre
+                        return (
+                            <div
+                                onClick={() => handleCardClick('top')}
+                                className={`rounded-2xl border p-6 transition-all cursor-pointer hover:shadow-lg hover:scale-[1.02] ${isTopColabActive
+                                    ? 'bg-primary-50 border-primary-300 shadow-md ring-1 ring-primary-200'
+                                    : 'bg-white border-slate-200'
+                                    }`}
+                            >
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl shadow-sm">
+                                        <FileText className="text-white" size={20} />
+                                    </div>
+                                    {isTopColabActive && <div className="w-2 h-2 rounded-full bg-primary-500 animate-pulse" />}
+                                </div>
+                                <h3 className="text-sm font-semibold text-slate-600 mb-1">Top Colaborador</h3>
+                                {metrics.topColaborador ? (
+                                    <>
+                                        <p className="text-lg font-bold text-slate-900 truncate" title={metrics.topColaborador.nombre}>
+                                            {metrics.topColaborador.nombre}
+                                        </p>
+                                        <p className="text-xs text-slate-500">
+                                            {metrics.topColaborador.totalCasos} casos • {metrics.topColaborador.efectividad.toFixed(1)}% efectividad
+                                        </p>
+                                    </>
+                                ) : (
+                                    <p className="text-lg font-bold text-slate-400">Sin datos</p>
+                                )}
                             </div>
-                        </div>
-                        <h3 className="text-sm font-semibold text-slate-600 mb-1">Top Colaborador</h3>
-                        {metrics.topColaborador ? (
-                            <>
-                                <p className="text-lg font-bold text-slate-900 truncate" title={metrics.topColaborador.nombre}>
-                                    {metrics.topColaborador.nombre}
-                                </p>
-                                <p className="text-xs text-slate-500">
-                                    {metrics.topColaborador.totalCasos} casos • {metrics.topColaborador.efectividad.toFixed(1)}% efectividad
-                                </p>
-                            </>
-                        ) : (
-                            <p className="text-lg font-bold text-slate-400">Sin datos</p>
-                        )}
-                    </div>
+                        )
+                    })()}
+
                     <MetricCard
                         onClick={() => handleCardClick('efectivas')}
                         titulo="Llamadas Efectivas"
@@ -353,6 +373,7 @@ export default function GestionDemandaInducidaView() {
                         subtituloColor="green"
                         icono={<Phone className="text-white" size={20} />}
                         color="green"
+                        isActive={filters.clasificacion === 'Efectivo'}
                     />
                     <MetricCard
                         onClick={() => handleCardClick('no-efectivas')}
@@ -362,6 +383,7 @@ export default function GestionDemandaInducidaView() {
                         subtituloColor="red"
                         icono={<PhoneOff className="text-white" size={20} />}
                         color="amber"
+                        isActive={filters.clasificacion === 'No Efectivo'}
                     />
                     <MetricCard
                         onClick={() => handleCardClick('mes')}
@@ -369,6 +391,12 @@ export default function GestionDemandaInducidaView() {
                         valor={metrics.casosMesActual}
                         icono={<Calendar className="text-white" size={20} />}
                         color="blue"
+                        isActive={(() => {
+                            const hoy = new Date()
+                            const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0]
+                            const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0]
+                            return filters.fechaInicio === primerDia && filters.fechaFin === ultimoDia
+                        })()}
                     />
                 </div>
             )}
@@ -609,8 +637,12 @@ export default function GestionDemandaInducidaView() {
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {casos.map((caso) => (
-                                        <tr key={caso.id} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-4 py-3 text-sm text-slate-900">
+                                        <tr
+                                            key={caso.id}
+                                            className="hover:bg-primary-50/30 transition-colors cursor-pointer group/row"
+                                            onClick={() => setCasoSeleccionado(caso)}
+                                        >
+                                            <td className="px-4 py-4 text-sm text-slate-900 font-medium">
                                                 {new Date(caso.fechaGestion).toLocaleDateString('es-CO')}
                                             </td>
                                             <td className="px-4 py-3">
@@ -640,11 +672,11 @@ export default function GestionDemandaInducidaView() {
                                             </td>
 
                                             {(['superadmin', 'admin'].includes(user?.rol || '') || caso.colaborador === user?.nombreCompleto) && (
-                                                <td className="px-4 py-3 text-center">
+                                                <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                                                     {(['superadmin', 'admin'].includes(user?.rol || '') || caso.colaborador === user?.nombreCompleto) && (
                                                         <button
                                                             onClick={() => handleDelete(caso.id!)}
-                                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors group-hover/row:scale-110"
                                                             title="Eliminar registro"
                                                         >
                                                             <Trash2 size={18} />
@@ -684,6 +716,15 @@ export default function GestionDemandaInducidaView() {
                 )
                 }
             </div >
+
+            {/* Panel de Detalle */}
+            {casoSeleccionado && (
+                <DemandaDetallePanel
+                    caso={casoSeleccionado}
+                    onClose={() => setCasoSeleccionado(null)}
+                    onUpdate={loadData}
+                />
+            )}
         </div >
     )
 }
@@ -699,6 +740,7 @@ function MetricCard({
     icono,
     color,
     onClick,
+    isActive = false,
 }: {
     titulo: string
     valor: number
@@ -707,12 +749,29 @@ function MetricCard({
     icono: React.ReactNode
     color: 'primary' | 'green' | 'amber' | 'blue'
     onClick?: () => void
+    isActive?: boolean
 }) {
     const colorClasses = {
-        primary: 'from-primary-500 to-primary-600',
-        green: 'from-green-500 to-green-600',
-        amber: 'from-amber-500 to-amber-600',
-        blue: 'from-blue-500 to-blue-600',
+        primary: {
+            gradient: 'from-primary-500 to-primary-600',
+            active: 'bg-primary-50 border-primary-300 ring-primary-100',
+            dot: 'bg-primary-500'
+        },
+        green: {
+            gradient: 'from-green-500 to-green-600',
+            active: 'bg-green-50 border-green-300 ring-green-100',
+            dot: 'bg-green-500'
+        },
+        amber: {
+            gradient: 'from-amber-500 to-amber-600',
+            active: 'bg-amber-50 border-amber-300 ring-amber-100',
+            dot: 'bg-amber-500'
+        },
+        blue: {
+            gradient: 'from-blue-500 to-blue-600',
+            active: 'bg-blue-50 border-blue-300 ring-blue-100',
+            dot: 'bg-blue-500'
+        },
     }
 
     const subtituloClasses = {
@@ -720,13 +779,24 @@ function MetricCard({
         red: 'text-red-600',
     }
 
+    const currentStyles = colorClasses[color]
+
     return (
         <div
             onClick={onClick}
-            className={`bg-white rounded-2xl border border-slate-200 p-6 transition-all ${onClick ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02]' : 'hover:shadow-lg'}`}
+            className={`rounded-2xl border p-6 transition-all shadow-sm ${onClick ? 'cursor-pointer hover:shadow-lg hover:scale-[1.02]' : 'hover:shadow-md'
+                } ${isActive
+                    ? `${currentStyles.active} shadow-md ring-1`
+                    : 'bg-white border-slate-200'
+                }`}
         >
             <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 bg-gradient-to-br ${colorClasses[color]} rounded-xl`}>{icono}</div>
+                <div className={`p-3 bg-gradient-to-br ${currentStyles.gradient} rounded-xl shadow-sm`}>
+                    {icono}
+                </div>
+                {isActive && (
+                    <div className={`w-2.5 h-2.5 rounded-full ${currentStyles.dot} animate-pulse shadow-sm`} />
+                )}
             </div>
             <h3 className="text-sm font-semibold text-slate-600 mb-1">{titulo}</h3>
             <div className="flex items-baseline gap-2">
