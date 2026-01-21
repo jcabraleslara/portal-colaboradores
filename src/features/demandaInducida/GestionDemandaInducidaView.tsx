@@ -17,7 +17,14 @@ import {
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
+    Trash2,
+    Download,
+    FileSpreadsheet,
+    FileType,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
+
+import { useAuth } from '@/context/AuthContext'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
@@ -28,6 +35,7 @@ export default function GestionDemandaInducidaView() {
     const [casos, setCasos] = useState<DemandaInducida[]>([])
     const [metrics, setMetrics] = useState<DemandaMetrics | null>(null)
     const [loading, setLoading] = useState(true)
+    const { user } = useAuth()
 
     // Paginación y Ordenamiento
     const [currentPage, setCurrentPage] = useState(1)
@@ -47,6 +55,90 @@ export default function GestionDemandaInducidaView() {
         clasificacion: undefined,
         busqueda: '',
     })
+
+    // Estado para exportación
+    const [exporting, setExporting] = useState(false)
+    const [showExportMenu, setShowExportMenu] = useState(false)
+
+    /**
+     * Descargar archivo generado
+     */
+    const downloadFile = (content: string, fileName: string, contentType: string) => {
+        const a = document.createElement("a");
+        const file = new Blob([content], { type: contentType });
+        a.href = URL.createObjectURL(file);
+        a.download = fileName;
+        a.click();
+    }
+
+    /**
+     * Manejar exportación
+     */
+    const handleExport = async (format: 'csv' | 'xlsx' | 'txt') => {
+        setExporting(true)
+        setShowExportMenu(false)
+        try {
+            // Obtener todos los datos con los filtros actuales
+            const { data } = await demandaInducidaService.getAll({
+                ...filters,
+                page: 1,
+                pageSize: 100000 // L limit alto para exportar "todo"
+            })
+
+            if (data.length === 0) {
+                alert('No hay datos para exportar')
+                return
+            }
+
+            // Formatear datos para exportación
+            const exportData = data.map(item => ({
+                'ID': item.id,
+                'Fecha Gestión': new Date(item.fechaGestion).toLocaleDateString('es-CO'),
+                'Hora': item.horaLlamada || '',
+                'Tipo ID': item.pacienteTipoId,
+                'Identificación': item.pacienteId,
+                'Celular': item.celular,
+                'Clasificación': item.clasificacion,
+                'Resultado Llamada': item.resultadoLlamada || 'N/A',
+                'Quien Recibe': item.quienRecibeLlamada || '',
+                'Relación': item.relacionUsuario || '',
+                'Colaborador': item.colaborador,
+                'Programa Direccionado': item.programaDireccionado || 'N/A',
+                'Departamento': item.departamento || '',
+                'Municipio': item.municipio || '',
+                'Actividades': item.actividadesRealizadas || '',
+                'Texto Llamada': item.textoLlamada || '',
+                'Teléfono Actualizado': item.telefonoActualizado || '',
+                'Soportes Recuperados': item.soportesRecuperados || '',
+                'Fecha Asignación Cita': item.fechaAsignacionCita || '',
+                'Condición Usuario': item.condicionUsuario || '',
+            }))
+
+            const fileName = `demanda_inducida_${new Date().toISOString().split('T')[0]}_${new Date().getTime()}`
+
+            if (format === 'xlsx') {
+                const ws = XLSX.utils.json_to_sheet(exportData)
+                const wb = XLSX.utils.book_new()
+                XLSX.utils.book_append_sheet(wb, ws, "Casos")
+                XLSX.writeFile(wb, `${fileName}.xlsx`)
+            } else if (format === 'csv') {
+                const ws = XLSX.utils.json_to_sheet(exportData)
+                const csv = XLSX.utils.sheet_to_csv(ws)
+                downloadFile(csv, `${fileName}.csv`, 'text/csv;charset=utf-8;')
+            } else if (format === 'txt') {
+                const keys = Object.keys(exportData[0]).join('\t')
+                const rows = exportData.map(row => Object.values(row).join('\t')).join('\n')
+                const txt = `${keys}\n${rows}`
+                downloadFile(txt, `${fileName}.txt`, 'text/plain;charset=utf-8;')
+            }
+
+        } catch (error) {
+            console.error('Error exportando:', error)
+            alert('Ocurrió un error al exportar los datos')
+        } finally {
+            setExporting(false)
+        }
+    }
 
     /**
      * Cargar datos iniciales
@@ -141,6 +233,19 @@ export default function GestionDemandaInducidaView() {
         setCurrentPage(1)
     }
 
+    const handleDelete = async (id: number) => {
+        if (!confirm('¿Estás seguro de eliminar este registro? Esta acción no se puede deshacer.')) return
+
+        try {
+            await demandaInducidaService.delete(id)
+            setCasos((prev) => prev.filter((c) => c.id !== id))
+            setTotalItems((prev) => prev - 1)
+        } catch (error) {
+            console.error('Error eliminando caso:', error)
+            alert('Error al eliminar el registro')
+        }
+    }
+
     const loadOptions = async () => {
         const [colabs, progs] = await Promise.all([
             demandaInducidaService.getColaboradores(),
@@ -187,7 +292,7 @@ export default function GestionDemandaInducidaView() {
                 </div>
 
                 <div className="bg-white rounded-2xl border border-slate-200 p-8">
-                    <h1 className="text-2xl font-bold text-slate-900 mb-6">Radicar Nuevo Caso</h1>
+                    <h1 className="text-2xl font-bold text-slate-900 mb-6">Registrar Nuevo Caso</h1>
                     <DemandaInducidaFormulario />
                 </div>
             </div>
@@ -209,7 +314,7 @@ export default function GestionDemandaInducidaView() {
                     className="px-6 py-3 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-primary-500/30 flex items-center gap-2"
                 >
                     <FileText size={18} />
-                    Radicar Nuevo Caso
+                    Registrar Nuevo Caso
                 </button>
             </div>
 
@@ -388,6 +493,45 @@ export default function GestionDemandaInducidaView() {
                             Mostrando {casos.length} de {totalItems} resultados
                         </p>
                     </div>
+
+                    {['superadmin', 'admin', 'auditoria'].includes(user?.rol || '') && (
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowExportMenu(!showExportMenu)}
+                                disabled={exporting}
+                                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-all focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
+                            >
+                                <Download size={16} />
+                                {exporting ? 'Exportando...' : 'Exportar'}
+                            </button>
+
+                            {showExportMenu && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-10 overflow-hidden">
+                                    <button
+                                        onClick={() => handleExport('xlsx')}
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                    >
+                                        <FileSpreadsheet size={16} className="text-green-600" />
+                                        Excel (.xlsx)
+                                    </button>
+                                    <button
+                                        onClick={() => handleExport('csv')}
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                    >
+                                        <FileText size={16} className="text-blue-600" />
+                                        CSV (.csv)
+                                    </button>
+                                    <button
+                                        onClick={() => handleExport('txt')}
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                    >
+                                        <FileType size={16} className="text-slate-600" />
+                                        Texto (.txt)
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {loading ? (
@@ -455,6 +599,12 @@ export default function GestionDemandaInducidaView() {
                                         <th className="px-4 py-3 text-left text-xs font-bold text-slate-600 uppercase tracking-wider">
                                             Resultado
                                         </th>
+
+                                        {(['superadmin', 'admin'].includes(user?.rol || '') || casos.some(c => c.colaborador === user?.nombreCompleto)) && (
+                                            <th className="px-4 py-3 text-center text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                                Acciones
+                                            </th>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -488,6 +638,20 @@ export default function GestionDemandaInducidaView() {
                                             <td className="px-4 py-3 text-sm text-slate-600">
                                                 {caso.resultadoLlamada || '-'}
                                             </td>
+
+                                            {(['superadmin', 'admin'].includes(user?.rol || '') || caso.colaborador === user?.nombreCompleto) && (
+                                                <td className="px-4 py-3 text-center">
+                                                    {(['superadmin', 'admin'].includes(user?.rol || '') || caso.colaborador === user?.nombreCompleto) && (
+                                                        <button
+                                                            onClick={() => handleDelete(caso.id!)}
+                                                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                            title="Eliminar registro"
+                                                        >
+                                                            <Trash2 size={18} />
+                                                        </button>
+                                                    )}
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>
@@ -517,9 +681,10 @@ export default function GestionDemandaInducidaView() {
                             </div>
                         </div>
                     </>
-                )}
-            </div>
-        </div>
+                )
+                }
+            </div >
+        </div >
     )
 }
 

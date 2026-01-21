@@ -32,15 +32,12 @@ function transformDemandaFromDB(data: any): DemandaInducida {
         fechaAsignacionCita: data.fecha_asignacion_cita,
         departamento: data.departamento,
         municipio: data.municipio,
-        barrioVereda: data.barrio_vereda,
         telefonoActualizado: data.telefono_actualizado,
-        correoActualizado: data.correo_actualizado,
         resultadoLlamada: data.resultado_llamada,
         colaborador: data.colaborador,
         programaDireccionado: data.programa_direccionado,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
-        radicadoPor: data.radicado_por,
     }
 }
 
@@ -48,14 +45,13 @@ function transformDemandaFromDB(data: any): DemandaInducida {
  * Verifica si un paciente existe en la base de datos
  */
 async function verificarPacienteExiste(
-    tipoId: string,
-    identificacion: string
+    criterio: string
 ): Promise<{ existe: boolean; data?: any }> {
     const { data, error } = await supabase
-        .from('bd')
+        .from('afiliados')
         .select('*')
-        .eq('tipo_id', tipoId)
-        .eq('id', identificacion)
+        .ilike('busqueda_texto', `%${criterio}%`)
+        .limit(1)
         .single()
 
     if (error || !data) {
@@ -195,17 +191,21 @@ async function create(
     nombreColaborador: string
 ): Promise<DemandaInducida> {
     // Verificar si el paciente existe
-    const { existe } = await verificarPacienteExiste(formData.tipoId, formData.identificacion)
+    const { existe } = await verificarPacienteExiste(formData.identificacion)
 
-    // Si no existe, crearlo
+    // Si no existe, crearlo (usando lógica anterior o manejando el caso)
     if (!existe) {
+        // Logica de backup si no existe en afiliados... 
+        // Por ahora mantenemos crearPacienteBasico si es necesario, 
+        // pero ajustado a que bd puede ser diferente a afiliados.
+        // Si el usuario dijo "buscar en afiliados", asumimos que la data viene de ahi.
+        // Si no existe, intentamos crearlo en 'bd' como antes para no romper FKs
         await crearPacienteBasico({
             tipoId: formData.tipoId,
             identificacion: formData.identificacion,
             celular: formData.celular,
             departamento: formData.departamento,
             municipio: formData.municipio,
-            correoActualizado: formData.correoActualizado,
         })
     }
 
@@ -226,13 +226,10 @@ async function create(
         fecha_asignacion_cita: formData.fechaAsignacionCita || null,
         departamento: formData.departamento || null,
         municipio: formData.municipio || null,
-        barrio_vereda: formData.barrioVereda || null,
         telefono_actualizado: formData.telefonoActualizado || null,
-        correo_actualizado: formData.correoActualizado || null,
         resultado_llamada: formData.resultadoLlamada || null,
         colaborador: nombreColaborador,
         programa_direccionado: formData.programaDireccionado || null,
-        radicado_por: nombreColaborador,
     }
 
     const { data, error } = await supabase
@@ -347,10 +344,26 @@ async function getProgramas(): Promise<string[]> {
     return programas as string[]
 }
 
+
+/**
+ * Elimina un caso por ID
+ */
+async function deleteCase(id: number): Promise<void> {
+    const { error } = await supabase
+        .from('demanda_inducida')
+        .delete()
+        .eq('id', id)
+
+    if (error) {
+        throw new Error(`Error eliminando demanda inducida: ${error.message}`)
+    }
+}
+
 export const demandaInducidaService = {
     getAll,
     getById,
     create,
+    delete: deleteCase,
     getMetrics,
     verificarPacienteExiste,
     crearPacienteBasico,

@@ -8,7 +8,6 @@ import { useAuth } from '@/context/AuthContext'
 import { demandaInducidaService } from '@/services/demandaInducidaService'
 import type { DemandaInducidaFormData } from '@/types/demandaInducida'
 import {
-    TIPOS_ID,
     RELACIONES_USUARIO,
     ACTIVIDADES_REALIZADAS,
     CONDICIONES_USUARIO,
@@ -27,7 +26,9 @@ export function DemandaInducidaFormulario() {
         fechaGestion: new Date().toISOString().split('T')[0],
         clasificacion: 'Efectivo',
         celular: '',
-        horaLlamada: '',
+        horaLlamada: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        actividadesRealizadas: 'Canalización a programas',
+        condicionUsuario: 'Vivo',
     })
 
     // Estados de UI
@@ -50,7 +51,6 @@ export function DemandaInducidaFormulario() {
 
         try {
             const { existe, data } = await demandaInducidaService.verificarPacienteExiste(
-                formData.tipoId,
                 formData.identificacion
             )
 
@@ -59,10 +59,12 @@ export function DemandaInducidaFormulario() {
                 // Autocompletar datos del formulario
                 setFormData((prev) => ({
                     ...prev,
+                    tipoId: data.tipo_id || prev.tipoId,
+                    identificacion: data.id || prev.identificacion,
                     celular: data.telefono || '',
+                    telefonoActualizado: data.telefono || '',
                     departamento: data.departamento || '',
                     municipio: data.municipio || '',
-                    correoActualizado: data.email || '',
                 }))
                 setMensaje({
                     tipo: 'success',
@@ -110,10 +112,16 @@ export function DemandaInducidaFormulario() {
                 throw new Error('Seleccione el resultado de la llamada')
             }
 
+            if (formData.clasificacion === 'Efectivo') {
+                if (!formData.quienRecibeLlamada) throw new Error('Ingrese quién recibe la llamada')
+                if (!formData.relacionUsuario) throw new Error('Seleccione la relación con el usuario')
+                if (!formData.textoLlamada) throw new Error('Ingrese el texto de la llamada')
+            }
+
             // Crear caso
             await demandaInducidaService.create(formData, user?.nombreCompleto || 'Sistema')
 
-            setMensaje({ tipo: 'success', texto: '✅ Caso radicado exitosamente' })
+            setMensaje({ tipo: 'success', texto: '✅ Caso registrado exitosamente' })
 
             // Limpiar formulario
             setTimeout(() => {
@@ -122,7 +130,7 @@ export function DemandaInducidaFormulario() {
         } catch (error) {
             setMensaje({
                 tipo: 'error',
-                texto: error instanceof Error ? error.message : 'Error al radicar caso',
+                texto: error instanceof Error ? error.message : 'Error al registrar caso',
             })
         } finally {
             setGuardando(false)
@@ -137,8 +145,8 @@ export function DemandaInducidaFormulario() {
             {mensaje && (
                 <div
                     className={`p-4 rounded-xl border flex items-start gap-3 ${mensaje.tipo === 'success'
-                            ? 'bg-green-50 border-green-200 text-green-800'
-                            : 'bg-red-50 border-red-200 text-red-800'
+                        ? 'bg-green-50 border-green-200 text-green-800'
+                        : 'bg-red-50 border-red-200 text-red-800'
                         }`}
                 >
                     {mensaje.tipo === 'success' ? (
@@ -158,28 +166,9 @@ export function DemandaInducidaFormulario() {
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
+                    <div className="md:col-span-2">
                         <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Tipo ID <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                            name="tipoId"
-                            value={formData.tipoId}
-                            onChange={handleChange}
-                            className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                            required
-                        >
-                            {TIPOS_ID.map((tipo) => (
-                                <option key={tipo} value={tipo}>
-                                    {tipo}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Identificación <span className="text-red-500">*</span>
+                            Identificación o Nombre del Paciente <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
@@ -187,7 +176,7 @@ export function DemandaInducidaFormulario() {
                             value={formData.identificacion}
                             onChange={handleChange}
                             className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                            placeholder="Número de documento"
+                            placeholder="Número de documento o nombre completo"
                             required
                         />
                     </div>
@@ -312,7 +301,7 @@ export function DemandaInducidaFormulario() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Quién recibe llamada
+                                Quién recibe llamada <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="text"
@@ -326,7 +315,7 @@ export function DemandaInducidaFormulario() {
 
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Relación con el usuario
+                                Relación con el usuario <span className="text-red-500">*</span>
                             </label>
                             <select
                                 name="relacionUsuario"
@@ -346,7 +335,7 @@ export function DemandaInducidaFormulario() {
 
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Texto Llamada
+                            Texto Llamada <span className="text-red-500">*</span>
                         </label>
                         <textarea
                             name="textoLlamada"
@@ -426,7 +415,7 @@ export function DemandaInducidaFormulario() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">
                                 Departamento
@@ -450,19 +439,6 @@ export function DemandaInducidaFormulario() {
                                 className="w-full px-4 py-2.5 rounded-xl border border-green-300 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                             />
                         </div>
-
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Barrio o Vereda
-                            </label>
-                            <input
-                                type="text"
-                                name="barrioVereda"
-                                value={formData.barrioVereda || ''}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2.5 rounded-xl border border-green-300 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                            />
-                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -478,41 +454,9 @@ export function DemandaInducidaFormulario() {
                                 className="w-full px-4 py-2.5 rounded-xl border border-green-300 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                             />
                         </div>
-
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Correo actualizado
-                            </label>
-                            <input
-                                type="email"
-                                name="correoActualizado"
-                                value={formData.correoActualizado || ''}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2.5 rounded-xl border border-green-300 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                            />
-                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-slate-700 mb-2">
-                                Resultado Llamada
-                            </label>
-                            <select
-                                name="resultadoLlamada"
-                                value={formData.resultadoLlamada || ''}
-                                onChange={handleChange}
-                                className="w-full px-4 py-2.5 rounded-xl border border-green-300 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                            >
-                                <option value="">Seleccione...</option>
-                                {RESULTADOS_LLAMADA.map((resultado) => (
-                                    <option key={resultado} value={resultado}>
-                                        {resultado}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">
                                 Programa direccionado
@@ -550,7 +494,7 @@ export function DemandaInducidaFormulario() {
                     className="px-8 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-slate-300 text-white font-semibold rounded-xl transition-colors flex items-center gap-2"
                 >
                     <UserPlus size={18} />
-                    {guardando ? 'Radicando...' : 'Radicar Caso'}
+                    {guardando ? 'Registrando...' : 'Registrar Caso'}
                 </button>
             </div>
         </form>

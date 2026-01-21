@@ -19,15 +19,12 @@ export interface DemandaInducida {
     fechaAsignacionCita: string | null
     departamento: string | null
     municipio: string | null
-    barrioVereda: string | null
     telefonoActualizado: string | null
-    correoActualizado: string | null
     resultadoLlamada: string | null
     colaborador: string
     programaDireccionado: string | null
     createdAt: string
     updatedAt: string
-    radicadoPor: string | null
 }
 
 export interface DemandaInducidaFormData {
@@ -53,11 +50,9 @@ export interface DemandaInducidaFormData {
     // Ubicación
     departamento?: string
     municipio?: string
-    barrioVereda?: string
 
     // Contacto
     telefonoActualizado?: string
-    correoActualizado?: string
 
     // Resultado
     resultadoLlamada?: string
