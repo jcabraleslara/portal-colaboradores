@@ -100,37 +100,6 @@ async function getGraphAccessToken(): Promise<string> {
 }
 
 /**
- * Obtener ID de carpeta desde URL compartida de SharePoint
- */
-async function obtenerIdDesdeCarpetaCompartida(
-    accessToken: string,
-    shareUrl: string
-): Promise<string> {
-    // Codificar la URL compartida en base64url
-    const base64Value = Buffer.from(shareUrl).toString('base64')
-        .replace(/=+$/, '')
-        .replace(/\//g, '_')
-        .replace(/\+/g, '-')
-    const encodedUrl = 'u!' + base64Value
-
-    const url = `https://graph.microsoft.com/v1.0/shares/${encodedUrl}/driveItem`
-
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-        },
-    })
-
-    if (!response.ok) {
-        throw new Error(`Error obteniendo carpeta compartida: ${response.status}`)
-    }
-
-    const driveItem: GraphDriveItem = await response.json()
-    return driveItem.id
-}
-
-/**
  * Obtener ID de carpeta por path
  */
 async function obtenerIdPorPath(

@@ -12,18 +12,44 @@ import { MainLayout } from '@/components/layout'
 import { LoadingSpinner } from '@/components/common'
 import { LoginForm } from '@/features/auth'
 
-// Code splitting - lazy loading de páginas
-const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage'))
-const ValidacionDerechosPage = lazy(() => import('@/features/validacionDerechos/ValidacionDerechosPage'))
-const RadicacionCasosPage = lazy(() => import('@/features/radicacionCasos/RadicacionCasosPage'))
-const GestionBackPage = lazy(() => import('@/features/gestionBack/GestionBackPage'))
-const DirectorioPage = lazy(() => import('@/features/directorioInstitucional/DirectorioPage'))
-const PlaceholderPage = lazy(() => import('@/features/placeholder/PlaceholderPage'))
-const AdminUsuariosPage = lazy(() => import('@/features/admin/AdminUsuariosPage'))
-const Anexo8Page = lazy(() => import('@/features/anexo8/Anexo8Page'))
-const ConsultarCupsPage = lazy(() => import('@/features/consultarCups/ConsultarCupsPage'))
-const SoportesFacturacionPage = lazy(() => import('@/features/soportesFacturacion/SoportesFacturacionPage'))
-const GestionDemandaInducidaView = lazy(() => import('@/features/demandaInducida/GestionDemandaInducidaView'))
+// Helper para lazy loading con reintento automático en fallos de descarga de chunks
+// Esto ocurre comúnmente cuando se despliega una nueva versión y los hashes antiguos ya no existen
+const lazyWithRetry = (componentImport: () => Promise<any>) =>
+    lazy(async () => {
+        const pageHasAlreadyBeenForceRefreshed = JSON.parse(
+            window.sessionStorage.getItem('page-has-been-force-refreshed') || 'false'
+        )
+
+        try {
+            const component = await componentImport()
+            window.sessionStorage.setItem('page-has-been-force-refreshed', 'false')
+            return component
+        } catch (error) {
+            if (!pageHasAlreadyBeenForceRefreshed) {
+                // El error suele ser "Failed to fetch dynamically imported module"
+                console.warn('Fallo en la carga del módulo (posible despliegue nuevo). Reintentando...', error)
+                window.sessionStorage.setItem('page-has-been-force-refreshed', 'true')
+                return window.location.reload()
+            }
+
+            // Si ya refrescamos y sigue fallando, es un error fatal de red/servidor
+            console.error('Error crítico al cargar módulo después de refrescar:', error)
+            throw error
+        }
+    })
+
+// Code splitting - lazy loading de páginas con reintento
+const DashboardPage = lazyWithRetry(() => import('@/features/dashboard/DashboardPage'))
+const ValidacionDerechosPage = lazyWithRetry(() => import('@/features/validacionDerechos/ValidacionDerechosPage'))
+const RadicacionCasosPage = lazyWithRetry(() => import('@/features/radicacionCasos/RadicacionCasosPage'))
+const GestionBackPage = lazyWithRetry(() => import('@/features/gestionBack/GestionBackPage'))
+const DirectorioPage = lazyWithRetry(() => import('@/features/directorioInstitucional/DirectorioPage'))
+const PlaceholderPage = lazyWithRetry(() => import('@/features/placeholder/PlaceholderPage'))
+const AdminUsuariosPage = lazyWithRetry(() => import('@/features/admin/AdminUsuariosPage'))
+const Anexo8Page = lazyWithRetry(() => import('@/features/anexo8/Anexo8Page'))
+const ConsultarCupsPage = lazyWithRetry(() => import('@/features/consultarCups/ConsultarCupsPage'))
+const SoportesFacturacionPage = lazyWithRetry(() => import('@/features/soportesFacturacion/SoportesFacturacionPage'))
+const GestionDemandaInducidaView = lazyWithRetry(() => import('@/features/demandaInducida/GestionDemandaInducidaView'))
 
 /**
  * Componente de protección de rutas
