@@ -126,7 +126,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                             GESTAR SALUD IPS v{BUILD_INFO.version}
                         </p>
                         <p className="text-[9px] text-primary-400 font-mono">
-                            {BUILD_INFO.buildDate} GMT-5
+                            {BUILD_INFO.buildDate}
                         </p>
                     </div>
                 </div>

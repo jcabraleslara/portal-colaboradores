@@ -585,53 +585,95 @@ export function SoportesFacturacionPage() {
                                             <form className="space-y-4">
                                                 {/* EPS */}
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                                         EPS <span className="text-red-500">*</span>
                                                     </label>
-                                                    <select
-                                                        value={eps}
-                                                        onChange={(e) => setEps(e.target.value as EpsFacturacion)}
-                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
-                                                    >
-                                                        <option value="" disabled>Seleccione una EPS...</option>
-                                                        {EPS_FACTURACION_LISTA.map(e => (
-                                                            <option key={e} value={e}>{e}</option>
-                                                        ))}
-                                                    </select>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {EPS_FACTURACION_LISTA.map(e => {
+                                                            const isSelected = eps === e
+                                                            return (
+                                                                <button
+                                                                    key={e}
+                                                                    type="button"
+                                                                    onClick={() => setEps(e)}
+                                                                    className={`
+                                                                        px-4 py-2 rounded-full text-sm font-medium transition-all border
+                                                                        ${isSelected
+                                                                            ? 'bg-[var(--color-primary-50)] text-[var(--color-primary)] border-[var(--color-primary)] ring-1 ring-[var(--color-primary)]'
+                                                                            : 'bg-white text-gray-600 border-gray-200 hover:border-[var(--color-primary-300)] hover:bg-gray-50'
+                                                                        }
+                                                                    `}
+                                                                >
+                                                                    {e}
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                    {!eps && submitError && <p className="text-xs text-red-500 mt-1">Selecciona una EPS</p>}
                                                 </div>
 
                                                 {/* Régimen */}
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                                         Régimen <span className="text-red-500">*</span>
                                                     </label>
-                                                    <select
-                                                        value={regimen}
-                                                        onChange={(e) => setRegimen(e.target.value as RegimenFacturacion)}
-                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
-                                                    >
-                                                        <option value="" disabled>Seleccione un Régimen...</option>
-                                                        {REGIMEN_FACTURACION_LISTA.map(r => (
-                                                            <option key={r.value} value={r.value}>{r.label}</option>
-                                                        ))}
-                                                    </select>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {REGIMEN_FACTURACION_LISTA.map(r => {
+                                                            const isSelected = regimen === r.value
+                                                            // Colores distintivos según régimen
+                                                            const activeClass = r.value === 'CONTRIBUTIVO'
+                                                                ? 'bg-blue-50 text-blue-700 border-blue-500 ring-1 ring-blue-500'
+                                                                : 'bg-emerald-50 text-emerald-700 border-emerald-500 ring-1 ring-emerald-500'
+
+                                                            return (
+                                                                <button
+                                                                    key={r.value}
+                                                                    type="button"
+                                                                    onClick={() => setRegimen(r.value)}
+                                                                    className={`
+                                                                        px-4 py-2 rounded-full text-sm font-medium transition-all border flex items-center gap-2
+                                                                        ${isSelected
+                                                                            ? activeClass
+                                                                            : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                                                                        }
+                                                                    `}
+                                                                >
+                                                                    <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-current' : 'bg-gray-300'}`} />
+                                                                    {r.label}
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                    {!regimen && submitError && <p className="text-xs text-red-500 mt-1">Selecciona un Régimen</p>}
                                                 </div>
 
                                                 {/* Servicio Prestado */}
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
                                                         Servicio Prestado <span className="text-red-500">*</span>
                                                     </label>
-                                                    <select
-                                                        value={servicioPrestado}
-                                                        onChange={(e) => setServicioPrestado(e.target.value as ServicioPrestado)}
-                                                        className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
-                                                    >
-                                                        <option value="" disabled>Seleccione un Servicio...</option>
-                                                        {serviciosDisponibles.map(s => (
-                                                            <option key={s} value={s}>{s}</option>
-                                                        ))}
-                                                    </select>
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                        {serviciosDisponibles.map(s => {
+                                                            const isSelected = servicioPrestado === s
+                                                            return (
+                                                                <button
+                                                                    key={s}
+                                                                    type="button"
+                                                                    onClick={() => setServicioPrestado(s)}
+                                                                    className={`
+                                                                        px-3 py-2 rounded-lg text-sm font-medium transition-all border text-left
+                                                                        ${isSelected
+                                                                            ? 'bg-purple-50 text-purple-700 border-purple-500 ring-1 ring-purple-500 z-10'
+                                                                            : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300 hover:bg-purple-50/30'
+                                                                        }
+                                                                    `}
+                                                                >
+                                                                    {s}
+                                                                </button>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                    {!servicioPrestado && submitError && <p className="text-xs text-red-500 mt-1">Selecciona un Servicio</p>}
                                                 </div>
 
                                                 {/* Fecha de Atención */}
