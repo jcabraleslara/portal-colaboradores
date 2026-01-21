@@ -144,15 +144,6 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         requiredRoles: ['superadmin', 'auditor'],
     },
     {
-        id: 'directorio-institucional',
-        name: 'Directorio Institucional',
-        path: ROUTES.DIRECTORIO_INSTITUCIONAL,
-        icon: 'Contact',
-        enabled: true,
-        description: 'Contactos institucionales',
-        requiredRoles: ['superadmin'],
-    },
-    {
         id: 'soportes-facturacion',
         name: 'Soportes de Facturación',
         path: ROUTES.SOPORTES_FACTURACION,
@@ -195,7 +186,15 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         description: 'Gestión y radicación de casos',
         requiredRoles: ['superadmin', 'auditor', 'operativo', 'asistencial'],
     },
-
+    {
+        id: 'directorio-institucional',
+        name: 'Directorio Institucional',
+        path: ROUTES.DIRECTORIO_INSTITUCIONAL,
+        icon: 'Contact',
+        enabled: true,
+        description: 'Contactos institucionales',
+        requiredRoles: ['superadmin'],
+    },
     {
         id: 'admin-usuarios',
         name: 'Administrar Usuarios',
