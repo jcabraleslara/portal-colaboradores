@@ -65,9 +65,9 @@ export function SoportesFacturacionPage() {
     // ============================================
     // ESTADO - Datos del Formulario
     // ============================================
-    const [eps, setEps] = useState<EpsFacturacion>('SALUD TOTAL')
-    const [regimen, setRegimen] = useState<RegimenFacturacion>('SUBSIDIADO')
-    const [servicioPrestado, setServicioPrestado] = useState<ServicioPrestado>('Consulta Ambulatoria')
+    const [eps, setEps] = useState<EpsFacturacion | ''>('')
+    const [regimen, setRegimen] = useState<RegimenFacturacion | ''>('')
+    const [servicioPrestado, setServicioPrestado] = useState<ServicioPrestado | ''>('')
     const [fechaAtencion, setFechaAtencion] = useState('')
     const [observaciones, setObservaciones] = useState('')
 
@@ -151,8 +151,8 @@ export function SoportesFacturacionPage() {
 
     // Efecto para resetear servicioPrestado si ya no está disponible al cambiar EPS
     useEffect(() => {
-        if (!serviciosDisponibles.includes(servicioPrestado)) {
-            setServicioPrestado(serviciosDisponibles[0])
+        if (servicioPrestado && !serviciosDisponibles.includes(servicioPrestado)) {
+            setServicioPrestado('')
         }
     }, [eps, serviciosDisponibles, servicioPrestado])
 
@@ -256,9 +256,9 @@ export function SoportesFacturacionPage() {
     // HANDLERS - Formulario
     // ============================================
     const resetFormulario = () => {
-        setEps('SALUD TOTAL')
-        setRegimen('SUBSIDIADO')
-        setServicioPrestado('Consulta Ambulatoria')
+        setEps('')
+        setRegimen('')
+        setServicioPrestado('')
         setFechaAtencion('')
         setObservaciones('')
         setAfiliado(null)
@@ -272,6 +272,20 @@ export function SoportesFacturacionPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        // Validar campos obligatorios
+        if (!eps) {
+            setSubmitError('Debes seleccionar una EPS')
+            return
+        }
+        if (!regimen) {
+            setSubmitError('Debes seleccionar un Régimen')
+            return
+        }
+        if (!servicioPrestado) {
+            setSubmitError('Debes seleccionar un Servicio Prestado')
+            return
+        }
 
         // Solo requerir afiliado si es Cirugía ambulatoria
         if (requiereIdentificacion && !afiliado) {
@@ -300,9 +314,9 @@ export function SoportesFacturacionPage() {
         const result = await soportesFacturacionService.crearRadicacion({
             radicadorEmail: user?.email || '',
             radicadorNombre: user?.nombreCompleto,
-            eps,
-            regimen,
-            servicioPrestado,
+            eps: eps as EpsFacturacion,
+            regimen: regimen as RegimenFacturacion,
+            servicioPrestado: servicioPrestado as ServicioPrestado,
             fechaAtencion,
             tipoId: afiliado?.tipoId || undefined,
             identificacion: afiliado?.id || undefined,
@@ -579,6 +593,7 @@ export function SoportesFacturacionPage() {
                                                         onChange={(e) => setEps(e.target.value as EpsFacturacion)}
                                                         className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
                                                     >
+                                                        <option value="" disabled>Seleccione una EPS...</option>
                                                         {EPS_FACTURACION_LISTA.map(e => (
                                                             <option key={e} value={e}>{e}</option>
                                                         ))}
@@ -595,6 +610,7 @@ export function SoportesFacturacionPage() {
                                                         onChange={(e) => setRegimen(e.target.value as RegimenFacturacion)}
                                                         className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
                                                     >
+                                                        <option value="" disabled>Seleccione un Régimen...</option>
                                                         {REGIMEN_FACTURACION_LISTA.map(r => (
                                                             <option key={r.value} value={r.value}>{r.label}</option>
                                                         ))}
@@ -611,6 +627,7 @@ export function SoportesFacturacionPage() {
                                                         onChange={(e) => setServicioPrestado(e.target.value as ServicioPrestado)}
                                                         className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-transparent"
                                                     >
+                                                        <option value="" disabled>Seleccione un Servicio...</option>
                                                         {serviciosDisponibles.map(s => (
                                                             <option key={s} value={s}>{s}</option>
                                                         ))}

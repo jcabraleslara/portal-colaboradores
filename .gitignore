@@ -29,7 +29,7 @@ dist-ssr
 *-credentials.json
 document-ai-*.json
 
-# Internal scripts and documentation
-scripts/
+# Scripts con credenciales sensibles
+scripts/get-onedrive-folder-id.js
 
 .vercel

@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { PORTAL_MODULES, ModuleConfig } from '@/config/constants'
 import { useAuth } from '@/context/AuthContext'
+import BUILD_INFO from '@/version'
 
 // Mapa de iconos específicos (tree-shaking friendly)
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -121,8 +122,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                         <p className="text-xs font-semibold text-primary-700 mb-0.5">
                             Portal Colaboradores
                         </p>
-                        <p className="text-[10px] text-primary-500">
-                            GESTAR SALUD IPS v1.0
+                        <p className="text-[10px] text-primary-500 mb-0.5">
+                            GESTAR SALUD IPS v{BUILD_INFO.version}
+                        </p>
+                        <p className="text-[9px] text-primary-400 font-mono">
+                            {BUILD_INFO.buildDate} GMT-5
                         </p>
                     </div>
                 </div>

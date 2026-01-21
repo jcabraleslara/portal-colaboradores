@@ -5,10 +5,12 @@
     "type": "module",
     "description": "Portal de Colaboradores - GESTAR SALUD IPS",
     "scripts": {
-        "dev": "vite",
-        "build": "tsc -b && vite build",
+        "dev": "npm run version:generate && vite",
+        "build": "npm run version:generate && tsc -b && vite build",
         "lint": "eslint .",
-        "preview": "vite preview"
+        "preview": "vite preview",
+        "version:generate": "node scripts/generate-version.js",
+        "prepare": "node scripts/install-hooks.js || echo 'Git hooks installation failed'"
     },
     "dependencies": {
         "@google-cloud/documentai": "^9.5.0",
