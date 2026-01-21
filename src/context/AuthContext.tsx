@@ -433,6 +433,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             console.info('📦 Perfil encontrado en caché, cargando instantáneamente...')
                             setUser(cachedProfile)
                             setIsLoading(false)
+                            lastSuccessfulEmail.current = currentEmail // ✅ Marcar como procesado
 
                             // 2. Actualizar perfil en background (sin bloquear UI)
                             console.info('🔄 Actualizando perfil en background...')
@@ -443,7 +444,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
                                     if (freshProfile) {
                                         setUser(freshProfile)
                                         cacheProfile(freshProfile)
-                                        lastSuccessfulEmail.current = currentEmail
                                         console.info('✅ Perfil actualizado en background')
                                     }
                                 })
@@ -489,6 +489,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             setIsLoading(false)
                             isProcessing.current = false
                         }
+                    }
+                }
+
+                // ================================================
+                // MANEJO DE INITIAL_SESSION SIN USUARIO (No logueado/Sesión expirada)
+                // ================================================
+                else if (event === 'INITIAL_SESSION' && !session?.user) {
+                    console.info('🔓 No hay sesión activa, redirigiendo a login...')
+                    if (mounted) {
+                        setUser(null)
+                        setIsLoading(false)
+                        lastSuccessfulEmail.current = null
+                        isProcessing.current = false
                     }
                 }
 
