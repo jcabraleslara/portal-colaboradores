@@ -153,7 +153,7 @@ export function ValidacionDerechosPage() {
                 <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex-1 relative" onClick={(e) => e.stopPropagation()}>
                         <Input
-                            placeholder="Ingresa número de documento"
+                            placeholder="Ingresa número de documento o también nombres y apellidos"
                             value={documento}
                             onChange={(e) => {
                                 // Permitir cualquier caracter para búsqueda por nombre
