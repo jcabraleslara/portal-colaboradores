@@ -19,6 +19,85 @@ interface DemandaDetallePanelProps {
     onUpdate?: () => void
 }
 
+/**
+ * Componente interno para renderizar filas de detalle o campos de edición
+ * Definido fuera para evitar pérdida de foco al editar
+ */
+const DetailRow = ({
+    label,
+    value,
+    icon: Icon,
+    name,
+    type = 'text',
+    options,
+    isEditing,
+    onChange
+}: {
+    label: string
+    value: string | number | null | undefined
+    icon: any
+    name: string
+    type?: string
+    options?: string[]
+    isEditing: boolean
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => void
+}) => {
+    const displayValue = value || ''
+
+    if (isEditing) {
+        return (
+            <div className="py-2">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">
+                    {label}
+                </label>
+                {options ? (
+                    <select
+                        name={name}
+                        value={displayValue}
+                        onChange={onChange}
+                        className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                    >
+                        <option value="">Seleccione...</option>
+                        {options.map((opt: string) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                    </select>
+                ) : type === 'textarea' ? (
+                    <textarea
+                        name={name}
+                        value={displayValue}
+                        onChange={onChange}
+                        rows={3}
+                        className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                    />
+                ) : (
+                    <input
+                        type={type}
+                        name={name}
+                        value={displayValue}
+                        onChange={onChange}
+                        className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
+                    />
+                )}
+            </div>
+        )
+    }
+
+    if (!value || value === '' || value === 'N/A') return null
+
+    return (
+        <div className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0 group">
+            <div className="p-2 bg-slate-100 rounded-lg text-slate-500 group-hover:bg-primary-50 group-hover:text-primary-500 transition-colors">
+                <Icon size={18} />
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
+                <p className="text-sm font-semibold text-slate-800 break-words">{value}</p>
+            </div>
+        </div>
+    )
+}
+
 export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetallePanelProps) {
     const { user } = useAuth()
     const [isEditing, setIsEditing] = useState(false)
@@ -52,72 +131,11 @@ export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetalleP
             await demandaInducidaService.update(caso.id, formData)
             setIsEditing(false)
             if (onUpdate) onUpdate()
-            // No cerramos el panel, dejamos que el usuario vea los cambios o lo cierre él mismo
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Error al actualizar el registro')
         } finally {
             setSaving(false)
         }
-    }
-
-    /**
-     * Helper to render a detail row if value exists
-     */
-    const DetailRow = ({ label, value, icon: Icon, name, type = 'text', options }: any) => {
-        const displayValue = value || ''
-
-        if (isEditing) {
-            return (
-                <div className="py-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 px-1">
-                        {label}
-                    </label>
-                    {options ? (
-                        <select
-                            name={name}
-                            value={displayValue}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
-                        >
-                            <option value="">Seleccione...</option>
-                            {options.map((opt: string) => (
-                                <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                        </select>
-                    ) : type === 'textarea' ? (
-                        <textarea
-                            name={name}
-                            value={displayValue}
-                            onChange={handleChange}
-                            rows={3}
-                            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
-                        />
-                    ) : (
-                        <input
-                            type={type}
-                            name={name}
-                            value={displayValue}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary-500 outline-none"
-                        />
-                    )}
-                </div>
-            )
-        }
-
-        if (!value || value === '' || value === 'N/A') return null
-
-        return (
-            <div className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0 group">
-                <div className="p-2 bg-slate-100 rounded-lg text-slate-500 group-hover:bg-primary-50 group-hover:text-primary-500 transition-colors">
-                    <Icon size={18} />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{label}</p>
-                    <p className="text-sm font-semibold text-slate-800 break-words">{value}</p>
-                </div>
-            </div>
-        )
     }
 
     return (
@@ -204,8 +222,8 @@ export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetalleP
                             <User size={16} /> Información del Paciente
                         </h3>
                         <div className="bg-slate-50 rounded-2xl p-4 space-y-1">
-                            <DetailRow label="Celular de Contacto" value={formData.celular} name="celular" icon={Phone} />
-                            <DetailRow label="Teléfono Actualizado" value={formData.telefonoActualizado} name="telefonoActualizado" icon={Phone} />
+                            <DetailRow label="Celular de Contacto" value={formData.celular} name="celular" icon={Phone} isEditing={isEditing} onChange={handleChange} />
+                            <DetailRow label="Teléfono Actualizado" value={formData.telefonoActualizado} name="telefonoActualizado" icon={Phone} isEditing={isEditing} onChange={handleChange} />
                         </div>
                     </section>
 
@@ -215,8 +233,8 @@ export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetalleP
                             <ClipboardList size={16} /> Gestión Realizada
                         </h3>
                         <div className="bg-slate-50 rounded-2xl p-4 space-y-1 shadow-sm">
-                            <DetailRow label="Fecha Gestión" value={formData.fechaGestion} name="fechaGestion" type="date" icon={Calendar} />
-                            <DetailRow label="Hora Llamada" value={formData.horaLlamada} name="horaLlamada" type="time" icon={Timer} />
+                            <DetailRow label="Fecha Gestión" value={formData.fechaGestion} name="fechaGestion" type="date" icon={Calendar} isEditing={isEditing} onChange={handleChange} />
+                            <DetailRow label="Hora Llamada" value={formData.horaLlamada} name="horaLlamada" type="time" icon={Timer} isEditing={isEditing} onChange={handleChange} />
 
                             {(formData.clasificacion === 'No Efectivo' || isEditing) && (
                                 <DetailRow
@@ -225,18 +243,22 @@ export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetalleP
                                     name="resultadoLlamada"
                                     icon={Info}
                                     options={[...RESULTADOS_LLAMADA]}
+                                    isEditing={isEditing}
+                                    onChange={handleChange}
                                 />
                             )}
 
                             {(formData.clasificacion === 'Efectivo' || isEditing) && (
                                 <>
-                                    <DetailRow label="Quién recibió" value={formData.quienRecibeLlamada} name="quienRecibeLlamada" icon={User} />
+                                    <DetailRow label="Quién recibió" value={formData.quienRecibeLlamada} name="quienRecibeLlamada" icon={User} isEditing={isEditing} onChange={handleChange} />
                                     <DetailRow
                                         label="Relación con Usuario"
                                         value={formData.relacionUsuario}
                                         name="relacionUsuario"
                                         icon={Info}
                                         options={[...RELACIONES_USUARIO]}
+                                        isEditing={isEditing}
+                                        onChange={handleChange}
                                     />
                                     <DetailRow
                                         label="Condición del Usuario"
@@ -244,6 +266,8 @@ export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetalleP
                                         name="condicionUsuario"
                                         icon={Activity}
                                         options={[...CONDICIONES_USUARIO]}
+                                        isEditing={isEditing}
+                                        onChange={handleChange}
                                     />
                                 </>
                             )}
@@ -263,6 +287,8 @@ export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetalleP
                                     name="programaDireccionado"
                                     icon={ClipboardList}
                                     options={[...PROGRAMAS_DIRECCIONADOS]}
+                                    isEditing={isEditing}
+                                    onChange={handleChange}
                                 />
                                 <DetailRow
                                     label="Actividades Realizadas"
@@ -270,9 +296,11 @@ export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetalleP
                                     name="actividadesRealizadas"
                                     icon={ClipboardList}
                                     options={[...ACTIVIDADES_REALIZADAS]}
+                                    isEditing={isEditing}
+                                    onChange={handleChange}
                                 />
-                                <DetailRow label="Soportes Recuperados" value={formData.soportesRecuperados} name="soportesRecuperados" icon={ClipboardList} />
-                                <DetailRow label="Fecha Asignación Cita" value={formData.fechaAsignacionCita} name="fechaAsignacionCita" type="date" icon={Calendar} />
+                                <DetailRow label="Soportes Recuperados" value={formData.soportesRecuperados} name="soportesRecuperados" icon={ClipboardList} isEditing={isEditing} onChange={handleChange} />
+                                <DetailRow label="Fecha Asignación Cita" value={formData.fechaAsignacionCita} name="fechaAsignacionCita" type="date" icon={Calendar} isEditing={isEditing} onChange={handleChange} />
                             </div>
                         </section>
                     )}
@@ -284,8 +312,8 @@ export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetalleP
                                 <MapPin size={16} /> Ubicación
                             </h3>
                             <div className="bg-slate-50 rounded-2xl p-4 space-y-1 shadow-sm">
-                                <DetailRow label="Departamento" value={formData.departamento} name="departamento" icon={MapPin} />
-                                <DetailRow label="Municipio" value={formData.municipio} name="municipio" icon={MapPin} />
+                                <DetailRow label="Departamento" value={formData.departamento} name="departamento" icon={MapPin} isEditing={isEditing} onChange={handleChange} />
+                                <DetailRow label="Municipio" value={formData.municipio} name="municipio" icon={MapPin} isEditing={isEditing} onChange={handleChange} />
                             </div>
                         </section>
                     )}
@@ -297,7 +325,7 @@ export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetalleP
                                 <FileText size={16} /> Observaciones / Texto Llamada
                             </h3>
                             <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-1 shadow-sm">
-                                <DetailRow label="Contenido" value={formData.textoLlamada} name="textoLlamada" type="textarea" icon={FileText} />
+                                <DetailRow label="Contenido" value={formData.textoLlamada} name="textoLlamada" type="textarea" icon={FileText} isEditing={isEditing} onChange={handleChange} />
                                 {!isEditing && (
                                     <div className="p-4 pt-0">
                                         <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
@@ -316,8 +344,8 @@ export function DemandaDetallePanel({ caso, onClose, onUpdate }: DemandaDetalleP
                                 <Info size={16} /> Datos de Auditoría
                             </h3>
                             <div className="bg-slate-50 rounded-2xl p-4 space-y-1 shadow-sm opacity-70">
-                                <DetailRow label="Registrado por" value={caso.colaborador} icon={User} />
-                                <DetailRow label="Fecha Registro" value={new Date(caso.createdAt).toLocaleString('es-CO')} icon={Calendar} />
+                                <DetailRow label="Registrado por" value={caso.colaborador} name="colaborador" icon={User} isEditing={false} onChange={() => { }} />
+                                <DetailRow label="Fecha Registro" value={new Date(caso.createdAt).toLocaleString('es-CO')} name="createdAt" icon={Calendar} isEditing={false} onChange={() => { }} />
                             </div>
                         </section>
                     )}

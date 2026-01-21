@@ -154,6 +154,13 @@ export function DemandaInducidaFormulario() {
         }
     }
 
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            handleBuscarPaciente()
+        }
+    }
+
     const { clasificacion } = formData
 
     return (
@@ -192,6 +199,7 @@ export function DemandaInducidaFormulario() {
                             name="identificacion"
                             value={formData.identificacion}
                             onChange={handleChange}
+                            onKeyDown={handleKeyDown}
                             className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                             placeholder="Número de documento o nombre completo"
                             required
@@ -293,7 +301,7 @@ export function DemandaInducidaFormulario() {
             <section className="bg-white rounded-2xl border border-slate-200 p-6">
                 <h3 className="text-lg font-bold text-slate-800 mb-4">Datos de Gestión</h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-2">
                             Fecha Gestión <span className="text-red-500">*</span>
@@ -332,22 +340,34 @@ export function DemandaInducidaFormulario() {
                             className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                         />
                     </div>
-                </div>
 
-                <div className="mt-4">
-                    <label className="block text-sm font-semibold text-slate-700 mb-2">
-                        Clasificación <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                        name="clasificacion"
-                        value={formData.clasificacion}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 font-semibold"
-                        required
-                    >
-                        <option value="Efectivo">Efectivo</option>
-                        <option value="No Efectivo">No Efectivo</option>
-                    </select>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                            Clasificación <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex gap-2 p-1.5 bg-slate-100 rounded-xl">
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, clasificacion: 'Efectivo' })}
+                                className={`flex-1 py-1.5 px-3 rounded-lg text-sm font-bold transition-all ${formData.clasificacion === 'Efectivo'
+                                    ? 'bg-green-600 text-white shadow-md'
+                                    : 'text-slate-500 hover:bg-slate-200'
+                                    }`}
+                            >
+                                Efectivo
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, clasificacion: 'No Efectivo' })}
+                                className={`flex-1 py-1.5 px-3 rounded-lg text-sm font-bold transition-all ${formData.clasificacion === 'No Efectivo'
+                                    ? 'bg-red-600 text-white shadow-md'
+                                    : 'text-slate-500 hover:bg-slate-200'
+                                    }`}
+                            >
+                                No Efectivo
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -535,9 +555,7 @@ export function DemandaInducidaFormulario() {
                                 className="w-full px-4 py-2.5 rounded-xl border border-green-300 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                             />
                         </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-semibold text-slate-700 mb-2">
                                 Programa direccionado

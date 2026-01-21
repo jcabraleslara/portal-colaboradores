@@ -50,8 +50,8 @@ async function buscarPacientes(
     const { data, error } = await supabase
         .from('afiliados')
         .select('*')
-        .ilike('busqueda_texto', `%${criterio}%`)
-        .limit(10) // Limitamos a 10 resultados para el selector
+        .or(`id.ilike.%${criterio}%,busqueda_texto.ilike.%${criterio}%`)
+        .limit(10)
 
     if (error) {
         throw new Error(`Error buscando pacientes: ${error.message}`)
