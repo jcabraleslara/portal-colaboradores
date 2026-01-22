@@ -11,7 +11,9 @@ import {
     CheckCircle,
     Cloud,
     Edit,
+    Trash2,
 } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
 import { Button, PdfViewerModal } from '@/components/common'
 import { soportesFacturacionService } from '@/services/soportesFacturacion.service'
@@ -32,6 +34,9 @@ interface RadicacionDetallePanelProps {
 }
 
 export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDetallePanelProps) {
+    const { user } = useAuth()
+    const esAdmin = user?.rol === 'admin' || user?.rol === 'superadmin'
+
     const [guardando, setGuardando] = useState(false)
     const [nuevoEstado, setNuevoEstado] = useState<EstadoSoporteFacturacion>(caso.estado)
     const [observaciones, setObservaciones] = useState(caso.observacionesFacturacion || '')
@@ -146,6 +151,29 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
             toast.error('Error al renombrar archivo')
         } finally {
             setRenombrando(false)
+        }
+    }
+
+    const handleEliminar = async () => {
+        if (!window.confirm(`¿Está SEGURO de eliminar el radicado ${caso.radicado}? Esta acción es irreversible y borrará el registro de la base de datos.`)) {
+            return
+        }
+
+        setGuardando(true)
+        try {
+            const result = await soportesFacturacionService.eliminarRadicado(caso.radicado)
+            if (result.success) {
+                toast.success('Radicado eliminado exitosamente')
+                onUpdate()
+                onClose()
+            } else {
+                toast.error(result.error || 'Error al eliminar')
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error('Error al eliminar radicado')
+        } finally {
+            setGuardando(false)
         }
     }
 
@@ -387,18 +415,33 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-                    <Button variant="ghost" onClick={onClose} disabled={guardando}>
-                        Cancelar
-                    </Button>
-                    <Button
-                        variant="primary"
-                        onClick={handleGuardar}
-                        isLoading={guardando}
-                        leftIcon={<Save size={18} />}
-                    >
-                        Guardar Cambios
-                    </Button>
+                <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                    <div>
+                        {esAdmin && (
+                            <Button
+                                variant="secondary"
+                                className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300"
+                                onClick={handleEliminar}
+                                disabled={guardando}
+                                leftIcon={<Trash2 size={18} />}
+                            >
+                                Eliminar
+                            </Button>
+                        )}
+                    </div>
+                    <div className="flex gap-3">
+                        <Button variant="ghost" onClick={onClose} disabled={guardando}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="primary"
+                            onClick={handleGuardar}
+                            isLoading={guardando}
+                            leftIcon={<Save size={18} />}
+                        >
+                            Guardar Cambios
+                        </Button>
+                    </div>
                 </div>
             </div>
 

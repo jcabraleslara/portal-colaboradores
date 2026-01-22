@@ -737,6 +737,40 @@ export const soportesFacturacionService = {
             }
         }
     },
+    /**
+     * Eliminar una radicación (Solo admin/superadmin)
+     */
+    async eliminarRadicado(radicado: string): Promise<ApiResponse<null>> {
+        try {
+            // Nota: Los archivos en Storage no se borran automáticamente aquí.
+            // Idealmente se debería implementar un trigger o una función de limpieza.
+            // La política RLS asegura que solo admin/superadmin puedan borrar.
+
+            const { error } = await supabase
+                .from('soportes_facturacion')
+                .delete()
+                .eq('radicado', radicado)
+
+            if (error) {
+                console.error('Error eliminando radicado:', error)
+                return {
+                    success: false,
+                    error: 'Error al eliminar el radicado: ' + error.message,
+                }
+            }
+
+            return {
+                success: true,
+                message: 'Radicado eliminado exitosamente',
+            }
+        } catch (error) {
+            console.error('Error en eliminarRadicado:', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR,
+            }
+        }
+    },
 }
 
 

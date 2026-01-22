@@ -1,0 +1,24 @@
+[dotenv@17.2.3] injecting env (25) from .env.local -- tip: ÔÜÖ´©Å  load multiple .env files with { path: ['.env.local', '.env'] }
+­ƒòÁ´©ÅÔÇìÔÖÇ´©Å Buscando carpetas en OneDrive...
+
+­ƒôé Carpetas en la RA├ìZ:
+   - ­ƒôü Aplicaciones (ID: 01ZYMI5SM2LHTVBLLJENFJP3XLJBM4E5TX)
+   - ­ƒôü Archivos de chat de Microsoft Teams (ID: 01ZYMI5SJGV6RSAWY5DBHL5DRFXSIQYE7V)
+   - ­ƒôü Archivos de Microsoft┬áCopilot Chat (ID: 01ZYMI5SIXRLVR5C4X6JH3IV6R5P2B6MJD)
+   - ­ƒôü ├üreas y Procesos Gestar (ID: 01ZYMI5SIO3AENYRWGDJB2QWNLX27RXLOM)
+   - ­ƒôü Blocs de notas (ID: 01ZYMI5SNRSIBAA5YRU5GLKGRHKW4JBBFX)
+   - ­ƒôü Datos adjuntos (ID: 01ZYMI5SKNNTKQBLEKQZF27GDPO5B756CM)
+   - ­ƒôü Descargas (ID: 01ZYMI5SOTGVJAYKQKLNFY2LHRMFGQYAVG)
+   - ­ƒôü Docencia (ID: 01ZYMI5SJQ7TLQIB7EEREJBD5NHJRRDE23)
+   - ­ƒôü Documentos (ID: 01ZYMI5SLJJZG4X4VRNFA37NCZXXH5AVRI)
+   - ­ƒôü Escritorio (ID: 01ZYMI5SJJLGIWZGLYM5FY2VVJHP643BHU)
+   - ­ƒôü Favoritos (ID: 01ZYMI5SO6ED6BOB422FELV6CCXRBGLP24)
+   - ­ƒôü Grabaciones (ID: 01ZYMI5SOJS7RPQFFXSRGLQ3RXDQCR23IT)
+   - ­ƒôü Im├ígenes (ID: 01ZYMI5SM6QB7ILLDO3ZC37SHG73Q6GJD3)
+   - ­ƒôü Microsoft Teams Chat Files (ID: 01ZYMI5SJCLSXWWL6FPBEIDPRP3WWHY5VZ)
+   - ­ƒôü Repositorios (ID: 01ZYMI5SKXHNLUH6A74BFKIA7KM6TQZ2N5)
+   - ­ƒôü Reuniones (ID: 01ZYMI5SMHXBFWQ76JO5AZLV6WDHSKX2FQ)
+   - ­ƒôü Solicitud autorizaci├│n de Recobros (ID: 01ZYMI5SPG7D66U3SK3BBIROUXSUXJY2ZE)
+   - ­ƒôü Soportes Facturaci├│n (ID: 01ZYMI5SPTCY2CIPLOLFHY7PO7C2QIZDZB)
+   - ­ƒôü Videos (ID: 01ZYMI5SNI7GWFZ5KVFFDIDNKTQDMHTOS5)
+   - ­ƒôü JHONATTAN en GESTARSALUD DE COLOMBIA IPS SAS (ID: 01ZYMI5SKQI3VO6FFO5BEL3LOQ7YZ2QRQC)

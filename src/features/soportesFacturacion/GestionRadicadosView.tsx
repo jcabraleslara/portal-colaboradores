@@ -3,7 +3,10 @@ import {
     Search,
     Loader2,
     FileText,
+    Trash2,
 } from 'lucide-react'
+import { toast } from 'sonner'
+import { useAuth } from '@/context/AuthContext'
 import { Card, Button, Input } from '@/components/common'
 import { soportesFacturacionService } from '@/services/soportesFacturacion.service'
 import {
@@ -26,6 +29,8 @@ const Badge = ({ children, className }: { children: React.ReactNode; className?:
 )
 
 export function GestionRadicadosView() {
+    const { user } = useAuth()
+    const esAdmin = user?.rol === 'admin' || user?.rol === 'superadmin'
     // ============================================
     // ESTADO
     // ============================================
@@ -132,6 +137,28 @@ export function GestionRadicadosView() {
         // Recargar datos y conteos
         cargarDatos()
         cargarConteos()
+    }
+
+    const handleEliminar = async (e: React.MouseEvent, radicado: string) => {
+        e.stopPropagation() // Evitar abrir el detalle
+
+        if (!window.confirm(`¿Está seguro de eliminar el radicado ${radicado}? Esta acción es irreversible.`)) {
+            return
+        }
+
+        try {
+            const result = await soportesFacturacionService.eliminarRadicado(radicado)
+            if (result.success) {
+                toast.success(`Radicado ${radicado} eliminado exitosamente`)
+                cargarDatos()
+                cargarConteos()
+            } else {
+                toast.error(result.error || 'Error al eliminar el radicado')
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error('Error procesando la solicitud')
+        }
     }
 
     // ============================================
@@ -276,6 +303,7 @@ export function GestionRadicadosView() {
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Radicador</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">EPS</th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                {esAdmin && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>}
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
@@ -337,6 +365,17 @@ export function GestionRadicadosView() {
                                                 {caso.estado}
                                             </Badge>
                                         </td>
+                                        {esAdmin && (
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <button
+                                                    onClick={(e) => handleEliminar(e, caso.radicado)}
+                                                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-white rounded-full transition-colors"
+                                                    title="Eliminar radicado"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </td>
+                                        )}
 
                                     </tr>
                                 ))
