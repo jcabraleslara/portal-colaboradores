@@ -289,8 +289,9 @@ export const backService = {
     // ========================================
 
     /**
-     * Obtener casos filtrados con paginación (optimizado para grandes volúmenes)
-     * Incluye datos del paciente mediante join con tabla bd
+     * Obtener casos filtrados con paginación (OPTIMIZADO)
+     * - Carga paralela de dependencias (Pacientes, Contactos, Usuarios)
+     * - Mejora en tiempos de respuesta
      */
     async obtenerCasosFiltrados(
         filtros: FiltrosCasosBack,
@@ -298,7 +299,7 @@ export const backService = {
         limit = 50
     ): Promise<ApiResponse<{ casos: BackRadicacionExtendido[]; total: number }>> {
         try {
-            // Query base SIN join (el join falla si no hay FK definida)
+            // 1. Query base a 'back'
             let query = supabase
                 .from('back')
                 .select('*', { count: 'exact' })
@@ -334,7 +335,6 @@ export const backService = {
             if (filtros.sortField && filtros.sortOrder) {
                 query = query.order(filtros.sortField, { ascending: filtros.sortOrder === 'asc' })
             } else {
-                // Default: pendientes primero, luego por fecha descendente
                 query = query
                     .order('estado_radicado', { ascending: false, nullsFirst: false })
                     .order('created_at', { ascending: false })
@@ -352,89 +352,98 @@ export const backService = {
                 }
             }
 
-            // Obtener IDs únicos de pacientes para cargar sus datos
-            const idsUnicos = [...new Set((data as BackRadicacionRaw[]).map(r => r.id))]
-
-            // Cargar datos de pacientes desde la vista afiliados (ya cruzada)
-            // UPDATE: Eliminado teléfono de la consulta
-            // Cargar datos de pacientes desde la vista afiliados (ya cruzada)
-            // UPDATE: Eliminado teléfono de la consulta
-            const { data: pacientesData } = await supabase
-                .from('afiliados')
-                .select('id, nombres, apellido1, apellido2, tipo_id, municipio, direccion, ips_primaria, email, eps')
-                .in('id', idsUnicos)
-
-            // Obtener correos de radicadores para buscar sus cargos
-            const emailsRadicadores = [...new Set((data as BackRadicacionRaw[]).map(r => r.correo_radicador).filter(Boolean) as string[])]
-
-            let cargosMap = new Map<string, string>()
-
-            if (emailsRadicadores.length > 0) {
-                const { data: contactosData } = await supabase
-                    .from('contactos')
-                    .select('email_personal, puesto')
-                    .in('email_personal', emailsRadicadores)
-
-                if (contactosData) {
-                    cargosMap = new Map(contactosData.map(c => [c.email_personal, c.puesto]))
-                }
+            const rawData = data as BackRadicacionRaw[]
+            if (rawData.length === 0) {
+                return { success: true, data: { casos: [], total: 0 } }
             }
 
-            // Obtener nombres completos y emails de radicadores desde usuarios_portal
-            const usuariosRadicadores = [...new Set((data as BackRadicacionRaw[]).map(r => r.radicador).filter(Boolean))]
-            let nombresRadicadoresMap = new Map<string, string>()
-            let emailsRadicadoresMap = new Map<string, string>()
+            // 2. Extraer IDs y claves para búsquedas bulk
+            const idsUnicos = [...new Set(rawData.map(r => r.id))]
+            const usuarioRadicadores = [...new Set(rawData.map(r => r.radicador).filter(Boolean))]
+            const emailsRadicadores = [...new Set(rawData.map(r => r.correo_radicador).filter(Boolean) as string[])]
 
-            if (usuariosRadicadores.length > 0) {
-                // IMPORTANTE: No usar .in() con nombres que contengan espacios/puntos
-                // porque Supabase PostgREST genera URLs mal formadas (400 Bad Request)
-                // Solución: Escapar espacios como %20 y puntos como %2E en el .or()
+            // 3. Ejecutar consultas complementarias EN PARALELO
+            const promises = []
 
-                // Construir condiciones OR manualmente con escape de caracteres URL
-                const orConditions = usuariosRadicadores
+            // A: Pacientes
+            promises.push(
+                supabase
+                    .from('afiliados')
+                    .select('id, nombres, apellido1, apellido2, tipo_id, municipio, direccion, ips_primaria, email, eps')
+                    .in('id', idsUnicos)
+            )
+
+            // B: Usuarios Portal (Radicadores)
+            if (usuarioRadicadores.length > 0) {
+                const orConditions = usuarioRadicadores
                     .map(nombre => {
-                        // Escapar caracteres especiales para URL encoding
-                        const escaped = nombre
-                            .replace(/ /g, '%20')  // Espacios
-                            .replace(/\./g, '%2E') // Puntos
+                        const escaped = nombre.replace(/ /g, '%20').replace(/\./g, '%2E')
                         return `nombre_completo.ilike.${escaped}`
                     })
                     .join(',')
 
-                const { data: usuariosData, error: usuariosError } = await supabase
-                    .from('usuarios_portal')
-                    .select('nombre_completo, email_institucional')
-                    .or(orConditions)
-
-                if (usuariosError) {
-                    console.warn('⚠️ Error obteniendo nombres de radicadores:', usuariosError.message)
-                } else if (usuariosData) {
-                    // Mapear NOMBRE EN MAYÚSCULAS (back) -> Nombre Real (usuarios_portal)
-                    nombresRadicadoresMap = new Map(usuariosData.map(u => [u.nombre_completo.toUpperCase(), u.nombre_completo]))
-                    // Mapear NOMBRE EN MAYÚSCULAS (back) -> Email Institucional
-                    emailsRadicadoresMap = new Map(usuariosData.map(u => [u.nombre_completo.toUpperCase(), u.email_institucional]))
-                }
+                promises.push(
+                    supabase
+                        .from('usuarios_portal')
+                        .select('nombre_completo, email_institucional')
+                        .or(orConditions)
+                )
+            } else {
+                promises.push(Promise.resolve({ data: [] })) // Placeholder
             }
 
-            // Crear mapa de pacientes
+            // C: Contactos (Cargos)
+            if (emailsRadicadores.length > 0) {
+                promises.push(
+                    supabase
+                        .from('contactos')
+                        .select('email_personal, puesto')
+                        .in('email_personal', emailsRadicadores)
+                )
+            } else {
+                promises.push(Promise.resolve({ data: [] })) // Placeholder
+            }
+
+            // Esperar todas
+            const [resPacientes, resUsuarios, resContactos] = await Promise.all(promises)
+
+            // 4. Procesar resultados auxiliares
+
+            // Mapa Pacientes
             const pacientesMap = new Map(
-                (pacientesData || []).map(p => [p.id, p])
+                (resPacientes.data || []).map((p: any) => [p.id, p])
             )
 
-            // Transformar datos
-            const casos: BackRadicacionExtendido[] = (data as BackRadicacionRaw[]).map(raw => {
+            // Mapas Usuarios
+            const nombresRadicadoresMap = new Map<string, string>()
+            const emailsRadicadoresMap = new Map<string, string>()
+
+            if (resUsuarios.data) {
+                resUsuarios.data.forEach((u: any) => {
+                    nombresRadicadoresMap.set(u.nombre_completo.toUpperCase(), u.nombre_completo)
+                    emailsRadicadoresMap.set(u.nombre_completo.toUpperCase(), u.email_institucional)
+                })
+            }
+
+            // Mapa Cargos
+            const cargosMap = new Map<string, string>()
+            if (resContactos.data) {
+                resContactos.data.forEach((c: any) => {
+                    cargosMap.set(c.email_personal, c.puesto)
+                })
+            }
+
+            // 5. Ensamblar respuesta final
+            const casos: BackRadicacionExtendido[] = rawData.map(raw => {
                 const pacienteRaw = pacientesMap.get(raw.id)
                 const base = transformRadicacion(raw)
 
-                // Asignar cargo del radicador si existe
                 if (raw.correo_radicador) {
                     base.cargoRadicador = cargosMap.get(raw.correo_radicador) || null
                 }
 
                 const nombreRadicador = nombresRadicadoresMap.get(raw.radicador) || null
                 const emailRadicador = emailsRadicadoresMap.get(raw.radicador) || null
-
-                // IMPORTANTE: Asignar el email del radicador al objeto base
                 base.emailRadicador = emailRadicador
 
                 return {
@@ -445,7 +454,7 @@ export const backService = {
                         apellido1: pacienteRaw.apellido1,
                         apellido2: pacienteRaw.apellido2,
                         tipoId: pacienteRaw.tipo_id,
-                        telefono: null, // No cargado
+                        telefono: null,
                         municipio: pacienteRaw.municipio,
                         direccion: pacienteRaw.direccion,
                         ipsPrimaria: pacienteRaw.ips_primaria,
@@ -469,46 +478,24 @@ export const backService = {
     },
 
     /**
-     * Obtener conteos de casos pendientes agrupados por tipo y especialidad
-     * Usado para las cards de estadísticas
+     * Obtener conteos de casos pendientes (OPTIMIZADO CON RPC)
+     * Utiliza función RPC en base de datos para cálculo instantáneo
      */
     async obtenerConteosPendientes(): Promise<ApiResponse<ConteosCasosBack>> {
         try {
-            // Obtener todos los casos pendientes con sus tipos y especialidades
-            const { data, error } = await supabase
-                .from('back')
-                .select('tipo_solicitud, especialidad')
-                .or('estado_radicado.eq.Pendiente,estado_radicado.is.null')
+            const { data, error } = await supabase.rpc('get_tablero_back_stats')
 
             if (error) {
-                console.error('Error obteniendo conteos:', error)
+                console.error('Error obteniendo conteos RPC:', error)
                 return {
                     success: false,
                     error: ERROR_MESSAGES.SERVER_ERROR,
                 }
             }
 
-            // Agrupar por tipo de solicitud
-            const conteoPorTipo: Record<string, number> = {}
-            const conteoPorEspecialidad: Record<string, number> = {}
-
-            for (const caso of data) {
-                // Conteo por tipo
-                const tipo = caso.tipo_solicitud || 'Sin clasificar'
-                conteoPorTipo[tipo] = (conteoPorTipo[tipo] || 0) + 1
-
-                // Conteo por especialidad (solo si tiene)
-                if (caso.especialidad) {
-                    conteoPorEspecialidad[caso.especialidad] = (conteoPorEspecialidad[caso.especialidad] || 0) + 1
-                }
-            }
-
             return {
                 success: true,
-                data: {
-                    porTipoSolicitud: Object.entries(conteoPorTipo).map(([tipo, cantidad]) => ({ tipo, cantidad })),
-                    porEspecialidad: Object.entries(conteoPorEspecialidad).map(([especialidad, cantidad]) => ({ especialidad, cantidad })),
-                },
+                data: data as ConteosCasosBack,
             }
         } catch (error) {
             console.error('Error en obtenerConteosPendientes:', error)

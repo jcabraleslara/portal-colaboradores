@@ -9,6 +9,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
     Search,
     Send,
@@ -74,6 +75,7 @@ interface NuevoAfiliadoForm {
 
 export function RadicacionCasosPage() {
     const { user } = useAuth()
+    const location = useLocation()
 
     // ============================================
     // ESTADO - PASO 1: Búsqueda de Afiliado
@@ -134,6 +136,24 @@ export function RadicacionCasosPage() {
     // ============================================
     // EFECTOS
     // ============================================
+
+    // Manejar navegación desde otros módulos (Validación de Derechos)
+    useEffect(() => {
+        if (location.state?.afiliado) {
+            const af = location.state.afiliado as Afiliado
+            setAfiliado(af)
+            setDocumento(af.id || '')
+            setSearchState('success')
+
+            // Si viene con acción específica
+            if (location.state.action === 'radicar') {
+                setVistaActiva('radicar')
+            }
+
+            // Limpiar el estado de history para no volver a ejecutarlo si navega a otra parte y vuelve
+            // window.history.replaceState({}, document.title)
+        }
+    }, [location.state])
 
     // Cargar historial cuando hay afiliado
     useEffect(() => {

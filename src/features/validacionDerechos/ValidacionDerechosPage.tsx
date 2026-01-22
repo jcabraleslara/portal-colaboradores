@@ -10,7 +10,11 @@ import { afiliadosService } from '@/services/afiliados.service'
 import { Afiliado, LoadingState } from '@/types'
 import { UI } from '@/config/constants'
 
+import { useNavigate } from 'react-router-dom'
+import { ROUTES } from '@/config/constants'
+
 export function ValidacionDerechosPage() {
+    const navigate = useNavigate()
     const [documento, setDocumento] = useState('')
     const [afiliado, setAfiliado] = useState<Afiliado | null>(null)
     const [loadingState, setLoadingState] = useState<LoadingState>('idle')
@@ -123,6 +127,17 @@ export function ValidacionDerechosPage() {
         setLoadingState('idle')
     }
 
+    const handleRadicarCaso = () => {
+        if (afiliado) {
+            navigate(ROUTES.RADICACION_CASOS, {
+                state: {
+                    afiliado: afiliado,
+                    action: 'radicar'
+                }
+            })
+        }
+    }
+
     const handlePhoneUpdate = (newPhone: string) => {
         if (afiliado) {
             setAfiliado({ ...afiliado, telefono: newPhone })
@@ -207,6 +222,19 @@ export function ValidacionDerechosPage() {
                         >
                             Consultar
                         </Button>
+
+                        {afiliado && (
+                            <Button
+                                variant="primary"
+                                size="lg"
+                                onClick={handleRadicarCaso}
+                                leftIcon={<FileText size={20} />}
+                                className="animate-scale-in bg-indigo-600 hover:bg-indigo-700 text-white border-0 shadow-md hover:shadow-lg transition-all"
+                            >
+                                Radicar Caso
+                            </Button>
+                        )}
+
                         {(afiliado || error) && (
                             <Button
                                 variant="accent"
