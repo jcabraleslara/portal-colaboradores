@@ -232,21 +232,21 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
 
                                 {esAdmin && (
                                     <>
-                                        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border ${caso.onedriveSyncStatus === 'synced'
+                                        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border ${caso.onedriveSyncStatus === 'synced' && caso.onedriveFolderUrl
                                             ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                            : caso.onedriveSyncStatus === 'error' || caso.onedriveSyncStatus === 'failed' // @ts-ignore
+                                            : caso.onedriveSyncStatus === 'error' || caso.onedriveSyncStatus === 'failed'
                                                 ? 'bg-red-50 text-red-700 border-red-200'
                                                 : 'bg-gray-50 text-gray-600 border-gray-200'
                                             }`} title={caso.onedriveSyncStatus}>
                                             <Cloud size={14} />
                                             <span className="hidden sm:inline">
-                                                {caso.onedriveSyncStatus === 'synced' ? 'Sync' :
-                                                    caso.onedriveSyncStatus === 'error' ? 'Error' :
+                                                {caso.onedriveSyncStatus === 'synced' && caso.onedriveFolderUrl ? 'Sincronizado' :
+                                                    caso.onedriveSyncStatus === 'error' || caso.onedriveSyncStatus === 'failed' ? 'Error' :
                                                         'No Sync'}
                                             </span>
                                         </div>
 
-                                        {(caso.onedriveSyncStatus !== 'synced' || esAdmin) && (
+                                        {(!caso.onedriveFolderUrl || caso.onedriveSyncStatus !== 'synced' || esAdmin) && (
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
