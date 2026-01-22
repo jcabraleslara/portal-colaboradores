@@ -12,7 +12,10 @@ import {
     Cloud,
     Edit,
     Trash2,
+    Download,
 } from 'lucide-react'
+import JSZip from 'jszip'
+import { saveAs } from 'file-saver'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
 import { Button, PdfViewerModal } from '@/components/common'
@@ -50,6 +53,7 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
     const [nuevoNombreArchivo, setNuevoNombreArchivo] = useState('')
     const [renombrando, setRenombrando] = useState(false)
     const [sincronizando, setSincronizando] = useState(false)
+    const [descargando, setDescargando] = useState(false)
 
 
     // ============================================
@@ -198,6 +202,97 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
             console.error(error)
         } finally {
             setSincronizando(false)
+        }
+    }
+
+    const handleDescargarLocal = async () => {
+        setDescargando(true)
+        const toastId = toast.loading('Preparando descarga de archivos...')
+
+        try {
+            const zip = new JSZip()
+
+            // 1. Generar nombre de la carpeta (igual que en OneDrive)
+            // Formato: RADICADO_FECHA_EPS_REGIMEN_SERVICIO
+            const fechaStr = new Date(caso.createdAt).toISOString().split('T')[0].replace(/-/g, '')
+            const epsStr = caso.eps.replace(/\s+/g, '_')
+            const regimenStr = caso.regimen.substring(0, 3).toUpperCase()
+            const servicioStr = caso.servicioPrestado.replace(/\s+/g, '_').substring(0, 20)
+            const nombreCarpeta = `${caso.radicado}_${fechaStr}_${epsStr}_${regimenStr}_${servicioStr}`
+
+            // 2. Recorrer archivos y agregar al ZIP
+            let archivosProcesados = 0
+
+            // Mapeo de propiedades del objeto caso a categorías
+            const mapeoCategorias: Record<string, CategoriaArchivo> = {
+                'urlsValidacionDerechos': 'validacion_derechos',
+                'urlsAutorizacion': 'autorizacion',
+                'urlsSoporteClinico': 'soporte_clinico',
+                'urlsComprobanteRecibo': 'comprobante_recibo',
+                'urlsOrdenMedica': 'orden_medica',
+                'urlsDescripcionQuirurgica': 'descripcion_quirurgica',
+                'urlsRegistroAnestesia': 'registro_anestesia',
+                'urlsHojaMedicamentos': 'hoja_medicamentos',
+                'urlsNotasEnfermeria': 'notas_enfermeria',
+            }
+
+            // Obtener prefijos para esta EPS
+            const configEps = CATEGORIAS_ARCHIVOS.reduce((acc, cat) => {
+                acc[cat.id] = cat.prefijos[caso.eps] || ''
+                return acc
+            }, {} as Record<string, string>)
+
+
+            for (const [propiedad, categoriaId] of Object.entries(mapeoCategorias)) {
+                // @ts-ignore - Acceso dinámico a propiedades del caso
+                const urls: string[] = caso[propiedad] || []
+
+                if (urls.length > 0) {
+                    const prefijo = configEps[categoriaId] || ''
+
+                    for (let i = 0; i < urls.length; i++) {
+                        const url = urls[i]
+                        try {
+                            const response = await fetch(url)
+                            if (!response.ok) throw new Error(`Error descargando ${url}`)
+
+                            const blob = await response.blob()
+
+                            // Determinar extensión segura
+                            let extension = 'pdf'
+                            if (blob.type.includes('image/jpeg')) extension = 'jpg'
+                            else if (blob.type.includes('image/png')) extension = 'png'
+
+                            // Nombre archivo: PREFIJO_RADICADO_CATEGORIA_INDICE.ext
+                            const nombreArchivo = `${prefijo}${caso.radicado}_${categoriaId}_${i + 1}.${extension}`
+
+                            // Agregar al ZIP (dentro de carpeta raíz con el nombre generado)
+                            zip.folder(nombreCarpeta)?.file(nombreArchivo, blob)
+                            archivosProcesados++
+
+                        } catch (err) {
+                            console.error(`Error procesando archivo ${url}`, err)
+                        }
+                    }
+                }
+            }
+
+            if (archivosProcesados === 0) {
+                toast.error('No hay archivos para descargar', { id: toastId })
+                return
+            }
+
+            // 3. Generar y guardar
+            const content = await zip.generateAsync({ type: 'blob' })
+            saveAs(content, `${nombreCarpeta}.zip`)
+
+            toast.success('Descarga iniciada exitosamente', { id: toastId })
+
+        } catch (error) {
+            console.error('Error generando descarga:', error)
+            toast.error('Error al generar el archivo ZIP', { id: toastId })
+        } finally {
+            setDescargando(false)
         }
     }
 
@@ -486,6 +581,17 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                         )}
                     </div>
                     <div className="flex gap-3">
+                        <Button
+                            variant="secondary"
+                            onClick={handleDescargarLocal}
+                            disabled={guardando || descargando}
+                            isLoading={descargando}
+                            leftIcon={<Download size={18} />}
+                            className="mr-2"
+                        >
+                            Descargar
+                        </Button>
+
                         <Button variant="ghost" onClick={onClose} disabled={guardando}>
                             Cancelar
                         </Button>
