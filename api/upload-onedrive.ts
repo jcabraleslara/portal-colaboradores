@@ -308,90 +308,118 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // Obtener access token de Microsoft Graph
-        const accessToken = await getGraphAccessToken()
+        let onedriveResult = { success: false, message: '' }
+        try {
+            const accessToken = await getGraphAccessToken()
 
-        // Obtener ID de la carpeta base (Soportes Facturación)
-        let carpetaBaseId = ONEDRIVE_FOLDER_ID
-        if (!carpetaBaseId) {
-            // Si no hay ID configurado, buscar por path
-            carpetaBaseId = await obtenerIdPorPath(accessToken, ONEDRIVE_FOLDER_PATH)
-        }
+            // Obtener ID de la carpeta base (Soportes Facturación)
+            let carpetaBaseId = ONEDRIVE_FOLDER_ID
+            if (!carpetaBaseId) {
+                // Si no hay ID configurado, buscar por path
+                carpetaBaseId = await obtenerIdPorPath(accessToken, ONEDRIVE_FOLDER_PATH)
+            }
 
-        // Crear subcarpeta para este radicado
-        const nombreCarpeta = generarNombreCarpeta(soporte)
-        const carpeta = await crearCarpetaOneDrive(accessToken, nombreCarpeta, carpetaBaseId)
+            // Crear subcarpeta para este radicado
+            const nombreCarpeta = generarNombreCarpeta(soporte)
+            const carpeta = await crearCarpetaOneDrive(accessToken, nombreCarpeta, carpetaBaseId)
 
-        // Recopilar todas las URLs de archivos
-        const categorias = [
-            'urls_validacion_derechos',
-            'urls_autorizacion',
-            'urls_soporte_clinico',
-            'urls_comprobante_recibo',
-            'urls_recibo_caja',
-            'urls_orden_medica',
-            'urls_descripcion_quirurgica',
-            'urls_registro_anestesia',
-            'urls_hoja_medicamentos',
-            'urls_notas_enfermeria',
-        ]
+            // Recopilar todas las URLs de archivos
+            const categorias = [
+                'urls_validacion_derechos',
+                'urls_autorizacion',
+                'urls_soporte_clinico',
+                'urls_comprobante_recibo',
+                'urls_recibo_caja',
+                'urls_orden_medica',
+                'urls_descripcion_quirurgica',
+                'urls_registro_anestesia',
+                'urls_hoja_medicamentos',
+                'urls_notas_enfermeria',
+            ]
 
-        let archivosSubidos = 0
+            let archivosSubidos = 0
 
-        for (const categoriaDb of categorias) {
-            const urls: string[] = soporte[categoriaDb] || []
-            const categoriaId = categoriaDb.replace('urls_', '')
+            for (const categoriaDb of categorias) {
+                const urls: string[] = soporte[categoriaDb] || []
+                const categoriaId = categoriaDb.replace('urls_', '')
 
-            // Obtener prefijo según EPS
-            const prefijos = PREFIJOS_ARCHIVOS[soporte.eps] || {}
-            const prefijo = prefijos[categoriaId] || ''
+                // Obtener prefijo según EPS
+                const prefijos = PREFIJOS_ARCHIVOS[soporte.eps] || {}
+                const prefijo = prefijos[categoriaId] || ''
 
-            for (let i = 0; i < urls.length; i++) {
-                const url = urls[i]
+                for (let i = 0; i < urls.length; i++) {
+                    const url = urls[i]
 
-                try {
-                    // Descargar archivo de Supabase (o URL externa)
-                    const archivoResponse = await fetch(url)
-                    if (!archivoResponse.ok) continue
+                    try {
+                        // Descargar archivo de Supabase (o URL externa)
+                        const archivoResponse = await fetch(url)
+                        if (!archivoResponse.ok) continue
 
-                    const contenido = await archivoResponse.arrayBuffer()
+                        const contenido = await archivoResponse.arrayBuffer()
 
-                    // Determinar extensión del archivo
-                    const extension = url.split('.').pop()?.split('?')[0] || 'pdf'
+                        // Determinar extensión del archivo
+                        const extension = url.split('.').pop()?.split('?')[0] || 'pdf'
 
-                    // Generar nombre del archivo
-                    const nombreArchivo = `${prefijo}${radicado}_${categoriaId}_${i + 1}.${extension}`
+                        // Generar nombre del archivo
+                        const nombreArchivo = `${prefijo}${radicado}_${categoriaId}_${i + 1}.${extension}`
 
-                    // Subir a OneDrive
-                    await subirArchivoOneDrive(accessToken, carpeta.id, nombreArchivo, contenido)
-                    archivosSubidos++
-                } catch (uploadError) {
-                    console.error(`Error subiendo archivo de ${categoriaId}:`, uploadError)
-                    // Continuar con otros archivos
+                        // Subir a OneDrive
+                        await subirArchivoOneDrive(accessToken, carpeta.id, nombreArchivo, contenido)
+                        archivosSubidos++
+                    } catch (uploadError) {
+                        console.error(`Error subiendo archivo de ${categoriaId}:`, uploadError)
+                        // Continuar con otros archivos
+                    }
                 }
             }
+
+            // Actualizar registro en Supabase solo si hubo éxito en OneDrive
+            await supabase
+                .from('soportes_facturacion')
+                .update({
+                    onedrive_folder_id: carpeta.id,
+                    onedrive_folder_url: carpeta.webUrl,
+                    onedrive_sync_status: 'synced',
+                    onedrive_sync_at: new Date().toISOString(),
+                })
+                .eq('radicado', radicado)
+
+            onedriveResult = {
+                success: true,
+                message: `Sincronizado exitosamente: ${archivosSubidos} archivo(s) en carpeta ${nombreCarpeta}`
+            }
+
+            return res.status(200).json({
+                success: true,
+                folderId: carpeta.id,
+                folderUrl: carpeta.webUrl,
+                archivosSubidos,
+                message: onedriveResult.message,
+            })
+
+        } catch (onedriveError) {
+            console.error('Error específico de OneDrive:', onedriveError)
+
+            // Si falla OneDrive, no fallamos toda la petición, pero notificamos
+            // Actualizamos estado a 'failed'
+            await supabase
+                .from('soportes_facturacion')
+                .update({
+                    onedrive_sync_status: 'failed',
+                    onedrive_sync_at: new Date().toISOString(),
+                })
+                .eq('radicado', radicado)
+
+            return res.status(200).json({
+                success: false, // Indicamos que la sincro falló
+                warning: true,
+                message: 'Radicado procesado, pero falló la sincronización con OneDrive. Se reintentará luego.',
+                errorDetails: onedriveError instanceof Error ? onedriveError.message : 'Error desconocido de OneDrive'
+            })
         }
 
-        // Actualizar registro en Supabase
-        await supabase
-            .from('soportes_facturacion')
-            .update({
-                onedrive_folder_id: carpeta.id,
-                onedrive_folder_url: carpeta.webUrl,
-                onedrive_sync_status: 'synced',
-                onedrive_sync_at: new Date().toISOString(),
-            })
-            .eq('radicado', radicado)
-
-        return res.status(200).json({
-            success: true,
-            folderId: carpeta.id,
-            folderUrl: carpeta.webUrl,
-            archivosSubidos,
-            message: `Sincronizado exitosamente: ${archivosSubidos} archivo(s) en carpeta ${nombreCarpeta}`,
-        })
-
     } catch (error) {
-        console.error('Error en upload-onedrive:', error)
+        console.error('Error general en upload-onedrive:', error)
         return res.status(500).json({
             error: error instanceof Error ? error.message : 'Error interno del servidor',
         })

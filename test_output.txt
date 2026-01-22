@@ -1,0 +1,8 @@
+[dotenv@17.2.3] injecting env (25) from .env.local -- tip: ÔÜÖ´©Å  load multiple .env files with { path: ['.env.local', '.env'] }
+­ƒöä Probando autenticaci├│n con Microsoft Graph...
+ Tenant ID: 586c1ff9-14ff-4bc0-8718-81999e84ca0c
+ Client ID: d073c9f6-5ce8-48e1-a903-1fc070039b7f
+Ô£à Token obtenido exitosamente!
+
+­ƒöä Verificando acceso al drive de: coordinacionmedica@gestarsaludips.com...
+ÔØî Error accediendo al drive de coordinacionmedica@gestarsaludips.com: {"error":{"code":"generalException","message":"General exception while processing","innerError":{"date":"2026-01-22T11:59:59","request-id":"01aced07-25c1-472a-8f85-92a9c0b6f2f8","client-request-id":"01aced07-25c1-472a-8f85-92a9c0b6f2f8"}}}

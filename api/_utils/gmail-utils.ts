@@ -56,17 +56,20 @@ export async function getGmailAccessToken(): Promise<string> {
 }
 
 /**
+ * Codificar texto para encabezados de correo (RFC 2047)
+ * Necesario para asuntos con tildes y caracteres especiales
+ */
+function encodeHeader(text: string): string {
+    const encoded = Buffer.from(text, 'utf-8').toString('base64')
+    return `=?utf-8?B?${encoded}?=`
+}
+
+/**
  * Codificar mensaje de correo para Gmail API (Base64URL)
  */
 function encodeEmailMessage(raw: string): string {
-    const encoder = new TextEncoder()
-    const data = encoder.encode(raw)
-
-    // Convertir a base64
-    const base64 = btoa(String.fromCharCode(...data))
-
-    // Convertir a base64url (Gmail API requirement)
-    return base64
+    return Buffer.from(raw, 'utf-8')
+        .toString('base64')
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, '')
@@ -84,10 +87,11 @@ export async function sendGmailEmail(
     const userEmail = process.env.GOOGLE_USER_EMAIL || 'info@gestarsaludips.com'
 
     // Construir mensaje RFC 2822
+    // IMPORTANTE: El asunto (Subject) debe estar codificado si contiene caracteres especiales
     const email = [
         `To: ${to}`,
         `From: Gestar Salud IPS <${userEmail}>`,
-        `Subject: ${subject}`,
+        `Subject: ${encodeHeader(subject)}`,
         'Content-Type: text/html; charset=utf-8',
         'MIME-Version: 1.0',
         '',
