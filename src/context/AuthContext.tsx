@@ -401,6 +401,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                 console.info(`🔐 Auth event: ${event}`)
 
+                // Limpiar failsafe timeout inmediatamente al recibir un evento crítico
+                // Esto evita que el timeout se dispare si hay un 'return' temprano (ej: caché)
+                if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+                    clearTimeout(failsafeTimeout)
+                }
+
                 const currentEmail = session?.user?.email || null
 
                 // ================================================
@@ -543,9 +549,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 }
 
                 // Limpiar failsafe timeout una vez procesado evento crítico
-                if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-                    clearTimeout(failsafeTimeout)
-                }
+                // (Timeout ya fue limpiado al inicio del callback)
             }
         )
 
