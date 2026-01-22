@@ -141,7 +141,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'ClipboardCheck',
         enabled: true,
         description: 'Gestionar casos del Back Office',
-        requiredRoles: ['superadmin', 'auditor'],
+        requiredRoles: ['superadmin', 'auditor', 'gerencia'],
     },
     {
         id: 'soportes-facturacion',
@@ -150,7 +150,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'FileText',
         enabled: true,
         description: 'Radicar soportes para facturación',
-        requiredRoles: ['superadmin', 'operativo', 'admin'],
+        requiredRoles: ['superadmin', 'operativo', 'admin', 'gerencia'],
     },
     {
         id: 'anexo-8',
@@ -159,7 +159,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'FileSpreadsheet',
         enabled: true,
         description: 'Recetario de control especial',
-        requiredRoles: ['superadmin', 'auditor', 'asistencial'],
+        requiredRoles: ['superadmin', 'auditor', 'asistencial', 'gerencia'],
     },
     {
         id: 'triangulaciones',
@@ -184,7 +184,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'ClipboardList',
         enabled: true,
         description: 'Gestión y radicación de casos',
-        requiredRoles: ['superadmin', 'auditor', 'operativo', 'asistencial'],
+        requiredRoles: ['superadmin', 'auditor', 'operativo', 'asistencial', 'gerencia'],
     },
     {
         id: 'directorio-institucional',

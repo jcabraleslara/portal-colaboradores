@@ -15,8 +15,8 @@ import {
     CrearSoporteFacturacionData,
     FiltrosSoportesFacturacion,
     CategoriaArchivo,
-    CATEGORIAS_ARCHIVOS,
     EpsFacturacion,
+    ServicioPrestado
 } from '@/types/soportesFacturacion.types'
 import { criticalErrorService } from './criticalError.service'
 
@@ -77,43 +77,161 @@ function getCategoriaColumnName(categoria: CategoriaArchivo): string {
 }
 
 /**
- * Obtener prefijo de archivo según EPS y categoría
+ * Obtener prefijo de archivo según EPS, Servicio y Categoría
+ * Reglas de negocio según Matriz de Renombrado
  */
-function getPrefijoArchivo(eps: EpsFacturacion, categoria: CategoriaArchivo): string {
-    const config = CATEGORIAS_ARCHIVOS.find(c => c.id === categoria)
-    if (!config) return ''
-    return config.prefijos[eps] || ''
+function getPrefijoArchivo(eps: EpsFacturacion, servicio: ServicioPrestado, categoria: CategoriaArchivo): string {
+    // 1. Reglas Globales (Aplican por defecto salvo excepciones)
+    // Autorización -> Generalmente OPF (Salud Total) o PDE (Nueva, Familiar)
+    if (categoria === 'autorizacion') {
+        if (eps === 'SALUD TOTAL') return 'OPF'
+        return 'PDE'
+    }
+
+    // Comprobante -> CRC
+    if (categoria === 'comprobante_recibo') return 'CRC'
+
+    // Validación Derechos / Adres
+    if (categoria === 'validacion_derechos') {
+        if (eps === 'NUEVA EPS') return 'PDE2'
+        if (eps === 'FAMILIAR') return 'OPF' // Ojo: Familiar usa OPF para Adres
+        // Salud Total no suele pedir este documento según tabla, pero si lo pide, default OPF
+        return 'OPF'
+    }
+
+    // Orden Médica
+    if (categoria === 'orden_medica') {
+        if (eps === 'FAMILIAR') return 'PDE2'
+        return 'PDX' // Default cauto
+    }
+
+    // Cirugías específicos (Salud Total predominantemente)
+    if (categoria === 'descripcion_quirurgica') return 'DQX'
+    if (categoria === 'registro_anestesia') return 'RAN'
+    if (categoria === 'hoja_medicamentos') return 'HAM'
+    if (categoria === 'notas_enfermeria') return 'HEV' // Según tabla cirugía Salud Total, nota enfermería es HEV
+
+    // 2. Reglas Dependientes del Servicio (Historia Clínica / Soporte / Resultados)
+    // Categoría 'soporte_clinico' abarca: Historia, Soporte, Resultados, Evolución
+    if (categoria === 'soporte_clinico') {
+        const esImagenOLab = servicio === 'Imágenes Diagnósticas' || servicio === 'Laboratorio clínico'
+
+        // SALUD TOTAL
+        if (eps === 'SALUD TOTAL') {
+            return esImagenOLab ? 'PDX' : 'HEV'
+        }
+
+        // NUEVA EPS
+        if (eps === 'NUEVA EPS') {
+            // Laboratorio en Nueva EPS -> Resultados = PDX
+            // Imágenes en Nueva EPS -> Resultado = PDX
+            return esImagenOLab ? 'PDX' : 'HEV'
+        }
+
+        // FAMILIAR
+        if (eps === 'FAMILIAR') {
+            // Imágenes -> Resultado = PDX
+            if (servicio === 'Imágenes Diagnósticas') return 'PDX'
+            return 'HEV'
+        }
+    }
+
+    return 'DOC' // Fallback genérico si nada coincide
+}
+
+/**
+ * Extraer Identificación válida del nombre del archivo original
+ * Busca patrones tipo: (CC|TI|RC|CE|...)[Numero]
+ * Ejemplo: "CC123456.pdf" -> "CC123456"
+ * Ejemplo: "Soporte_TI987654321_Feb.pdf" -> "TI987654321"
+ */
+function extraerIdentificacionArchivo(nombreArchivo: string): string | null {
+    // Tipos de ID válidos según DB: CE, CN, SC, PE, PT, TI, CC, RC, ME, AS
+    // Regex busca: (Límite de palabra o inicio)(TIPO_ID)(Dígitos)(Límite o fin no alfanumérico)
+    // Se usa 'i' para case-insensitive
+    const patron = /(?:^|[^a-zA-Z])(CC|TI|CE|CN|SC|PE|PT|RC|ME|AS)\s*(\d{1,13})(?:[^0-9]|$)/i
+    const match = nombreArchivo.match(patron)
+
+    if (match && match[1] && match[2]) {
+        // Normalizar a mayúsculas y quitar espacios
+        const tipoId = match[1].toUpperCase()
+        const numero = match[2]
+
+        // Validar límite superior numérico (1199999999)
+        if (parseInt(numero, 10) <= 1199999999) {
+            return `${tipoId}${numero}`
+        }
+    }
+    return null
 }
 
 export const soportesFacturacionService = {
     /**
      * Subir archivos al bucket de soportes-facturacion
+     * Renombrado dinámico: [PREFIJO]_900842629_[ID_PACIENTE]_[CONSECUTIVO].pdf
      * @returns Array de URLs firmadas de los archivos subidos
      */
     async subirArchivos(
         archivos: File[],
         categoria: CategoriaArchivo,
         radicado: string,
-        eps: EpsFacturacion
+        eps: EpsFacturacion,
+        servicio?: ServicioPrestado
     ): Promise<string[]> {
         const urls: string[] = []
-        const prefijo = getPrefijoArchivo(eps, categoria)
+        // NIT fijo para renombrado
+        const NIT = '900842629'
+        const prefijo = getPrefijoArchivo(eps, servicio || 'Consulta Ambulatoria', categoria) // Fallback seguro de servicio
 
         for (let i = 0; i < archivos.length; i++) {
             const archivo = archivos[i]
+            // Siempre forzar extensión .pdf como buena práctica si el cliente lo prefiere, 
+            // pero mantenemos la original si es imagen, aunque el renombrado sugerido es .pdf
+            // El usuario no especificó conversión, así que mantenemos extensión original.
             const extension = archivo.name.split('.').pop()?.toLowerCase() || 'pdf'
-            const nombreArchivo = `${prefijo}${radicado}_${categoria}_${i + 1}.${extension}`
-            const ruta = `${radicado}/${nombreArchivo}`
+
+            // 1. Intentar obtener identificación del nombre del archivo
+            const identificacionPaciente = extraerIdentificacionArchivo(archivo.name)
+
+            let nombreFinal = ''
+
+            if (identificacionPaciente) {
+                // ESTRATEGIA A: Identificación encontrada
+                // Formato: PREFIJO_NIT_IDPACIENTE_CONSECUTIVO.ext
+                // El consecutivo (i+1) ayuda a evitar colisiones si suben varios del mismo tipo para el mismo paciente
+                // Si es el primero y único, igual podríamos poner _1 para consistencia, 
+                // pero la tabla ejemplo muestra "CC1065000" sin consecutivo.
+                // Sin embargo, si suben 2 soportes clínicos, uno sobrescribiría al otro si no hay consecutivo.
+                // Solución híbrida: Si hay múltiples archivos en el array, usamos consecutivo. Si es uno, evaluamos riesgo.
+                // Para seguridad y evitar sobrescritura (ya que Storage no versiona por defecto igual),
+                // vamos a agregar siempre un hash corto o consecutivo si hay >1, 
+                // PERO el requerimiento estricto de nombre sugiere formato exacto.
+                // Asumiremos: Si hay 1 solo archivo, SIN consecutivo. Si hay varios, CON consecutivo.
+
+                if (archivos.length > 1) {
+                    nombreFinal = `${prefijo}_${NIT}_${identificacionPaciente}_${i + 1}.${extension}`
+                } else {
+                    nombreFinal = `${prefijo}_${NIT}_${identificacionPaciente}.${extension}`
+                }
+
+            } else {
+                // ESTRATEGIA B: Fallback (No se halló ID en el nombre)
+                // Usar Radicado como identificador único
+                // Formato: PREFIJO_RADICADO_CATEGORIA_CONSECUTIVO.ext
+                nombreFinal = `${prefijo}_${radicado}_${categoria}_${i + 1}.${extension}`
+            }
+
+            const ruta = `${radicado}/${nombreFinal}`
 
             const { error } = await supabase.storage
                 .from('soportes-facturacion')
                 .upload(ruta, archivo, {
                     cacheControl: '3600',
-                    upsert: false,
+                    upsert: true, // Upsert true para permitir reintentos o correcciones
                 })
 
             if (error) {
-                console.error(`Error subiendo archivo ${nombreArchivo}:`, error)
+                console.error(`Error subiendo archivo ${nombreFinal}:`, error)
 
                 // Notificar error crítico de Storage
                 await criticalErrorService.reportStorageFailure(
@@ -185,7 +303,8 @@ export const soportesFacturacionService = {
                             grupo.files,
                             grupo.categoria,
                             radicado,
-                            data.eps
+                            data.eps,
+                            data.servicioPrestado
                         )
                         const columnName = getCategoriaColumnName(grupo.categoria)
                         urlsUpdate[columnName] = urls

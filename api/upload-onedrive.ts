@@ -39,36 +39,7 @@ const ONEDRIVE_FOLDER_PATH = process.env.ONEDRIVE_FOLDER_PATH || '/Documents/Sop
 // NIT de la empresa (usado en prefijos de archivos)
 const NIT_EMPRESA = '900842629'
 
-// Mapeo de prefijos de archivos según EPS y tipo
-const PREFIJOS_ARCHIVOS: Record<string, Record<string, string>> = {
-    'NUEVA EPS': {
-        'validacion_derechos': `PDE2_${NIT_EMPRESA}_`,
-        'autorizacion': `PDE_${NIT_EMPRESA}_`,
-        'soporte_clinico': `HEV_${NIT_EMPRESA}_`,
-        'recibo_caja': `PDE3_${NIT_EMPRESA}_`,
-        'orden_medica': `PDX_${NIT_EMPRESA}_`,
-    },
-    'SALUD TOTAL': {
-        'validacion_derechos': `OPF_${NIT_EMPRESA}_`,
-        'autorizacion': `OPF_${NIT_EMPRESA}_`,
-        'soporte_clinico': `HEV_${NIT_EMPRESA}_`,
-        'comprobante_recibo': `CRC_${NIT_EMPRESA}_`,
-        'recibo_caja': `DFV_${NIT_EMPRESA}_`,
-        'descripcion_quirurgica': `DQX_${NIT_EMPRESA}_`,
-        'registro_anestesia': `RAN_${NIT_EMPRESA}_`,
-        'hoja_medicamentos': `HAM_${NIT_EMPRESA}_`,
-    },
-    'MUTUAL SER': {
-        'validacion_derechos': `VAL_${NIT_EMPRESA}_`,
-        'autorizacion': `AUT_${NIT_EMPRESA}_`,
-        'soporte_clinico': `HCL_${NIT_EMPRESA}_`,
-    },
-    'FAMILIAR': {
-        'validacion_derechos': `OPF_${NIT_EMPRESA}_`,
-        'autorizacion': `PDE_${NIT_EMPRESA}_`,
-        'soporte_clinico': `HEV_${NIT_EMPRESA}_`,
-    },
-}
+
 
 /**
  * Obtener access token de Microsoft Graph usando Client Credentials flow
@@ -343,38 +314,43 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 const urls: string[] = soporte[categoriaDb] || []
                 const categoriaId = categoriaDb.replace('urls_', '')
 
-                // Obtener prefijo según EPS
-                const prefijos = PREFIJOS_ARCHIVOS[soporte.eps] || {}
-                const prefijo = prefijos[categoriaId] || ''
-
                 for (let i = 0; i < urls.length; i++) {
                     const url = urls[i]
 
                     try {
-                        // Descargar archivo de Supabase (o URL externa)
+                        // Descargar archivo de Supabase
                         const archivoResponse = await fetch(url)
                         if (!archivoResponse.ok) continue
 
                         const contenido = await archivoResponse.arrayBuffer()
 
-                        // Determinar extensión basada en Content-Type (más seguro)
-                        const contentType = archivoResponse.headers.get('content-type')
-                        let extension = 'pdf' // Default
+                        // ESTRATEGIA DE NOMBRADO: USAR EL NOMBRE REAL DE SUPABASE
+                        // La URL firmada contiene el path real: .../soportes-facturacion/RADICADO/NOMBRE_CORRECTO.pdf?...
+                        // Debemos extraer ese nombre para mantener la consistencia total entre Supabase y OneDrive.
 
-                        if (contentType?.includes('image/jpeg')) extension = 'jpg'
-                        else if (contentType?.includes('image/png')) extension = 'png'
-                        else if (contentType?.includes('application/pdf')) extension = 'pdf'
-                        else {
-                            // Fallback: intentar extraer de la URL pero con cuidado
-                            const urlPath = url.split('?')[0] // Quitar query params primero
-                            const ext = urlPath.split('.').pop()
-                            if (ext && ext.length < 5) extension = ext
+                        let nombreArchivo = ''
+                        try {
+                            // 1. Obtener path sin query params
+                            const urlObj = new URL(url)
+                            const pathName = urlObj.pathname // /storage/v1/object/sign/soportes-facturacion/RAD/...
+
+                            // 2. Decodificar caracteres especiales (espacios, tildes, etc)
+                            const decodedPath = decodeURIComponent(pathName)
+
+                            // 3. Extraer el último segmento (nombre del archivo)
+                            nombreArchivo = decodedPath.split('/').pop() || ''
+                        } catch (e) {
+                            console.warn('Error parseando URL de archivo:', e)
                         }
 
-                        // Generar nombre del archivo LIMPIO
-                        const nombreArchivo = `${prefijo}${radicado}_${categoriaId}_${i + 1}.${extension}`
+                        // Fallback de seguridad si falla el parseo (muy raro)
+                        if (!nombreArchivo) {
+                            const extension = 'pdf'
+                            const prefijoFallback = 'DOC_'
+                            nombreArchivo = `${prefijoFallback}${radicado}_${categoriaId}_${i + 1}.${extension}`
+                        }
 
-                        // Subir a OneDrive
+                        // Subir a OneDrive con el nombre EXACTO que tiene en Supabase
                         await subirArchivoOneDrive(accessToken, carpeta.id, nombreArchivo, contenido)
                         archivosSubidos++
                     } catch (uploadError) {

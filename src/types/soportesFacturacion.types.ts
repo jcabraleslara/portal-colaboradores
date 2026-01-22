@@ -172,7 +172,6 @@ export interface CategoriaArchivoConfig {
     descripcion: string
     requerido: boolean
     maxArchivos: number
-    prefijos: Record<EpsFacturacion, string>
 }
 
 // Lista de EPS
@@ -210,18 +209,13 @@ export const ESTADOS_SOPORTE_LISTA: (EstadoSoporteFacturacion | 'Todos')[] = [
 ]
 
 // Configuración de categorías de archivos con prefijos por EPS
-export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
+export const CATEGORIAS_ARCHIVOS: Omit<CategoriaArchivoConfig, 'prefijos'>[] = [
     {
         id: 'validacion_derechos',
         label: 'Validación de Derechos',
         descripcion: 'Documento de validación de derechos del afiliado',
         requerido: true,
         maxArchivos: Infinity,
-        prefijos: {
-            'NUEVA EPS': 'PDE2_900842629_',
-            'SALUD TOTAL': 'OPF_900842629_',
-            'FAMILIAR': 'OPF_900842629_',
-        },
     },
     {
         id: 'autorizacion',
@@ -229,11 +223,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         descripcion: 'Autorización del servicio',
         requerido: true,
         maxArchivos: Infinity,
-        prefijos: {
-            'NUEVA EPS': 'PDE_900842629_',
-            'SALUD TOTAL': 'OPF_900842629_',
-            'FAMILIAR': 'PDE_900842629_',
-        },
     },
     {
         id: 'soporte_clinico',
@@ -241,11 +230,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         descripcion: 'Historia clínica o evolución del paciente',
         requerido: true,
         maxArchivos: Infinity,
-        prefijos: {
-            'NUEVA EPS': 'HEV_900842629_',
-            'SALUD TOTAL': 'HEV_900842629_',
-            'FAMILIAR': 'HEV_900842629_',
-        },
     },
     {
         id: 'comprobante_recibo',
@@ -253,11 +237,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         descripcion: 'Comprobante de recepción del servicio',
         requerido: false,
         maxArchivos: Infinity,
-        prefijos: {
-            'NUEVA EPS': 'CRC_900842629_',
-            'SALUD TOTAL': 'CRC_900842629_',
-            'FAMILIAR': 'CRC_900842629_',
-        },
     },
     {
         id: 'orden_medica',
@@ -265,11 +244,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         descripcion: 'Orden médica del procedimiento',
         requerido: false,
         maxArchivos: Infinity,
-        prefijos: {
-            'NUEVA EPS': 'PDX_900842629_',
-            'SALUD TOTAL': 'PDX_900842629_',
-            'FAMILIAR': 'PDX_900842629_',
-        },
     },
     {
         id: 'descripcion_quirurgica',
@@ -277,11 +251,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         descripcion: 'Descripción del procedimiento quirúrgico',
         requerido: false,
         maxArchivos: Infinity,
-        prefijos: {
-            'NUEVA EPS': 'DQX_900842629_',
-            'SALUD TOTAL': 'DQX_900842629_',
-            'FAMILIAR': 'DQX_900842629_',
-        },
     },
     {
         id: 'registro_anestesia',
@@ -289,11 +258,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         descripcion: 'Registro del procedimiento anestésico',
         requerido: false,
         maxArchivos: Infinity,
-        prefijos: {
-            'NUEVA EPS': 'RAN_900842629_',
-            'SALUD TOTAL': 'RAN_900842629_',
-            'FAMILIAR': 'RAN_900842629_',
-        },
     },
     {
         id: 'hoja_medicamentos',
@@ -301,11 +265,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         descripcion: 'Registro de medicamentos administrados',
         requerido: false,
         maxArchivos: Infinity,
-        prefijos: {
-            'NUEVA EPS': 'HAM_900842629_',
-            'SALUD TOTAL': 'HAM_900842629_',
-            'FAMILIAR': 'HAM_900842629_',
-        },
     },
     {
         id: 'notas_enfermeria',
@@ -313,11 +272,6 @@ export const CATEGORIAS_ARCHIVOS: CategoriaArchivoConfig[] = [
         descripcion: 'Registro de notas de enfermería',
         requerido: false,
         maxArchivos: Infinity,
-        prefijos: {
-            'NUEVA EPS': 'NEF_900842629_',
-            'SALUD TOTAL': 'NEF_900842629_',
-            'FAMILIAR': 'NEF_900842629_',
-        },
     },
 ]
 
