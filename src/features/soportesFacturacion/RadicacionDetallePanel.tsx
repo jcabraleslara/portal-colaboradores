@@ -292,26 +292,52 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                {archivos.map((file, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setPdfModal({ url: file.url, title: file.nombre })}
-                                        className="flex items-start p-3 w-full text-left rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm hover:bg-blue-50 transition-all group"
-                                    >
-                                        <div className="p-2 bg-blue-100 text-blue-600 rounded-md mr-3 group-hover:bg-blue-200 transaction-colors">
-                                            <FileText size={18} />
+                                {archivos.map((file, idx) => {
+                                    // Extraer la ruta del archivo desde la URL
+                                    const urlObj = new URL(file.url)
+                                    const pathMatch = urlObj.pathname.match(/\/storage\/v1\/object\/sign\/soportes-facturacion\/(.+)/)
+                                    const rutaArchivo = pathMatch ? decodeURIComponent(pathMatch[1]) : ''
+
+                                    return (
+                                        <div key={idx} className="flex items-start p-3 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all group">
+                                            <button
+                                                onClick={() => setPdfModal({ url: file.url, title: file.nombre })}
+                                                className="flex items-start flex-1 min-w-0"
+                                            >
+                                                <div className="p-2 bg-blue-100 text-blue-600 rounded-md mr-3 group-hover:bg-blue-200 transition-colors">
+                                                    <FileText size={18} />
+                                                </div>
+                                                <div className="overflow-hidden flex-1">
+                                                    <p className="text-sm font-medium text-gray-900 truncate" title={file.nombre}>
+                                                        {file.nombre}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500 truncate">
+                                                        {CATEGORIAS_ARCHIVOS.find(c => c.id === file.categoria)?.label || file.categoria}
+                                                    </p>
+                                                </div>
+                                                <ExternalLink size={14} className="ml-2 text-gray-300 group-hover:text-blue-400" />
+                                            </button>
+
+                                            {/* Botón de edición */}
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    setArchivoEditando({
+                                                        categoria: file.categoria,
+                                                        rutaActual: rutaArchivo,
+                                                        nombreActual: file.nombre,
+                                                        url: file.url
+                                                    })
+                                                    setNuevoNombreArchivo(file.nombre.replace('.pdf', ''))
+                                                }}
+                                                className="p-2 ml-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                title="Renombrar archivo"
+                                            >
+                                                <Edit size={16} />
+                                            </button>
                                         </div>
-                                        <div className="overflow-hidden flex-1">
-                                            <p className="text-sm font-medium text-gray-900 truncate" title={file.nombre}>
-                                                {file.nombre}
-                                            </p>
-                                            <p className="text-xs text-gray-500 truncate">
-                                                {CATEGORIAS_ARCHIVOS.find(c => c.id === file.categoria)?.label || file.categoria}
-                                            </p>
-                                        </div>
-                                        <ExternalLink size={14} className="ml-2 text-gray-300 group-hover:text-blue-400" />
-                                    </button>
-                                ))}
+                                    )
+                                })}
                             </div>
                         )}
                     </section>
@@ -382,6 +408,54 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                     title={pdfModal.title}
                     onClose={() => setPdfModal(null)}
                 />
+            )}
+
+            {/* Modal de Renombrar Archivo */}
+            {archivoEditando && (
+                <>
+                    <div
+                        className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm animate-fade-in"
+                        onClick={() => setArchivoEditando(null)}
+                    />
+                    <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl p-6 animate-scale-in">
+                        <h3 className="text-lg font-bold text-gray-900 mb-4">Renombrar Archivo</h3>
+                        <p className="text-sm text-gray-600 mb-2">
+                            Archivo actual:
+                        </p>
+                        <p className="text-sm font-medium text-gray-900 mb-4 bg-gray-50 p-2 rounded border">
+                            {archivoEditando.nombreActual}
+                        </p>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Nuevo nombre (sin extensión .pdf)
+                        </label>
+                        <input
+                            type="text"
+                            className="w-full p-2 border border-gray-300 rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            placeholder="Ejemplo: nuevo_nombre_archivo"
+                            value={nuevoNombreArchivo}
+                            onChange={(e) => setNuevoNombreArchivo(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleRenombrarArchivo()}
+                            autoFocus
+                        />
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                variant="ghost"
+                                onClick={() => setArchivoEditando(null)}
+                                disabled={renombrando}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                variant="primary"
+                                onClick={handleRenombrarArchivo}
+                                isLoading={renombrando}
+                                leftIcon={<Save size={16} />}
+                            >
+                                Renombrar
+                            </Button>
+                        </div>
+                    </div>
+                </>
             )}
         </>
     )
