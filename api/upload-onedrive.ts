@@ -9,6 +9,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
+import { notifyAuthenticationError, notifyServiceUnavailable } from './utils/critical-error-utils'
 
 // Tipos para Microsoft Graph
 interface GraphTokenResponse {
@@ -92,6 +93,19 @@ async function getGraphAccessToken(): Promise<string> {
 
     if (!response.ok) {
         const errorText = await response.text()
+
+        // Si es error de autenticación (401/403/400), notificar al equipo técnico
+        if (response.status === 401 || response.status === 403 || response.status === 400) {
+            console.error('⚠️ ERROR CRÍTICO: Credenciales de Azure OAuth2 inválidas o expiradas')
+
+            // Notificar error crítico de autenticación
+            await notifyAuthenticationError(
+                'Azure AD (Microsoft Graph)',
+                'Sincronización con OneDrive',
+                response.status
+            )
+        }
+
         throw new Error(`Error obteniendo token de Graph: ${response.status} - ${errorText}`)
     }
 
@@ -117,6 +131,15 @@ async function obtenerIdPorPath(
     })
 
     if (!response.ok) {
+        // Si es error de servicio, notificar
+        if (response.status >= 500) {
+            await notifyServiceUnavailable(
+                'Microsoft Graph API',
+                'Sincronización con OneDrive',
+                response.status
+            )
+        }
+
         throw new Error(`Error obteniendo carpeta por path: ${response.status}`)
     }
 
@@ -150,6 +173,16 @@ async function crearCarpetaOneDrive(
 
     if (!response.ok) {
         const errorText = await response.text()
+
+        // Si es error de servicio, notificar
+        if (response.status >= 500) {
+            await notifyServiceUnavailable(
+                'Microsoft Graph API',
+                'Sincronización con OneDrive - Crear Carpeta',
+                response.status
+            )
+        }
+
         throw new Error(`Error creando carpeta: ${response.status} - ${errorText}`)
     }
 
@@ -179,6 +212,16 @@ async function subirArchivoOneDrive(
 
     if (!response.ok) {
         const errorText = await response.text()
+
+        // Si es error de servicio, notificar
+        if (response.status >= 500) {
+            await notifyServiceUnavailable(
+                'Microsoft Graph API',
+                'Sincronización con OneDrive - Subir Archivo',
+                response.status
+            )
+        }
+
         throw new Error(`Error subiendo archivo: ${response.status} - ${errorText}`)
     }
 

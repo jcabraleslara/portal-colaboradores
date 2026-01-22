@@ -6,6 +6,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { notifyApiKeyFailure, notifyServiceUnavailable } from './utils/critical-error-utils'
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY // Sin prefijo VITE_
 
@@ -57,6 +58,28 @@ export default async function handler(
         if (!geminiResponse.ok) {
             const errorText = await geminiResponse.text()
             console.error('[API Gemini OCR] Error:', geminiResponse.status, errorText)
+
+            // Si es error de API key (401/403), notificar al equipo técnico
+            if (geminiResponse.status === 401 || geminiResponse.status === 403) {
+                console.error('⚠️ ERROR CRÍTICO: API key de Gemini inválida o expirada')
+
+                await notifyApiKeyFailure(
+                    'Gemini API (Vision)',
+                    'OCR de Documentos PDF',
+                    geminiResponse.status
+                )
+            }
+            // Si es servicio no disponible (503), notificar
+            else if (geminiResponse.status === 503) {
+                console.error('⚠️ ERROR CRÍTICO: Servicio de Gemini no disponible')
+
+                await notifyServiceUnavailable(
+                    'Gemini API (Vision)',
+                    'OCR de Documentos PDF',
+                    geminiResponse.status
+                )
+            }
+
             return res.status(geminiResponse.status).json({
                 error: `Error de Gemini API: ${geminiResponse.status}`,
                 details: errorText

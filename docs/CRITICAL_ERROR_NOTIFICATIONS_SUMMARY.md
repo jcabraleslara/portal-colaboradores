@@ -63,20 +63,40 @@ Se implementó un **sistema robusto y automatizado** para detectar y notificar e
 - ✅ Logs mejorados para errores de OAuth2
 - ✅ Detecta credenciales inválidas (401/403/400)
 
+### 5. OneDrive Upload API (Serverless) 🆕
+**`/api/upload-onedrive.ts`**
+- ✅ Importa utilidades de errores críticos
+- ✅ Detecta credenciales de Azure OAuth2 inválidas (401/403/400)
+- ✅ Detecta Microsoft Graph API no disponible (5xx)
+- ✅ Notifica fallos al crear carpetas
+- ✅ Notifica fallos al subir archivos
+
+### 6. Gemini OCR API (Serverless) 🆕
+**`/api/gemini-ocr.ts`**
+- ✅ Importa utilidades de errores críticos
+- ✅ Detecta API key de Gemini inválida (401/403)
+- ✅ Detecta servicio de Gemini Vision no disponible (503)
+
+### 7. Critical Error Utils (Serverless) 🆕
+**`/api/utils/critical-error-utils.ts`**
+- ✅ Utilidades para reportar errores desde APIs serverless
+- ✅ Métodos helper específicos para serverless
+- ✅ Manejo robusto de errores y URLs
+
 ---
 
 ## 📊 Categorías de Errores Monitoreadas
 
 | # | Categoría | Módulos Afectados | Severidad |
 |---|-----------|-------------------|-----------|
-| 1 | `API_KEY_FAILURE` | Gemini AI, Gmail OAuth | 🚨 CRITICAL |
+| 1 | `API_KEY_FAILURE` | Gemini AI, Gmail OAuth, Gemini Vision | 🚨 CRITICAL |
 | 2 | `EMAIL_FAILURE` | Email Service | ⚠️ HIGH |
-| 3 | `SERVICE_UNAVAILABLE` | Gemini AI, OneDrive | 🚨 CRITICAL |
+| 3 | `SERVICE_UNAVAILABLE` | Gemini AI, OneDrive, Graph API | 🚨 CRITICAL |
 | 4 | `STORAGE_FAILURE` | Supabase Storage | ⚠️ HIGH |
 | 5 | `DATABASE_ERROR` | Supabase Queries | 🚨 CRITICAL |
-| 6 | `AUTHENTICATION_ERROR` | OAuth2, Supabase Auth | 🚨 CRITICAL |
-| 7 | `INTEGRATION_ERROR` | OneDrive, Airtable | ⚠️ HIGH |
-| 8 | `GEMINI_API_ERROR` | Contrarreferencias | ⚠️ HIGH |
+| 6 | `AUTHENTICATION_ERROR` | OAuth2, Supabase Auth, Azure AD | 🚨 CRITICAL |
+| 7 | `INTEGRATION_ERROR` | OneDrive, Airtable, Graph API | ⚠️ HIGH |
+| 8 | `GEMINI_API_ERROR` | Contrarreferencias, OCR | ⚠️ HIGH |
 
 ---
 
@@ -167,11 +187,11 @@ await window.criticalErrorService.reportCriticalError({
 
 ### Integraciones Adicionales Sugeridas
 
-- [ ] `auth.service.ts`: Detectar intentos de login masivos fallidos
-- [ ] `back.service.ts`: Detectar queries que fallen repetidamente
-- [ ] `upload-onedrive.ts`: Detectar fallos de Azure OAuth2
-- [ ] `gemini-ocr.ts`: Detectar fallos en Google Cloud Document AI
-- [ ] `airtable.service.ts`: Detectar API keys inválidas de Airtable
+- [ ] `auth.service.ts` - Detectar intentos de login masivos fallidos
+- [ ] `back.service.ts` - Detectar queries que fallen repetidamente
+- [x] ~~`upload-onedrive.ts` - Detectar fallos de Azure OAuth2~~ ✅ **COMPLETADO**
+- [x] ~~`gemini-ocr.ts` - Detectar fallos en Google Cloud Document AI~~ ✅ **COMPLETADO**
+- [ ] `airtable.service.ts` - Detectar API keys inválidas de Airtable
 
 ### Mejoras Futuras
 
@@ -209,6 +229,14 @@ Antes de aprobar en producción:
 ---
 
 ## 📝 Changelog
+
+**v1.1.0 - 2026-01-22 (Actualización):**
+- ✅ Integración en `upload-onedrive.ts` (Azure OAuth2)
+- ✅ Integración en `gemini-ocr.ts` (Gemini Vision)
+- ✅ Utilidades para APIs serverless (`critical-error-utils.ts`)
+- ✅ Detección de Microsoft Graph API no disponible
+- ✅ Detección de credenciales Azure AD inválidas
+- ✅ Documentación actualizada
 
 **v1.0.0 - 2026-01-22:**
 - ✅ Implementación completa del sistema

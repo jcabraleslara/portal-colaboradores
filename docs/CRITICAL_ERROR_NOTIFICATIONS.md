@@ -239,6 +239,15 @@ Verificar que:
 - Detecta fallos en Supabase Storage
 - Detecta fallos en sincronización con OneDrive
 
+✅ **OneDrive Upload API** (`api/upload-onedrive.ts`)
+- Detecta credenciales de Azure OAuth2 inválidas o expiradas (401/403/400)
+- Detecta cuando Microsoft Graph API no está disponible (5xx)
+- Notifica fallos al crear carpetas o subir archivos
+
+✅ **Gemini OCR API** (`api/gemini-ocr.ts`)
+- Detecta API key de Gemini inválida (401/403)
+- Detecta cuando el servicio de Gemini Vision no está disponible (503)
+
 ### Próximas Integraciones Recomendadas
 
 - [ ] `auth.service.ts`: Errores de autenticación críticos
