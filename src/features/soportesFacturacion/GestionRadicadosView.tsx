@@ -11,6 +11,7 @@ import {
     ESTADOS_SOPORTE_LISTA,
     ESTADO_COLORES,
     EPS_FACTURACION_LISTA,
+    SERVICIOS_PRESTADOS_LISTA,
     FiltrosSoportesFacturacion,
 } from '@/types/soportesFacturacion.types'
 import { RadicacionDetallePanel } from './RadicacionDetallePanel'
@@ -229,6 +230,35 @@ export function GestionRadicadosView() {
                                     <option key={estado} value={estado}>{estado}</option>
                                 ))}
                             </select>
+                        </div>
+                        <div className="w-56">
+                            <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">Servicio Prestado</label>
+                            <select
+                                className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                                value={filtros.servicioPrestado || ''}
+                                onChange={(e) => {
+                                    setFiltros(prev => ({ ...prev, servicioPrestado: e.target.value as any || undefined }))
+                                    setPaginaActual(0)
+                                }}
+                            >
+                                <option value="">Todos los servicios</option>
+                                {SERVICIOS_PRESTADOS_LISTA.map(servicio => (
+                                    <option key={servicio} value={servicio}>{servicio}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="w-56">
+                            <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">Radicador</label>
+                            <input
+                                type="text"
+                                placeholder="Correo del radicador..."
+                                className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                                value={filtros.radicadorEmail || ''}
+                                onChange={(e) => {
+                                    setFiltros(prev => ({ ...prev, radicadorEmail: e.target.value || undefined }))
+                                    setPaginaActual(0)
+                                }}
+                            />
                         </div>
                     </div>
                 </div>

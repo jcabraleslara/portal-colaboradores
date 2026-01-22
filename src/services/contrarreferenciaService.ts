@@ -12,6 +12,7 @@
 import { supabase } from '@/config/supabase.config'
 import { ragService } from './rag.service'
 import type { ContrarreferenciaResult } from '@/types/back.types'
+import { criticalErrorService } from './criticalError.service'
 
 interface CachedContrarreferencia {
     texto: string
@@ -219,6 +220,21 @@ async function generarContrarreferenciaConIA_ConRetry(
             // CASO 3: Otros errores HTTP
             const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }))
             console.error('[Contrarreferencia] Endpoint error:', response.status, errorData)
+
+            // Si es error 401/403, probablemente sea API key inválida
+            if (response.status === 401 || response.status === 403) {
+                await criticalErrorService.reportApiKeyFailure(
+                    'Gemini API',
+                    'Generación de Contrarreferencias',
+                    response.status
+                )
+            } else if (response.status === 503) {
+                await criticalErrorService.reportServiceUnavailable(
+                    'Gemini API',
+                    'Generación de Contrarreferencias',
+                    response.status
+                )
+            }
 
             return {
                 success: false,

@@ -18,6 +18,7 @@ import {
     CATEGORIAS_ARCHIVOS,
     EpsFacturacion,
 } from '@/types/soportesFacturacion.types'
+import { criticalErrorService } from './criticalError.service'
 
 /**
  * Transformar respuesta de DB (snake_case) a camelCase
@@ -113,6 +114,15 @@ export const soportesFacturacionService = {
 
             if (error) {
                 console.error(`Error subiendo archivo ${nombreArchivo}:`, error)
+
+                // Notificar error crítico de Storage
+                await criticalErrorService.reportStorageFailure(
+                    'upload',
+                    'Soportes de Facturación',
+                    'soportes-facturacion',
+                    error as Error
+                )
+
                 throw new Error(`Error subiendo ${archivo.name}: ${error.message}`)
             }
 
@@ -219,6 +229,15 @@ export const soportesFacturacionService = {
                 console.log(`✅ ${radicado} sincronizado con OneDrive`)
             } catch (oneDriveError) {
                 console.warn(`⚠️ Error sincronizando ${radicado} con OneDrive:`, oneDriveError)
+
+                // Notificar error de integración con OneDrive
+                await criticalErrorService.reportIntegrationError(
+                    'OneDrive',
+                    'Soportes de Facturación',
+                    'Sincronización automática',
+                    oneDriveError instanceof Error ? oneDriveError : undefined
+                )
+
                 // NO fallar la radicación si OneDrive falla
                 // El usuario puede re-sincronizar manualmente después
             }
@@ -373,6 +392,14 @@ export const soportesFacturacionService = {
 
             if (filtros.eps) {
                 query = query.eq('eps', filtros.eps)
+            }
+
+            if (filtros.radicadorEmail) {
+                query = query.eq('radicador_email', filtros.radicadorEmail)
+            }
+
+            if (filtros.servicioPrestado) {
+                query = query.eq('servicio_prestado', filtros.servicioPrestado)
             }
 
             if (filtros.fechaInicio) {

@@ -6,6 +6,8 @@
  * Las credenciales OAuth2 están protegidas en el backend.
  */
 
+import { criticalErrorService } from './criticalError.service'
+
 export const emailService = {
     /**
      * Enviar notificación de devolución (legacy - reutiliza endpoint de rechazo)
@@ -50,6 +52,15 @@ export const emailService = {
             return result.success
         } catch (error) {
             console.error('Error enviando correo de devolución:', error)
+
+            // Notificar error crítico al equipo técnico
+            await criticalErrorService.reportEmailFailure(
+                destinatario,
+                'BACK - Devolución de Casos',
+                'Notificación de Devolución',
+                error instanceof Error ? error : undefined
+            )
+
             return false
         }
     },
@@ -94,6 +105,15 @@ export const emailService = {
             return result.success
         } catch (error) {
             console.error('Error enviando correo de rechazo:', error)
+
+            // Notificar error crítico al equipo técnico
+            await criticalErrorService.reportEmailFailure(
+                destinatario,
+                'Soportes de Facturación',
+                'Notificación de Rechazo',
+                error instanceof Error ? error : undefined
+            )
+
             return false
         }
     },
@@ -135,6 +155,15 @@ export const emailService = {
             return result.success
         } catch (error) {
             console.error('Error enviando correo de confirmación:', error)
+
+            // Notificar error crítico al equipo técnico
+            await criticalErrorService.reportEmailFailure(
+                destinatario,
+                'Soportes de Facturación',
+                'Confirmación de Radicación',
+                error instanceof Error ? error : undefined
+            )
+
             return false
         }
     }

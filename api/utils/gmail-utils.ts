@@ -39,6 +39,15 @@ export async function getGmailAccessToken(): Promise<string> {
 
     if (!response.ok) {
         const error = await response.text()
+
+        // Si es error 40x, probablemente sea problema con las credenciales OAuth
+        if (response.status === 401 || response.status === 403 || response.status === 400) {
+            console.error('⚠️ ERROR CRÍTICO: Credenciales de Gmail OAuth2 inválidas o expiradas')
+            // Aquí podríamos llamar a otro endpoint para notificar al equipo técnico
+            // pero evitamos dependencias circulares. El sistema de notificación
+            // se activará desde el frontend cuando detecte que falla el envío de email.
+        }
+
         throw new Error(`Error renovando token de Gmail: ${error}`)
     }
 

@@ -154,6 +154,8 @@ export interface FiltrosSoportesFacturacion {
     busqueda?: string
     eps?: EpsFacturacion | null
     estado?: EstadoSoporteFacturacion | 'Todos'
+    radicadorEmail?: string | null
+    servicioPrestado?: ServicioPrestado | null
     fechaInicio?: string
     fechaFin?: string
 }
