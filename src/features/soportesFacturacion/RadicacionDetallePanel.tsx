@@ -413,6 +413,16 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                             </div>
 
                             <div>
+                                <label className="text-xs text-gray-500 block mb-1">Fecha Atención</label>
+                                <div className="flex items-center gap-2">
+                                    <Calendar size={16} className="text-gray-400" />
+                                    <p className="text-sm text-gray-900">
+                                        {caso.fechaAtencion?.toLocaleDateString('es-CO')}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div>
                                 <label className="text-xs text-gray-500 block mb-1">Servicio Prestado</label>
                                 <div className="flex items-center gap-2">
                                     <Activity size={16} className="text-gray-400" />
