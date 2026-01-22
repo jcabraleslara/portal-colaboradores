@@ -740,34 +740,91 @@ export const soportesFacturacionService = {
     /**
      * Eliminar una radicación (Solo admin/superadmin)
      */
+    /**
+     * Eliminar una radicación (Solo admin/superadmin)
+     * Elimina:
+     * 1. Carpeta en OneDrive (si existe)
+     * 2. Archivos en Supabase Storage
+     * 3. Registro en base de datos
+     */
     async eliminarRadicado(radicado: string): Promise<ApiResponse<null>> {
         try {
-            // Nota: Los archivos en Storage no se borran automáticamente aquí.
-            // Idealmente se debería implementar un trigger o una función de limpieza.
-            // La política RLS asegura que solo admin/superadmin puedan borrar.
+            console.log(`🗑️ Iniciando proceso de eliminación para ${radicado}...`)
 
-            const { error } = await supabase
+            // 1. Obtener información del radicado para saber ID de OneDrive y confirmar existencia
+            const { data: registro, error: fetchError } = await supabase
+                .from('soportes_facturacion')
+                .select('*')
+                .eq('radicado', radicado)
+                .single()
+
+            if (fetchError || !registro) {
+                console.error('Error buscando radicado para eliminar:', fetchError)
+                return { success: false, error: 'No se encontró el radicado o no tiene permisos' }
+            }
+
+            const folderId = (registro as any).onedrive_folder_id
+
+            // 2. Eliminar de OneDrive (Serverless Function)
+            if (folderId) {
+                try {
+                    console.log(`☁️ Eliminando carpeta de OneDrive (${folderId})...`)
+                    await fetch('/api/delete-onedrive', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ folderId, radicado }),
+                    })
+                } catch (odError) {
+                    console.warn('⚠️ Error eliminando de OneDrive (no bloqueante):', odError)
+                }
+            }
+
+            // 3. Eliminar archivos de Supabase Storage
+            try {
+                console.log(`📦 Eliminando archivos de Storage para ${radicado}...`)
+                // Listar archivos en la carpeta del radicado
+                const { data: files } = await supabase.storage
+                    .from('soportes-facturacion')
+                    .list(radicado)
+
+                if (files && files.length > 0) {
+                    const filesToRemove = files.map(f => `${radicado}/${f.name}`)
+                    const { error: storageError } = await supabase.storage
+                        .from('soportes-facturacion')
+                        .remove(filesToRemove)
+
+                    if (storageError) {
+                        console.warn('⚠️ Error eliminando archivos de Storage:', storageError)
+                    }
+                }
+            } catch (storageEx) {
+                console.warn('⚠️ Excepción eliminando stored files:', storageEx)
+            }
+
+            // 4. Eliminar registro de Base de Datos
+            console.log(`🗄️ Eliminando registro DB: ${radicado}...`)
+            const { error: dbError } = await supabase
                 .from('soportes_facturacion')
                 .delete()
                 .eq('radicado', radicado)
 
-            if (error) {
-                console.error('Error eliminando radicado:', error)
+            if (dbError) {
+                console.error('Error eliminando de BD:', dbError)
                 return {
                     success: false,
-                    error: 'Error al eliminar el radicado: ' + error.message,
+                    error: 'Error al eliminar el registro en base de datos: ' + dbError.message,
                 }
             }
 
             return {
                 success: true,
-                message: 'Radicado eliminado exitosamente',
+                message: 'Radicado y archivos eliminados exitosamente',
             }
-        } catch (error) {
-            console.error('Error en eliminarRadicado:', error)
+        } catch (error: any) {
+            console.error('Error crítico en eliminarRadicado:', error)
             return {
                 success: false,
-                error: ERROR_MESSAGES.SERVER_ERROR,
+                error: error.message || ERROR_MESSAGES.SERVER_ERROR,
             }
         }
     },
