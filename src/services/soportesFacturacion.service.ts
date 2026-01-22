@@ -410,6 +410,15 @@ export const soportesFacturacionService = {
                 query = query.lte('fecha_radicacion', filtros.fechaFin + 'T23:59:59')
             }
 
+            // Filtro por fecha de atención
+            if (filtros.fechaAtencionInicio) {
+                query = query.gte('fecha_atencion', filtros.fechaAtencionInicio)
+            }
+
+            if (filtros.fechaAtencionFin) {
+                query = query.lte('fecha_atencion', filtros.fechaAtencionFin + 'T23:59:59')
+            }
+
             // Búsqueda por radicado o identificación
             if (filtros.busqueda && filtros.busqueda.trim()) {
                 const termino = filtros.busqueda.trim()

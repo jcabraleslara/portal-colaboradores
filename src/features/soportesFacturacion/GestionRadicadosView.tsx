@@ -287,6 +287,30 @@ export function GestionRadicadosView() {
                                 }}
                             />
                         </div>
+                        <div className="w-40">
+                            <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">F. Atención Desde</label>
+                            <Input
+                                type="date"
+                                className="w-full text-sm"
+                                value={filtros.fechaAtencionInicio || ''}
+                                onChange={(e) => {
+                                    setFiltros(prev => ({ ...prev, fechaAtencionInicio: e.target.value || undefined }))
+                                    setPaginaActual(0)
+                                }}
+                            />
+                        </div>
+                        <div className="w-40">
+                            <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">F. Atención Hasta</label>
+                            <Input
+                                type="date"
+                                className="w-full text-sm"
+                                value={filtros.fechaAtencionFin || ''}
+                                onChange={(e) => {
+                                    setFiltros(prev => ({ ...prev, fechaAtencionFin: e.target.value || undefined }))
+                                    setPaginaActual(0)
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
             </Card>

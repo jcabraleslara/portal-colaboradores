@@ -159,6 +159,8 @@ export interface FiltrosSoportesFacturacion {
     servicioPrestado?: ServicioPrestado | null
     fechaInicio?: string
     fechaFin?: string
+    fechaAtencionInicio?: string
+    fechaAtencionFin?: string
 }
 
 // Configuración de categorías de archivos
