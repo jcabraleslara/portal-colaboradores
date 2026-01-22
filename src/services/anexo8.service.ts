@@ -15,7 +15,7 @@ import {
 import { ApiResponse } from '@/types'
 
 // Roles permitidos para usar este módulo
-export const ROLES_PERMITIDOS_ANEXO8 = ['superadmin', 'administrador', 'asistencial'] as const
+export const ROLES_PERMITIDOS_ANEXO8 = ['superadmin', 'administrador', 'asistencial', 'auditor'] as const
 
 /**
  * Servicio principal de Anexo 8

@@ -161,6 +161,8 @@ export interface FiltrosSoportesFacturacion {
     fechaFin?: string
     fechaAtencionInicio?: string
     fechaAtencionFin?: string
+    sortBy?: 'fechaRadicacion' | 'fechaAtencion' | 'radicado' | 'estado' | 'servicioPrestado' | 'eps' | 'radicadorEmail'
+    sortOrder?: 'asc' | 'desc'
 }
 
 // Configuración de categorías de archivos

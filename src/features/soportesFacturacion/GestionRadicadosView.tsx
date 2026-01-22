@@ -4,6 +4,9 @@ import {
     Loader2,
     FileText,
     Trash2,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
@@ -159,6 +162,25 @@ export function GestionRadicadosView() {
             console.error(error)
             toast.error('Error procesando la solicitud')
         }
+    }
+
+    const handleSort = (columna: FiltrosSoportesFacturacion['sortBy']) => {
+        setFiltros(prev => {
+            const isAsc = prev.sortBy === columna && prev.sortOrder === 'asc'
+            return {
+                ...prev,
+                sortBy: columna,
+                sortOrder: isAsc ? 'desc' : 'asc'
+            }
+        })
+        setPaginaActual(0)
+    }
+
+    const renderSortIcon = (columna: string) => {
+        if (filtros.sortBy !== columna) return <ArrowUpDown size={14} className="ml-1 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+        return filtros.sortOrder === 'asc'
+            ? <ArrowUp size={14} className="ml-1 text-[var(--color-primary)]" />
+            : <ArrowDown size={14} className="ml-1 text-[var(--color-primary)]" />
     }
 
     // ============================================
@@ -321,19 +343,55 @@ export function GestionRadicadosView() {
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Radicado</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fecha Atención</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Servicio</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Radicador</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">EPS</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort('radicado')}>
+                                    <div className="flex items-center">
+                                        Radicado
+                                        {renderSortIcon('radicado')}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort('fechaRadicacion')}>
+                                    <div className="flex items-center">
+                                        Fecha Radicación
+                                        {renderSortIcon('fechaRadicacion')}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort('fechaAtencion')}>
+                                    <div className="flex items-center">
+                                        Fecha Atención
+                                        {renderSortIcon('fechaAtencion')}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort('servicioPrestado')}>
+                                    <div className="flex items-center">
+                                        Servicio
+                                        {renderSortIcon('servicioPrestado')}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort('radicadorEmail')}>
+                                    <div className="flex items-center">
+                                        Radicador
+                                        {renderSortIcon('radicadorEmail')}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort('eps')}>
+                                    <div className="flex items-center">
+                                        EPS
+                                        {renderSortIcon('eps')}
+                                    </div>
+                                </th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort('estado')}>
+                                    <div className="flex items-center">
+                                        Estado
+                                        {renderSortIcon('estado')}
+                                    </div>
+                                </th>
                                 {esAdmin && <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>}
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                             {cargando ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center">
+                                    <td colSpan={8} className="px-6 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center text-gray-500">
                                             <Loader2 className="animate-spin mb-2" size={32} />
                                             <p>Cargando radicados...</p>
@@ -342,7 +400,7 @@ export function GestionRadicadosView() {
                                 </tr>
                             ) : casos.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                                         No se encontraron radicados con los filtros seleccionados
                                     </td>
                                 </tr>
@@ -352,6 +410,11 @@ export function GestionRadicadosView() {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-bold text-[var(--color-primary)]">
                                                 {caso.radicado}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="text-sm text-gray-900">
+                                                {caso.fechaRadicacion ? caso.fechaRadicacion.toLocaleDateString('es-CO') : '-'}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">

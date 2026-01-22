@@ -425,9 +425,26 @@ export const soportesFacturacionService = {
                 query = query.or(`radicado.ilike.%${termino}%,identificacion.ilike.%${termino}%,nombres_completos.ilike.%${termino}%`)
             }
 
-            // Ordenamiento y paginación
+            // Ordenamiento
+            if (filtros.sortBy) {
+                const sortMapping: Record<string, string> = {
+                    'fechaRadicacion': 'fecha_radicacion',
+                    'fechaAtencion': 'fecha_atencion',
+                    'radicado': 'radicado',
+                    'estado': 'estado',
+                    'servicioPrestado': 'servicio_prestado',
+                    'eps': 'eps',
+                    'radicadorEmail': 'radicador_email'
+                }
+                const column = sortMapping[filtros.sortBy] || 'created_at'
+                const ascending = filtros.sortOrder === 'asc'
+                query = query.order(column, { ascending })
+            } else {
+                query = query.order('created_at', { ascending: false })
+            }
+
+            // Paginación
             query = query
-                .order('created_at', { ascending: false })
                 .range(offset, offset + limit - 1)
 
             const { data, error, count } = await query
