@@ -266,8 +266,8 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                             // Nombre archivo: PREFIJO_RADICADO_CATEGORIA_INDICE.ext
                             const nombreArchivo = `${prefijo}${caso.radicado}_${categoriaId}_${i + 1}.${extension}`
 
-                            // Agregar al ZIP (dentro de carpeta raíz con el nombre generado)
-                            zip.folder(nombreCarpeta)?.file(nombreArchivo, blob)
+                            // Agregar al ZIP (directamente en la raíz del archivo comprimido)
+                            zip.file(nombreArchivo, blob)
                             archivosProcesados++
 
                         } catch (err) {

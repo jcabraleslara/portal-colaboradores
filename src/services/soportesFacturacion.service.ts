@@ -803,16 +803,26 @@ export const soportesFacturacionService = {
 
             // 4. Eliminar registro de Base de Datos
             console.log(`🗄️ Eliminando registro DB: ${radicado}...`)
-            const { error: dbError } = await supabase
+            const { data: deletedRows, error: dbError } = await supabase
                 .from('soportes_facturacion')
                 .delete()
                 .eq('radicado', radicado)
+                .select()
 
             if (dbError) {
                 console.error('Error eliminando de BD:', dbError)
                 return {
                     success: false,
                     error: 'Error al eliminar el registro en base de datos: ' + dbError.message,
+                }
+            }
+
+            // Validar que realmente se haya eliminado algo (RLS puede mostrar éxito con 0 borrados)
+            if (!deletedRows || deletedRows.length === 0) {
+                console.error('La operación de eliminación retornó 0 filas. Posible falta de permisos o registro inexistente.')
+                return {
+                    success: false,
+                    error: 'No se pudo eliminar el registro. Verifique sus permisos de administrador o si el radicado ya fue eliminado.',
                 }
             }
 
