@@ -4,7 +4,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { sendGmailEmail } from './utils/gmail-utils'
+import { sendGmailEmail } from './utils/gmail-utils.js'
 
 interface RequestBody {
     destinatario: string
