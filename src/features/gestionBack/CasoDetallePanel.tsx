@@ -338,7 +338,7 @@ export function CasoDetallePanel({
         } else {
             setErrorGuardado(result.error || 'Error al guardar')
         }
-    }, [caso, direccionamiento, respuestaBack, estadoRadicado, onGuardarYCerrar, onGuardarYSiguiente])
+    }, [caso, direccionamiento, respuestaBack, estadoRadicado, tipoSolicitud, onGuardarYCerrar, onGuardarYSiguiente])
 
     const handleEliminar = useCallback(async () => {
         setEliminando(true)

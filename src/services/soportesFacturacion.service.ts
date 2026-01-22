@@ -198,6 +198,7 @@ export const soportesFacturacionService = {
                 }
             }
 
+
             // Obtener registro actualizado
             const { data: registroFinal } = await supabase
                 .from('soportes_facturacion')
@@ -208,14 +209,62 @@ export const soportesFacturacionService = {
             const soporteCreado = transformSoporte(registroFinal as SoporteFacturacionRaw)
 
             // Sincronizar automáticamente con OneDrive (no bloqueante)
+            let onedriveFolderUrl: string | undefined
             try {
                 console.log(`🔄 Sincronizando ${radicado} con OneDrive...`)
-                await this.sincronizarOneDrive(radicado)
+                const syncResult = await this.sincronizarOneDrive(radicado)
+                if (syncResult.success && syncResult.data) {
+                    onedriveFolderUrl = syncResult.data.folderUrl
+                }
                 console.log(`✅ ${radicado} sincronizado con OneDrive`)
             } catch (oneDriveError) {
                 console.warn(`⚠️ Error sincronizando ${radicado} con OneDrive:`, oneDriveError)
                 // NO fallar la radicación si OneDrive falla
                 // El usuario puede re-sincronizar manualmente después
+            }
+
+            // Enviar correo de confirmación de radicación
+            try {
+                const { emailService } = await import('./email.service')
+
+                // Preparar datos para el correo
+                const archivos = [
+                    { categoria: 'Validación de Derechos', urls: soporteCreado.urlsValidacionDerechos },
+                    { categoria: 'Autorización', urls: soporteCreado.urlsAutorizacion },
+                    { categoria: 'Soporte Clínico', urls: soporteCreado.urlsSoporteClinico },
+                    { categoria: 'Comprobante de Recibo', urls: soporteCreado.urlsComprobanteRecibo },
+                    { categoria: 'Orden Médica', urls: soporteCreado.urlsOrdenMedica },
+                    { categoria: 'Descripción Quirúrgica', urls: soporteCreado.urlsDescripcionQuirurgica },
+                    { categoria: 'Registro de Anestesia', urls: soporteCreado.urlsRegistroAnestesia },
+                    { categoria: 'Hoja de Medicamentos', urls: soporteCreado.urlsHojaMedicamentos },
+                    { categoria: 'Notas de Enfermería', urls: soporteCreado.urlsNotasEnfermeria }
+                ]
+
+                const datosRadicacion = {
+                    eps: soporteCreado.eps,
+                    regimen: soporteCreado.regimen,
+                    servicioPrestado: soporteCreado.servicioPrestado,
+                    fechaAtencion: soporteCreado.fechaAtencion.toISOString().split('T')[0],
+                    pacienteNombre: soporteCreado.nombresCompletos || 'No especificado',
+                    pacienteIdentificacion: soporteCreado.identificacion || 'No especificado',
+                    archivos,
+                    onedriveFolderUrl
+                }
+
+                const emailEnviado = await emailService.enviarNotificacionRadicacionExitosa(
+                    soporteCreado.radicadorEmail,
+                    radicado,
+                    datosRadicacion
+                )
+
+                if (emailEnviado) {
+                    console.log(`📧 Correo de confirmación enviado a ${soporteCreado.radicadorEmail}`)
+                } else {
+                    console.warn('No se pudo enviar el correo de confirmación, pero la radicación se creó exitosamente')
+                }
+            } catch (emailError) {
+                console.error('Error enviando correo de confirmación:', emailError)
+                // No fallar la operación si el correo falla
             }
 
             return {
@@ -231,6 +280,7 @@ export const soportesFacturacionService = {
             }
         }
     },
+
 
     /**
      * Obtener historial de radicaciones por documento del paciente
@@ -378,6 +428,14 @@ export const soportesFacturacionService = {
         observaciones?: string
     ): Promise<ApiResponse<SoporteFacturacion>> {
         try {
+            // Validar que si el estado es "Rechazado", las observaciones no estén vacías
+            if (estado === 'Rechazado' && (!observaciones || !observaciones.trim())) {
+                return {
+                    success: false,
+                    error: 'Debe ingresar observaciones de facturación para rechazar el radicado',
+                }
+            }
+
             const updateData: Record<string, unknown> = { estado }
             if (observaciones !== undefined) {
                 updateData.observaciones_facturacion = observaciones
@@ -398,9 +456,58 @@ export const soportesFacturacionService = {
                 }
             }
 
+            const soporteActualizado = transformSoporte(data as SoporteFacturacionRaw)
+
+            // Si el estado es "Rechazado", enviar correo de notificación
+            if (estado === 'Rechazado' && soporteActualizado.radicadorEmail) {
+                try {
+                    // Importar dinámicamente el servicio de email
+                    const { emailService } = await import('./email.service')
+
+                    // Preparar datos para el correo
+                    const archivos = [
+                        { categoria: 'Validación de Derechos', urls: soporteActualizado.urlsValidacionDerechos },
+                        { categoria: 'Autorización', urls: soporteActualizado.urlsAutorizacion },
+                        { categoria: 'Soporte Clínico', urls: soporteActualizado.urlsSoporteClinico },
+                        { categoria: 'Comprobante de Recibo', urls: soporteActualizado.urlsComprobanteRecibo },
+                        { categoria: 'Orden Médica', urls: soporteActualizado.urlsOrdenMedica },
+                        { categoria: 'Descripción Quirúrgica', urls: soporteActualizado.urlsDescripcionQuirurgica },
+                        { categoria: 'Registro de Anestesia', urls: soporteActualizado.urlsRegistroAnestesia },
+                        { categoria: 'Hoja de Medicamentos', urls: soporteActualizado.urlsHojaMedicamentos },
+                        { categoria: 'Notas de Enfermería', urls: soporteActualizado.urlsNotasEnfermeria }
+                    ]
+
+                    const datosRadicacion = {
+                        eps: soporteActualizado.eps,
+                        regimen: soporteActualizado.regimen,
+                        servicioPrestado: soporteActualizado.servicioPrestado,
+                        fechaAtencion: soporteActualizado.fechaAtencion.toISOString().split('T')[0],
+                        pacienteNombre: soporteActualizado.nombresCompletos || 'No especificado',
+                        pacienteIdentificacion: soporteActualizado.identificacion || 'No especificado',
+                        pacienteTipoId: soporteActualizado.tipoId || 'No especificado',
+                        archivos,
+                        fechaRadicacion: soporteActualizado.fechaRadicacion.toISOString()
+                    }
+
+                    const emailEnviado = await emailService.enviarNotificacionRechazo(
+                        soporteActualizado.radicadorEmail,
+                        radicado,
+                        observaciones || '',
+                        datosRadicacion
+                    )
+
+                    if (!emailEnviado) {
+                        console.warn('No se pudo enviar el correo de rechazo, pero el estado se actualizó correctamente')
+                    }
+                } catch (emailError) {
+                    console.error('Error enviando correo de rechazo:', emailError)
+                    // No fallar la operación si el correo falla
+                }
+            }
+
             return {
                 success: true,
-                data: transformSoporte(data as SoporteFacturacionRaw),
+                data: soporteActualizado,
                 message: 'Estado actualizado exitosamente',
             }
         } catch (error) {
@@ -411,6 +518,7 @@ export const soportesFacturacionService = {
             }
         }
     },
+
 
     /**
      * Sincronizar archivos con OneDrive (llamar API serverless)
@@ -486,6 +594,123 @@ export const soportesFacturacionService = {
             return { success: false, error: ERROR_MESSAGES.SERVER_ERROR }
         }
     },
+
+    /**
+     * Renombrar archivo en Supabase Storage y actualizar URL en base de datos
+     */
+    async renombrarArchivo(
+        radicado: string,
+        categoria: CategoriaArchivo,
+        rutaActual: string,
+        nuevoNombre: string
+    ): Promise<ApiResponse<{ nuevaUrl: string }>> {
+        try {
+            // Validar que el nuevo nombre tenga extensión .pdf
+            if (!nuevoNombre.toLowerCase().endsWith('.pdf')) {
+                nuevoNombre += '.pdf'
+            }
+
+            // Construir nueva ruta
+            const nuevaRuta = `${radicado}/${nuevoNombre}`
+
+            // Mover (renombrar) archivo en Storage
+            const { error: moveError } = await supabase.storage
+                .from('soportes-facturacion')
+                .move(rutaActual, nuevaRuta)
+
+            if (moveError) {
+                console.error('Error renombrando archivo en Storage:', moveError)
+                return {
+                    success: false,
+                    error: `Error al renombrar archivo: ${moveError.message}`,
+                }
+            }
+
+            // Generar nueva URL firmada (válida por 1 año)
+            const { data: urlData, error: urlError } = await supabase.storage
+                .from('soportes-facturacion')
+                .createSignedUrl(nuevaRuta, 31536000) // 1 año
+
+            if (urlError || !urlData?.signedUrl) {
+                // Intentar revertir el cambio
+                await supabase.storage
+                    .from('soportes-facturacion')
+                    .move(nuevaRuta, rutaActual)
+
+                return {
+                    success: false,
+                    error: 'Error generando URL firmada para el archivo renombrado',
+                }
+            }
+
+            const nuevaUrl = urlData.signedUrl
+
+            // Actualizar URL en base de datos
+            const columnName = getCategoriaColumnName(categoria)
+
+            // Obtener registro actual
+            const { data: registro, error: fetchError } = await supabase
+                .from('soportes_facturacion')
+                .select(columnName)
+                .eq('radicado', radicado)
+                .single()
+
+            if (fetchError || !registro) {
+                // Revertir cambio en Storage
+                await supabase.storage
+                    .from('soportes-facturacion')
+                    .move(nuevaRuta, rutaActual)
+
+                return {
+                    success: false,
+                    error: 'Error obteniendo registro de la base de datos',
+                }
+            }
+
+            // Actualizar array de URLs reemplazando la antigua por la nueva
+            const urlsActuales = ((registro as unknown as Record<string, unknown>)[columnName] || []) as string[]
+            const urlsActualizadas = urlsActuales.map(url => {
+                // Buscar si esta URL corresponde al archivo renombrado
+                // Comparamos por la ruta dentro de la URL
+                if (url.includes(encodeURIComponent(rutaActual.split('/').pop() || ''))) {
+                    return nuevaUrl
+                }
+                return url
+            })
+
+            // Actualizar en base de datos
+            const { error: updateError } = await supabase
+                .from('soportes_facturacion')
+                .update({ [columnName]: urlsActualizadas })
+                .eq('radicado', radicado)
+
+            if (updateError) {
+                console.error('Error actualizando URLs en BD:', updateError)
+                // Intentar revertir cambio en Storage
+                await supabase.storage
+                    .from('soportes-facturacion')
+                    .move(nuevaRuta, rutaActual)
+
+                return {
+                    success: false,
+                    error: 'Error actualizando URLs en base de datos',
+                }
+            }
+
+            return {
+                success: true,
+                data: { nuevaUrl },
+                message: 'Archivo renombrado exitosamente',
+            }
+        } catch (error) {
+            console.error('Error en renombrarArchivo:', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR,
+            }
+        }
+    },
 }
+
 
 export default soportesFacturacionService

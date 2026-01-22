@@ -10,6 +10,7 @@ import {
     ExternalLink,
     CheckCircle,
     Cloud,
+    Edit,
 } from 'lucide-react'
 import { Button, PdfViewerModal } from '@/components/common'
 import { soportesFacturacionService } from '@/services/soportesFacturacion.service'
@@ -22,6 +23,7 @@ import {
     EstadoSoporteFacturacion,
 } from '@/types/soportesFacturacion.types'
 
+
 interface RadicacionDetallePanelProps {
     caso: SoporteFacturacion
     onClose: () => void
@@ -33,6 +35,15 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
     const [nuevoEstado, setNuevoEstado] = useState<EstadoSoporteFacturacion>(caso.estado)
     const [observaciones, setObservaciones] = useState(caso.observacionesFacturacion || '')
     const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null)
+    const [archivoEditando, setArchivoEditando] = useState<{
+        categoria: CategoriaArchivo
+        rutaActual: string
+        nombreActual: string
+        url: string
+    } | null>(null)
+    const [nuevoNombreArchivo, setNuevoNombreArchivo] = useState('')
+    const [renombrando, setRenombrando] = useState(false)
+
 
     // ============================================
     // AGREGAR ARCHIVOS
@@ -76,6 +87,12 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
     // HANDLERS
     // ============================================
     const handleGuardar = async () => {
+        // Validar que si el estado es "Rechazado", las observaciones no estén vacías
+        if (nuevoEstado === 'Rechazado' && !observaciones.trim()) {
+            alert('Debe ingresar observaciones de facturación para rechazar el radicado')
+            return
+        }
+
         setGuardando(true)
         try {
             const result = await soportesFacturacionService.actualizarEstado(
@@ -85,6 +102,7 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
             )
 
             if (result.success) {
+                alert('Radicado actualizado exitosamente')
                 onUpdate()
                 onClose()
             } else {
@@ -96,6 +114,37 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
             alert('Error al guardar')
         } finally {
             setGuardando(false)
+        }
+    }
+
+    const handleRenombrarArchivo = async () => {
+        if (!archivoEditando || !nuevoNombreArchivo.trim()) {
+            alert('Debe ingresar un nombre válido para el archivo')
+            return
+        }
+
+        setRenombrando(true)
+        try {
+            const result = await soportesFacturacionService.renombrarArchivo(
+                caso.radicado,
+                archivoEditando.categoria,
+                archivoEditando.rutaActual,
+                nuevoNombreArchivo.trim()
+            )
+
+            if (result.success) {
+                alert('Archivo renombrado exitosamente')
+                setArchivoEditando(null)
+                setNuevoNombreArchivo('')
+                onUpdate() // Refrescar para mostrar el nuevo nombre
+            } else {
+                alert(result.error || 'Error al renombrar archivo')
+            }
+        } catch (error) {
+            console.error(error)
+            alert('Error al renombrar archivo')
+        } finally {
+            setRenombrando(false)
         }
     }
 

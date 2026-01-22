@@ -380,9 +380,10 @@ export const backService = {
                 }
             }
 
-            // Obtener nombres completos de radicadores desde usuarios_portal
+            // Obtener nombres completos y emails de radicadores desde usuarios_portal
             const usuariosRadicadores = [...new Set((data as BackRadicacionRaw[]).map(r => r.radicador).filter(Boolean))]
             let nombresRadicadoresMap = new Map<string, string>()
+            let emailsRadicadoresMap = new Map<string, string>()
 
             if (usuariosRadicadores.length > 0) {
                 // IMPORTANTE: No usar .in() con nombres que contengan espacios/puntos
@@ -402,7 +403,7 @@ export const backService = {
 
                 const { data: usuariosData, error: usuariosError } = await supabase
                     .from('usuarios_portal')
-                    .select('nombre_completo')
+                    .select('nombre_completo, email_institucional')
                     .or(orConditions)
 
                 if (usuariosError) {
@@ -410,6 +411,8 @@ export const backService = {
                 } else if (usuariosData) {
                     // Mapear NOMBRE EN MAYÚSCULAS (back) -> Nombre Real (usuarios_portal)
                     nombresRadicadoresMap = new Map(usuariosData.map(u => [u.nombre_completo.toUpperCase(), u.nombre_completo]))
+                    // Mapear NOMBRE EN MAYÚSCULAS (back) -> Email Institucional
+                    emailsRadicadoresMap = new Map(usuariosData.map(u => [u.nombre_completo.toUpperCase(), u.email_institucional]))
                 }
             }
 
@@ -422,11 +425,17 @@ export const backService = {
             const casos: BackRadicacionExtendido[] = (data as BackRadicacionRaw[]).map(raw => {
                 const pacienteRaw = pacientesMap.get(raw.id)
                 const base = transformRadicacion(raw)
+
                 // Asignar cargo del radicador si existe
                 if (raw.correo_radicador) {
                     base.cargoRadicador = cargosMap.get(raw.correo_radicador) || null
                 }
+
                 const nombreRadicador = nombresRadicadoresMap.get(raw.radicador) || null
+                const emailRadicador = emailsRadicadoresMap.get(raw.radicador) || null
+
+                // IMPORTANTE: Asignar el email del radicador al objeto base
+                base.emailRadicador = emailRadicador
 
                 return {
                     ...base,
