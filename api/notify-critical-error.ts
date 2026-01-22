@@ -7,7 +7,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { sendGmailEmail } from './utils/gmail-utils'
+import { sendGmailEmail } from './_utils/gmail-utils.js'
 
 /**
  * Severidad del error crítico

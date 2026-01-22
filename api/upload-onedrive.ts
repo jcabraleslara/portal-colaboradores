@@ -9,7 +9,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { createClient } from '@supabase/supabase-js'
-import { notifyAuthenticationError, notifyServiceUnavailable } from './utils/critical-error-utils'
+import { notifyAuthenticationError, notifyServiceUnavailable } from './_utils/critical-error-utils.js'
 
 // Tipos para Microsoft Graph
 interface GraphTokenResponse {

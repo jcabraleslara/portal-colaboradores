@@ -6,7 +6,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { notifyApiKeyFailure, notifyServiceUnavailable } from './utils/critical-error-utils'
+import { notifyApiKeyFailure, notifyServiceUnavailable } from './_utils/critical-error-utils.js'
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY // Sin prefijo VITE_
 
