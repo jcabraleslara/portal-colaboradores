@@ -80,7 +80,7 @@ function getCategoriaColumnName(categoria: CategoriaArchivo): string {
  * Obtener prefijo de archivo según EPS, Servicio y Categoría
  * Reglas de negocio según Matriz de Renombrado
  */
-function getPrefijoArchivo(eps: EpsFacturacion, servicio: ServicioPrestado, categoria: CategoriaArchivo): string {
+export function getPrefijoArchivo(eps: EpsFacturacion, servicio: ServicioPrestado, categoria: CategoriaArchivo): string {
     // 1. Reglas Globales (Aplican por defecto salvo excepciones)
     // Autorización -> Generalmente OPF (Salud Total) o PDE (Nueva, Familiar)
     if (categoria === 'autorizacion') {

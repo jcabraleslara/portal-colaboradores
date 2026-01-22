@@ -19,7 +19,7 @@ import { saveAs } from 'file-saver'
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
 import { Button, PdfViewerModal } from '@/components/common'
-import { soportesFacturacionService } from '@/services/soportesFacturacion.service'
+import { soportesFacturacionService, getPrefijoArchivo } from '@/services/soportesFacturacion.service'
 import {
     SoporteFacturacion,
     ESTADOS_SOPORTE_LISTA,
@@ -236,19 +236,12 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                 'urlsNotasEnfermeria': 'notas_enfermeria',
             }
 
-            // Obtener prefijos para esta EPS
-            const configEps = CATEGORIAS_ARCHIVOS.reduce((acc, cat) => {
-                acc[cat.id] = cat.prefijos[caso.eps] || ''
-                return acc
-            }, {} as Record<string, string>)
-
-
             for (const [propiedad, categoriaId] of Object.entries(mapeoCategorias)) {
                 // @ts-ignore - Acceso dinámico a propiedades del caso
                 const urls: string[] = caso[propiedad] || []
 
                 if (urls.length > 0) {
-                    const prefijo = configEps[categoriaId] || ''
+                    const prefijo = getPrefijoArchivo(caso.eps, caso.servicioPrestado, categoriaId)
 
                     for (let i = 0; i < urls.length; i++) {
                         const url = urls[i]
@@ -264,7 +257,7 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                             else if (blob.type.includes('image/png')) extension = 'png'
 
                             // Nombre archivo: PREFIJO_RADICADO_CATEGORIA_INDICE.ext
-                            const nombreArchivo = `${prefijo}${caso.radicado}_${categoriaId}_${i + 1}.${extension}`
+                            const nombreArchivo = `${prefijo}_${caso.radicado}_${categoriaId}_${i + 1}.${extension}`
 
                             // Agregar al ZIP (directamente en la raíz del archivo comprimido)
                             zip.file(nombreArchivo, blob)
@@ -276,6 +269,7 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                     }
                 }
             }
+
 
             if (archivosProcesados === 0) {
                 toast.error('No hay archivos para descargar', { id: toastId })
