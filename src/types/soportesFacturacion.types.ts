@@ -38,6 +38,7 @@ export type OneDriveSyncStatus =
     | 'syncing'
     | 'synced'
     | 'error'
+    | 'failed'
 
 // Categorías de archivos
 export type CategoriaArchivo =

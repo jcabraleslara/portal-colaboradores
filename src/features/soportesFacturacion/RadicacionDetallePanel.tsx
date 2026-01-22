@@ -49,6 +49,7 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
     } | null>(null)
     const [nuevoNombreArchivo, setNuevoNombreArchivo] = useState('')
     const [renombrando, setRenombrando] = useState(false)
+    const [sincronizando, setSincronizando] = useState(false)
 
 
     // ============================================
@@ -177,6 +178,29 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
         }
     }
 
+    const handleSincronizarOneDrive = async () => {
+        setSincronizando(true)
+        try {
+            const promise = soportesFacturacionService.sincronizarOneDrive(caso.radicado)
+
+            toast.promise(promise, {
+                loading: 'Sincronizando archivos con OneDrive...',
+                success: (res) => {
+                    onUpdate()
+                    if ((res as any).warning) return `Advertencia: ${(res as any).message}`
+                    return 'Sincronización exitosa con OneDrive'
+                },
+                error: 'Error al sincronizar con OneDrive'
+            })
+
+            await promise
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setSincronizando(false)
+        }
+    }
+
     // ============================================
     // RENDER
     // ============================================
@@ -205,6 +229,38 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                                 <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-semibold ${ESTADO_COLORES[caso.estado]?.bg} ${ESTADO_COLORES[caso.estado]?.text}`}>
                                     {caso.estado}
                                 </span>
+
+                                {esAdmin && (
+                                    <>
+                                        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border ${caso.onedriveSyncStatus === 'synced'
+                                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                            : caso.onedriveSyncStatus === 'error' || caso.onedriveSyncStatus === 'failed' // @ts-ignore
+                                                ? 'bg-red-50 text-red-700 border-red-200'
+                                                : 'bg-gray-50 text-gray-600 border-gray-200'
+                                            }`} title={caso.onedriveSyncStatus}>
+                                            <Cloud size={14} />
+                                            <span className="hidden sm:inline">
+                                                {caso.onedriveSyncStatus === 'synced' ? 'Sync' :
+                                                    caso.onedriveSyncStatus === 'error' ? 'Error' :
+                                                        'No Sync'}
+                                            </span>
+                                        </div>
+
+                                        {(caso.onedriveSyncStatus !== 'synced' || esAdmin) && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 text-xs px-2"
+                                                onClick={handleSincronizarOneDrive}
+                                                isLoading={sincronizando}
+                                                disabled={sincronizando}
+                                                title="Forzar sincronización con OneDrive"
+                                            >
+                                                Sync
+                                            </Button>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
                         <button
