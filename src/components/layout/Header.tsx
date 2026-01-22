@@ -5,6 +5,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { LogOut, Menu, Bell, User, Lock } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { ChangePasswordModal } from '@/features/auth'
 
@@ -161,7 +162,7 @@ export function Header({ onMenuClick }: HeaderProps) {
                     onSuccess={() => {
                         setShowPasswordModal(false)
                         // Aquí podríamos mostrar una notificación toast si existiera el sistema
-                        alert('¡Tu contraseña ha sido actualizada correctamente!')
+                        toast.success('¡Tu contraseña ha sido actualizada correctamente!')
                     }}
                     onClose={() => setShowPasswordModal(false)}
                 />

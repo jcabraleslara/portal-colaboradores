@@ -9,6 +9,7 @@ import {
     Users, UserPlus, Search, Shield, ShieldCheck, ShieldX,
     ToggleLeft, ToggleRight, Trash2, RefreshCw, AlertCircle
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { usuariosPortalService, UsuarioPortal } from '@/services/usuariosPortal.service'
 import CreateUserModal from './components/CreateUserModal'
@@ -102,7 +103,7 @@ export default function AdminUsuariosPage() {
                 u.id === usuario.id ? { ...u, activo: !u.activo } : u
             ))
         } else {
-            alert(`Error: ${err}`)
+            toast.error(`Error: ${err}`)
         }
         setActionLoading(null)
     }
@@ -117,7 +118,7 @@ export default function AdminUsuariosPage() {
                 u.id === usuario.id ? { ...u, rol: newRol } : u
             ))
         } else {
-            alert(`Error: ${err}`)
+            toast.error(`Error: ${err}`)
         }
         setActionLoading(null)
     }
@@ -132,7 +133,7 @@ export default function AdminUsuariosPage() {
         if (success) {
             setUsuarios(prev => prev.filter(u => u.id !== usuario.id))
         } else {
-            alert(`Error: ${err}`)
+            toast.error(`Error: ${err}`)
         }
         setActionLoading(null)
     }

@@ -6,6 +6,7 @@
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from '@/context/AuthContext'
 import { AppRoutes } from '@/routes/AppRoutes'
+import { Toaster } from 'sonner'
 import './index.css'
 
 function App() {
@@ -13,6 +14,15 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <AppRoutes />
+        <Toaster
+          richColors
+          position="top-right"
+          expand={true}
+          closeButton
+          style={{
+            fontFamily: 'inherit'
+          }}
+        />
       </AuthProvider>
     </BrowserRouter>
   )

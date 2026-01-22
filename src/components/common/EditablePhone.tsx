@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Edit2, Check, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button } from './Button'
 import { Input } from './Input'
 import { afiliadosService } from '@/services/afiliados.service'
@@ -37,7 +38,7 @@ export function EditablePhone({
             setIsEditing(false)
             onUpdate(value)
         } else {
-            alert('Error al actualizar teléfono')
+            toast.error('Error al actualizar teléfono')
         }
     }
 

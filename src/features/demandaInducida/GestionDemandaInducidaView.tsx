@@ -23,6 +23,7 @@ import {
     FileSpreadsheet,
     FileType,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
 
 import { useAuth } from '@/context/AuthContext'
@@ -88,7 +89,7 @@ export default function GestionDemandaInducidaView() {
             })
 
             if (data.length === 0) {
-                alert('No hay datos para exportar')
+                toast.warning('No hay datos para exportar')
                 return
             }
 
@@ -136,7 +137,7 @@ export default function GestionDemandaInducidaView() {
 
         } catch (error) {
             console.error('Error exportando:', error)
-            alert('Ocurrió un error al exportar los datos')
+            toast.error('Ocurrió un error al exportar los datos')
         } finally {
             setExporting(false)
         }
@@ -252,7 +253,7 @@ export default function GestionDemandaInducidaView() {
             setTotalItems((prev) => prev - 1)
         } catch (error) {
             console.error('Error eliminando caso:', error)
-            alert('Error al eliminar el registro')
+            toast.error('Error al eliminar el registro')
         }
     }
 

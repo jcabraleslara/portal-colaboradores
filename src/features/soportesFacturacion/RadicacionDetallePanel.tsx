@@ -12,6 +12,7 @@ import {
     Cloud,
     Edit,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Button, PdfViewerModal } from '@/components/common'
 import { soportesFacturacionService } from '@/services/soportesFacturacion.service'
 import {
@@ -89,7 +90,7 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
     const handleGuardar = async () => {
         // Validar que si el estado es "Rechazado", las observaciones no estén vacías
         if (nuevoEstado === 'Rechazado' && !observaciones.trim()) {
-            alert('Debe ingresar observaciones de facturación para rechazar el radicado')
+            toast.warning('Debe ingresar observaciones de facturación para rechazar el radicado')
             return
         }
 
@@ -102,16 +103,16 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
             )
 
             if (result.success) {
-                alert('Radicado actualizado exitosamente')
+                toast.success('Radicado actualizado exitosamente')
                 onUpdate()
                 onClose()
             } else {
-                alert(result.error || 'Error al guardar')
+                toast.error(result.error || 'Error al guardar')
             }
 
         } catch (error) {
             console.error(error)
-            alert('Error al guardar')
+            toast.error('Error al guardar')
         } finally {
             setGuardando(false)
         }
@@ -119,7 +120,7 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
 
     const handleRenombrarArchivo = async () => {
         if (!archivoEditando || !nuevoNombreArchivo.trim()) {
-            alert('Debe ingresar un nombre válido para el archivo')
+            toast.warning('Debe ingresar un nombre válido para el archivo')
             return
         }
 
@@ -133,16 +134,16 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
             )
 
             if (result.success) {
-                alert('Archivo renombrado exitosamente')
+                toast.success('Archivo renombrado exitosamente')
                 setArchivoEditando(null)
                 setNuevoNombreArchivo('')
                 onUpdate() // Refrescar para mostrar el nuevo nombre
             } else {
-                alert(result.error || 'Error al renombrar archivo')
+                toast.error(result.error || 'Error al renombrar archivo')
             }
         } catch (error) {
             console.error(error)
-            alert('Error al renombrar archivo')
+            toast.error('Error al renombrar archivo')
         } finally {
             setRenombrando(false)
         }
