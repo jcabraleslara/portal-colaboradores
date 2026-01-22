@@ -357,10 +357,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                         const contenido = await archivoResponse.arrayBuffer()
 
-                        // Determinar extensión del archivo
-                        const extension = url.split('.').pop()?.split('?')[0] || 'pdf'
+                        // Determinar extensión basada en Content-Type (más seguro)
+                        const contentType = archivoResponse.headers.get('content-type')
+                        let extension = 'pdf' // Default
 
-                        // Generar nombre del archivo
+                        if (contentType?.includes('image/jpeg')) extension = 'jpg'
+                        else if (contentType?.includes('image/png')) extension = 'png'
+                        else if (contentType?.includes('application/pdf')) extension = 'pdf'
+                        else {
+                            // Fallback: intentar extraer de la URL pero con cuidado
+                            const urlPath = url.split('?')[0] // Quitar query params primero
+                            const ext = urlPath.split('.').pop()
+                            if (ext && ext.length < 5) extension = ext
+                        }
+
+                        // Generar nombre del archivo LIMPIO
                         const nombreArchivo = `${prefijo}${radicado}_${categoriaId}_${i + 1}.${extension}`
 
                         // Subir a OneDrive
