@@ -20,7 +20,7 @@ export const emailService = {
     ): Promise<boolean> {
         try {
             // Mapear a formato esperado por el endpoint de rechazo
-            const datosRadicacion = {
+            const datos = {
                 eps: datosCaso['EPS'] || '',
                 regimen: datosCaso['Régimen'] || '',
                 servicioPrestado: datosCaso['Servicio'] || '',
@@ -29,17 +29,18 @@ export const emailService = {
                 pacienteIdentificacion: datosCaso['Identificación'] || '',
                 pacienteTipoId: datosCaso['Tipo ID'] || '',
                 archivos: [],
-                fechaRadicacion: new Date().toISOString()
+                fechaRadicacion: new Date().toISOString(),
+                observacionesFacturacion: motivo
             }
 
-            const response = await fetch('/api/send-rechazo-email', {
+            const response = await fetch('/api/send-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    type: 'rechazo',
                     destinatario,
                     radicado,
-                    observacionesFacturacion: motivo,
-                    datosRadicacion
+                    datos
                 })
             })
 
@@ -85,14 +86,19 @@ export const emailService = {
         }
     ): Promise<boolean> {
         try {
-            const response = await fetch('/api/send-rechazo-email', {
+            const datos = {
+                ...datosRadicacion,
+                observacionesFacturacion
+            }
+
+            const response = await fetch('/api/send-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    type: 'rechazo',
                     destinatario,
                     radicado,
-                    observacionesFacturacion,
-                    datosRadicacion
+                    datos
                 })
             })
 
@@ -136,13 +142,14 @@ export const emailService = {
         }
     ): Promise<boolean> {
         try {
-            const response = await fetch('/api/send-radicacion-email', {
+            const response = await fetch('/api/send-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    type: 'radicacion',
                     destinatario,
                     radicado,
-                    datosRadicacion
+                    datos: datosRadicacion
                 })
             })
 
