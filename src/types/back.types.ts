@@ -20,6 +20,8 @@ export type EstadoRadicado =
     | 'Gestionado'       // Azul suave
     | 'Autorizado'       // Verde
     | 'Enrutado'         // Azul
+    | 'En espera'        // Naranja
+    | 'Rechazado'        // Rojo oscuro
 
 // Opciones de direccionamiento
 export type Direccionamiento =
@@ -110,6 +112,8 @@ export const ESTADO_COLORES: Record<EstadoRadicado, { bg: string; text: string; 
     'Gestionado': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' },
     'Autorizado': { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300' },
     'Enrutado': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
+    'En espera': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
+    'Rechazado': { bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-300' },
 }
 
 // Lista de ordenadores predefinidos
@@ -410,6 +414,8 @@ export const ESTADOS_RADICADO_LISTA: (EstadoRadicado | 'Todos')[] = [
     'Gestionado',
     'Autorizado',
     'Enrutado',
+    'En espera',
+    'Rechazado',
     'Todos',
 ]
 

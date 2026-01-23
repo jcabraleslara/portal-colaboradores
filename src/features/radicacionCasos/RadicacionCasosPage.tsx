@@ -1055,7 +1055,11 @@ export function RadicacionCasosPage() {
                                         ? historial
                                         : historial.filter(h => h.estadoRadicado === filtroEstado)
                                     ).map((radicacion) => {
-                                        const colores = ESTADO_COLORES[radicacion.estadoRadicado]
+                                        const colores = ESTADO_COLORES[radicacion.estadoRadicado] || {
+                                            bg: 'bg-gray-100',
+                                            text: 'text-gray-700',
+                                            border: 'border-gray-300'
+                                        }
                                         const mostrarDireccionamiento = radicacion.tipoSolicitud === 'Auditoría Médica'
                                         // Detectar si el fondo es oscuro para ajustar colores de texto
                                         const esFondoOscuro = radicacion.estadoRadicado === 'Contrarreferido'
