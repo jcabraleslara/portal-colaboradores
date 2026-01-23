@@ -420,8 +420,8 @@ export const backService = {
 
             if (resUsuarios.data) {
                 resUsuarios.data.forEach((u: any) => {
-                    nombresRadicadoresMap.set(u.nombre_completo.toUpperCase(), u.nombre_completo)
-                    emailsRadicadoresMap.set(u.nombre_completo.toUpperCase(), u.email_institucional)
+                    nombresRadicadoresMap.set(normalizarTexto(u.nombre_completo), u.nombre_completo)
+                    emailsRadicadoresMap.set(normalizarTexto(u.nombre_completo), u.email_institucional)
                 })
             }
 
@@ -443,8 +443,12 @@ export const backService = {
                 }
 
                 const nombreRadicador = nombresRadicadoresMap.get(raw.radicador) || null
-                const emailRadicador = emailsRadicadoresMap.get(raw.radicador) || null
-                base.emailRadicador = emailRadicador
+                const emailRadicador = emailsRadicadoresMap.get(raw.radicador)
+
+                // Priorizar email de la tabla de usuarios, si no existe conservar el del registro (si lo tuviera)
+                if (emailRadicador) {
+                    base.emailRadicador = emailRadicador
+                }
 
                 return {
                     ...base,
