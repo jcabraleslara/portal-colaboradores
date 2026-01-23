@@ -14,6 +14,7 @@ import { generarAnexo8Pdf, descargarPdf } from './pdfGenerator'
 import { PdfExtractDialog } from './components/PdfExtractDialog'
 import { Cie10Search } from './components/Cie10Search'
 import { numeroALetras } from '@/utils/numeroALetras'
+import { Anexo8HistoryTab } from './components/Anexo8HistoryTab'
 import {
     Afiliado,
     MEDICAMENTOS_CONTROLADOS,
@@ -36,7 +37,9 @@ import {
     FaCalendarAlt,
     FaTimes,
     FaCheck,
-    FaPlus
+    FaPlus,
+    FaHistory,
+    FaEdit
 } from 'react-icons/fa'
 
 // Componente principal
@@ -49,6 +52,7 @@ export default function Anexo8Page() {
     const [error, setError] = useState<string | null>(null)
     const [exito, setExito] = useState<string | null>(null)
     const [mostrarPdfExtract, setMostrarPdfExtract] = useState(false)
+    const [activeTab, setActiveTab] = useState<'generar' | 'historial'>('generar')
 
     // Búsqueda de paciente
     const [busqueda, setBusqueda] = useState('')
@@ -565,8 +569,47 @@ export default function Anexo8Page() {
                     </div>
                 )}
 
-                {/* Contenido principal - 2 COLUMNAS */}
-                <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Tabs de Navegación */}
+                <div className="max-w-6xl mx-auto mb-6">
+                    <div className="flex space-x-1 rounded-xl bg-slate-200 p-1 w-fit">
+                        <button
+                            onClick={() => setActiveTab('generar')}
+                            className={`
+                                flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all
+                                ${activeTab === 'generar'
+                                    ? 'bg-white text-slate-800 shadow'
+                                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                                }
+                            `}
+                        >
+                            <FaEdit />
+                            Generar Nuevo
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('historial')}
+                            className={`
+                                flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all
+                                ${activeTab === 'historial'
+                                    ? 'bg-white text-blue-700 shadow'
+                                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                                }
+                            `}
+                        >
+                            <FaHistory />
+                            Historial Generado
+                        </button>
+                    </div>
+                </div>
+
+                {/* VISTA: HISTORIAL */}
+                {activeTab === 'historial' && (
+                    <div className="max-w-6xl mx-auto">
+                        <Anexo8HistoryTab />
+                    </div>
+                )}
+
+                {/* VISTA: GENERAR (Contenido Original) */}
+                <div className={`max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 ${activeTab !== 'generar' ? 'hidden' : ''}`}>
 
                     {/* COLUMNA IZQUIERDA: Paciente + Profesional + Configuración (1 columna del grid) */}
                     <div className="lg:col-span-1 space-y-4">

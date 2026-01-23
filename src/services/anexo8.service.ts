@@ -181,6 +181,63 @@ export const anexo8Service = {
     },
 
     /**
+     * Obtener historial paginado de Anexos 8
+     */
+    async obtenerHistorialPaginado(
+        filtros?: Anexo8Filtros,
+        offset = 0,
+        limit = 20
+    ): Promise<ApiResponse<{ soportes: Anexo8Record[], total: number }>> {
+        try {
+            // Consulta base
+            let query = supabase
+                .from('anexo_8')
+                .select('*', { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range(offset, offset + limit - 1)
+
+            // Aplicar filtros
+            if (filtros?.pacienteDocumento) {
+                query = query.ilike('paciente_documento', `%${filtros.pacienteDocumento}%`)
+            }
+
+            if (filtros?.medicoId) {
+                query = query.eq('medico_id', filtros.medicoId)
+            }
+
+            if (filtros?.medicamento) {
+                query = query.eq('medicamento_nombre', filtros.medicamento)
+            }
+
+            if (filtros?.fechaDesde) {
+                query = query.gte('fecha_prescripcion', filtros.fechaDesde)
+            }
+
+            if (filtros?.fechaHasta) {
+                query = query.lte('fecha_prescripcion', filtros.fechaHasta)
+            }
+
+            const { data, count, error } = await query
+
+            if (error) {
+                console.error('Error obteniendo historial paginado Anexo 8:', error)
+                return { success: false, error: error.message }
+            }
+
+            return {
+                success: true,
+                data: {
+                    soportes: (data as Anexo8Record[]) || [],
+                    total: count || 0
+                }
+            }
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Error desconocido'
+            return { success: false, error: message }
+        }
+    },
+
+    /**
      * Obtener un Anexo 8 por ID
      */
     async obtenerPorId(id: string): Promise<ApiResponse<Anexo8Record>> {
