@@ -77,18 +77,30 @@ export function RichTextEditor({ value, onChange, placeholder, disabled }: RichT
         },
     })
 
-    // Actualizar contenido cuando cambia externamente (ej: generación con IA)
+    // Actualizar contenido cuando cambia externamente (ej: generación con IA o reinicio)
     useEffect(() => {
-        if (editor && value) {
-            // Comparar contenido actual (Markdown -> HTML) con nuevo valor para evitar loops
-            const currentHtml = editor.getHTML()
-            const newHtml = markdownToHtml(value)
+        if (!editor) return
 
-            // Verificación simple para evitar loops infinitos de renderizado
-            // Si el contenido renderizado es muy diferente, actualizar
-            if (currentHtml !== newHtml && Math.abs(currentHtml.length - newHtml.length) > 5) {
-                editor.commands.setContent(newHtml)
+        // Normalizar valores
+        const currentHtml = editor.getHTML()
+        const newHtml = markdownToHtml(value || '')
+
+        // Si el valor nuevo está vacío, forzar limpieza si el editor no lo está
+        if (!value || value.trim() === '') {
+            // Comprobamos si el editor tiene contenido visual real
+            // getHTML() suele devolver '<p></p>' cuando está vacío
+            const isVisuallyEmpty = currentHtml === '<p></p>' || editor.isEmpty
+
+            if (!isVisuallyEmpty) {
+                editor.commands.setContent('')
             }
+            return
+        }
+
+        // Para contenido no vacío, usar heurística para evitar re-render loops
+        // debidos a diferencias sutiles entre Markdown <-> HTML
+        if (currentHtml !== newHtml && Math.abs(currentHtml.length - newHtml.length) > 5) {
+            editor.commands.setContent(newHtml)
         }
     }, [value, editor])
 
