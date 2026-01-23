@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
+import { toast } from 'sonner'
 import {
     X,
     Save,
@@ -305,12 +306,15 @@ export function CasoDetallePanel({
                     )
 
                     if (!emailEnviado) {
-                        // Fallo silencioso o advertencia? Mejor advertencia.
                         console.warn("No se pudo enviar el correo de notificación")
-                        // No bloqueamos el guardado, pero idealmente avisaríamos.
+                        toast.error("No se pudo enviar el correo de notificación al radicador")
+                    } else {
+                        console.info(`✅ Correo de notificación enviado exitosamente a: ${caso.emailRadicador} (Radicado: ${caso.radicado})`)
+                        toast.success(`Correo enviado exitosamente a ${caso.emailRadicador}`)
                     }
                 } catch (e) {
                     console.error("Error enviando email", e)
+                    toast.error("Ocurrió un error al intentar enviar el correo")
                 }
             } else {
                 console.warn("El radicador no tiene correo registrado, no se envió notificación.")
