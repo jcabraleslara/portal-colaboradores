@@ -332,6 +332,7 @@ export function ValidacionDerechosPage() {
                                                 )}
                                             </span>
                                         }
+                                        truncate={false}
                                     />
                                 </DataGrid>
                             </Card.Body>
@@ -455,12 +456,14 @@ function DataItem({
     icon,
     fullWidth = false,
     highlight = false,
+    truncate = true,
 }: {
     label: string
     value: React.ReactNode
     icon?: React.ReactNode
     fullWidth?: boolean
     highlight?: boolean
+    truncate?: boolean
 }) {
     return (
         <div className={fullWidth ? 'col-span-2 min-w-0' : 'min-w-0'}>
@@ -470,7 +473,7 @@ function DataItem({
                 : 'text-[var(--color-text-primary)]'
                 }`}>
                 {icon && <span className="text-gray-400 flex-shrink-0">{icon}</span>}
-                <div className="truncate flex-1">
+                <div className={`${truncate ? 'truncate' : ''} flex-1`}>
                     {value || <span className="text-gray-400">—</span>}
                 </div>
             </div>

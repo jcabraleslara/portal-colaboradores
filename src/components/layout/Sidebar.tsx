@@ -55,7 +55,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     const { user } = useAuth()
 
     // Filtrar módulos según rol del usuario
+    // Filtrar módulos según rol del usuario
     const visibleModules = PORTAL_MODULES.filter(module => {
+        // Ocultar módulos inhabilitados
+        if (!module.enabled) return false
+
         // Si no hay restricción de roles, el módulo es visible para todos
         if (!module.requiredRoles || module.requiredRoles.length === 0) {
             return true
@@ -146,24 +150,6 @@ function SidebarItem({
     index: number
 }) {
     const IconComponent = getIcon(module.icon)
-
-    if (!module.enabled) {
-        return (
-            <div
-                className="group flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 cursor-not-allowed opacity-60"
-                title={module.description || 'En planeación'}
-                style={{ animationDelay: `${index * 50}ms` }}
-            >
-                <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center">
-                    <IconComponent size={20} />
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{module.name}</p>
-                    <p className="text-[10px] text-slate-400">Próximamente</p>
-                </div>
-            </div>
-        )
-    }
 
     return (
         <NavLink
