@@ -181,6 +181,54 @@ export const anexo8Service = {
     },
 
     /**
+     * Refrescar URL firmada para visualización de PDF
+     */
+    async refrescarUrlPdf(url: string): Promise<string> {
+        try {
+            const bucketName = 'anexo-8'
+
+            // Extraer path si es una URL de Supabase nuestra
+            let pathArchivo = ''
+
+            // Si la URL es solo el path relativo (que a veces guardamos)
+            if (!url.startsWith('http')) {
+                pathArchivo = url
+            }
+            // Si es URL completa
+            else if (url.includes(bucketName)) {
+                try {
+                    const urlObj = new URL(url)
+                    // Formato: .../object/public/bucket/path o .../object/sign/bucket/path
+                    const partes = urlObj.pathname.split(`/${bucketName}/`)
+                    if (partes.length >= 2) {
+                        pathArchivo = decodeURIComponent(partes[1])
+                    }
+                } catch (e) {
+                    // Fallback regex
+                    const pattern = new RegExp(`${bucketName}/(.+)`)
+                    const match = url.match(pattern)
+                    if (match && match[1]) {
+                        pathArchivo = decodeURIComponent(match[1].split('?')[0])
+                    }
+                }
+            }
+
+            if (pathArchivo) {
+                const { data } = await supabase.storage
+                    .from(bucketName)
+                    .createSignedUrl(pathArchivo, 3600) // 1 hora de validez
+
+                if (data?.signedUrl) return data.signedUrl
+            }
+
+            return url
+        } catch (error) {
+            console.error('Error refrescando URL Anexo 8:', error)
+            return url
+        }
+    },
+
+    /**
      * Obtener historial paginado de Anexos 8
      */
     async obtenerHistorialPaginado(

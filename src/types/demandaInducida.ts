@@ -124,13 +124,22 @@ export const RESULTADOS_LLAMADA = [
 
 export const PROGRAMAS_DIRECCIONADOS = [
     'Acceso a servicios de Salud',
+    'Adolescencia',
     'Adultez',
+    'Cancer de mama y cuello uterino',
+    'Chagas',
     'DT cancer cuello uterino',
     'Infancia',
     'Juventud',
+    'Leishmaniasis',
+    'Otras normas',
+    'Otro',
     'Planificación familiar',
     'Precursoras',
     'Primera Infancia',
+    'Programa demanda Inducida',
     'Ruta Materno perinatal',
     'Salud Oral',
+    'Vacunación',
+    'Vejez',
 ] as const

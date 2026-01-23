@@ -359,7 +359,6 @@ export const backService = {
 
             // 2. Extraer IDs y claves para búsquedas bulk
             const idsUnicos = [...new Set(rawData.map(r => r.id))]
-            const usuarioRadicadores = [...new Set(rawData.map(r => r.radicador).filter(Boolean))]
             const emailsRadicadores = [...new Set(rawData.map(r => r.correo_radicador).filter(Boolean) as string[])]
 
             // 3. Ejecutar consultas complementarias EN PARALELO
@@ -374,23 +373,12 @@ export const backService = {
             )
 
             // B: Usuarios Portal (Radicadores)
-            if (usuarioRadicadores.length > 0) {
-                const orConditions = usuarioRadicadores
-                    .map(nombre => {
-                        const escaped = nombre.replace(/ /g, '%20').replace(/\./g, '%2E')
-                        return `nombre_completo.ilike.${escaped}`
-                    })
-                    .join(',')
-
-                promises.push(
-                    supabase
-                        .from('usuarios_portal')
-                        .select('nombre_completo, email_institucional')
-                        .or(orConditions)
-                )
-            } else {
-                promises.push(Promise.resolve({ data: [] })) // Placeholder
-            }
+            // Obtener TODOS los usuarios y hacer matching en memoria (más confiable que OR conditions complejas)
+            promises.push(
+                supabase
+                    .from('usuarios_portal')
+                    .select('nombre_completo, email_institucional')
+            )
 
             // C: Contactos (Cargos)
             if (emailsRadicadores.length > 0) {
@@ -418,10 +406,15 @@ export const backService = {
             const nombresRadicadoresMap = new Map<string, string>()
             const emailsRadicadoresMap = new Map<string, string>()
 
+            console.log('[DEBUG_EMAIL] Usuarios recuperados:', resUsuarios.data?.length || 0)
             if (resUsuarios.data) {
                 resUsuarios.data.forEach((u: any) => {
-                    nombresRadicadoresMap.set(normalizarTexto(u.nombre_completo), u.nombre_completo)
-                    emailsRadicadoresMap.set(normalizarTexto(u.nombre_completo), u.email_institucional)
+                    const keyNormalizada = normalizarTexto(u.nombre_completo)
+                    nombresRadicadoresMap.set(keyNormalizada, u.nombre_completo)
+                    emailsRadicadoresMap.set(keyNormalizada, u.email_institucional)
+                    if (resUsuarios.data.length < 10) {
+                        console.log(`[DEBUG_EMAIL] Mapeando: '${keyNormalizada}' -> ${u.email_institucional}`)
+                    }
                 })
             }
 
