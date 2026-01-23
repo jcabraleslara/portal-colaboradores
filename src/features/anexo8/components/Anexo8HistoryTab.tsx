@@ -10,6 +10,7 @@ import { Card, Button, Input } from '@/components/common'
 import { anexo8Service } from '@/services/anexo8.service'
 import { Anexo8Record, Anexo8Filtros } from '@/types/anexo8.types'
 import { generarAnexo8Pdf, descargarPdf } from '../pdfGenerator'
+import { Anexo8DetallePanel } from './Anexo8DetallePanel'
 
 const ITEMS_POR_PAGINA = 10
 
@@ -22,6 +23,7 @@ export function Anexo8HistoryTab() {
     const [cargando, setCargando] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [descargandoId, setDescargandoId] = useState<string | null>(null)
+    const [registroSeleccionado, setRegistroSeleccionado] = useState<Anexo8Record | null>(null)
 
     // Filtros
     const [filtros, setFiltros] = useState<Anexo8Filtros>({})
@@ -231,7 +233,11 @@ export function Anexo8HistoryTab() {
                                 </tr>
                             ) : (
                                 registros.map(registro => (
-                                    <tr key={registro.id} className="hover:bg-gray-50 transition-colors">
+                                    <tr
+                                        key={registro.id}
+                                        className="hover:bg-blue-50 transition-colors cursor-pointer"
+                                        onClick={() => setRegistroSeleccionado(registro)}
+                                    >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900 flex items-center gap-2">
                                                 <Calendar size={14} className="text-gray-400" />
@@ -276,7 +282,10 @@ export function Anexo8HistoryTab() {
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                onClick={() => handleDescargarPdf(registro)}
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    handleDescargarPdf(registro)
+                                                }}
                                                 disabled={descargandoId === registro.id}
                                                 className="text-blue-600 hover:text-blue-900"
                                             >
@@ -321,6 +330,14 @@ export function Anexo8HistoryTab() {
                     </div>
                 )}
             </Card>
+
+            {/* Panel de Detalle */}
+            {registroSeleccionado && (
+                <Anexo8DetallePanel
+                    registro={registroSeleccionado}
+                    onClose={() => setRegistroSeleccionado(null)}
+                />
+            )}
         </div>
     )
 }

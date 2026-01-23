@@ -434,7 +434,7 @@ export const backService = {
             }
 
             // 5. Ensamblar respuesta final
-            const casos: BackRadicacionExtendido[] = rawData.map(raw => {
+            const casos: BackRadicacionExtendido[] = rawData.map((raw, index) => {
                 const pacienteRaw = pacientesMap.get(raw.id)
                 const base = transformRadicacion(raw)
 
@@ -442,8 +442,18 @@ export const backService = {
                     base.cargoRadicador = cargosMap.get(raw.correo_radicador) || null
                 }
 
-                const nombreRadicador = nombresRadicadoresMap.get(raw.radicador) || null
-                const emailRadicador = emailsRadicadoresMap.get(raw.radicador)
+                const keyRadicador = normalizarTexto(raw.radicador)
+                const nombreRadicador = nombresRadicadoresMap.get(keyRadicador) || null
+                const emailRadicador = emailsRadicadoresMap.get(keyRadicador)
+
+                // Debug para rastrear fallo de coincidencia
+                if (!emailRadicador && raw.radicador && index < 5) {
+                    console.log(`[DEBUG_EMAIL] Fallo busqueda para: '${raw.radicador}' (Key: '${keyRadicador}')`)
+                    // Verificar si existe alguna clave parecida en el mapa
+                    const keys = Array.from(emailsRadicadoresMap.keys())
+                    const match = keys.find(k => k.includes(keyRadicador.split(' ')[0]))
+                    if (match) console.log(`[DEBUG_EMAIL] Candidato cercano en mapa: '${match}'`)
+                }
 
                 // Priorizar email de la tabla de usuarios, si no existe conservar el del registro (si lo tuviera)
                 if (emailRadicador) {
