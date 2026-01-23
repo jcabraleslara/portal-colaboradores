@@ -198,12 +198,29 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
             const firmaResponse = await fetch(data.medico_firma_url)
             const firmaBytes = await firmaResponse.arrayBuffer()
 
-            // Determinar tipo de imagen (PNG o JPG)
+            // Determinar tipo de imagen (PNG o JPG) de forma robusta
+            const contentType = firmaResponse.headers.get('content-type')?.toLowerCase() || ''
+            const headerBytes = new Uint8Array(firmaBytes.slice(0, 4))
+            const isPng =
+                contentType.includes('png') ||
+                data.medico_firma_url.toLowerCase().includes('.png') ||
+                (headerBytes[0] === 0x89 && headerBytes[1] === 0x50 && headerBytes[2] === 0x4E && headerBytes[3] === 0x47)
+
             let firmaImage
-            if (data.medico_firma_url.toLowerCase().includes('.png')) {
-                firmaImage = await pdfDoc.embedPng(firmaBytes)
-            } else {
-                firmaImage = await pdfDoc.embedJpg(firmaBytes)
+            try {
+                if (isPng) {
+                    firmaImage = await pdfDoc.embedPng(firmaBytes)
+                } else {
+                    firmaImage = await pdfDoc.embedJpg(firmaBytes)
+                }
+            } catch (embedError) {
+                console.warn('Error en primer intento de embeber firma, reintentando con formato alterno:', embedError)
+                // Reintento desesperado: si falló uno, intentar el otro
+                if (isPng) {
+                    firmaImage = await pdfDoc.embedJpg(firmaBytes)
+                } else {
+                    firmaImage = await pdfDoc.embedPng(firmaBytes)
+                }
             }
 
             // Obtener el campo de firma para extraer sus coordenadas
