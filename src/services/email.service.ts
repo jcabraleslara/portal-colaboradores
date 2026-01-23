@@ -19,7 +19,7 @@ export const emailService = {
         datosCaso: Record<string, string>
     ): Promise<boolean> {
         try {
-            // Mapear a formato esperado por el endpoint de rechazo
+            // Mapear a formato esperado por el endpoint de devolucion
             const datos = {
                 eps: datosCaso['EPS'] || '',
                 regimen: datosCaso['Régimen'] || '',
@@ -30,14 +30,15 @@ export const emailService = {
                 pacienteTipoId: datosCaso['Tipo ID'] || '',
                 archivos: [],
                 fechaRadicacion: new Date().toISOString(),
-                observacionesFacturacion: motivo
+                observacionesDevolucion: motivo,
+                tipoSolicitud: datosCaso['Tipo Solicitud'] || ''
             }
 
             const response = await fetch('/api/send-email', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    type: 'rechazo',
+                    type: 'devolucion',
                     destinatario,
                     radicado,
                     datos

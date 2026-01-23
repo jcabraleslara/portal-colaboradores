@@ -30,11 +30,18 @@ interface DatosRechazo extends BaseDatosRadicacion {
     observacionesFacturacion: string
 }
 
+interface DatosDevolucion extends BaseDatosRadicacion {
+    pacienteTipoId: string
+    fechaRadicacion: string
+    observacionesDevolucion: string
+    tipoSolicitud?: string
+}
+
 interface RequestBody {
-    type: 'radicacion' | 'rechazo'
+    type: 'radicacion' | 'rechazo' | 'devolucion'
     destinatario: string
     radicado: string
-    datos: DatosRadicacionExitosa | DatosRechazo
+    datos: DatosRadicacionExitosa | DatosRechazo | DatosDevolucion
 }
 
 // ==========================================
@@ -215,6 +222,98 @@ function generarTemplateRechazo(radicado: string, datos: DatosRechazo): string {
     `
 }
 
+function generarTemplateDevolucion(radicado: string, datos: DatosDevolucion): string {
+    const archivosHtml = datos.archivos
+        .filter(grupo => grupo.urls.length > 0)
+        .map(grupo => {
+            const listaArchivos = grupo.urls
+                .map((url, idx) => `<li><a href="${url}" target="_blank">Archivo ${idx + 1}</a></li>`)
+                .join('')
+
+            return `
+                <h4 style="color: #ea580c; margin-top: 15px; margin-bottom: 5px;">${grupo.categoria}</h4>
+                <ul style="margin: 0; padding-left: 20px;">
+                    ${listaArchivos}
+                </ul>
+            `
+        })
+        .join('')
+
+    return `
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #ea580c; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0; font-size: 24px;">⚠️ Radicado Devuelto</h1>
+            </div>
+            
+            <div style="padding: 30px; background-color: #f9fafb;">
+                <p>Cordial saludo,</p>
+                
+                <p>Le informamos que su radicado <strong>${radicado}</strong> ha sido devuelto por el área de Gestión Back.</p>
+                
+                <div style="background-color: #fff7ed; border: 3px solid #ea580c; padding: 20px; margin: 20px 0; border-radius: 8px;">
+                    <h3 style="color: #ea580c; margin-top: 0; margin-bottom: 10px;">
+                        📝 Observaciones de Devolución
+                    </h3>
+                    <p style="margin: 0; white-space: pre-wrap; line-height: 1.6; color: #7c2d12;">
+                        ${datos.observacionesDevolucion}
+                    </p>
+                </div>
+
+                <h3 style="color: #ea580c; border-bottom: 2px solid #fdba74; padding-bottom: 8px;">📋 Información del Paciente</h3>
+                <ul style="line-height: 1.8;">
+                    <li><strong>Tipo de Identificación:</strong> ${datos.pacienteTipoId}</li>
+                    <li><strong>Identificación:</strong> ${datos.pacienteIdentificacion}</li>
+                    <li><strong>Nombre:</strong> ${datos.pacienteNombre}</li>
+                </ul>
+
+                <h3 style="color: #ea580c; border-bottom: 2px solid #fdba74; padding-bottom: 8px;">🏥 Información del Servicio</h3>
+                <ul style="line-height: 1.8;">
+                    <li><strong>EPS:</strong> ${datos.eps}</li>
+                    <li><strong>Régimen:</strong> ${datos.regimen}</li>
+                    <li><strong>Servicio Prestado:</strong> ${datos.servicioPrestado}</li>
+                    <li><strong>Fecha de Atención:</strong> ${new Date(datos.fechaAtencion).toLocaleDateString('es-CO')}</li>
+                    ${datos.tipoSolicitud ? `<li><strong>Tipo Solicitud:</strong> ${datos.tipoSolicitud}</li>` : ''}
+                </ul>
+
+                <h3 style="color: #ea580c; border-bottom: 2px solid #fdba74; padding-bottom: 8px;">📅 Fechas</h3>
+                <ul style="line-height: 1.8;">
+                    <li><strong>Fecha de Radicación:</strong> ${new Date(datos.fechaRadicacion).toLocaleDateString('es-CO', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })}</li>
+                    <li><strong>Fecha de Devolución:</strong> ${new Date().toLocaleDateString('es-CO', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    })}</li>
+                </ul>
+
+                <h3 style="color: #ea580c; border-bottom: 2px solid #fdba74; padding-bottom: 8px;">📎 Archivos Radicados</h3>
+                ${archivosHtml}
+
+                <div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0;">
+                    <strong>🔄 Próximos Pasos:</strong>
+                    <p style="margin: 10px 0 0 0;">
+                        Por favor, subsane las observaciones mencionadas y gestione nuevamente el caso o contacte al área correspondiente.
+                    </p>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+                
+                <p style="font-size: 12px; color: #6b7280; text-align: center; margin: 0;">
+                    Este es un mensaje automático generado por el Portal de Colaboradores de Gestar Salud IPS.<br />
+                    No responda a este correo.
+                </p>
+            </div>
+        </div>
+    `
+}
+
 // ==========================================
 // HANDLER PRINCIPAL
 // ==========================================
@@ -243,6 +342,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } else if (body.type === 'rechazo') {
             subject = `Rechazo de Radicado - ${body.radicado}`
             htmlBody = generarTemplateRechazo(body.radicado, body.datos as DatosRechazo)
+        } else if (body.type === 'devolucion') {
+            subject = `Devolución de Caso - ${body.radicado}`
+            htmlBody = generarTemplateDevolucion(body.radicado, body.datos as DatosDevolucion)
         } else {
             return res.status(400).json({ success: false, error: 'Tipo de correo no válido' })
         }
