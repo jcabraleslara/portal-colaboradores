@@ -372,15 +372,7 @@ export const backService = {
                     .in('id', idsUnicos)
             )
 
-            // B: Usuarios Portal (Radicadores)
-            // Obtener TODOS los usuarios y hacer matching en memoria (más confiable que OR conditions complejas)
-            promises.push(
-                supabase
-                    .from('usuarios_portal')
-                    .select('nombre_completo, email_institucional')
-            )
-
-            // C: Contactos (Cargos)
+            // B: Contactos (Cargos)
             if (emailsRadicadores.length > 0) {
                 promises.push(
                     supabase
@@ -393,7 +385,7 @@ export const backService = {
             }
 
             // Esperar todas
-            const [resPacientes, resUsuarios, resContactos] = await Promise.all(promises)
+            const [resPacientes, resContactos] = await Promise.all(promises)
 
             // 4. Procesar resultados auxiliares
 
@@ -401,22 +393,6 @@ export const backService = {
             const pacientesMap = new Map(
                 (resPacientes.data || []).map((p: any) => [p.id, p])
             )
-
-            // Mapas Usuarios
-            const nombresRadicadoresMap = new Map<string, string>()
-            const emailsRadicadoresMap = new Map<string, string>()
-
-            console.log('[DEBUG_EMAIL] Usuarios recuperados:', resUsuarios.data?.length || 0)
-            if (resUsuarios.data) {
-                resUsuarios.data.forEach((u: any) => {
-                    const keyNormalizada = normalizarTexto(u.nombre_completo)
-                    nombresRadicadoresMap.set(keyNormalizada, u.nombre_completo)
-                    emailsRadicadoresMap.set(keyNormalizada, u.email_institucional)
-                    if (resUsuarios.data.length < 10) {
-                        console.log(`[DEBUG_EMAIL] Mapeando: '${keyNormalizada}' -> ${u.email_institucional}`)
-                    }
-                })
-            }
 
             // Mapa Cargos
             const cargosMap = new Map<string, string>()
@@ -427,7 +403,7 @@ export const backService = {
             }
 
             // 5. Ensamblar respuesta final
-            const casos: BackRadicacionExtendido[] = rawData.map((raw, index) => {
+            const casos: BackRadicacionExtendido[] = rawData.map(raw => {
                 const pacienteRaw = pacientesMap.get(raw.id)
                 const base = transformRadicacion(raw)
 
@@ -435,27 +411,9 @@ export const backService = {
                     base.cargoRadicador = cargosMap.get(raw.correo_radicador) || null
                 }
 
-                const keyRadicador = normalizarTexto(raw.radicador)
-                const nombreRadicador = nombresRadicadoresMap.get(keyRadicador) || null
-                const emailRadicador = emailsRadicadoresMap.get(keyRadicador)
-
-                // Debug para rastrear fallo de coincidencia
-                if (!emailRadicador && raw.radicador && index < 5) {
-                    console.log(`[DEBUG_EMAIL] Fallo busqueda para: '${raw.radicador}' (Key: '${keyRadicador}')`)
-                    // Verificar si existe alguna clave parecida en el mapa
-                    const keys = Array.from(emailsRadicadoresMap.keys())
-                    const match = keys.find(k => k.includes(keyRadicador.split(' ')[0]))
-                    if (match) console.log(`[DEBUG_EMAIL] Candidato cercano en mapa: '${match}'`)
-                }
-
-                // Priorizar email de la tabla de usuarios, si no existe conservar el del registro (si lo tuviera)
-                if (emailRadicador) {
-                    base.emailRadicador = emailRadicador
-                }
-
                 return {
                     ...base,
-                    nombreRadicador,
+                    nombreRadicador: base.radicador, // El nombre ya está normalizado en BD
                     paciente: pacienteRaw ? {
                         nombres: pacienteRaw.nombres,
                         apellido1: pacienteRaw.apellido1,
