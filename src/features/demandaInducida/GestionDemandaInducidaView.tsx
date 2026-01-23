@@ -523,7 +523,7 @@ export default function GestionDemandaInducidaView() {
                         </p>
                     </div>
 
-                    {['superadmin', 'admin', 'auditoria'].includes(user?.rol || '') && (
+                    {['superadmin', 'admin', 'auditoria', 'gerencia'].includes(user?.rol || '') && (
                         <div className="relative">
                             <button
                                 onClick={() => setShowExportMenu(!showExportMenu)}
