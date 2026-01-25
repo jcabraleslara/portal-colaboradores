@@ -40,21 +40,54 @@ export const usuariosPortalService = {
     /**
      * Obtener todos los usuarios del portal
      */
-    async getAll(): Promise<{ data: UsuarioPortal[] | null; error: string | null }> {
+    /**
+     * Obtener usuarios con paginación y filtros
+     */
+    async getAll(
+        page: number = 1,
+        pageSize: number = 10,
+        filters?: {
+            search?: string
+            rol?: string
+            activo?: string
+        }
+    ): Promise<{ data: UsuarioPortal[] | null; count: number | null; error: string | null }> {
         try {
-            const { data, error } = await supabase
+            let query = supabase
                 .from('usuarios_portal')
-                .select('*')
+                .select('*', { count: 'exact' })
+
+            // Filtros
+            if (filters?.search) {
+                const term = filters.search.toLowerCase()
+                query = query.or(`nombre_completo.ilike.%${term}%,identificacion.ilike.%${term}%,email_institucional.ilike.%${term}%`)
+            }
+
+            if (filters?.rol && filters.rol !== 'all') {
+                query = query.eq('rol', filters.rol)
+            }
+
+            if (filters?.activo && filters.activo !== 'all') {
+                const isActive = filters.activo === 'active'
+                query = query.eq('activo', isActive)
+            }
+
+            // Paginación
+            const from = (page - 1) * pageSize
+            const to = from + pageSize - 1
+
+            const { data, count, error } = await query
                 .order('created_at', { ascending: false })
+                .range(from, to)
 
             if (error) {
                 console.error('Error obteniendo usuarios:', error)
-                return { data: null, error: error.message }
+                return { data: null, count: 0, error: error.message }
             }
 
-            return { data, error: null }
+            return { data, count, error: null }
         } catch (err: any) {
-            return { data: null, error: err.message }
+            return { data: null, count: 0, error: err.message }
         }
     },
 

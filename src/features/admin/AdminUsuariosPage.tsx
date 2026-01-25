@@ -7,7 +7,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
     Users, UserPlus, Search, Shield, ShieldCheck, ShieldX,
-    ToggleLeft, ToggleRight, Trash2, RefreshCw, AlertCircle
+    ToggleLeft, ToggleRight, Trash2, RefreshCw, AlertCircle,
+    ChevronLeft, ChevronRight
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
@@ -28,58 +29,67 @@ const ROL_LABELS: Record<string, { label: string; color: string; icon: typeof Sh
 export default function AdminUsuariosPage() {
     const { user } = useAuth()
     const [usuarios, setUsuarios] = useState<UsuarioPortal[]>([])
-    const [filteredUsuarios, setFilteredUsuarios] = useState<UsuarioPortal[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+
+    // Filtros y Paginación
     const [searchTerm, setSearchTerm] = useState('')
+    const [debouncedSearch, setDebouncedSearch] = useState('')
     const [filterRol, setFilterRol] = useState<string>('all')
     const [filterActivo, setFilterActivo] = useState<string>('all')
+    const [page, setPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
+    const [totalRecords, setTotalRecords] = useState(0)
+
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm)
+            setPage(1) // Reset page on search change
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [searchTerm])
+
+    // Reset page on filter change
+    useEffect(() => {
+        setPage(1)
+    }, [filterRol, filterActivo])
 
     // Cargar usuarios
     const loadUsuarios = useCallback(async () => {
         setIsLoading(true)
         setError(null)
-        const { data, error: err } = await usuariosPortalService.getAll()
+
+        const { data, count, error: err } = await usuariosPortalService.getAll(
+            page,
+            pageSize,
+            {
+                search: debouncedSearch,
+                rol: filterRol,
+                activo: filterActivo
+            }
+        )
+
         if (err) {
             setError(err)
+            setUsuarios([])
+            setTotalRecords(0)
         } else {
             setUsuarios(data || [])
+            setTotalRecords(count || 0)
         }
         setIsLoading(false)
-    }, [])
+    }, [page, pageSize, debouncedSearch, filterRol, filterActivo])
 
     useEffect(() => {
         loadUsuarios()
     }, [loadUsuarios])
 
     // Filtrar usuarios
-    useEffect(() => {
-        let filtered = [...usuarios]
-
-        // Filtro por búsqueda
-        if (searchTerm) {
-            const term = searchTerm.toLowerCase()
-            filtered = filtered.filter(u =>
-                u.nombre_completo.toLowerCase().includes(term) ||
-                u.identificacion.toLowerCase().includes(term) ||
-                u.email_institucional.toLowerCase().includes(term)
-            )
-        }
-
-        // Filtro por rol
-        if (filterRol !== 'all') {
-            filtered = filtered.filter(u => u.rol === filterRol)
-        }
-
-        // Filtro por estado activo
-        if (filterActivo !== 'all') {
-            filtered = filtered.filter(u => u.activo === (filterActivo === 'active'))
-        }
-
-        setFilteredUsuarios(filtered)
-    }, [usuarios, searchTerm, filterRol, filterActivo])
+    // Filtros client-side eliminados en favor de server-side
 
     // Verificar acceso (rol como string para compatibilidad)
     if ((user?.rol as string) !== 'superadmin') {
@@ -140,7 +150,7 @@ export default function AdminUsuariosPage() {
 
     // Usuario creado exitosamente
     const handleUserCreated = (newUser: UsuarioPortal) => {
-        setUsuarios(prev => [newUser, ...prev])
+        loadUsuarios() // Recargar lista completa
         setShowCreateModal(false)
     }
 
@@ -213,22 +223,13 @@ export default function AdminUsuariosPage() {
             </div>
 
             {/* Estadísticas */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-white rounded-xl shadow-md p-4 text-center">
-                    <div className="text-3xl font-bold text-indigo-600">{usuarios.length}</div>
-                    <div className="text-sm text-gray-500">Total Usuarios</div>
-                </div>
-                <div className="bg-white rounded-xl shadow-md p-4 text-center">
-                    <div className="text-3xl font-bold text-green-600">{usuarios.filter(u => u.activo).length}</div>
-                    <div className="text-sm text-gray-500">Activos</div>
-                </div>
-                <div className="bg-white rounded-xl shadow-md p-4 text-center">
-                    <div className="text-3xl font-bold text-red-600">{usuarios.filter(u => !u.activo).length}</div>
-                    <div className="text-sm text-gray-500">Inactivos</div>
-                </div>
-                <div className="bg-white rounded-xl shadow-md p-4 text-center">
-                    <div className="text-3xl font-bold text-purple-600">{usuarios.filter(u => u.rol === 'superadmin').length}</div>
-                    <div className="text-sm text-gray-500">Super Admins</div>
+            {/* Estadísticas Simplificadas para Paginación */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="bg-white rounded-xl shadow-md p-4 flex items-center justify-between">
+                    <div>
+                        <div className="text-3xl font-bold text-indigo-600">{totalRecords}</div>
+                        <div className="text-sm text-gray-500">Resultados Encontrados</div>
+                    </div>
                 </div>
             </div>
 
@@ -244,13 +245,13 @@ export default function AdminUsuariosPage() {
             )}
 
             {/* Tabla de usuarios */}
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <div className="bg-white rounded-xl shadow-md overflow-hidden flex flex-col">
                 {isLoading ? (
                     <div className="p-8 text-center">
                         <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin mx-auto mb-2" />
                         <p className="text-gray-500">Cargando usuarios...</p>
                     </div>
-                ) : filteredUsuarios.length === 0 ? (
+                ) : usuarios.length === 0 ? (
                     <div className="p-8 text-center">
                         <Users className="w-12 h-12 text-gray-300 mx-auto mb-2" />
                         <p className="text-gray-500">No se encontraron usuarios</p>
@@ -269,7 +270,7 @@ export default function AdminUsuariosPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {filteredUsuarios.map((usuario) => {
+                                {usuarios.map((usuario) => {
                                     const rolInfo = ROL_LABELS[usuario.rol] || ROL_LABELS.operativo
                                     const isCurrentUser = usuario.email_institucional === user?.email
 
@@ -344,15 +345,56 @@ export default function AdminUsuariosPage() {
                         </table>
                     </div>
                 )}
+
+                {/* Paginación */}
+                {!isLoading && usuarios.length > 0 && (
+                    <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
+                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-sm text-gray-700">
+                                    Mostrando de <span className="font-medium">{(page - 1) * pageSize + 1}</span> a <span className="font-medium">{Math.min(page * pageSize, totalRecords)}</span> de <span className="font-medium">{totalRecords}</span> resultados
+                                </p>
+                            </div>
+                            <div>
+                                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                    <button
+                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                        disabled={page === 1}
+                                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                    >
+                                        <span className="sr-only">Anterior</span>
+                                        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                                    </button>
+
+                                    {/* Select de páginas si hay muchas, o simple contador */}
+                                    <div className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                                        Pág {page} de {Math.ceil(totalRecords / pageSize)}
+                                    </div>
+
+                                    <button
+                                        onClick={() => setPage(p => Math.min(Math.ceil(totalRecords / pageSize), p + 1))}
+                                        disabled={page >= Math.ceil(totalRecords / pageSize)}
+                                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                                    >
+                                        <span className="sr-only">Siguiente</span>
+                                        <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                                    </button>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Modal de creación */}
-            {showCreateModal && (
-                <CreateUserModal
-                    onClose={() => setShowCreateModal(false)}
-                    onCreated={handleUserCreated}
-                />
-            )}
-        </div>
+            {
+                showCreateModal && (
+                    <CreateUserModal
+                        onClose={() => setShowCreateModal(false)}
+                        onCreated={handleUserCreated}
+                    />
+                )
+            }
+        </div >
     )
 }

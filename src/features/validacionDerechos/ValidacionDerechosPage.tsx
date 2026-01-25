@@ -333,6 +333,7 @@ export function ValidacionDerechosPage() {
                                             </span>
                                         }
                                         truncate={false}
+                                        fullWidth
                                     />
                                 </DataGrid>
                             </Card.Body>
