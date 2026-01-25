@@ -84,7 +84,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Si no nos dieron el ID, lo buscamos en BD
         if (!targetFolderId && radicado) {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-            const { data, error } = await supabase
+            const { data } = await supabase
                 .from('soportes_facturacion')
                 .select('onedrive_folder_id')
                 .eq('radicado', radicado)

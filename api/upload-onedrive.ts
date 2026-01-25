@@ -36,8 +36,6 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 const ONEDRIVE_FOLDER_ID = process.env.ONEDRIVE_FOLDER_ID || ''
 const ONEDRIVE_FOLDER_PATH = process.env.ONEDRIVE_FOLDER_PATH || '/Documents/Soportes Facturación'
 
-// NIT de la empresa (usado en prefijos de archivos)
-const NIT_EMPRESA = '900842629'
 
 
 
