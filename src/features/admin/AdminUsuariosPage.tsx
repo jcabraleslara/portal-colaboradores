@@ -8,12 +8,13 @@ import { useState, useEffect, useCallback } from 'react'
 import {
     Users, UserPlus, Search, Shield, ShieldCheck, ShieldX,
     ToggleLeft, ToggleRight, Trash2, RefreshCw, AlertCircle,
-    ChevronLeft, ChevronRight
+    ChevronLeft, ChevronRight, FileUp
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { usuariosPortalService, UsuarioPortal } from '@/services/usuariosPortal.service'
 import CreateUserModal from './components/CreateUserModal'
+import ImportUserModal from './components/ImportUserModal'
 
 // Constantes de roles para display
 const ROL_LABELS: Record<string, { label: string; color: string; icon: typeof Shield }> = {
@@ -42,6 +43,7 @@ export default function AdminUsuariosPage() {
     const [totalRecords, setTotalRecords] = useState(0)
 
     const [showCreateModal, setShowCreateModal] = useState(false)
+    const [showImportModal, setShowImportModal] = useState(false)
     const [actionLoading, setActionLoading] = useState<string | null>(null)
 
     // Debounce search
@@ -167,13 +169,22 @@ export default function AdminUsuariosPage() {
                         <p className="text-gray-500 text-sm">Gestiona los usuarios del portal</p>
                     </div>
                 </div>
-                <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all hover:scale-105"
-                >
-                    <UserPlus className="w-5 h-5" />
-                    Nuevo Usuario
-                </button>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setShowImportModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition-all hover:scale-105"
+                    >
+                        <FileUp className="w-5 h-5 text-green-600" />
+                        Importar
+                    </button>
+                    <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                    >
+                        <UserPlus className="w-5 h-5" />
+                        Nuevo Usuario
+                    </button>
+                </div>
             </div>
 
             {/* Filtros */}
@@ -392,6 +403,24 @@ export default function AdminUsuariosPage() {
                     <CreateUserModal
                         onClose={() => setShowCreateModal(false)}
                         onCreated={handleUserCreated}
+                    />
+                )
+            }
+
+            {/* Modal de importación */}
+            {
+                showImportModal && (
+                    <ImportUserModal
+                        onClose={() => setShowImportModal(false)}
+                        onCreated={() => {
+                            loadUsuarios()
+                            // setShowImportModal(false) // El modal ya lo maneja internamente si es necesario, pero aquí lo forzamos por si acaso o dejamos que el modal llame a onClose
+                            // En la implementación de ImportUserModal, onCreated solo notifica. Deberíamos cerrar o no?
+                            // Revisando ImportUserModal: "if (results.success > 0) { onCreated() }"
+                            // Asi que mejor no cerrarlo inmediatamente para que el usuario vea el resumen, 
+                            // pero espera, si onCreated se llama, es porque hubo éxito.
+                            // Dejaré que el usuario lo cierre manualmente viendo el resumen.
+                        }}
                     />
                 )
             }
