@@ -22,7 +22,14 @@ import {
     Mail,
     Phone,
     Briefcase,
+    Download,
+    FileSpreadsheet,
+    FileText,
+    FileType,
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
+import { toast } from 'sonner'
+import { useAuth } from '@/context/AuthContext'
 import { Card, Button, Input, LoadingOverlay } from '@/components/common'
 import { contactosService } from '@/services/contactos.service'
 import {
@@ -46,6 +53,7 @@ const EMPRESA_COLORES = [
 ]
 
 export function DirectorioPage() {
+    const { user } = useAuth()
     // ============================================
     // ESTADO
     // ============================================
@@ -71,7 +79,12 @@ export function DirectorioPage() {
     const [contactoSeleccionado, setContactoSeleccionado] = useState<Contacto | null>(null)
 
     // Modal nuevo contacto
+    // Modal nuevo contacto
     const [mostrarNuevoContacto, setMostrarNuevoContacto] = useState(false)
+
+    // Estado para exportación
+    const [exporting, setExporting] = useState(false)
+    const [showExportMenu, setShowExportMenu] = useState(false)
 
     // ============================================
     // FUNCIONES DE CARGA
@@ -190,6 +203,83 @@ export function DirectorioPage() {
         await cargarContactos(0)
         await cargarConteos()
     }, [cargarContactos, cargarConteos])
+
+    // ============================================
+    // EXPORTACIÓN
+    // ============================================
+
+    const downloadFile = (content: string, fileName: string, contentType: string) => {
+        const a = document.createElement("a");
+        const file = new Blob([content], { type: contentType });
+        a.href = URL.createObjectURL(file);
+        a.download = fileName;
+        a.click();
+    }
+
+    const handleExport = async (format: 'csv' | 'xlsx' | 'txt') => {
+        setExporting(true)
+        setShowExportMenu(false)
+        try {
+            // Obtener todos los datos con los filtros actuales
+            const result = await contactosService.obtenerContactosFiltrados(
+                filtros,
+                0,
+                100000 // Limit alto para exportar "todo"
+            )
+
+            if (!result.success || !result.data || result.data.contactos.length === 0) {
+                toast.warning('No hay datos para exportar')
+                return
+            }
+
+            // Formatear datos para exportación
+            const exportData = result.data.contactos.map(item => ({
+                'ID': item.id,
+                'Tratamiento': item.tratamiento || '',
+                'Nombre Completo': getNombreCompleto(item),
+                'Identificación': item.identificacion || '',
+                'Empresa': item.empresa || '',
+                'Puesto': item.puesto || '',
+                'Área': item.area || '',
+                'Email Institucional': item.email_institucional || '',
+                'Email Personal': item.email_personal || '',
+                'Celular 1': item.celular_1 || '',
+                'Celular 2': item.celular_2 || '',
+                'Dirección': item.direccion || '',
+                'Ciudad': item.ciudad || '',
+                'Departamento': item.departamento || '',
+                'País': item.pais || '',
+                'Fecha Nacimiento': item.fecha_nacimiento || '',
+                'Notas': item.notas || '',
+            }))
+
+            const fileName = `directorio_institucional_${new Date().toISOString().split('T')[0]}_${new Date().getTime()}`
+
+            if (format === 'xlsx') {
+                const ws = XLSX.utils.json_to_sheet(exportData)
+                const wb = XLSX.utils.book_new()
+                XLSX.utils.book_append_sheet(wb, ws, "Contactos")
+                XLSX.writeFile(wb, `${fileName}.xlsx`)
+            } else if (format === 'csv') {
+                const ws = XLSX.utils.json_to_sheet(exportData)
+                const csv = XLSX.utils.sheet_to_csv(ws)
+                downloadFile(csv, `${fileName}.csv`, 'text/csv;charset=utf-8;')
+            } else if (format === 'txt') {
+                const keys = Object.keys(exportData[0]).join('\t')
+                const rows = exportData.map(row => Object.values(row).join('\t')).join('\n')
+                const txt = `${keys}\n${rows}`
+                downloadFile(txt, `${fileName}.txt`, 'text/plain;charset=utf-8;')
+            }
+
+            toast.success('Exportación completada')
+
+        } catch (error) {
+            console.error('Error exportando:', error)
+            toast.error('Ocurrió un error al exportar los datos')
+        } finally {
+            setExporting(false)
+        }
+    }
 
     // ============================================
     // HELPERS
@@ -328,6 +418,47 @@ export function DirectorioPage() {
                                 leftIcon={<RefreshCw size={18} />}
                                 title="Refrescar"
                             />
+
+                            {/* Botón Exportar */}
+                            {['superadmin', 'admin', 'auditoria', 'gerencia'].includes(user?.rol || '') && (
+                                <div className="relative">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setShowExportMenu(!showExportMenu)}
+                                        disabled={exporting}
+                                        leftIcon={<Download size={18} />}
+                                        className={showExportMenu ? 'bg-gray-100' : ''}
+                                    >
+                                        {exporting ? '...' : 'Exportar'}
+                                    </Button>
+
+                                    {showExportMenu && (
+                                        <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-10 overflow-hidden">
+                                            <button
+                                                onClick={() => handleExport('xlsx')}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                            >
+                                                <FileSpreadsheet size={16} className="text-green-600" />
+                                                Excel (.xlsx)
+                                            </button>
+                                            <button
+                                                onClick={() => handleExport('csv')}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                            >
+                                                <FileText size={16} className="text-blue-600" />
+                                                CSV (.csv)
+                                            </button>
+                                            <button
+                                                onClick={() => handleExport('txt')}
+                                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left"
+                                            >
+                                                <FileType size={16} className="text-slate-600" />
+                                                Texto (.txt)
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     </div>
 
