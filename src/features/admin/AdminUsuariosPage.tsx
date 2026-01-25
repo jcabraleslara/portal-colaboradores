@@ -38,7 +38,7 @@ export default function AdminUsuariosPage() {
     const [filterRol, setFilterRol] = useState<string>('all')
     const [filterActivo, setFilterActivo] = useState<string>('all')
     const [page, setPage] = useState(1)
-    const [pageSize, setPageSize] = useState(10)
+    const [pageSize] = useState(10)
     const [totalRecords, setTotalRecords] = useState(0)
 
     const [showCreateModal, setShowCreateModal] = useState(false)
@@ -149,7 +149,7 @@ export default function AdminUsuariosPage() {
     }
 
     // Usuario creado exitosamente
-    const handleUserCreated = (newUser: UsuarioPortal) => {
+    const handleUserCreated = () => {
         loadUsuarios() // Recargar lista completa
         setShowCreateModal(false)
     }
