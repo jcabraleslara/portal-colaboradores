@@ -3,7 +3,7 @@
  */
 
 import { useState, useRef, ChangeEvent } from 'react'
-import { X, Upload, FileUp, Download, CheckCircle, AlertCircle, Loader2, FileSpreadsheet } from 'lucide-react'
+import { X, Upload, FileUp, Download, Loader2, FileSpreadsheet } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { supabase } from '@/config/supabase.config'
 import { CreateUserData } from '@/services/usuariosPortal.service'
