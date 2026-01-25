@@ -210,7 +210,7 @@ export function DirectorioPage() {
 
     const downloadFile = (content: string, fileName: string, contentType: string) => {
         const a = document.createElement("a");
-        const file = new Blob([content], { type: contentType });
+        const file = new Blob(['\uFEFF' + content], { type: contentType });
         a.href = URL.createObjectURL(file);
         a.download = fileName;
         a.click();
@@ -463,7 +463,7 @@ export function DirectorioPage() {
                     </div>
 
                     {/* Chips de filtros activos */}
-                    {(filtros.empresa || filtros.busqueda) && (
+                    {(filtros.empresa || filtros.area || filtros.busqueda) && (
                         <div className="flex flex-wrap gap-2">
                             {filtros.busqueda && (
                                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
@@ -476,7 +476,15 @@ export function DirectorioPage() {
                             {filtros.empresa && (
                                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm">
                                     Empresa: {filtros.empresa}
-                                    <button onClick={() => handleFiltroEmpresa(null)} className="hover:opacity-70">
+                                    <button onClick={() => setFiltros(prev => ({ ...prev, empresa: undefined }))} className="hover:opacity-70">
+                                        <X size={14} />
+                                    </button>
+                                </span>
+                            )}
+                            {filtros.area && (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-purple-50 text-purple-700 rounded-full text-sm">
+                                    Área: {filtros.area}
+                                    <button onClick={() => setFiltros(prev => ({ ...prev, area: undefined }))} className="hover:opacity-70">
                                         <X size={14} />
                                     </button>
                                 </span>
@@ -487,6 +495,42 @@ export function DirectorioPage() {
                             >
                                 Limpiar todo
                             </button>
+                        </div>
+                    )}
+
+                    {/* Panel de Filtros Expandible */}
+                    {mostrarFiltros && (
+                        <div className="pt-4 mt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
+                                <select
+                                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm py-2 px-3 border"
+                                    value={filtros.empresa || ''}
+                                    onChange={(e) => setFiltros(prev => ({ ...prev, empresa: e.target.value || undefined }))}
+                                >
+                                    <option value="">Todas las empresas</option>
+                                    {conteos?.porEmpresa.map((item) => (
+                                        <option key={item.empresa} value={item.empresa}>
+                                            {item.empresa} ({item.cantidad})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Área</label>
+                                <select
+                                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm py-2 px-3 border"
+                                    value={filtros.area || ''}
+                                    onChange={(e) => setFiltros(prev => ({ ...prev, area: e.target.value || undefined }))}
+                                >
+                                    <option value="">Todas las áreas</option>
+                                    {conteos?.porArea.map((item) => (
+                                        <option key={item.area} value={item.area}>
+                                            {item.area} ({item.cantidad})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     )}
                 </Card.Body>
