@@ -463,7 +463,7 @@ export function DirectorioPage() {
                     </div>
 
                     {/* Chips de filtros activos */}
-                    {(filtros.empresa || filtros.area || filtros.busqueda) && (
+                    {(filtros.empresa || filtros.area || filtros.ciudad || filtros.busqueda) && (
                         <div className="flex flex-wrap gap-2">
                             {filtros.busqueda && (
                                 <span className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
@@ -489,6 +489,14 @@ export function DirectorioPage() {
                                     </button>
                                 </span>
                             )}
+                            {filtros.ciudad && (
+                                <span className="inline-flex items-center gap-1 px-3 py-1 bg-cyan-50 text-cyan-700 rounded-full text-sm">
+                                    Ciudad: {filtros.ciudad}
+                                    <button onClick={() => setFiltros(prev => ({ ...prev, ciudad: undefined }))} className="hover:opacity-70">
+                                        <X size={14} />
+                                    </button>
+                                </span>
+                            )}
                             <button
                                 onClick={handleLimpiarFiltros}
                                 className="text-sm text-gray-500 hover:text-gray-700 underline"
@@ -500,7 +508,7 @@ export function DirectorioPage() {
 
                     {/* Panel de Filtros Expandible */}
                     {mostrarFiltros && (
-                        <div className="pt-4 mt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="pt-4 mt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
                                 <select
@@ -527,6 +535,21 @@ export function DirectorioPage() {
                                     {conteos?.porArea.map((item) => (
                                         <option key={item.area} value={item.area}>
                                             {item.area} ({item.cantidad})
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Ciudad</label>
+                                <select
+                                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm py-2 px-3 border"
+                                    value={filtros.ciudad || ''}
+                                    onChange={(e) => setFiltros(prev => ({ ...prev, ciudad: e.target.value || undefined }))}
+                                >
+                                    <option value="">Todas las ciudades</option>
+                                    {conteos?.porCiudad?.map((item) => (
+                                        <option key={item.ciudad} value={item.ciudad}>
+                                            {item.ciudad} ({item.cantidad})
                                         </option>
                                     ))}
                                 </select>

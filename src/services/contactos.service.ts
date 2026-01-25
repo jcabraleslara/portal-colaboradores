@@ -94,6 +94,11 @@ export const contactosService = {
                 query = query.eq('area', filtros.area)
             }
 
+            // Filtro por ciudad
+            if (filtros.ciudad) {
+                query = query.eq('ciudad', filtros.ciudad)
+            }
+
             // Búsqueda general optimizada (múltiples términos)
             if (filtros.busqueda && filtros.busqueda.trim()) {
                 const terminos = filtros.busqueda.trim().toLowerCase().split(/\s+/)
@@ -109,6 +114,7 @@ export const contactosService = {
                             `puesto.ilike.%${termino}%,` +
                             `area.ilike.%${termino}%,` +
                             `empresa.ilike.%${termino}%,` +
+                            `ciudad.ilike.%${termino}%,` +
                             `email_personal.ilike.%${termino}%,` +
                             `email_institucional.ilike.%${termino}%`
                         )
@@ -153,10 +159,10 @@ export const contactosService = {
      */
     async obtenerConteos(): Promise<ApiResponse<ConteosContactos>> {
         try {
-            // Obtener total y agrupar por empresa, área
+            // Obtener total y agrupar por empresa, área, ciudad
             const { data, error, count } = await supabase
                 .from('contactos')
-                .select('empresa, area', { count: 'exact' })
+                .select('empresa, area, ciudad', { count: 'exact' })
 
             if (error) {
                 console.error('Error obteniendo conteos:', error)
@@ -169,6 +175,7 @@ export const contactosService = {
             // Agrupar manualmente
             const porEmpresa: Record<string, number> = {}
             const porArea: Record<string, number> = {}
+            const porCiudad: Record<string, number> = {}
 
             for (const row of data || []) {
                 // Empresa
@@ -178,6 +185,10 @@ export const contactosService = {
                 // Área
                 const area = row.area || 'Sin área'
                 porArea[area] = (porArea[area] || 0) + 1
+
+                // Ciudad
+                const ciudad = row.ciudad || 'Sin ciudad'
+                porCiudad[ciudad] = (porCiudad[ciudad] || 0) + 1
             }
 
             return {
@@ -192,6 +203,10 @@ export const contactosService = {
                         .map(([area, cantidad]) => ({ area, cantidad }))
                         .sort((a, b) => b.cantidad - a.cantidad)
                         .slice(0, 10), // Top 10 áreas
+                    porCiudad: Object.entries(porCiudad)
+                        .map(([ciudad, cantidad]) => ({ ciudad, cantidad }))
+                        .sort((a, b) => b.cantidad - a.cantidad)
+                        .slice(0, 10), // Top 10 ciudades
                 },
             }
         } catch (error) {

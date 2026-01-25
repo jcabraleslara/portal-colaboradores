@@ -46,6 +46,7 @@ export interface ContactoFiltros {
     busqueda?: string  // Busca en nombre, identificación, puesto, área, empresa
     empresa?: string | null
     area?: string | null
+    ciudad?: string | null
 }
 
 // ========================================
@@ -56,6 +57,7 @@ export interface ConteosContactos {
     total: number
     porEmpresa: { empresa: string; cantidad: number }[]
     porArea: { area: string; cantidad: number }[]
+    porCiudad: { ciudad: string; cantidad: number }[]
 }
 
 // ========================================
