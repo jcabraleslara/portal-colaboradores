@@ -162,14 +162,14 @@ export default function RutasPage() {
             </div>
             <div className="flex gap-2">
                 <Button
-                    variant={modoConfig ? 'ghost' : 'solid'}
+                    variant={modoConfig ? 'ghost' : 'primary'}
                     onClick={() => setModoConfig(false)}
                     leftIcon={<LayoutGrid size={18} />}
                 >
                     Tablero
                 </Button>
                 <Button
-                    variant={modoConfig ? 'solid' : 'ghost'}
+                    variant={modoConfig ? 'primary' : 'ghost'}
                     onClick={() => setModoConfig(true)}
                     leftIcon={<Settings size={18} />}
                 >
@@ -185,7 +185,7 @@ export default function RutasPage() {
                         conteos={conteos}
                         loading={cargandoConteos}
                         filtroEstado={filtros.estadoRadicado}
-                        filtroRuta={filtros.ruta}
+                        filtroRuta={filtros.ruta || undefined}
                         onFiltroEstado={handleFiltroEstado}
                         onFiltroRuta={handleFiltroRuta}
                     />
