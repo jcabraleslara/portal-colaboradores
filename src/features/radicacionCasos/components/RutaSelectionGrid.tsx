@@ -33,11 +33,11 @@ export function RutaSelectionGrid({ esExterno, rutaSeleccionada, onSeleccionarRu
     }, [rutasVisibles])
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-5">
             {Object.entries(rutasPorCategoria).map(([categoria, configs]) => (
                 <div key={categoria}>
-                    <h3 className="text-sm font-semibold text-gray-600 mb-3">{categoria}</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 ml-1">{categoria}</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                         {configs.map(config => {
                             const label = esExterno ? config.labelExterno : config.labelInterno
                             const colores = RUTA_COLORES[config.ruta] || { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' }
@@ -52,24 +52,31 @@ export function RutaSelectionGrid({ esExterno, rutaSeleccionada, onSeleccionarRu
                                     type="button"
                                     onClick={() => onSeleccionarRuta(config.ruta)}
                                     className={`
-                                        relative p-4 rounded-xl border-2 transition-all duration-300
-                                        hover:shadow-lg hover:-translate-y-0.5 
-                                        flex flex-col items-center text-center gap-2
+                                        relative group p-3 rounded-xl border transition-all duration-200
+                                        hover:shadow-md hover:border-[var(--color-primary-300)]
+                                        flex flex-row items-center text-left gap-3 h-full
                                         ${activo
-                                            ? `${colores.bg} ${colores.border} shadow-md ring-2 ring-offset-2`
-                                            : 'bg-white border-gray-200 hover:border-gray-300'
+                                            ? `${colores.bg} ${colores.border} border-2 shadow-sm`
+                                            : 'bg-white border-gray-100'
                                         }
                                     `}
                                 >
-                                    <div className={`w-12 h-12 rounded-lg ${colores.bg} flex items-center justify-center`}>
-                                        <IconComponent size={24} className={colores.text} />
+                                    <div className={`
+                                        w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105
+                                        ${activo ? 'bg-white/50' : colores.bg}
+                                    `}>
+                                        <IconComponent size={20} className={colores.text} />
                                     </div>
-                                    <p className={`text-sm font-medium leading-tight ${activo ? colores.text : 'text-gray-700'}`}>
-                                        {label}
-                                    </p>
+
+                                    <div className="flex-1 min-w-0">
+                                        <p className={`text-xs font-bold leading-tight ${activo ? 'text-gray-900' : 'text-gray-700 group-hover:text-gray-900'}`}>
+                                            {label}
+                                        </p>
+                                    </div>
+
                                     {activo && (
                                         <div className="absolute top-2 right-2">
-                                            <Icons.Check size={16} className={colores.text} />
+                                            <Icons.CheckCircle2 size={16} className={colores.text} />
                                         </div>
                                     )}
                                 </button>
