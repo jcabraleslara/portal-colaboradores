@@ -47,6 +47,7 @@ function transformRadicacion(raw: BackRadicacionRaw): BackRadicacion {
         ordenador: raw.ordenador,
         observaciones: raw.observaciones,
         tipoSolicitud: raw.tipo_solicitud as BackRadicacion['tipoSolicitud'],
+        ruta: raw.ruta as BackRadicacion['ruta'],
         soportes: raw.soportes,
         estadoRadicado: raw.estado_radicado as BackRadicacion['estadoRadicado'],
         direccionamiento: raw.direccionamiento as BackRadicacion['direccionamiento'],
@@ -108,6 +109,7 @@ export const backService = {
                     id: data.id,
                     tipo_solicitud: data.tipoSolicitud,
                     especialidad: data.especialidad || null,
+                    ruta: data.ruta || null,
                     ordenador: data.ordenador ? normalizarTexto(data.ordenador) : null,
                     observaciones: data.observaciones || null,
                     soportes: [], // Se actualiza después de subir archivos

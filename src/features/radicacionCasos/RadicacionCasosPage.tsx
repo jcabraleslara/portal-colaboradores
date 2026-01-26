@@ -43,6 +43,7 @@ import {
     TipoSolicitudBack,
     EspecialidadAuditoria,
     BackRadicacion,
+    RutaBack,
     ESPECIALIDADES_LISTA,
     ESTADO_COLORES,
     SEXO_LISTA,
@@ -52,6 +53,7 @@ import {
     IPS_PRIMARIA_LISTA,
     EPS_LISTA,
 } from '@/types/back.types'
+import { RutaSelectionGrid } from './components/RutaSelectionGrid'
 
 // Tipo para datos del nuevo afiliado
 interface NuevoAfiliadoForm {
@@ -110,9 +112,13 @@ export function RadicacionCasosPage() {
     // ============================================
     const [tipoSolicitud, setTipoSolicitud] = useState<TipoSolicitudBack>('Auditoría Médica')
     const [especialidad, setEspecialidad] = useState<EspecialidadAuditoria>('Medicina Interna')
+    const [ruta, setRuta] = useState<RutaBack | null>(null)
     const [ordenador, setOrdenador] = useState('')
     const [observaciones, setObservaciones] = useState('')
     const [archivos, setArchivos] = useState<File[]>([])
+
+    // Detectar si el usuario es externo
+    const esExterno = user?.rol === 'externo'
 
     // ============================================
     // ESTADO - PASO 3: Respuesta y Envío
@@ -273,6 +279,7 @@ export function RadicacionCasosPage() {
     const resetFormulario = () => {
         setTipoSolicitud('Auditoría Médica')
         setEspecialidad('Medicina Interna')
+        setRuta(null)
         setOrdenador('')
         setObservaciones('')
         setArchivos([])
@@ -289,8 +296,14 @@ export function RadicacionCasosPage() {
             return
         }
 
-        // Ordenador requerido solo si NO es Solicitud de Historia Clínica
-        const requiereOrdenador = tipoSolicitud !== 'Solicitud de Historia Clínica'
+        // Validar ruta si es Activación de Ruta
+        if (tipoSolicitud === 'Activación de Ruta' && !ruta) {
+            setSubmitError('Debes seleccionar una ruta')
+            return
+        }
+
+        // Ordenador requerido solo si NO es Solicitud de Historia Clínica NI Activación de Ruta
+        const requiereOrdenador = tipoSolicitud !== 'Solicitud de Historia Clínica' && tipoSolicitud !== 'Activación de Ruta'
         if (requiereOrdenador && !ordenador.trim()) {
             setSubmitError('El ordenador es requerido')
             return
@@ -306,6 +319,7 @@ export function RadicacionCasosPage() {
             id: afiliado.id,
             tipoSolicitud,
             especialidad: tipoSolicitud === 'Auditoría Médica' ? especialidad : undefined,
+            ruta: tipoSolicitud === 'Activación de Ruta' ? ruta || undefined : undefined,
             ordenador: requiereOrdenador ? ordenador : undefined,
             observaciones: observaciones || undefined,
             archivos: archivos.length > 0 ? archivos : undefined,
@@ -886,8 +900,8 @@ export function RadicacionCasosPage() {
                                         </div>
                                     )}
 
-                                    {/* Ordenador - Autocomplete (no requerido para Solicitud de Historia Clínica) */}
-                                    {tipoSolicitud !== 'Solicitud de Historia Clínica' && (
+                                    {/* Ordenador - Autocomplete (no requerido para Solicitud de Historia Clínica NI Activación de Ruta) */}
+                                    {tipoSolicitud !== 'Solicitud de Historia Clínica' && tipoSolicitud !== 'Activación de Ruta' && (
                                         <div className={`space-y-2 ${tipoSolicitud !== 'Auditoría Médica' ? 'md:col-span-2' : ''}`}>
                                             <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-2">
                                                 Ordenador *
@@ -903,6 +917,20 @@ export function RadicacionCasosPage() {
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Selector de Ruta (solo para Activación de Ruta) */}
+                                {tipoSolicitud === 'Activación de Ruta' && (
+                                    <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-3">
+                                        <label className="block text-sm font-semibold text-gray-700">
+                                            Selecciona la Ruta <span className="text-rose-500">*</span>
+                                        </label>
+                                        <RutaSelectionGrid
+                                            esExterno={esExterno}
+                                            rutaSeleccionada={ruta}
+                                            onSeleccionarRuta={setRuta}
+                                        />
+                                    </div>
+                                )}
 
                                 {/* Observaciones y Soportes en misma fila */}
                                 {/* Observaciones y Soportes en misma fila */}

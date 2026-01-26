@@ -38,6 +38,28 @@ export type EspecialidadAuditoria =
     | 'Otorrinolaringología'
     | 'Reumatología'
 
+// Rutas disponibles (Activación de Ruta)
+export type RutaBack =
+    | 'Maternidad Segura'
+    | 'IVE'
+    | 'Esterilización'
+    | 'ERC'
+    | 'Obesidad'
+    | 'Desnutrición Aguda'
+    | 'EPOC'
+    | 'Riesgo Cardiovascular'
+    | 'VIH'
+    | 'Tuberculosis'
+    | 'Cáncer'
+    | 'DT CA Mama'
+    | 'DT CA Cérvix'
+    | 'DT CA Próstata'
+    | 'DT CA Colon'
+    | 'Salud Mental'
+    | 'Costaneros'
+    | 'CIDH/PAPSIVI'
+    | 'Autoinmune'
+
 // Radicación transformada (camelCase) para el frontend
 export interface BackRadicacion {
     radicado: string
@@ -49,6 +71,7 @@ export interface BackRadicacion {
     ordenador: string | null
     observaciones: string | null
     tipoSolicitud: TipoSolicitudBack
+    ruta: RutaBack | null
     soportes: string[] | null
     estadoRadicado: EstadoRadicado
     direccionamiento: Direccionamiento | null
@@ -66,6 +89,7 @@ export interface BackRadicacionRaw {
     ordenador: string | null
     observaciones: string | null
     tipo_solicitud: string
+    ruta: string | null
     soportes: string[] | null
     estado_radicado: string
     direccionamiento: string | null
@@ -80,6 +104,7 @@ export interface CrearRadicacionData {
     id: string
     tipoSolicitud: TipoSolicitudBack
     especialidad?: EspecialidadAuditoria
+    ruta?: RutaBack
     ordenador?: string
     observaciones?: string
     archivos?: File[]
@@ -441,3 +466,246 @@ export interface ContrarreferenciaResult {
     tiempoMs?: number
     retryAfter?: number  // Segundos a esperar antes de reintentar (para error 429)
 }
+
+// ========================================
+// CONFIGURACIÓN DE RUTAS (ACTIVACIÓN DE RUTA)
+// ========================================
+
+/**
+ * Configuración de visibilidad y etiquetas por ruta
+ */
+export interface RutaConfig {
+    ruta: RutaBack
+    visibleExterno: boolean
+    visibleInterno: boolean
+    labelExterno: string
+    labelInterno: string
+    icono: string  // Nombre del icono de lucide-react
+    categoria: 'Maternidad' | 'Crónicas' | 'Oncología' | 'Otros'
+}
+
+/**
+ * Lista maestra de configuración de rutas
+ */
+export const RUTAS_CONFIG: RutaConfig[] = [
+    // Maternidad Segura
+    {
+        ruta: 'Maternidad Segura',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'Maternidad Segura',
+        labelInterno: 'Alto Riesgo Obstétrico',
+        icono: 'Baby',
+        categoria: 'Maternidad'
+    },
+    {
+        ruta: 'IVE',
+        visibleExterno: false,
+        visibleInterno: true,
+        labelExterno: 'IVE',
+        labelInterno: 'IVE',
+        icono: 'HeartHandshake',
+        categoria: 'Maternidad'
+    },
+    {
+        ruta: 'Esterilización',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'Esterilización',
+        labelInterno: 'Esterilización',
+        icono: 'Shield',
+        categoria: 'Maternidad'
+    },
+
+    // Crónicas
+    {
+        ruta: 'ERC',
+        visibleExterno: false,
+        visibleInterno: true,
+        labelExterno: 'ERC',
+        labelInterno: 'ERC',
+        icono: 'Droplets',
+        categoria: 'Crónicas'
+    },
+    {
+        ruta: 'Obesidad',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'Obesidad',
+        labelInterno: 'Junta Bariátrica',
+        icono: 'Scale',
+        categoria: 'Crónicas'
+    },
+    {
+        ruta: 'Desnutrición Aguda',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'Desnutrición Aguda',
+        labelInterno: 'Desnutrición Aguda',
+        icono: 'Apple',
+        categoria: 'Crónicas'
+    },
+    {
+        ruta: 'EPOC',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'EPOC',
+        labelInterno: 'EPOC',
+        icono: 'Wind',
+        categoria: 'Crónicas'
+    },
+    {
+        ruta: 'Riesgo Cardiovascular',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'Riesgo Cardiovascular',
+        labelInterno: 'Riesgo Cardiovascular',
+        icono: 'Heart',
+        categoria: 'Crónicas'
+    },
+    {
+        ruta: 'VIH',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'VIH',
+        labelInterno: 'VIH',
+        icono: 'Shield',
+        categoria: 'Crónicas'
+    },
+    {
+        ruta: 'Tuberculosis',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'Tuberculosis',
+        labelInterno: 'Tuberculosis',
+        icono: 'Lung',
+        categoria: 'Crónicas'
+    },
+
+    // Oncología
+    {
+        ruta: 'Cáncer',
+        visibleExterno: false,
+        visibleInterno: true,
+        labelExterno: 'Cáncer',
+        labelInterno: 'Cáncer',
+        icono: 'Ribbon',
+        categoria: 'Oncología'
+    },
+    {
+        ruta: 'DT CA Mama',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'DT CA Mama',
+        labelInterno: 'DT CA Mama',
+        icono: 'Flower',
+        categoria: 'Oncología'
+    },
+    {
+        ruta: 'DT CA Cérvix',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'DT CA Cérvix',
+        labelInterno: 'DT CA Cérvix',
+        icono: 'Ribbon',
+        categoria: 'Oncología'
+    },
+    {
+        ruta: 'DT CA Próstata',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'DT CA Próstata',
+        labelInterno: 'DT CA Próstata',
+        icono: 'Dot',
+        categoria: 'Oncología'
+    },
+    {
+        ruta: 'DT CA Colon',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'DT CA Colon',
+        labelInterno: 'DT CA Colon',
+        icono: 'Activity',
+        categoria: 'Oncología'
+    },
+
+    // Otros
+    {
+        ruta: 'Salud Mental',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'Salud Mental',
+        labelInterno: 'Salud Mental',
+        icono: 'Brain',
+        categoria: 'Otros'
+    },
+    {
+        ruta: 'Costaneros',
+        visibleExterno: true,
+        visibleInterno: false,
+        labelExterno: 'Costaneros',
+        labelInterno: 'Costaneros',
+        icono: 'Ship',
+        categoria: 'Otros'
+    },
+    {
+        ruta: 'CIDH/PAPSIVI',
+        visibleExterno: true,
+        visibleInterno: false,
+        labelExterno: 'CIDH/PAPSIVI',
+        labelInterno: 'CIDH/PAPSIVI',
+        icono: 'ShieldCheck',
+        categoria: 'Otros'
+    },
+    {
+        ruta: 'Autoinmune',
+        visibleExterno: false,
+        visibleInterno: true,
+        labelExterno: 'Autoinmune',
+        labelInterno: 'Autoinmune',
+        icono: 'Flame',
+        categoria: 'Otros'
+    },
+]
+
+/**
+ * Filtrar rutas visibles según rol
+ */
+export function obtenerRutasVisibles(esExterno: boolean): RutaConfig[] {
+    return RUTAS_CONFIG.filter(config =>
+        esExterno ? config.visibleExterno : config.visibleInterno
+    )
+}
+
+/**
+ * Obtener label correcto según rol
+ */
+export function obtenerLabelRuta(ruta: RutaBack, esExterno: boolean): string {
+    const config = RUTAS_CONFIG.find(c => c.ruta === ruta)
+    if (!config) return ruta
+    return esExterno ? config.labelExterno : config.labelInterno
+}
+
+// Colores para cards de rutas
+export const RUTA_COLORES: Record<string, { bg: string; text: string; border: string }> = {
+    'Maternidad Segura': { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200' },
+    'IVE': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
+    'Esterilización': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
+    'ERC': { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
+    'Obesidad': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
+    'Desnutrición Aguda': { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+    'EPOC': { bg: 'bg-sky-50', text: 'text-sky-700', border: 'border-sky-200' },
+    'Riesgo Cardiovascular': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+    'VIH': { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
+    'Tuberculosis': { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
+    'Cáncer': { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200' },
+    'DT CA Mama': { bg: 'bg-pink-50', text: 'text-pink-700', border: 'border-pink-200' },
+    'DT CA Cérvix': { bg: 'bg-fuchsia-50', text: 'text-fuchsia-700', border: 'border-fuchsia-200' },
+    'DT CA Próstata': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+    'DT CA Colon': { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
+    'Salud Mental': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
+    'Costaneros': { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
+    'CIDH/PAPSIVI': { bg: 'bg-lime-50', text: 'text-lime-700', border: 'border-lime-200' },
+    'Autoinmune': { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200' },
+}
+
