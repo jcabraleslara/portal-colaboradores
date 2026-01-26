@@ -400,8 +400,15 @@ export default function Anexo8Page() {
 
             // Generar PDFs para cada registro
             for (const registro of resultado.data) {
+                // Preprocesar registro para asegurar que la firma sea accesible (Signed URL)
+                // Especialmente importante para firmas recién subidas al bucket privado anexo-8
+                const registroParaPdf = { ...registro }
+                if (registroParaPdf.medico_firma_url) {
+                    registroParaPdf.medico_firma_url = await anexo8Service.refrescarUrlPdf(registroParaPdf.medico_firma_url)
+                }
+
                 // Generar PDF
-                const { blob, filename } = await generarAnexo8Pdf(registro)
+                const { blob, filename } = await generarAnexo8Pdf(registroParaPdf)
 
                 // Subir al bucket
                 const uploadResult = await anexo8Service.subirPdf(blob, filename)

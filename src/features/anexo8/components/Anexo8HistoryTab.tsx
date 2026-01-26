@@ -102,13 +102,23 @@ export function Anexo8HistoryTab() {
 
             // Si ya tiene URL de PDF, intentar descargarla
             if (registro.pdf_url) {
-                // Opción 1: Abrir en nueva pestaña (si es URL pública)
-                window.open(registro.pdf_url, '_blank')
+                // Asegurar que la URL sea accesible (firmada)
+                const urlFirmada = await anexo8Service.refrescarUrlPdf(registro.pdf_url)
+
+                // Opción 1: Abrir en nueva pestaña
+                window.open(urlFirmada, '_blank')
                 toast.success('Abriendo PDF...')
             } else {
                 // Opción 2: Regenerar PDF si no existe URL (fallback)
                 toast.info('Generando PDF...')
-                const { blob, filename } = await generarAnexo8Pdf(registro)
+
+                // Asegurar firma accesible
+                const registroParaPdf = { ...registro }
+                if (registroParaPdf.medico_firma_url) {
+                    registroParaPdf.medico_firma_url = await anexo8Service.refrescarUrlPdf(registroParaPdf.medico_firma_url)
+                }
+
+                const { blob, filename } = await generarAnexo8Pdf(registroParaPdf)
                 descargarPdf(blob, filename)
                 toast.success('PDF descargado correctamente')
             }

@@ -5,7 +5,7 @@
 
 import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { ROUTES } from '@/config/constants'
+import { ROUTES, PORTAL_MODULES } from '@/config/constants'
 import { useAuth } from '@/context/AuthContext'
 import { useInactivityTimeout } from '@/hooks'
 import { MainLayout } from '@/components/layout'
@@ -77,6 +77,30 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * Componente de protección basada en roles
+ * Verifica si el usuario tiene permiso para acceder al módulo
+ */
+function RoleGuard({ moduleId, children }: { moduleId: string, children: React.ReactNode }) {
+    const { user } = useAuth()
+
+    const moduleConfig = PORTAL_MODULES.find(m => m.id === moduleId)
+
+    // Si el módulo no existe o no tiene roles requeridos, permitir acceso
+    if (!moduleConfig?.requiredRoles || moduleConfig.requiredRoles.length === 0) {
+        return <>{children}</>
+    }
+
+    // Verificar si el usuario tiene el rol requerido
+    if (user && moduleConfig.requiredRoles.includes(user.rol)) {
+        return <>{children}</>
+    }
+
+    // Si no tiene permiso, redirigir
+    // Si es externo intentando acceder a algo no permitido, el DashboardPage lo redirigirá a Radicación
+    return <Navigate to={ROUTES.DASHBOARD} replace />
+}
+
+/**
  * Componente de ruta pública (redirige si ya está autenticado)
  */
 function PublicRoute({ children }: { children: React.ReactNode }) {
@@ -142,9 +166,11 @@ export function AppRoutes() {
                 <Route
                     path={ROUTES.VALIDACION_DERECHOS}
                     element={
-                        <LazyWrapper>
-                            <ValidacionDerechosPage />
-                        </LazyWrapper>
+                        <RoleGuard moduleId="validacion-derechos">
+                            <LazyWrapper>
+                                <ValidacionDerechosPage />
+                            </LazyWrapper>
+                        </RoleGuard>
                     }
                 />
 
@@ -152,9 +178,11 @@ export function AppRoutes() {
                 <Route
                     path={ROUTES.RADICACION_CASOS}
                     element={
-                        <LazyWrapper>
-                            <RadicacionCasosPage />
-                        </LazyWrapper>
+                        <RoleGuard moduleId="radicacion-casos">
+                            <LazyWrapper>
+                                <RadicacionCasosPage />
+                            </LazyWrapper>
+                        </RoleGuard>
                     }
                 />
 
@@ -162,9 +190,11 @@ export function AppRoutes() {
                 <Route
                     path={ROUTES.GESTION_BACK}
                     element={
-                        <LazyWrapper>
-                            <GestionBackPage />
-                        </LazyWrapper>
+                        <RoleGuard moduleId="gestion-back">
+                            <LazyWrapper>
+                                <GestionBackPage />
+                            </LazyWrapper>
+                        </RoleGuard>
                     }
                 />
 
@@ -172,9 +202,11 @@ export function AppRoutes() {
                 <Route
                     path={ROUTES.DIRECTORIO_INSTITUCIONAL}
                     element={
-                        <LazyWrapper>
-                            <DirectorioPage />
-                        </LazyWrapper>
+                        <RoleGuard moduleId="directorio-institucional">
+                            <LazyWrapper>
+                                <DirectorioPage />
+                            </LazyWrapper>
+                        </RoleGuard>
                     }
                 />
 
@@ -182,9 +214,11 @@ export function AppRoutes() {
                 <Route
                     path={ROUTES.ADMIN_USUARIOS}
                     element={
-                        <LazyWrapper>
-                            <AdminUsuariosPage />
-                        </LazyWrapper>
+                        <RoleGuard moduleId="admin-usuarios">
+                            <LazyWrapper>
+                                <AdminUsuariosPage />
+                            </LazyWrapper>
+                        </RoleGuard>
                     }
                 />
 
@@ -192,27 +226,33 @@ export function AppRoutes() {
                 <Route
                     path={ROUTES.SOPORTES_FACTURACION}
                     element={
-                        <LazyWrapper>
-                            <SoportesFacturacionPage />
-                        </LazyWrapper>
+                        <RoleGuard moduleId="soportes-facturacion">
+                            <LazyWrapper>
+                                <SoportesFacturacionPage />
+                            </LazyWrapper>
+                        </RoleGuard>
                     }
                 />
                 {/* Consultar CUPS */}
                 <Route
                     path={ROUTES.CONSULTAR_CUPS}
                     element={
-                        <LazyWrapper>
-                            <ConsultarCupsPage />
-                        </LazyWrapper>
+                        <RoleGuard moduleId="consultar-cups">
+                            <LazyWrapper>
+                                <ConsultarCupsPage />
+                            </LazyWrapper>
+                        </RoleGuard>
                     }
                 />
 
                 <Route
                     path={ROUTES.ANEXO_8}
                     element={
-                        <LazyWrapper>
-                            <Anexo8Page />
-                        </LazyWrapper>
+                        <RoleGuard moduleId="anexo-8">
+                            <LazyWrapper>
+                                <Anexo8Page />
+                            </LazyWrapper>
+                        </RoleGuard>
                     }
                 />
                 <Route
@@ -234,9 +274,11 @@ export function AppRoutes() {
                 <Route
                     path={ROUTES.DEMANDA_INDUCIDA}
                     element={
-                        <LazyWrapper>
-                            <GestionDemandaInducidaView />
-                        </LazyWrapper>
+                        <RoleGuard moduleId="demanda-inducida">
+                            <LazyWrapper>
+                                <GestionDemandaInducidaView />
+                            </LazyWrapper>
+                        </RoleGuard>
                     }
                 />
 

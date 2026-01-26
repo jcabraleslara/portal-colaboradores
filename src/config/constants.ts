@@ -115,7 +115,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'Search',
         enabled: true,
         description: 'Consultar estado y datos de afiliados',
-        // Sin restricción de rol - visible para todos
+        requiredRoles: ['superadmin', 'gerencia', 'auditor', 'operativo', 'administrador', 'admin', 'asistencial'],
     },
     {
         id: 'consultar-cups',
@@ -124,6 +124,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'FileSearch',
         enabled: true,
         description: 'Buscar procedimientos CUPS',
+        requiredRoles: ['superadmin', 'gerencia', 'auditor', 'operativo', 'administrador', 'admin', 'asistencial'],
     },
     {
         id: 'radicacion-casos',
@@ -132,7 +133,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'ClipboardList',
         enabled: true,
         description: 'Radicar casos y solicitudes',
-        requiredRoles: ['gerencia', 'auditor', 'operativo', 'administrador', 'superadmin'],
+        requiredRoles: ['gerencia', 'auditor', 'operativo', 'administrador', 'superadmin', 'externo'],
     },
     {
         id: 'gestion-back',

@@ -3,13 +3,22 @@
  * Portal de Colaboradores GESTAR SALUD IPS
  */
 
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Search, ClipboardList, ArrowRight, Activity, Users, Calendar, TrendingUp } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { ROUTES } from '@/config/constants'
+import { useEffect } from 'react'
 
 export function DashboardPage() {
     const { user } = useAuth()
+    const navigate = useNavigate()
+
+    // Redireccionar usuarios externos a su único módulo permitido
+    useEffect(() => {
+        if (user?.rol === 'externo') {
+            navigate(ROUTES.RADICACION_CASOS, { replace: true })
+        }
+    }, [user, navigate])
 
     const firstName = user?.nombreCompleto?.split(' ')[0] || 'Colaborador'
 
