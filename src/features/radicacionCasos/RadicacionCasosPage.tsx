@@ -904,31 +904,34 @@ export function RadicacionCasosPage() {
                                     )}
                                 </div>
 
-                                {/* Observaciones */}
-                                <div>
-                                    <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-2">
-                                        Observaciones
-                                    </label>
-                                    <textarea
-                                        value={observaciones}
-                                        onChange={(e) => setObservaciones(e.target.value)}
-                                        placeholder="Notas adicionales sobre la solicitud..."
-                                        rows={3}
-                                        className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-[var(--color-primary)] resize-none"
-                                    />
-                                </div>
+                                {/* Observaciones y Soportes en misma fila */}
+                                <div className="grid md:grid-cols-3 gap-6">
+                                    {/* Observaciones (2/3) */}
+                                    <div className="md:col-span-2">
+                                        <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-2">
+                                            Observaciones
+                                        </label>
+                                        <textarea
+                                            value={observaciones}
+                                            onChange={(e) => setObservaciones(e.target.value)}
+                                            placeholder="Notas adicionales sobre la solicitud..."
+                                            rows={5}
+                                            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-[var(--color-primary)] resize-none h-full"
+                                        />
+                                    </div>
 
-                                {/* Soportes - File Upload */}
-                                <div>
-                                    <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-2">
-                                        Soportes (PDF)
-                                    </label>
-                                    <FileUpload
-                                        files={archivos}
-                                        onChange={setArchivos}
-                                        maxSizeMB={10}
-                                        maxFiles={5}
-                                    />
+                                    {/* Soportes - File Upload (1/3) */}
+                                    <div className="h-full">
+                                        <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-2">
+                                            Soportes (PDF)
+                                        </label>
+                                        <FileUpload
+                                            files={archivos}
+                                            onChange={setArchivos}
+                                            maxSizeMB={10}
+                                            maxFiles={5}
+                                        />
+                                    </div>
                                 </div>
 
                                 {/* Error de envío */}
