@@ -905,9 +905,10 @@ export function RadicacionCasosPage() {
                                 </div>
 
                                 {/* Observaciones y Soportes en misma fila */}
+                                {/* Observaciones y Soportes en misma fila */}
                                 <div className="grid md:grid-cols-3 gap-6">
                                     {/* Observaciones (2/3) */}
-                                    <div className="md:col-span-2">
+                                    <div className="md:col-span-2 flex flex-col">
                                         <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-2">
                                             Observaciones
                                         </label>
@@ -916,12 +917,12 @@ export function RadicacionCasosPage() {
                                             onChange={(e) => setObservaciones(e.target.value)}
                                             placeholder="Notas adicionales sobre la solicitud..."
                                             rows={5}
-                                            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-[var(--color-primary)] resize-none h-full"
+                                            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-[var(--color-primary)] resize-none flex-1"
                                         />
                                     </div>
 
                                     {/* Soportes - File Upload (1/3) */}
-                                    <div className="h-full">
+                                    <div className="flex flex-col h-full">
                                         <label className="block text-sm font-medium text-[var(--color-text-primary)] mb-2">
                                             Soportes (PDF)
                                         </label>
@@ -930,6 +931,7 @@ export function RadicacionCasosPage() {
                                             onChange={setArchivos}
                                             maxSizeMB={10}
                                             maxFiles={5}
+                                            className="flex-1"
                                         />
                                     </div>
                                 </div>

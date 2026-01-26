@@ -13,6 +13,7 @@ interface FileUploadProps {
     maxSizeMB?: number
     maxFiles?: number
     disabled?: boolean
+    className?: string
 }
 
 export function FileUpload({
@@ -21,6 +22,7 @@ export function FileUpload({
     maxSizeMB = 10,
     maxFiles = 5,
     disabled = false,
+    className = '',
 }: FileUploadProps) {
     const [isDragging, setIsDragging] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -112,14 +114,14 @@ export function FileUpload({
     }
 
     return (
-        <div className="space-y-3">
+        <div className={`flex flex-col gap-3 ${className}`}>
             {/* Zona de drop */}
             <div
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 className={`
-                    relative border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200
+                    relative border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200 flex-1 flex flex-col justify-center
                     ${disabled
                         ? 'border-gray-200 bg-gray-50 cursor-not-allowed'
                         : isDragging
