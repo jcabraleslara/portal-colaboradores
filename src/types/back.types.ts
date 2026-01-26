@@ -55,6 +55,7 @@ export type RutaBack =
     | 'DT CA Cérvix'
     | 'DT CA Próstata'
     | 'DT CA Colon'
+    | 'CA Infantil'
     | 'Salud Mental'
     | 'Costaneros'
     | 'CIDH/PAPSIVI'
@@ -383,6 +384,7 @@ export interface FiltrosCasosBack {
     busqueda?: string
     tipoSolicitud?: TipoSolicitudBack | null
     especialidad?: string | null
+    ruta?: string | null
     estadoRadicado?: EstadoRadicado | 'Todos'
     fechaInicio?: string
     fechaFin?: string
@@ -394,6 +396,7 @@ export interface FiltrosCasosBack {
 export interface ConteosCasosBack {
     porTipoSolicitud: { tipo: string; cantidad: number }[]
     porEspecialidad: { especialidad: string; cantidad: number }[]
+    porRuta: { ruta: string; cantidad: number }[]
 }
 
 // Respuesta cruda extendida de Supabase con join a bd
@@ -628,6 +631,15 @@ export const RUTAS_CONFIG: RutaConfig[] = [
         icono: 'Activity',
         categoria: 'Oncología'
     },
+    {
+        ruta: 'CA Infantil',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'CA Infantil',
+        labelInterno: 'CA Infantil',
+        icono: 'Baby',
+        categoria: 'Oncología'
+    },
 
     // Otros
     {
@@ -703,6 +715,7 @@ export const RUTA_COLORES: Record<string, { bg: string; text: string; border: st
     'DT CA Cérvix': { bg: 'bg-fuchsia-50', text: 'text-fuchsia-700', border: 'border-fuchsia-200' },
     'DT CA Próstata': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
     'DT CA Colon': { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
+    'CA Infantil': { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200' },
     'Salud Mental': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
     'Costaneros': { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
     'CIDH/PAPSIVI': { bg: 'bg-lime-50', text: 'text-lime-700', border: 'border-lime-200' },

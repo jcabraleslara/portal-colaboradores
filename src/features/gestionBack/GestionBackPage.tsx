@@ -45,6 +45,7 @@ import {
     ESPECIALIDADES_LISTA,
     EstadoRadicado,
     TipoSolicitudBack,
+    RUTA_COLORES,
 } from '@/types/back.types'
 import { CasoDetallePanel } from './CasoDetallePanel'
 
@@ -179,6 +180,13 @@ export function GestionBackPage() {
         setFiltros(prev => ({
             ...prev,
             especialidad: prev.especialidad === especialidad ? null : especialidad,
+        }))
+    }, [])
+
+    const handleFiltroRuta = useCallback((ruta: string | null) => {
+        setFiltros(prev => ({
+            ...prev,
+            ruta: prev.ruta === ruta ? null : ruta,
         }))
     }, [])
 
@@ -419,6 +427,72 @@ export function GestionBackPage() {
             </div>
 
             {/* ============================================ */}
+            {/* CARDS DE CONTEO - RUTA */}
+            {/* ============================================ */}
+            <div>
+                <h2 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
+                    <Route size={16} />
+                    Pendientes por Ruta
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {cargandoConteos ? (
+                        Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
+                        ))
+                    ) : (
+                        conteos?.porRuta && conteos.porRuta.length > 0 ? (
+                            conteos.porRuta.map(({ ruta, cantidad }) => {
+                                // Buscar config para colores e iconos
+                                const colores = RUTA_COLORES[ruta] || { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' }
+                                const activo = filtros.ruta === ruta
+
+                                // Importar icono dinámico si es posible, o usar default
+                                // Nota: En este contexto no tenemos acceso fácil a todos los iconos dinámicos sin un mapa grande
+                                // Usamos Route como fallback genérico o intentamos mapear algunos comunes si se desea
+                                const IconoRuta = Route
+
+                                return (
+                                    <button
+                                        key={ruta}
+                                        onClick={() => handleFiltroRuta(ruta)}
+                                        className={`
+                                        relative p-4 rounded-xl border-2 transition-all duration-300
+                                        hover:shadow-md hover:-translate-y-0.5 flex flex-col items-center text-center
+                                        ${activo
+                                                ? `${colores.bg} ${colores.border} shadow-md`
+                                                : 'bg-white border-gray-100 hover:border-gray-200'
+                                            }
+                                    `}
+                                    >
+                                        <div className="flex items-center justify-center gap-3 mb-2">
+                                            <div className={`w-8 h-8 rounded-lg ${colores.bg} flex items-center justify-center flex-shrink-0 bg-opacity-50`}>
+                                                <IconoRuta size={18} className={colores.text} />
+                                            </div>
+                                            <p className={`text-2xl font-bold ${activo ? colores.text : 'text-gray-800'}`}>
+                                                {cantidad}
+                                            </p>
+                                        </div>
+                                        <p className="text-xs text-gray-600 font-medium leading-tight truncate w-full" title={ruta}>
+                                            {ruta}
+                                        </p>
+                                        {activo && (
+                                            <div className="absolute top-2 right-2">
+                                                <X size={12} className={colores.text} />
+                                            </div>
+                                        )}
+                                    </button>
+                                )
+                            })
+                        ) : (
+                            <div className="col-span-full p-4 text-center text-gray-400 text-sm bg-gray-50 rounded-lg border border-dashed border-gray-200">
+                                No hay casos de ruta pendientes
+                            </div>
+                        )
+                    )}
+                </div>
+            </div>
+
+            {/* ============================================ */}
             {/* BARRA DE BÚSQUEDA Y FILTROS */}
             {/* ============================================ */}
             <Card className="bg-[var(--color-primary-50)] border-[var(--color-primary-200)] shadow-md">
@@ -551,14 +625,21 @@ export function GestionBackPage() {
                                 </span>
                             )}
                             {filtros.especialidad && (
-                                <span className={`inline-flex items-center gap-1 px-3 py-1 ${ESPECIALIDAD_COLORES[filtros.especialidad]?.bg} ${ESPECIALIDAD_COLORES[filtros.especialidad]?.text} rounded-full text-sm`}>
+                                <span className={`inline-flex items-center gap-1 px-3 py-1 ${ESPECIALIDAD_COLORES[filtros.especialidad]?.bg || 'bg-gray-100'} ${ESPECIALIDAD_COLORES[filtros.especialidad]?.text || 'text-gray-700'} rounded-full text-sm`}>
                                     {filtros.especialidad}
                                     <button onClick={() => handleFiltroEspecialidad(null)} className="hover:opacity-70">
                                         <X size={14} />
                                     </button>
                                 </span>
                             )}
-                        </div>
+                            {filtros.ruta && (
+                                <span className={`inline-flex items-center gap-1 px-3 py-1 ${RUTA_COLORES[filtros.ruta]?.bg || 'bg-gray-100'} ${RUTA_COLORES[filtros.ruta]?.text || 'text-gray-700'} rounded-full text-sm`}>
+                                    {filtros.ruta}
+                                    <button onClick={() => handleFiltroRuta(null)} className="hover:opacity-70">
+                                        <X size={14} />
+                                    </button>
+                                </span>
+                            )}            </div>
                     )}
                 </Card.Body>
             </Card>
@@ -783,20 +864,22 @@ export function GestionBackPage() {
             {/* ============================================ */}
             {/* PANEL DE DETALLE */}
             {/* ============================================ */}
-            {casoSeleccionado && (
-                <CasoDetallePanel
-                    caso={casoSeleccionado}
-                    onClose={handleCerrarDetalle}
-                    onGuardarYCerrar={handleGuardarYCerrar}
-                    onGuardarYSiguiente={handleGuardarYSiguiente}
-                    onCasoEliminado={() => {
-                        cargarCasos(paginaActual)
-                        cargarConteos()
-                    }}
-                    haySiguiente={indiceSeleccionado < casos.length - 1}
-                />
-            )}
-        </div>
+            {
+                casoSeleccionado && (
+                    <CasoDetallePanel
+                        caso={casoSeleccionado}
+                        onClose={handleCerrarDetalle}
+                        onGuardarYCerrar={handleGuardarYCerrar}
+                        onGuardarYSiguiente={handleGuardarYSiguiente}
+                        onCasoEliminado={() => {
+                            cargarCasos(paginaActual)
+                            cargarConteos()
+                        }}
+                        haySiguiente={indiceSeleccionado < casos.length - 1}
+                    />
+                )
+            }
+        </div >
     )
 }
 

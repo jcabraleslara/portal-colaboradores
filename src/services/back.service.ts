@@ -319,6 +319,10 @@ export const backService = {
                 query = query.eq('especialidad', filtros.especialidad)
             }
 
+            if (filtros.ruta) {
+                query = query.eq('ruta', filtros.ruta)
+            }
+
             if (filtros.fechaInicio) {
                 query = query.gte('created_at', filtros.fechaInicio)
             }
