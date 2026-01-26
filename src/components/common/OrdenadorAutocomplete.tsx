@@ -97,7 +97,6 @@ export function OrdenadorAutocomplete({
         setInputValue(option)
         onChange(option)
         setIsOpen(false)
-        inputRef.current?.blur()
     }, [onChange])
 
     const handleClear = useCallback(() => {
@@ -210,6 +209,7 @@ export function OrdenadorAutocomplete({
                     {filteredOptions.map((option, index) => (
                         <li
                             key={option}
+                            onMouseDown={(e) => e.preventDefault()}
                             onClick={() => handleSelect(option)}
                             className={`
                                 px-4 py-2.5 cursor-pointer text-sm transition-colors
