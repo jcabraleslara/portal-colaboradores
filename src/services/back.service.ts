@@ -454,19 +454,52 @@ export const backService = {
      */
     async obtenerConteosPendientes(): Promise<ApiResponse<ConteosCasosBack>> {
         try {
-            const { data, error } = await supabase.rpc('get_tablero_back_stats')
+            // 1. Obtener estadísticas base (Tipos y Especialidades) via RPC
+            const { data: baseData, error: rpcError } = await supabase.rpc('get_tablero_back_stats')
 
-            if (error) {
-                console.error('Error obteniendo conteos RPC:', error)
+            if (rpcError) {
+                console.error('Error obteniendo conteos RPC:', rpcError)
                 return {
                     success: false,
                     error: ERROR_MESSAGES.SERVER_ERROR,
                 }
             }
 
+            // 2. Obtener estadísticas de Rutas manualmente (ya que RPC quizás no lo incluye aún)
+            // Solo contamos los PENDIENTES que sean de Activación de Ruta
+            const { data: rutasData, error: rutasError } = await supabase
+                .from('back')
+                .select('ruta')
+                .eq('estado_radicado', 'Pendiente')
+                .eq('tipo_solicitud', 'Activación de Ruta')
+                .not('ruta', 'is', null)
+
+            let porRuta: { ruta: string; cantidad: number }[] = []
+
+            if (!rutasError && rutasData) {
+                const conteoRutas: Record<string, number> = {}
+                rutasData.forEach((item: any) => {
+                    if (item.ruta) {
+                        conteoRutas[item.ruta] = (conteoRutas[item.ruta] || 0) + 1
+                    }
+                })
+
+                porRuta = Object.entries(conteoRutas).map(([ruta, cantidad]) => ({
+                    ruta,
+                    cantidad
+                })).sort((a, b) => b.cantidad - a.cantidad) // Ordenar por cantidad descendente
+            }
+
+            // 3. Combinar resultados
+            const result: ConteosCasosBack = {
+                porTipoSolicitud: baseData.porTipoSolicitud || [],
+                porEspecialidad: baseData.porEspecialidad || [],
+                porRuta: porRuta
+            }
+
             return {
                 success: true,
-                data: data as ConteosCasosBack,
+                data: result,
             }
         } catch (error) {
             console.error('Error en obtenerConteosPendientes:', error)

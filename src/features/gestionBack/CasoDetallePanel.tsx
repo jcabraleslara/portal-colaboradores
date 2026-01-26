@@ -671,6 +671,21 @@ export function CasoDetallePanel({
                             </div>
                         )}
 
+                        {/* Ruta (CONDICIONAL) */}
+                        {caso.ruta && (
+                            <div className="flex items-start gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-cyan-50 flex items-center justify-center flex-shrink-0">
+                                    <Route size={18} className="text-cyan-500" />
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500">Ruta Seleccionada</p>
+                                    <p className="font-medium text-gray-800">
+                                        {caso.ruta}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Radicador (CAPITALIZED) */}
                         <div className="col-span-2 flex items-start gap-3">
                             <div className="w-9 h-9 rounded-lg bg-pink-50 flex items-center justify-center flex-shrink-0">
