@@ -313,6 +313,10 @@ export const backService = {
 
             if (filtros.tipoSolicitud) {
                 query = query.eq('tipo_solicitud', filtros.tipoSolicitud)
+            } else {
+                // Por defecto excluir 'Activación de Ruta' si no se filtra por tipo específico
+                // Ya que tiene su propio módulo
+                query = query.neq('tipo_solicitud', 'Activación de Ruta')
             }
 
             if (filtros.especialidad) {
@@ -491,11 +495,22 @@ export const backService = {
             }
 
             // 3. Combinar resultados
+            // Filtramos 'Activación de Ruta' de los conteos generales porque tiene su módulo
             const result: ConteosCasosBack = {
-                porTipoSolicitud: baseData.porTipoSolicitud || [],
+                porTipoSolicitud: (baseData.porTipoSolicitud || []).filter((t: any) => t.tipo !== 'Activación de Ruta'),
                 porEspecialidad: baseData.porEspecialidad || [],
-                porRuta: porRuta
+                porRuta: porRuta // Mantenemos porRuta por compatibilidad o lo vaciamos? El usuario dijo "ya no se necesitaría".
+                // Si filtramos arriba, esto estará vacío o irrelevante. Mejor lo dejamos vacío para no confundir.
             }
+
+            // Si el usuario quiere que NO salgan, entonces porRuta debería ser vacío o ignorado.
+            // La query manual de arriba buscaba especificamente activacion de ruta.
+            // Si ya no lo queremos, podemos simplificar.
+            // Pero para respetar el contrato de tipo, devolvemos array vacío si así se desea
+            // o dejamos la lógica existente pero el frontal no la usará si no mostramos el filtro.
+            // ACTUALIZACIÓN: El usuario dijo "no se necesitaría que salgan". 
+            // Así que forzamos vaciar o filtar.
+            result.porRuta = [] // Ya no mostramos rutas en dashboard general
 
             return {
                 success: true,

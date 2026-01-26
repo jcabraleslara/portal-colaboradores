@@ -174,9 +174,9 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         id: 'rutas',
         name: 'Gestión de Rutas',
         path: ROUTES.RUTAS,
-        icon: 'Car',
+        icon: 'Route',
         enabled: true,
-        description: 'En planeación',
+        description: 'Gestionar solicitudes de rutas',
     },
     {
         id: 'demanda-inducida',
