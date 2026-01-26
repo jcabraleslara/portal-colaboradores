@@ -154,16 +154,20 @@ export default function Anexo8Page() {
         setBuscando(false)
     }, [])
 
-    // Debounce de búsqueda
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (busqueda) {
-                buscarPacientes(busqueda)
-            }
-        }, 300)
+    // Función para ejecutar búsqueda manualmente
+    const ejecutarBusqueda = () => {
+        if (busqueda) {
+            buscarPacientes(busqueda)
+        }
+    }
 
-        return () => clearTimeout(timer)
-    }, [busqueda, buscarPacientes])
+    // Handler para tecla Enter en el input
+    const handleKeyDownBusqueda = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            ejecutarBusqueda()
+        }
+    }
 
     // Seleccionar paciente
     const seleccionarPaciente = (afiliado: Afiliado) => {
@@ -623,16 +627,28 @@ export default function Anexo8Page() {
                             {!paciente ? (
                                 <>
                                     <div className="relative">
-                                        <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-400">
-                                            <FaSearch className="text-slate-400 ml-3" />
-                                            <input
-                                                type="text"
-                                                placeholder="Buscar por documento o nombre..."
-                                                value={busqueda}
-                                                onChange={(e) => setBusqueda(e.target.value)}
-                                                className="w-full px-3 py-2.5 focus:outline-none"
-                                            />
-                                            {buscando && <LoadingSpinner size="sm" />}
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-1 flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-400">
+                                                <FaSearch className="text-slate-400 ml-3" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Buscar por documento o nombre..."
+                                                    value={busqueda}
+                                                    onChange={(e) => setBusqueda(e.target.value)}
+                                                    onKeyDown={handleKeyDownBusqueda}
+                                                    className="w-full px-3 py-2.5 focus:outline-none"
+                                                />
+                                                {buscando && <LoadingSpinner size="sm" />}
+                                            </div>
+                                            <button
+                                                onClick={ejecutarBusqueda}
+                                                disabled={buscando || busqueda.length < 3}
+                                                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                                                title="Buscar (o presione Enter)"
+                                            >
+                                                <FaSearch />
+                                                Buscar
+                                            </button>
                                         </div>
 
                                         {/* Resultados de búsqueda */}
