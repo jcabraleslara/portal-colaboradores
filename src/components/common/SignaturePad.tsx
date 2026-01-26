@@ -8,21 +8,53 @@ interface SignaturePadProps {
     className?: string
 }
 
-export function SignaturePad({ onChange, width = 500, height = 200, className = '' }: SignaturePadProps) {
+export function SignaturePad({ onChange, className = '' }: Omit<SignaturePadProps, 'width' | 'height'>) {
+    const containerRef = useRef<HTMLDivElement>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const [isDrawing, setIsDrawing] = useState(false)
     const [hasSignature, setHasSignature] = useState(false)
 
+    // Ajustar tamaño del canvas al contenedor
+    useEffect(() => {
+        const container = containerRef.current
+        const canvas = canvasRef.current
+        if (!container || !canvas) return
+
+        const resizeCanvas = () => {
+            // Guardar contenido actual si existe (opcional, pero complejo de escalar)
+            // Por simplicidad, al redimensionar se limpia, o se podría guardar y repintar.
+            // Para firmas, lo mejor es redimensionar solo al inicio o mantener ratio.
+
+            const { width, height } = container.getBoundingClientRect()
+
+            // Ajustar solo si cambiaron las dimensiones para evitar borrados innecesarios
+            if (canvas.width !== width || canvas.height !== height) {
+                canvas.width = width
+                canvas.height = height
+
+                // Re-configurar contexto tras resize
+                const ctx = canvas.getContext('2d')
+                if (ctx) {
+                    ctx.lineWidth = 2
+                    ctx.lineCap = 'round'
+                    ctx.strokeStyle = '#000000'
+                }
+            }
+        }
+
+        // Observer para cambios de tamaño
+        const resizeObserver = new ResizeObserver(() => resizeCanvas())
+        resizeObserver.observe(container)
+
+        // Primera llamada
+        resizeCanvas()
+
+        return () => resizeObserver.disconnect()
+    }, [])
+
     useEffect(() => {
         const canvas = canvasRef.current
         if (!canvas) return
-
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-            ctx.lineWidth = 2
-            ctx.lineCap = 'round'
-            ctx.strokeStyle = '#000000'
-        }
 
         // Prevent scrolling on touch devices
         const preventDefault = (e: TouchEvent) => {
@@ -31,48 +63,46 @@ export function SignaturePad({ onChange, width = 500, height = 200, className = 
             }
         }
 
-        // Add non-passive event listener for touch move to prevent scrolling
         document.body.addEventListener('touchmove', preventDefault, { passive: false })
 
-        return () => {
-            document.body.removeEventListener('touchmove', preventDefault)
-        }
+        return () => document.body.removeEventListener('touchmove', preventDefault)
     }, [])
 
-    const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    // Obtener coordenadas relativas al canvas correctamente
+    const getCoordinates = (e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
         const canvas = canvasRef.current
-        if (!canvas) return
-
-        setIsDrawing(true)
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
+        if (!canvas) return { x: 0, y: 0 }
 
         const rect = canvas.getBoundingClientRect()
         const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX
         const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY
 
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        }
+    }
+
+    const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+        setIsDrawing(true)
+        const ctx = canvasRef.current?.getContext('2d')
+        if (!ctx) return
+
+        const { x, y } = getCoordinates(e)
         ctx.beginPath()
-        ctx.moveTo(clientX - rect.left, clientY - rect.top)
+        ctx.moveTo(x, y)
     }
 
     const draw = (e: React.MouseEvent | React.TouchEvent) => {
         if (!isDrawing) return
-        const canvas = canvasRef.current
-        if (!canvas) return
-
-        const ctx = canvas.getContext('2d')
+        const ctx = canvasRef.current?.getContext('2d')
         if (!ctx) return
 
-        const rect = canvas.getBoundingClientRect()
-        const clientX = 'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX
-        const clientY = 'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY
-
-        ctx.lineTo(clientX - rect.left, clientY - rect.top)
+        const { x, y } = getCoordinates(e)
+        ctx.lineTo(x, y)
         ctx.stroke()
 
-        if (!hasSignature) {
-            setHasSignature(true)
-        }
+        if (!hasSignature) setHasSignature(true)
     }
 
     const stopDrawing = () => {
@@ -85,8 +115,6 @@ export function SignaturePad({ onChange, width = 500, height = 200, className = 
     const updateSignature = () => {
         const canvas = canvasRef.current
         if (canvas && hasSignature) {
-            // Check if canvas is empty is harder without iterating pixels, 
-            // but we trust hasSignature state set on draw
             onChange(canvas.toDataURL('image/png'))
         }
     }
@@ -103,8 +131,12 @@ export function SignaturePad({ onChange, width = 500, height = 200, className = 
     }
 
     return (
-        <div className={`flex flex-col gap-2 ${className}`}>
-            <div className="relative border-2 border-slate-300 border-dashed rounded-lg bg-white overflow-hidden touch-none hover:border-blue-400 transition-colors">
+        <div className={`flex flex-col gap-2 ${className} w-full`}>
+            {/* Contenedor con altura fija para asegurar espacio */}
+            <div
+                ref={containerRef}
+                className="relative border-2 border-slate-300 border-dashed rounded-lg bg-white overflow-hidden touch-none hover:border-blue-400 transition-colors w-full h-[200px]"
+            >
                 <div className="absolute top-2 left-2 text-slate-300 pointer-events-none select-none">
                     <FaPen className="text-xl" />
                 </div>
@@ -113,9 +145,7 @@ export function SignaturePad({ onChange, width = 500, height = 200, className = 
                 </div>
                 <canvas
                     ref={canvasRef}
-                    width={width}
-                    height={height}
-                    className="w-full h-full cursor-crosshair touch-none"
+                    className="block cursor-crosshair touch-none"
                     onMouseDown={startDrawing}
                     onMouseMove={draw}
                     onMouseUp={stopDrawing}
