@@ -175,7 +175,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         name: 'Gestión de Rutas',
         path: ROUTES.RUTAS,
         icon: 'Car',
-        enabled: false,
+        enabled: true,
         description: 'En planeación',
     },
     {

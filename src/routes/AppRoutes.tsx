@@ -50,6 +50,7 @@ const Anexo8Page = lazyWithRetry(() => import('@/features/anexo8/Anexo8Page'))
 const ConsultarCupsPage = lazyWithRetry(() => import('@/features/consultarCups/ConsultarCupsPage'))
 const SoportesFacturacionPage = lazyWithRetry(() => import('@/features/soportesFacturacion/SoportesFacturacionPage'))
 const GestionDemandaInducidaView = lazyWithRetry(() => import('@/features/demandaInducida/GestionDemandaInducidaView'))
+const RutasPage = lazyWithRetry(() => import('@/features/rutas/RutasPage'))
 
 /**
  * Componente de protección de rutas
@@ -267,7 +268,11 @@ export function AppRoutes() {
                     path={ROUTES.RUTAS}
                     element={
                         <LazyWrapper>
-                            <PlaceholderPage moduleName="Gestión de Rutas" />
+                            <RoleGuard moduleId="rutas">
+                                <LazyWrapper>
+                                    <RutasPage />
+                                </LazyWrapper>
+                            </RoleGuard>
                         </LazyWrapper>
                     }
                 />
