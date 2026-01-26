@@ -509,6 +509,70 @@ export const anexo8Service = {
             const message = err instanceof Error ? err.message : 'Error desconocido'
             return { success: false, error: message }
         }
+    },
+    /**
+     * Eliminar registro de Anexo 8
+     * Borra tanto el registro en base de datos como el archivo PDF asociado
+     */
+    async eliminarAnexo8(id: string, pdfUrl?: string): Promise<ApiResponse<void>> {
+        try {
+            // 1. Eliminar archivo de storage si existe
+            if (pdfUrl) {
+                const bucketName = 'anexo-8'
+                let pathArchivo = ''
+
+                // Lógica de extracción de path
+                if (pdfUrl.includes(bucketName)) {
+                    // Si es URL completa de Supabase
+                    try {
+                        const urlObj = new URL(pdfUrl)
+                        const partes = urlObj.pathname.split(`/${bucketName}/`)
+                        if (partes.length >= 2) {
+                            pathArchivo = decodeURIComponent(partes[1])
+                        }
+                    } catch (e) {
+                        // Fallback si falla el parseo de URL
+                        const pattern = new RegExp(`${bucketName}/(.+)`)
+                        const match = pdfUrl.match(pattern)
+                        if (match && match[1]) {
+                            pathArchivo = decodeURIComponent(match[1].split('?')[0])
+                        }
+                    }
+                } else if (!pdfUrl.startsWith('http')) {
+                    // Si ya es un path relativo
+                    pathArchivo = pdfUrl
+                }
+
+                if (pathArchivo) {
+                    console.log('🗑️ Eliminando archivo de storage:', pathArchivo)
+                    const { error: storageError } = await supabase.storage
+                        .from(bucketName)
+                        .remove([pathArchivo])
+
+                    if (storageError) {
+                        console.warn('⚠️ Error eliminando archivo de storage (continuando con BD):', storageError)
+                    }
+                }
+            }
+
+            // 2. Eliminar registro de base de datos
+            console.log('🗑️ Eliminando registro de BD:', id)
+            const { error } = await supabase
+                .from('anexo_8')
+                .delete()
+                .eq('id', id)
+
+            if (error) {
+                console.error('❌ Error eliminando registro Anexo 8:', error)
+                return { success: false, error: error.message }
+            }
+
+            return { success: true }
+
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Error desconocido'
+            return { success: false, error: message }
+        }
     }
 }
 

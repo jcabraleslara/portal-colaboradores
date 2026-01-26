@@ -519,6 +519,71 @@ export const contactosService = {
     },
 
     /**
+     * Eliminar firma del bucket y del registro de la BD
+     */
+    async eliminarFirma(contactoId: string, urlFirma: string): Promise<ApiResponse<boolean>> {
+        try {
+            // 1. Intentar eliminar el archivo del Storage
+            let pathArchivo = ''
+            try {
+                // Extraer path relativo del bucket
+                // URLs típicas: .../storage/v1/object/sign/firmas/ID/archivo.img?...
+                const urlObj = new URL(urlFirma)
+                const partes = urlObj.pathname.split('/firmas/')
+                
+                if (partes.length >= 2) {
+                    // El path es todo lo que viene después del nombre del bucket
+                    pathArchivo = decodeURIComponent(partes[1])
+                }
+            } catch (e) {
+                console.warn('No se pudo parsear la URL de la firma para borrar archivo:', e)
+            }
+
+            if (pathArchivo) {
+                const { error: storageError } = await supabase.storage
+                    .from('firmas')
+                    .remove([pathArchivo])
+
+                if (storageError) {
+                    console.error('Error eliminando archivo físico de firma:', storageError)
+                    // Continuamos para limpiar la BD de todas formas
+                }
+            }
+
+            // 2. Actualizar registro en BD
+            const { data, error } = await supabase
+                .from('contactos')
+                .update({ firma_url: null })
+                .eq('id', contactoId)
+                .select()
+                .single()
+
+            if (error) {
+                return {
+                    success: false,
+                    error: 'Error al eliminar la firma de la base de datos: ' + error.message,
+                }
+            }
+
+            // 3. Sincronizar
+            triggerSync('update', data as Contacto)
+
+            return {
+                success: true,
+                data: true,
+                message: 'Firma eliminada exitosamente',
+            }
+
+        } catch (error) {
+            console.error('Error en eliminarFirma:', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR,
+            }
+        }
+    },
+
+    /**
      * Refrescar URL firmada de un archivo
      */
     async refrescarUrl(url: string, bucket: 'hojas-vida' | 'firmas'): Promise<string> {

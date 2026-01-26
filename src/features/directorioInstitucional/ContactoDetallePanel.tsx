@@ -90,6 +90,7 @@ export function ContactoDetallePanel({
     // Estado de uploads
     const [subiendoHV, setSubiendoHV] = useState(false)
     const [subiendoFirma, setSubiendoFirma] = useState(false)
+    const [eliminandoFirma, setEliminandoFirma] = useState(false)
 
     // Modal de confirmación eliminar
     const [mostrarConfirmacionEliminar, setMostrarConfirmacionEliminar] = useState(false)
@@ -179,6 +180,22 @@ export function ContactoDetallePanel({
         // Limpiar input
         if (inputFirmaRef.current) inputFirmaRef.current.value = ''
     }, [contacto.id])
+
+    const handleEliminarFirma = useCallback(async () => {
+        if (!firmaUrl) return
+        if (!window.confirm('¿Estás seguro de que quieres eliminar la firma permanentemente? Esta acción borrará el archivo y no se puede deshacer.')) return
+
+        setEliminandoFirma(true)
+        const result = await contactosService.eliminarFirma(contacto.id, firmaUrl)
+        setEliminandoFirma(false)
+
+        if (result.success) {
+            setFirmaUrl(null)
+            if (inputFirmaRef.current) inputFirmaRef.current.value = ''
+        } else {
+            setErrorGuardado(result.error || 'Error al eliminar la firma')
+        }
+    }, [contacto.id, firmaUrl])
 
     // Cerrar con Escape
     useEffect(() => {
@@ -317,13 +334,29 @@ export function ContactoDetallePanel({
                                             className="w-full h-full object-contain"
                                         />
                                     </div>
-                                    <button
-                                        onClick={() => inputFirmaRef.current?.click()}
-                                        className="text-xs text-primary-600 hover:underline"
-                                        disabled={subiendoFirma}
-                                    >
-                                        {subiendoFirma ? 'Subiendo...' : 'Cambiar firma'}
-                                    </button>
+                                    <div className="flex items-center justify-between">
+                                        <button
+                                            onClick={() => inputFirmaRef.current?.click()}
+                                            className="text-xs text-primary-600 hover:underline"
+                                            disabled={subiendoFirma || eliminandoFirma}
+                                        >
+                                            {subiendoFirma ? 'Subiendo...' : 'Cambiar firma'}
+                                        </button>
+
+                                        <button
+                                            onClick={handleEliminarFirma}
+                                            className="text-xs text-red-500 hover:text-red-700 hover:underline flex items-center gap-1"
+                                            disabled={subiendoFirma || eliminandoFirma}
+                                            title="Eliminar firma permanentemente"
+                                        >
+                                            {eliminandoFirma ? (
+                                                <span className="animate-spin">⌛</span>
+                                            ) : (
+                                                <Trash2 size={12} />
+                                            )}
+                                            Eliminar
+                                        </button>
+                                    </div>
                                 </div>
                             ) : (
                                 <Button

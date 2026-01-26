@@ -3,9 +3,11 @@ import {
     Search,
     Loader2,
     Calendar,
-    Download
+    Download,
+    Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useAuth } from '@/context/AuthContext'
 import { Card, Button, Input } from '@/components/common'
 import { anexo8Service } from '@/services/anexo8.service'
 import { Anexo8Record, Anexo8Filtros } from '@/types/anexo8.types'
@@ -127,6 +129,29 @@ export function Anexo8HistoryTab() {
             toast.error('Error al descargar el PDF')
         } finally {
             setDescargandoId(null)
+        }
+    }
+
+    const { user } = useAuth()
+
+    const handleEliminar = async (registro: Anexo8Record) => {
+        if (!window.confirm('¿Está seguro de eliminar este registro? Esta acción no se puede deshacer.')) {
+            return
+        }
+
+        try {
+            toast.info('Eliminando registro...')
+            const result = await anexo8Service.eliminarAnexo8(registro.id, registro.pdf_url || undefined)
+
+            if (result.success) {
+                toast.success('Registro eliminado correctamente')
+                cargarDatos()
+            } else {
+                toast.error(`Error: ${result.error}`)
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error('Error al eliminar el registro')
         }
     }
 
@@ -289,22 +314,40 @@ export function Anexo8HistoryTab() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    handleDescargarPdf(registro)
-                                                }}
-                                                disabled={descargandoId === registro.id}
-                                                className="text-blue-600 hover:text-blue-900"
-                                            >
-                                                {descargandoId === registro.id ? (
-                                                    <Loader2 className="animate-spin" size={16} />
-                                                ) : (
-                                                    <Download size={16} />
+                                            <div className="flex justify-end gap-2">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleDescargarPdf(registro)
+                                                    }}
+                                                    disabled={descargandoId === registro.id}
+                                                    className="text-blue-600 hover:text-blue-900"
+                                                    title="Descargar PDF"
+                                                >
+                                                    {descargandoId === registro.id ? (
+                                                        <Loader2 className="animate-spin" size={16} />
+                                                    ) : (
+                                                        <Download size={16} />
+                                                    )}
+                                                </Button>
+
+                                                {(user?.rol === 'superadmin' || user?.rol === 'auditor') && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleEliminar(registro)
+                                                        }}
+                                                        className="text-red-600 hover:text-red-900"
+                                                        title="Eliminar registro"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </Button>
                                                 )}
-                                            </Button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
