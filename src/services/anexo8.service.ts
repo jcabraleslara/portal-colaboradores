@@ -372,6 +372,44 @@ export const anexo8Service = {
     },
 
     /**
+     * Subir imagen de firma (desde DataURL/Base64)
+     */
+    async subirFirma(
+        dataUrl: string,
+        nombreArchivo: string
+    ): Promise<ApiResponse<string>> {
+        try {
+            // Convertir DataURL a Blob
+            const res = await fetch(dataUrl)
+            const blob = await res.blob()
+
+            const path = `firmas/${nombreArchivo}`
+
+            const { data, error } = await supabase.storage
+                .from('anexo-8')
+                .upload(path, blob, {
+                    contentType: 'image/png',
+                    upsert: true
+                })
+
+            if (error) {
+                console.error('Error subiendo firma:', error)
+                return { success: false, error: error.message }
+            }
+
+            // Obtener URL pública
+            const { data: urlData } = supabase.storage
+                .from('anexo-8')
+                .getPublicUrl(data.path)
+
+            return { success: true, data: urlData.publicUrl }
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Error desconocido'
+            return { success: false, error: message }
+        }
+    },
+
+    /**
      * Obtener datos del médico desde usuarios_portal + contactos
      */
     async obtenerDatosMedico(usuarioId: string): Promise<ApiResponse<MedicoData>> {

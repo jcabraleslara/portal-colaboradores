@@ -27,7 +27,7 @@ import {
     FormaFarmaceutica,
     Regimen
 } from '@/types'
-import { LoadingSpinner, Alert, Autocomplete } from '@/components/common'
+import { LoadingSpinner, Alert, Autocomplete, SignaturePad } from '@/components/common'
 import {
     FaFilePdf,
     FaSearch,
@@ -67,6 +67,7 @@ export default function Anexo8Page() {
     const [medicos, setMedicos] = useState<MedicoData[]>([])
     const [medicoSeleccionado, setMedicoSeleccionado] = useState<MedicoData | null>(null)
     const [busquedaMedico, setBusquedaMedico] = useState('')
+    const [firmaCapturada, setFirmaCapturada] = useState<string | null>(null)
 
     // Formulario
     const [formData, setFormData] = useState<Anexo8FormData>({
@@ -268,6 +269,8 @@ export default function Anexo8Page() {
         if (resultado.success && resultado.data) {
             setMedicoSeleccionado(resultado.data)
             setFormData(prev => ({ ...prev, medicoId }))
+            // Limpiar firma capturada al cambiar de médico para revaluar si necesita firma (aunque la firma capturada es temporal por formulario)
+            setFirmaCapturada(null)
         }
     }
 
@@ -294,7 +297,8 @@ export default function Anexo8Page() {
         formData.formaFarmaceutica !== '' &&
         formData.cantidadNumero !== '' &&
         formData.diagnosticoCie10 !== '' &&
-        medicoSeleccionado !== null
+        medicoSeleccionado !== null &&
+        (medicoSeleccionado?.firmaUrl || firmaCapturada) // Validar que tenga firma o se haya capturado
     )
 
     // Generar Anexo 8
@@ -364,6 +368,23 @@ export default function Anexo8Page() {
 
                 fecha_prescripcion: formData.fechaPrescripcion,
                 generado_por: user?.nombreCompleto || 'Sistema'
+            }
+
+            // Si se capturó firma nueva, subirla primero
+            if (!datosBase.medico_firma_url && firmaCapturada) {
+                const timestamp = Date.now()
+                const nombreFirma = `firma_${datosBase.medico_documento}_${timestamp}.png`
+
+                const resultadoFirma = await anexo8Service.subirFirma(firmaCapturada, nombreFirma)
+
+                if (resultadoFirma.success && resultadoFirma.data) {
+                    datosBase.medico_firma_url = resultadoFirma.data
+                } else {
+                    console.error('Error subiendo firma:', resultadoFirma.error)
+                    // No bloquear el proceso, pero advertir? O fallar? 
+                    // Mejor fallar si la firma es requerida
+                    throw new Error('No se pudo guardar la firma digital: ' + resultadoFirma.error)
+                }
             }
 
             // Crear registros (1 o múltiples si hay posfechado)
@@ -438,6 +459,8 @@ export default function Anexo8Page() {
             fechaPrescripcion: new Date().toISOString().split('T')[0],
             mesesFormula: 1
         })
+
+        setFirmaCapturada(null)
 
         setGeneradoExito(false)
         setError(null)
@@ -917,6 +940,25 @@ export default function Anexo8Page() {
                                         </div>
                                     )}
                                 </>
+                            )}
+                            {/* Panel de Firma si no tiene cargada */}
+                            {medicoSeleccionado && !medicoSeleccionado.firmaUrl && (
+                                <div className="mt-4 border-t border-slate-100 pt-3">
+                                    <p className="text-sm font-medium text-amber-600 mb-2">
+                                        ⚠️ Este profesional no tiene firma cargada.
+                                        <br />
+                                        <span className="text-slate-500 font-normal">Por favor firme a continuación:</span>
+                                    </p>
+                                    <SignaturePad
+                                        onChange={setFirmaCapturada}
+                                    />
+                                </div>
+                            )}
+
+                            {medicoSeleccionado && medicoSeleccionado.firmaUrl && (
+                                <div className="mt-3 flex items-center gap-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded w-fit">
+                                    <FaCheck /> Firma digital disponible
+                                </div>
                             )}
                         </div>
 

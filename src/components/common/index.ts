@@ -14,3 +14,5 @@ export { Alert } from './Alert'
 export { MarkdownRenderer } from './MarkdownRenderer'
 export { PdfViewerModal } from './PdfViewerModal'
 export { EditablePhone } from './EditablePhone'
+export { SignaturePad } from './SignaturePad'
+
