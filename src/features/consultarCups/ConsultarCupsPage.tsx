@@ -375,7 +375,20 @@ export function ConsultarCupsPage() {
                                                     onChange={(e) => handleInputChange('contratos', e.target.value)}
                                                 />
                                             ) : (
-                                                <p className="text-gray-700">{cupsSeleccionado.contratos || '—'}</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {cupsSeleccionado.contratos ? (
+                                                        cupsSeleccionado.contratos.split(',').map((contrato, index) => (
+                                                            <span
+                                                                key={index}
+                                                                className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-100 shadow-sm hover:bg-indigo-100 transition-colors cursor-default"
+                                                            >
+                                                                {contrato.trim()}
+                                                            </span>
+                                                        ))
+                                                    ) : (
+                                                        <p className="text-gray-500 italic">Sin contratos asignados</p>
+                                                    )}
+                                                </div>
                                             )}
                                         </FieldGroup>
 
