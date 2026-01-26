@@ -34,4 +34,5 @@ scripts/get-onedrive-folder-id.js
 
 .vercel
 temp/
+.temp/
 
