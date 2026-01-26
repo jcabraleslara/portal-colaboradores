@@ -44,6 +44,9 @@ const CATEGORY_STYLES: Record<string, { bg: string, border: string, title: strin
     }
 }
 
+// Orden de las categorías
+const CATEGORY_ORDER = ['Crónicas', 'Oncología', 'Maternidad', 'Otros']
+
 export function RutaSelectionGrid({ esExterno, rutaSeleccionada, onSeleccionarRuta }: RutaSelectionGridProps) {
     // Filtrar rutas según rol
     const rutasVisibles = useMemo(() => obtenerRutasVisibles(esExterno), [esExterno])
@@ -60,9 +63,18 @@ export function RutaSelectionGrid({ esExterno, rutaSeleccionada, onSeleccionarRu
         return categorias
     }, [rutasVisibles])
 
+    // Obtener las categorías que tienen items, ordenadas
+    const sortedCategories = useMemo(() => {
+        const availableCategories = Object.keys(rutasPorCategoria)
+        return CATEGORY_ORDER.filter(cat => availableCategories.includes(cat))
+            // Agregar cualquier categoría extra que no esté en el orden definido (por si acaso)
+            .concat(availableCategories.filter(cat => !CATEGORY_ORDER.includes(cat)))
+    }, [rutasPorCategoria])
+
     return (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-            {Object.entries(rutasPorCategoria).map(([categoria, configs]) => {
+            {sortedCategories.map((categoria) => {
+                const configs = rutasPorCategoria[categoria]
                 const style = CATEGORY_STYLES[categoria] || {
                     bg: 'bg-gray-50',
                     border: 'border-gray-100',
