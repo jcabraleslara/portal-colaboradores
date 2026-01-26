@@ -168,6 +168,13 @@ export function RadicacionCasosPage() {
         }
     }, [afiliado?.id])
 
+    // Forzar tipo de solicitud para usuarios externos
+    useEffect(() => {
+        if (esExterno) {
+            setTipoSolicitud('Activación de Ruta')
+        }
+    }, [esExterno])
+
     // ============================================
     // HANDLERS - PASO 1
     // ============================================
@@ -277,7 +284,7 @@ export function RadicacionCasosPage() {
     // ============================================
 
     const resetFormulario = () => {
-        setTipoSolicitud('Auditoría Médica')
+        setTipoSolicitud(esExterno ? 'Activación de Ruta' : 'Auditoría Médica')
         setEspecialidad('Medicina Interna')
         setRuta(null)
         setOrdenador('')
@@ -827,57 +834,59 @@ export function RadicacionCasosPage() {
                         <Card.Body>
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 {/* Selector Visual Premium de Tipo de Solicitud */}
-                                <div className="space-y-4">
-                                    <label className="block text-sm font-semibold text-gray-700">
-                                        Tipo de Solicitud <span className="text-rose-500">*</span>
-                                    </label>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {[
-                                            { id: 'Auditoría Médica', icon: Stethoscope, color: 'blue', desc: 'Evaluación técnica de pertinencia médica' },
-                                            { id: 'Solicitud de Historia Clínica', icon: BookOpen, color: 'emerald', desc: 'Copia o resumen de registro clínico' },
-                                            { id: 'Ajuste de Ordenamiento', icon: FileEdit, color: 'amber', desc: 'Corrección o cambio en órdenes médicas' },
-                                            { id: 'Renovación de prequirúrgicos', icon: Activity, color: 'rose', desc: 'Actualización de exámenes para cirugía' },
-                                            { id: 'Gestión de Mipres', icon: Zap, color: 'purple', desc: 'Trámite de tecnologías no PBS' },
-                                            { id: 'Activación de Ruta', icon: Route, color: 'cyan', desc: 'Ingreso a rutas integrales de atención' },
-                                        ].map((opcion) => (
-                                            <button
-                                                key={opcion.id}
-                                                type="button"
-                                                onClick={() => setTipoSolicitud(opcion.id as any)}
-                                                className={`
+                                {!esExterno && (
+                                    <div className="space-y-4">
+                                        <label className="block text-sm font-semibold text-gray-700">
+                                            Tipo de Solicitud <span className="text-rose-500">*</span>
+                                        </label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {[
+                                                { id: 'Auditoría Médica', icon: Stethoscope, color: 'blue', desc: 'Evaluación técnica de pertinencia médica' },
+                                                { id: 'Solicitud de Historia Clínica', icon: BookOpen, color: 'emerald', desc: 'Copia o resumen de registro clínico' },
+                                                { id: 'Ajuste de Ordenamiento', icon: FileEdit, color: 'amber', desc: 'Corrección o cambio en órdenes médicas' },
+                                                { id: 'Renovación de prequirúrgicos', icon: Activity, color: 'rose', desc: 'Actualización de exámenes para cirugía' },
+                                                { id: 'Gestión de Mipres', icon: Zap, color: 'purple', desc: 'Trámite de tecnologías no PBS' },
+                                                { id: 'Activación de Ruta', icon: Route, color: 'cyan', desc: 'Ingreso a rutas integrales de atención' },
+                                            ].map((opcion) => (
+                                                <button
+                                                    key={opcion.id}
+                                                    type="button"
+                                                    onClick={() => setTipoSolicitud(opcion.id as any)}
+                                                    className={`
                                                     relative group flex flex-row items-center p-4 rounded-xl border-2 transition-all duration-300 text-left gap-4
                                                     ${tipoSolicitud === opcion.id
-                                                        ? `border-red-500 bg-red-50 shadow-md translate-y-[-2px]`
-                                                        : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm hover:translate-y-[-1px]'
-                                                    }
+                                                            ? `border-red-500 bg-red-50 shadow-md translate-y-[-2px]`
+                                                            : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm hover:translate-y-[-1px]'
+                                                        }
                                                 `}
-                                            >
-                                                <div className={`
+                                                >
+                                                    <div className={`
                                                     w-10 h-10 rounded-lg flex items-center justify-center transition-colors flex-shrink-0
                                                     ${tipoSolicitud === opcion.id
-                                                        ? 'bg-red-500 text-white'
-                                                        : 'bg-gray-50 text-gray-500 group-hover:bg-gray-100'
-                                                    }
+                                                            ? 'bg-red-500 text-white'
+                                                            : 'bg-gray-50 text-gray-500 group-hover:bg-gray-100'
+                                                        }
                                                 `}>
-                                                    <opcion.icon size={20} />
-                                                </div>
-                                                <div className="flex-1">
-                                                    <h3 className={`font-bold text-sm mb-0.5 ${tipoSolicitud === opcion.id ? 'text-red-600' : 'text-gray-700'}`}>
-                                                        {opcion.id}
-                                                    </h3>
-                                                    <p className="text-xs text-gray-500 leading-tight">
-                                                        {opcion.desc}
-                                                    </p>
-                                                </div>
-                                                {tipoSolicitud === opcion.id && (
-                                                    <div className="absolute top-2 right-2 text-red-500">
-                                                        <CheckCircle size={16} fill="currentColor" className="text-white" />
+                                                        <opcion.icon size={20} />
                                                     </div>
-                                                )}
-                                            </button>
-                                        ))}
+                                                    <div className="flex-1">
+                                                        <h3 className={`font-bold text-sm mb-0.5 ${tipoSolicitud === opcion.id ? 'text-red-600' : 'text-gray-700'}`}>
+                                                            {opcion.id}
+                                                        </h3>
+                                                        <p className="text-xs text-gray-500 leading-tight">
+                                                            {opcion.desc}
+                                                        </p>
+                                                    </div>
+                                                    {tipoSolicitud === opcion.id && (
+                                                        <div className="absolute top-2 right-2 text-red-500">
+                                                            <CheckCircle size={16} fill="currentColor" className="text-white" />
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
                                 <div className="grid md:grid-cols-2 gap-6">
                                     {/* Especialidad (solo para Auditoría Médica) */}
