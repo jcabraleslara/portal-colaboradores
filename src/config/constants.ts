@@ -177,7 +177,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'Route',
         enabled: true,
         description: 'Gestionar solicitudes de rutas',
-        requiredRoles: ['superadmin', 'gerencia', 'auditor', 'operativo', 'administrador', 'admin', 'asistencial'],
+        requiredRoles: ['superadmin', 'auditor', 'administrador', 'admin'],
     },
     {
         id: 'demanda-inducida',
