@@ -5,20 +5,25 @@
 
 import { useState, useCallback, useEffect } from 'react'
 import { Search, User, MapPin, Phone, Mail, Calendar, Building, FileText, Eraser } from 'lucide-react'
-import { Card, Button, Input, LoadingOverlay, EditablePhone } from '@/components/common'
+import { Card, Button, Input, LoadingOverlay, EditablePhone, EditableField } from '@/components/common'
 import { afiliadosService } from '@/services/afiliados.service'
 import { Afiliado, LoadingState } from '@/types'
 import { UI } from '@/config/constants'
 
 import { useNavigate } from 'react-router-dom'
 import { ROUTES } from '@/config/constants'
+import { useAuth } from '@/context/AuthContext'
 
 export function ValidacionDerechosPage() {
     const navigate = useNavigate()
+    const { user } = useAuth()
     const [documento, setDocumento] = useState('')
     const [afiliado, setAfiliado] = useState<Afiliado | null>(null)
     const [loadingState, setLoadingState] = useState<LoadingState>('idle')
     const [error, setError] = useState('')
+
+    // Verificar si el usuario puede editar (superadmin o admin)
+    const canEdit = user?.rol === 'superadmin' || user?.rol === 'admin'
 
     // Estados para búsqueda por nombre
     const [suggestions, setSuggestions] = useState<Afiliado[]>([])
@@ -142,6 +147,55 @@ export function ValidacionDerechosPage() {
         if (afiliado) {
             setAfiliado({ ...afiliado, telefono: newPhone })
         }
+    }
+
+    // Handlers para actualizar otros campos
+    const handleEmailUpdate = async (newEmail: string): Promise<boolean> => {
+        if (!afiliado?.tipoId || !afiliado?.id) return false
+
+        const result = await afiliadosService.actualizarEmail(
+            afiliado.tipoId,
+            afiliado.id,
+            newEmail
+        )
+
+        if (result.success) {
+            setAfiliado({ ...afiliado, email: newEmail })
+            return true
+        }
+        return false
+    }
+
+    const handleDireccionUpdate = async (newDireccion: string): Promise<boolean> => {
+        if (!afiliado?.tipoId || !afiliado?.id) return false
+
+        const result = await afiliadosService.actualizarDireccion(
+            afiliado.tipoId,
+            afiliado.id,
+            newDireccion
+        )
+
+        if (result.success) {
+            setAfiliado({ ...afiliado, direccion: newDireccion })
+            return true
+        }
+        return false
+    }
+
+    const handleObservacionesUpdate = async (newObservaciones: string): Promise<boolean> => {
+        if (!afiliado?.tipoId || !afiliado?.id) return false
+
+        const result = await afiliadosService.actualizarObservaciones(
+            afiliado.tipoId,
+            afiliado.id,
+            newObservaciones
+        )
+
+        if (result.success) {
+            setAfiliado({ ...afiliado, observaciones: newObservaciones })
+            return true
+        }
+        return false
     }
 
     // Cerrar sugerencias al hacer clic fuera
@@ -351,7 +405,14 @@ export function ValidacionDerechosPage() {
                                 <DataGrid>
                                     <DataItem
                                         label="Dirección"
-                                        value={afiliado.direccion}
+                                        value={
+                                            <EditableField
+                                                value={afiliado.direccion}
+                                                onUpdate={handleDireccionUpdate}
+                                                placeholder="Sin dirección"
+                                                disabled={!canEdit}
+                                            />
+                                        }
                                         icon={<MapPin size={14} />}
                                         fullWidth
                                     />
@@ -369,7 +430,16 @@ export function ValidacionDerechosPage() {
                                     />
                                     <DataItem
                                         label="Email"
-                                        value={renderEmail(afiliado.email)}
+                                        value={
+                                            <EditableField
+                                                value={afiliado.email}
+                                                onUpdate={handleEmailUpdate}
+                                                placeholder="Sin email"
+                                                type="email"
+                                                disabled={!canEdit}
+                                                displayFormatter={(value) => renderEmail(value)}
+                                            />
+                                        }
                                         icon={<Mail size={14} />}
                                         fullWidth
                                     />
@@ -388,9 +458,19 @@ export function ValidacionDerechosPage() {
                                 </div>
                             </Card.Header>
                             <Card.Body>
-                                <p className="text-[var(--color-text-secondary)] whitespace-pre-wrap">
-                                    {afiliado.observaciones || 'Sin observaciones'}
-                                </p>
+                                {canEdit ? (
+                                    <EditableField
+                                        value={afiliado.observaciones}
+                                        onUpdate={handleObservacionesUpdate}
+                                        placeholder="Sin observaciones"
+                                        disabled={false}
+                                        className="text-[var(--color-text-secondary)] whitespace-pre-wrap"
+                                    />
+                                ) : (
+                                    <p className="text-[var(--color-text-secondary)] whitespace-pre-wrap">
+                                        {afiliado.observaciones || 'Sin observaciones'}
+                                    </p>
+                                )}
                             </Card.Body>
                         </Card>
                     </div>

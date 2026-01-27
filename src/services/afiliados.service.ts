@@ -192,6 +192,102 @@ export const afiliadosService = {
             }
         }
     },
+
+    /**
+     * Actualizar email del afiliado
+     */
+    async actualizarEmail(tipoId: string, id: string, nuevoEmail: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ email: nuevoEmail })
+                .eq('tipo_id', tipoId)
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando email', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarEmail', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
+
+    /**
+     * Actualizar dirección del afiliado
+     */
+    async actualizarDireccion(tipoId: string, id: string, nuevaDireccion: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ direccion: nuevaDireccion })
+                .eq('tipo_id', tipoId)
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando dirección', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarDireccion', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
+
+    /**
+     * Actualizar observaciones del afiliado
+     */
+    async actualizarObservaciones(tipoId: string, id: string, nuevasObservaciones: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ observaciones: nuevasObservaciones })
+                .eq('tipo_id', tipoId)
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando observaciones', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarObservaciones', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
 }
 
 export default afiliadosService
