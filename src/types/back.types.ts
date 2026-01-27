@@ -60,6 +60,7 @@ export type RutaBack =
     | 'Costaneros'
     | 'CIDH/PAPSIVI'
     | 'Autoinmune'
+    | 'Terapias Integrales'
 
 // Radicación transformada (camelCase) para el frontend
 export interface BackRadicacion {
@@ -678,6 +679,15 @@ export const RUTAS_CONFIG: RutaConfig[] = [
         icono: 'Flame',
         categoria: 'Otros'
     },
+    {
+        ruta: 'Terapias Integrales',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'Terapias Integrales',
+        labelInterno: 'Terapias Integrales',
+        icono: 'Accessibility',
+        categoria: 'Otros'
+    },
 ]
 
 /**
@@ -720,5 +730,6 @@ export const RUTA_COLORES: Record<string, { bg: string; text: string; border: st
     'Costaneros': { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200' },
     'CIDH/PAPSIVI': { bg: 'bg-lime-50', text: 'text-lime-700', border: 'border-lime-200' },
     'Autoinmune': { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200' },
+    'Terapias Integrales': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
 }
 
