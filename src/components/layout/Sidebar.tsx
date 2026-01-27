@@ -85,41 +85,43 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           fixed top-16 left-0 z-50 h-[calc(100vh-4rem)] w-72 
           bg-white/95 backdrop-blur-xl border-r border-slate-200/50
           transition-transform duration-300 ease-out
-          lg:translate-x-0 lg:z-30
+          lg:translate-x-0 lg:z-30 flex flex-col
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
             >
                 {/* Botón cerrar (mobile) */}
                 <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 p-2 rounded-xl hover:bg-slate-100 transition-colors lg:hidden"
+                    className="absolute top-4 right-4 p-2 rounded-xl hover:bg-slate-100 transition-colors lg:hidden z-10"
                     aria-label="Cerrar menú"
                 >
                     <X size={20} className="text-slate-400" />
                 </button>
 
-                {/* Navegación */}
-                <nav className="p-5 pt-8 lg:pt-5 space-y-2" role="navigation">
-                    <p className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <Sparkles size={14} className="text-primary-500" />
-                        Módulos
-                    </p>
+                {/* Navegación Scrollable */}
+                <div className="flex-1 overflow-y-auto py-5 lg:pt-5 custom-scrollbar">
+                    <nav className="px-5 space-y-2" role="navigation">
+                        <p className="px-3 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                            <Sparkles size={14} className="text-primary-500" />
+                            Módulos
+                        </p>
 
-                    <div className="space-y-1">
-                        {visibleModules.map((module, index) => (
-                            <SidebarItem
-                                key={module.id}
-                                module={module}
-                                onNavigate={onClose}
-                                index={index}
-                            />
-                        ))}
-                    </div>
-                </nav>
+                        <div className="space-y-1">
+                            {visibleModules.map((module, index) => (
+                                <SidebarItem
+                                    key={module.id}
+                                    module={module}
+                                    onNavigate={onClose}
+                                    index={index}
+                                />
+                            ))}
+                        </div>
+                    </nav>
+                </div>
 
-                {/* Footer del sidebar */}
-                <div className="absolute bottom-4 left-4 right-4">
-                    <div className="p-4 bg-gradient-to-br from-primary-50 to-primary-100/50 rounded-2xl border border-primary-100">
+                {/* Footer del sidebar (Fijo al fondo) */}
+                <div className="p-4 bg-white/50 backdrop-blur-sm border-t border-slate-100">
+                    <div className="p-4 bg-gradient-to-br from-primary-50 to-primary-100/50 rounded-2xl border border-primary-100 shadow-sm">
                         <p className="text-[9px] text-primary-400 font-medium mb-1">
                             Creado con 💖 por Jh Cabrales
                         </p>
