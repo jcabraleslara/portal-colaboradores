@@ -242,7 +242,7 @@ export default function AdminUsuariosPage() {
             </div>
 
             {/* Role Cards - Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
                 <div
                     onClick={() => setFilterRol('all')}
                     className={`cursor-pointer rounded-xl p-4 transition-all duration-200 border ${filterRol === 'all'
