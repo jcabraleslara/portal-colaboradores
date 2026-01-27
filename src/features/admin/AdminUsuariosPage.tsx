@@ -41,6 +41,7 @@ export default function AdminUsuariosPage() {
     const [page, setPage] = useState(1)
     const [pageSize] = useState(10)
     const [totalRecords, setTotalRecords] = useState(0)
+    const [roleStats, setRoleStats] = useState<Record<string, number>>({})
 
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [showImportModal, setShowImportModal] = useState(false)
@@ -86,12 +87,16 @@ export default function AdminUsuariosPage() {
         setIsLoading(false)
     }, [page, pageSize, debouncedSearch, filterRol, filterActivo])
 
+    // Cargar estadísticas de roles
+    const loadRoleStats = useCallback(async () => {
+        const { stats } = await usuariosPortalService.getRoleStats()
+        setRoleStats(stats)
+    }, [])
+
     useEffect(() => {
         loadUsuarios()
-    }, [loadUsuarios])
-
-    // Filtrar usuarios
-    // Filtros client-side eliminados en favor de server-side
+        loadRoleStats()
+    }, [loadUsuarios, loadRoleStats])
 
     // Verificar acceso (rol como string para compatibilidad)
     if ((user?.rol as string) !== 'superadmin') {
@@ -121,7 +126,7 @@ export default function AdminUsuariosPage() {
     }
 
     // Cambiar rol
-    const handleChangeRole = async (usuario: UsuarioPortal, newRol: 'operativo' | 'admin' | 'superadmin') => {
+    const handleChangeRole = async (usuario: UsuarioPortal, newRol: 'operativo' | 'admin' | 'superadmin' | 'gerencia' | 'auditor' | 'asistencial' | 'externo') => {
         if (newRol === usuario.rol) return
         setActionLoading(usuario.id)
         const { success, error: err } = await usuariosPortalService.changeRole(usuario.id, newRol)
@@ -129,6 +134,7 @@ export default function AdminUsuariosPage() {
             setUsuarios(prev => prev.map(u =>
                 u.id === usuario.id ? { ...u, rol: newRol } : u
             ))
+            loadRoleStats() // Recargar estadísticas si cambia el rol
         } else {
             toast.error(`Error: ${err}`)
         }
@@ -144,6 +150,7 @@ export default function AdminUsuariosPage() {
         const { success, error: err } = await usuariosPortalService.delete(usuario.id)
         if (success) {
             setUsuarios(prev => prev.filter(u => u.id !== usuario.id))
+            loadRoleStats() // Recargar estadísticas
         } else {
             toast.error(`Error: ${err}`)
         }
@@ -153,6 +160,7 @@ export default function AdminUsuariosPage() {
     // Usuario creado exitosamente
     const handleUserCreated = () => {
         loadUsuarios() // Recargar lista completa
+        loadRoleStats() // Recargar estadísticas
         setShowCreateModal(false)
     }
 
@@ -233,14 +241,55 @@ export default function AdminUsuariosPage() {
                 </div>
             </div>
 
-            {/* Estadísticas */}
-            {/* Estadísticas Simplificadas para Paginación */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="bg-white rounded-xl shadow-md p-4 flex items-center justify-between">
-                    <div>
-                        <div className="text-3xl font-bold text-indigo-600">{totalRecords}</div>
-                        <div className="text-sm text-gray-500">Resultados Encontrados</div>
+            {/* Role Cards - Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
+                <div
+                    onClick={() => setFilterRol('all')}
+                    className={`cursor-pointer rounded-xl p-4 transition-all duration-200 border ${filterRol === 'all'
+                        ? 'bg-gradient-to-br from-gray-800 to-gray-900 text-white shadow-lg scale-105 border-transparent'
+                        : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-100 hover:shadow-md'
+                        }`}
+                >
+                    <div className="flex flex-col items-center justify-center gap-1">
+                        <Users className={`w-6 h-6 ${filterRol === 'all' ? 'text-gray-300' : 'text-gray-400'}`} />
+                        <span className="text-2xl font-bold">{Object.values(roleStats).reduce((a, b) => a + b, 0)}</span>
+                        <span className="text-xs font-medium uppercase tracking-wider">Total</span>
                     </div>
+                </div>
+
+                {Object.entries(roleStats)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([rol, count]) => {
+                        const info = ROL_LABELS[rol] || { label: rol, color: 'bg-gray-100 text-gray-800', icon: Shield }
+                        const isActive = filterRol === rol
+                        const Icon = info.icon
+
+                        return (
+                            <div
+                                key={rol}
+                                onClick={() => setFilterRol(rol)}
+                                className={`cursor-pointer rounded-xl p-3 transition-all duration-200 border flex flex-col items-center justify-center gap-2 ${isActive
+                                    ? `bg-white ring-2 ring-indigo-500 shadow-lg scale-105 border-transparent`
+                                    : 'bg-white hover:bg-gray-50 border-gray-100 hover:shadow-md'
+                                    }`}
+                            >
+                                <div className={`p-2 rounded-full ${info.color.replace('text-', 'bg-opacity-20 text-')}`}>
+                                    <Icon className="w-5 h-5" />
+                                </div>
+                                <div className="text-center">
+                                    <span className="block text-xl font-bold text-gray-800">{count}</span>
+                                    <span className="text-xs font-medium text-gray-500 uppercase">{info.label}</span>
+                                </div>
+                            </div>
+                        )
+                    })}
+            </div>
+
+            {/* Estadísticas (Resultados filtrados) */}
+            <div className="mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold text-gray-800">{totalRecords}</span>
+                    <span className="text-sm text-gray-500">usuarios encontrados</span>
                 </div>
             </div>
 
@@ -377,7 +426,6 @@ export default function AdminUsuariosPage() {
                                         <ChevronLeft className="h-5 w-5" aria-hidden="true" />
                                     </button>
 
-                                    {/* Select de páginas si hay muchas, o simple contador */}
                                     <div className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
                                         Pág {page} de {Math.ceil(totalRecords / pageSize)}
                                     </div>
@@ -414,12 +462,6 @@ export default function AdminUsuariosPage() {
                         onClose={() => setShowImportModal(false)}
                         onCreated={() => {
                             loadUsuarios()
-                            // setShowImportModal(false) // El modal ya lo maneja internamente si es necesario, pero aquí lo forzamos por si acaso o dejamos que el modal llame a onClose
-                            // En la implementación de ImportUserModal, onCreated solo notifica. Deberíamos cerrar o no?
-                            // Revisando ImportUserModal: "if (results.success > 0) { onCreated() }"
-                            // Asi que mejor no cerrarlo inmediatamente para que el usuario vea el resumen, 
-                            // pero espera, si onCreated se llama, es porque hubo éxito.
-                            // Dejaré que el usuario lo cierre manualmente viendo el resumen.
                         }}
                     />
                 )

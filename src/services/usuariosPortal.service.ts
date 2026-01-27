@@ -238,6 +238,34 @@ export const usuariosPortalService = {
         } catch (err: any) {
             return { success: false, error: err.message }
         }
+    },
+
+    /**
+     * Obtener estadísticas de roles
+     */
+    async getRoleStats(): Promise<{ stats: Record<string, number>; total: number; error: string | null }> {
+        try {
+            const { data, error } = await supabase
+                .from('usuarios_portal')
+                .select('rol')
+
+            if (error) {
+                return { stats: {}, total: 0, error: error.message }
+            }
+
+            const stats: Record<string, number> = {}
+            let total = 0
+
+            data?.forEach((user) => {
+                const rol = user.rol || 'unknown'
+                stats[rol] = (stats[rol] || 0) + 1
+                total++
+            })
+
+            return { stats, total, error: null }
+        } catch (err: any) {
+            return { stats: {}, total: 0, error: err.message }
+        }
     }
 }
 
