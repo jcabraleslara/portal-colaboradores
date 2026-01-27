@@ -180,6 +180,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     }, [])
 
+const RPC_TIMEOUT_MS = 5000 // 5 segundos max para RPC
+
     /**
      * FALLBACK 1: Obtener perfil usando RPC (más rápida, bypassea RLS)
      */
@@ -187,8 +189,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         try {
             const startTime = performance.now()
 
-            const { data, error } = await supabase
+            // Promise Race: RPC vs Timeout
+            const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('TIMEOUT_RPC')), RPC_TIMEOUT_MS)
+            )
+
+            const rpcPromise = supabase
                 .rpc('get_user_profile_by_email', { user_email: email })
+
+            // @ts-ignore
+            const { data, error } = await Promise.race([rpcPromise, timeoutPromise])
 
             const duration = performance.now() - startTime
             measurePerformance('RPC get_user_profile_by_email', duration)
@@ -203,7 +213,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             return transformToAuthUser(userData, email)
         } catch (error: any) {
-            console.warn('⚠️ Excepción en RPC:', error.message)
+            if (error.message === 'TIMEOUT_RPC') {
+                console.warn(`🐢 RPC Timeout tras ${RPC_TIMEOUT_MS}ms - Saltando a Query Directa...`)
+            } else {
+                console.warn('⚠️ Excepción en RPC:', error.message)
+            }
             return null
         }
     }, [transformToAuthUser, measurePerformance])
