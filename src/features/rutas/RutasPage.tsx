@@ -146,6 +146,22 @@ export default function RutasPage() {
         }
     }
 
+    const handleNavegarAnterior = () => {
+        const nuevoIndice = indiceSeleccionado - 1
+        if (nuevoIndice >= 0) {
+            setCasoSeleccionado(casos[nuevoIndice])
+            setIndiceSeleccionado(nuevoIndice)
+        }
+    }
+
+    const handleNavegarSiguiente = () => {
+        const nuevoIndice = indiceSeleccionado + 1
+        if (nuevoIndice < casos.length) {
+            setCasoSeleccionado(casos[nuevoIndice])
+            setIndiceSeleccionado(nuevoIndice)
+        }
+    }
+
     // ============================================
     // RENDER
     // ============================================
@@ -249,6 +265,9 @@ export default function RutasPage() {
                     onGuardarYSiguiente={handleGuardarYSiguiente}
                     onCasoEliminado={handleCerrarDetalle}
                     haySiguiente={indiceSeleccionado < casos.length - 1}
+                    hayAnterior={indiceSeleccionado > 0}
+                    onAnterior={handleNavegarAnterior}
+                    onSiguiente={handleNavegarSiguiente}
                 />
             )}
         </div>
