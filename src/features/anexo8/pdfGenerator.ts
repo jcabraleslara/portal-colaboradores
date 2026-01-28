@@ -7,6 +7,7 @@
  */
 
 import { PDFDocument, rgb } from 'pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
 import { Anexo8Record } from '@/types/anexo8.types'
 
 interface PdfGeneratorResult {
@@ -21,8 +22,31 @@ interface PdfGeneratorResult {
 export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGeneratorResult> {
     // 1. Cargar el PDF plantilla con campos de formulario
     const templateUrl = '/templates/anexo8_plantilla.pdf'
-    const templateBytes = await fetch(templateUrl).then(res => res.arrayBuffer())
+
+    // Cargar fuente personalizada para soportar Unicode (µ, ñ, tildes, etc.)
+    // Intentamos cargar Ubuntu-R (fuente segura y legible)
+    const fontUrl = 'https://unpkg.com/pdf-lib@1.17.1/assets/fonts/ubuntu/Ubuntu-R.ttf'
+
+    const [templateBytes, fontBytes] = await Promise.all([
+        fetch(templateUrl).then(res => res.arrayBuffer()),
+        fetch(fontUrl).then(res => res.arrayBuffer()).catch(err => {
+            console.warn('Error cargando fuente personalizada, se usarán fuentes estándar (riesgo de problemas con µ):', err)
+            return null
+        })
+    ])
+
     const pdfDoc = await PDFDocument.load(templateBytes)
+
+    // Registrar fontkit y embeber fuente si se cargó correctamente
+    let customFont: any = null
+    if (fontBytes) {
+        try {
+            pdfDoc.registerFontkit(fontkit)
+            customFont = await pdfDoc.embedFont(fontBytes)
+        } catch (e) {
+            console.error('Error embebiendo fuente personalizada:', e)
+        }
+    }
 
     // 2. Obtener el formulario y la primera página
     const form = pdfDoc.getForm()
@@ -58,15 +82,28 @@ export async function generarAnexo8Pdf(data: Anexo8Record): Promise<PdfGenerator
     const setText = (fieldName: string, value: string | number | null | undefined, fontSize?: number) => {
         try {
             const field = form.getTextField(fieldName)
-            const textValue = String(value ?? '').toUpperCase()
+            let textValue = String(value ?? '')
+
+            // Manejo especial para unidades y mayúsculas
+            // 'µ' (micro) al pasar a mayúsculas se convierte en 'Μ' (GREEK CAPITAL LETTER MU)
+            // Esto es peligroso para dosis (µg vs MG) y rompe WinAnsi si no hay fuente custom.
+            // Restauramos el símbolo 'µ' explícitamente.
+            textValue = textValue.toUpperCase().replace(/\u039C/g, 'µ')
+
             field.setText(textValue)
+
+            // Usar fuente personalizada si está disponible para soportar Unicode
+            if (customFont) {
+                field.updateAppearances(customFont)
+            }
 
             // Ajustar tamaño de fuente si se especifica
             if (fontSize) {
                 field.setFontSize(fontSize)
             }
         } catch (e) {
-            console.warn(`Campo no encontrado: ${fieldName}`)
+            // Si falla con la fuente custom, intentamos sin ella (fallback silencioso para no romper todo)
+            console.warn(`Advertencia en campo ${fieldName}:`, e)
         }
     }
 
