@@ -14,6 +14,8 @@ DROP POLICY IF EXISTS "Permitir UPDATE a superadmin y admin" ON public.bd;
 DROP POLICY IF EXISTS "bd_update_authenticated" ON public.bd;
 DROP POLICY IF EXISTS "bd_select_authenticated" ON public.bd;
 DROP POLICY IF EXISTS "bd_all_authenticated" ON public.bd;
+DROP POLICY IF EXISTS "bd_select_all_authenticated" ON public.bd;
+DROP POLICY IF EXISTS "bd_update_superadmin_admin" ON public.bd;
 
 -- PASO 2: Crear políticas limpias y correctas
 
@@ -23,11 +25,11 @@ ON public.bd
 FOR SELECT
 TO authenticated
 USING (
-    -- Cualquier usuario autenticado puede leer
+    -- Cualquier usuario autenticado y activo puede leer
     EXISTS (
         SELECT 1 
         FROM public.usuarios_portal 
-        WHERE id::text = auth.uid()::text
+        WHERE email_institucional = (SELECT email FROM auth.users WHERE id = auth.uid())
         AND activo = true
     )
 );
@@ -42,7 +44,7 @@ USING (
     EXISTS (
         SELECT 1 
         FROM public.usuarios_portal 
-        WHERE id::text = auth.uid()::text
+        WHERE email_institucional = (SELECT email FROM auth.users WHERE id = auth.uid())
         AND rol IN ('superadmin', 'admin')
         AND activo = true
     )
@@ -52,7 +54,7 @@ WITH CHECK (
     EXISTS (
         SELECT 1 
         FROM public.usuarios_portal 
-        WHERE id::text = auth.uid()::text
+        WHERE email_institucional = (SELECT email FROM auth.users WHERE id = auth.uid())
         AND rol IN ('superadmin', 'admin')
         AND activo = true
     )
@@ -67,7 +69,7 @@ WITH CHECK (
     EXISTS (
         SELECT 1 
         FROM public.usuarios_portal 
-        WHERE id::text = auth.uid()::text
+        WHERE email_institucional = (SELECT email FROM auth.users WHERE id = auth.uid())
         AND activo = true
     )
 );
