@@ -288,6 +288,230 @@ export const afiliadosService = {
             }
         }
     },
+
+    /**
+     * Actualizar sexo del afiliado
+     */
+    async actualizarSexo(tipoId: string, id: string, nuevoSexo: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ sexo: nuevoSexo })
+                .eq('tipo_id', tipoId)
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando sexo', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarSexo', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
+
+    /**
+     * Actualizar fecha de nacimiento del afiliado
+     */
+    async actualizarFechaNacimiento(tipoId: string, id: string, nuevaFecha: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ fecha_nacimiento: nuevaFecha })
+                .eq('tipo_id', tipoId)
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando fecha de nacimiento', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarFechaNacimiento', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
+
+    /**
+     * Actualizar régimen del afiliado
+     */
+    async actualizarRegimen(tipoId: string, id: string, nuevoRegimen: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ regimen: nuevoRegimen })
+                .eq('tipo_id', tipoId)
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando régimen', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarRegimen', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
+
+    /**
+     * Actualizar tipo cotizante del afiliado
+     */
+    async actualizarTipoCotizante(tipoId: string, id: string, nuevoTipoCotizante: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ tipo_cotizante: nuevoTipoCotizante })
+                .eq('tipo_id', tipoId)
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando tipo cotizante', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarTipoCotizante', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
+
+    /**
+     * Actualizar IPS primaria del afiliado
+     */
+    async actualizarIpsPrimaria(tipoId: string, id: string, nuevaIps: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ ips_primaria: nuevaIps })
+                .eq('tipo_id', tipoId)
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando IPS primaria', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarIpsPrimaria', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
+
+    /**
+     * Actualizar municipio del afiliado
+     */
+    async actualizarMunicipio(tipoId: string, id: string, nuevoMunicipio: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ municipio: nuevoMunicipio })
+                .eq('tipo_id', tipoId)
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando municipio', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarMunicipio', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
+
+    /**
+     * Actualizar departamento del afiliado
+     */
+    async actualizarDepartamento(tipoId: string, id: string, nuevoDepartamento: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ departamento: nuevoDepartamento })
+                .eq('tipo_id', tipoId)
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando departamento', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarDepartamento', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
 }
 
 export default afiliadosService

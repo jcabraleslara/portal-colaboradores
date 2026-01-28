@@ -198,6 +198,119 @@ export function ValidacionDerechosPage() {
         return false
     }
 
+    const handleSexoUpdate = async (newSexo: string): Promise<boolean> => {
+        if (!afiliado?.tipoId || !afiliado?.id) return false
+
+        const result = await afiliadosService.actualizarSexo(
+            afiliado.tipoId,
+            afiliado.id,
+            newSexo
+        )
+
+        if (result.success) {
+            setAfiliado({ ...afiliado, sexo: newSexo })
+            return true
+        }
+        return false
+    }
+
+    const handleFechaNacimientoUpdate = async (newFecha: string): Promise<boolean> => {
+        if (!afiliado?.tipoId || !afiliado?.id) return false
+
+        const result = await afiliadosService.actualizarFechaNacimiento(
+            afiliado.tipoId,
+            afiliado.id,
+            newFecha
+        )
+
+        if (result.success) {
+            const [year, month, day] = newFecha.split('-').map(Number)
+            setAfiliado({ ...afiliado, fechaNacimiento: new Date(year, month - 1, day) })
+            return true
+        }
+        return false
+    }
+
+    const handleRegimenUpdate = async (newRegimen: string): Promise<boolean> => {
+        if (!afiliado?.tipoId || !afiliado?.id) return false
+
+        const result = await afiliadosService.actualizarRegimen(
+            afiliado.tipoId,
+            afiliado.id,
+            newRegimen
+        )
+
+        if (result.success) {
+            setAfiliado({ ...afiliado, regimen: newRegimen })
+            return true
+        }
+        return false
+    }
+
+    const handleTipoCotizanteUpdate = async (newTipoCotizante: string): Promise<boolean> => {
+        if (!afiliado?.tipoId || !afiliado?.id) return false
+
+        const result = await afiliadosService.actualizarTipoCotizante(
+            afiliado.tipoId,
+            afiliado.id,
+            newTipoCotizante
+        )
+
+        if (result.success) {
+            setAfiliado({ ...afiliado, tipoCotizante: newTipoCotizante })
+            return true
+        }
+        return false
+    }
+
+    const handleIpsPrimariaUpdate = async (newIps: string): Promise<boolean> => {
+        if (!afiliado?.tipoId || !afiliado?.id) return false
+
+        const result = await afiliadosService.actualizarIpsPrimaria(
+            afiliado.tipoId,
+            afiliado.id,
+            newIps
+        )
+
+        if (result.success) {
+            setAfiliado({ ...afiliado, ipsPrimaria: newIps })
+            return true
+        }
+        return false
+    }
+
+    const handleMunicipioUpdate = async (newMunicipio: string): Promise<boolean> => {
+        if (!afiliado?.tipoId || !afiliado?.id) return false
+
+        const result = await afiliadosService.actualizarMunicipio(
+            afiliado.tipoId,
+            afiliado.id,
+            newMunicipio
+        )
+
+        if (result.success) {
+            setAfiliado({ ...afiliado, municipio: newMunicipio })
+            return true
+        }
+        return false
+    }
+
+    const handleDepartamentoUpdate = async (newDepartamento: string): Promise<boolean> => {
+        if (!afiliado?.tipoId || !afiliado?.id) return false
+
+        const result = await afiliadosService.actualizarDepartamento(
+            afiliado.tipoId,
+            afiliado.id,
+            newDepartamento
+        )
+
+        if (result.success) {
+            setAfiliado({ ...afiliado, departamento: newDepartamento })
+            return true
+        }
+        return false
+    }
+
     // Cerrar sugerencias al hacer clic fuera
     useEffect(() => {
         const handleClickOutside = () => setShowSuggestions(false)
@@ -337,11 +450,30 @@ export function ValidacionDerechosPage() {
                                         }
                                         fullWidth
                                     />
-                                    <DataItem label="Sexo" value={afiliado.sexo} />
+                                    <DataItem
+                                        label="Sexo"
+                                        value={
+                                            <EditableField
+                                                value={afiliado.sexo}
+                                                onUpdate={handleSexoUpdate}
+                                                placeholder="Sin sexo"
+                                                disabled={!canEdit}
+                                            />
+                                        }
+                                    />
                                     <DataItem label="Edad" value={afiliado.edad ? `${afiliado.edad} años` : null} />
                                     <DataItem
                                         label="Fecha Nacimiento"
-                                        value={afiliado.fechaNacimiento?.toLocaleDateString('es-CO')}
+                                        value={
+                                            <EditableField
+                                                value={afiliado.fechaNacimiento?.toISOString().split('T')[0]}
+                                                onUpdate={handleFechaNacimientoUpdate}
+                                                placeholder="Sin fecha"
+                                                type="date"
+                                                disabled={!canEdit}
+                                                displayFormatter={(value) => value ? new Date(value + 'T00:00:00').toLocaleDateString('es-CO') : null}
+                                            />
+                                        }
                                         icon={<Calendar size={14} />}
                                     />
                                     <DataItem label="Rango" value={afiliado.rango} />
@@ -360,7 +492,17 @@ export function ValidacionDerechosPage() {
                             <Card.Body>
                                 <DataGrid>
                                     <DataItem label="EPS" value={renderEPS(afiliado.eps)} />
-                                    <DataItem label="Régimen" value={afiliado.regimen} />
+                                    <DataItem
+                                        label="Régimen"
+                                        value={
+                                            <EditableField
+                                                value={afiliado.regimen}
+                                                onUpdate={handleRegimenUpdate}
+                                                placeholder="Sin régimen"
+                                                disabled={!canEdit}
+                                            />
+                                        }
+                                    />
                                     <DataItem
                                         label="Estado"
                                         value={
@@ -372,8 +514,30 @@ export function ValidacionDerechosPage() {
                                             </span>
                                         }
                                     />
-                                    <DataItem label="Tipo Cotizante" value={afiliado.tipoCotizante} />
-                                    <DataItem label="IPS Primaria" value={renderIPS(afiliado.ipsPrimaria)} fullWidth />
+                                    <DataItem
+                                        label="Tipo Cotizante"
+                                        value={
+                                            <EditableField
+                                                value={afiliado.tipoCotizante}
+                                                onUpdate={handleTipoCotizanteUpdate}
+                                                placeholder="Sin tipo cotizante"
+                                                disabled={!canEdit}
+                                            />
+                                        }
+                                    />
+                                    <DataItem
+                                        label="IPS Primaria"
+                                        value={
+                                            <EditableField
+                                                value={afiliado.ipsPrimaria}
+                                                onUpdate={handleIpsPrimariaUpdate}
+                                                placeholder="Sin IPS primaria"
+                                                disabled={!canEdit}
+                                                displayFormatter={(value) => renderIPS(value)}
+                                            />
+                                        }
+                                        fullWidth
+                                    />
                                     <DataItem
                                         label="Fuente"
                                         value={
@@ -443,8 +607,28 @@ export function ValidacionDerechosPage() {
                                         icon={<Mail size={14} />}
                                         fullWidth
                                     />
-                                    <DataItem label="Departamento" value={afiliado.departamento} />
-                                    <DataItem label="Municipio" value={afiliado.municipio} />
+                                    <DataItem
+                                        label="Departamento"
+                                        value={
+                                            <EditableField
+                                                value={afiliado.departamento}
+                                                onUpdate={handleDepartamentoUpdate}
+                                                placeholder="Sin departamento"
+                                                disabled={!canEdit}
+                                            />
+                                        }
+                                    />
+                                    <DataItem
+                                        label="Municipio"
+                                        value={
+                                            <EditableField
+                                                value={afiliado.municipio}
+                                                onUpdate={handleMunicipioUpdate}
+                                                placeholder="Sin municipio"
+                                                disabled={!canEdit}
+                                            />
+                                        }
+                                    />
                                 </DataGrid>
                             </Card.Body>
                         </Card>
