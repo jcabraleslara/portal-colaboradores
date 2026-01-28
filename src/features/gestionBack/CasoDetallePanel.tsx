@@ -756,6 +756,11 @@ export function CasoDetallePanel({
                                 <p className="font-medium text-gray-800">
                                     {capitalize(caso.nombreRadicador || caso.radicador)}
                                 </p>
+                                {caso.emailRadicador && (
+                                    <p className="text-xs text-gray-400 font-mono mt-0.5 lowercase">
+                                        {caso.emailRadicador}
+                                    </p>
+                                )}
                                 {caso.cargoRadicador && (
                                     <p className="text-xs text-blue-600 font-medium mt-0.5">
                                         {caso.cargoRadicador}

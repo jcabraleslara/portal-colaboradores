@@ -330,6 +330,7 @@ export function RadicacionCasosPage() {
             ordenador: requiereOrdenador ? ordenador : undefined,
             observaciones: observaciones || undefined,
             archivos: archivos.length > 0 ? archivos : undefined,
+            emailRadicador: user?.email || undefined,
         })
 
         if (result.success && result.data) {

@@ -18,7 +18,8 @@ import { AuthUser } from '@/types'
 // ========================================
 const PROFILE_CACHE_KEY = 'gestar-user-profile'
 const MAX_CACHE_AGE_MS = 30 * 60 * 1000 // 30 minutos de validez
-const GLOBAL_TIMEOUT_MS = 6000 // 6 segundos MÁXIMO para todo el proceso
+const GLOBAL_TIMEOUT_MS = 4000 // 4 segundos MÁXIMO para todo el proceso
+const FAILSAFE_TIMEOUT_MS = 6000 // 6 segundos timeout de seguridad absoluto
 
 // ========================================
 // TIPOS DEL CONTEXTO
@@ -193,7 +194,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             .eq('email_institucional', email)
                             .single(),
                         new Promise<never>((_, reject) =>
-                            setTimeout(() => reject(new Error('QUERY_TIMEOUT')), 3000) // 3s extra
+                            setTimeout(() => reject(new Error('QUERY_TIMEOUT')), 2000) // 2s fallback
                         )
                     ])
 
@@ -258,13 +259,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     useEffect(() => {
         let mounted = true
 
-        // Timeout de seguridad: Máximo 10 segundos para inicialización completa
+        // Timeout de seguridad: Máximo 6 segundos para inicialización completa
         const safetyTimeout = setTimeout(() => {
             if (mounted && isLoading) {
                 console.warn('⚠️ Timeout de seguridad activado - redirigiendo a login')
                 forceCleanSession()
             }
-        }, 10000)
+        }, FAILSAFE_TIMEOUT_MS)
 
         const handleAuthSession = async (session: any | null, eventType: string) => {
             if (!mounted) return
@@ -398,7 +399,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
             clearTimeout(safetyTimeout)
             subscription.unsubscribe()
         }
-    }, [getCachedProfile, cacheProfile, clearProfileCache, fetchProfileFast, forceCleanSession])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []) // Sin dependencias para evitar loops - las funciones usan refs
 
     const value: AuthContextType = {
         user,

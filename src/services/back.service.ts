@@ -112,6 +112,7 @@ export const backService = {
                     ruta: data.ruta || null,
                     ordenador: data.ordenador ? normalizarTexto(data.ordenador) : null,
                     observaciones: data.observaciones || null,
+                    correo_radicador: data.emailRadicador || null,
                     soportes: [], // Se actualiza después de subir archivos
                 })
                 .select()

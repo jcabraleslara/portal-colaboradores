@@ -110,6 +110,7 @@ export interface CrearRadicacionData {
     ordenador?: string
     observaciones?: string
     archivos?: File[]
+    emailRadicador?: string
 }
 
 // Datos para crear un afiliado nuevo en bd
