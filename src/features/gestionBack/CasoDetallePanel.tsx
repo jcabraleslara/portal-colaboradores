@@ -3,7 +3,7 @@
  * Portal de Colaboradores GESTAR SALUD IPS
  */
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { toast } from 'sonner'
 import {
@@ -273,6 +273,19 @@ export function CasoDetallePanel({
 
     // Estado para animación de copia
     const [copiandoRespuesta, setCopiandoRespuesta] = useState(false)
+
+    // Referencia para gestión de foco en PDF modal
+    const pdfContainerRef = useRef<HTMLDivElement>(null)
+
+    // Efecto para enfocar el contenedor del PDF al abrir (para que funcione ESC)
+    useEffect(() => {
+        if (pdfActivo && pdfContainerRef.current) {
+            // Pequeño timeout para permitir que el portal se monte y renderice
+            setTimeout(() => {
+                pdfContainerRef.current?.focus()
+            }, 50)
+        }
+    }, [pdfActivo])
 
     // ============================================
     // HANDLERS
@@ -1022,7 +1035,17 @@ export function CasoDetallePanel({
 
             {/* Renderizar visor PDF en Portal para estar encima de todo (Sidebar, Header) */}
             {pdfActivo && createPortal(
-                <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col animate-fade-in">
+                <div
+                    ref={pdfContainerRef}
+                    tabIndex={-1}
+                    className="fixed inset-0 z-[100] bg-black/90 flex flex-col animate-fade-in focus:outline-none"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            e.stopPropagation() // Evitar que burbujee si ya lo manejamos aquí
+                            handleCerrarPdf()
+                        }
+                    }}
+                >
                     {/* Toolbar */}
                     <div className="flex items-center justify-between px-4 py-3 bg-gray-900/80">
                         <div className="flex items-center gap-4">
