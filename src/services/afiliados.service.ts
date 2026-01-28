@@ -512,6 +512,70 @@ export const afiliadosService = {
             }
         }
     },
+
+    /**
+     * Actualizar EPS del afiliado
+     */
+    async actualizarEps(tipoId: string, id: string, nuevaEps: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ eps: nuevaEps })
+                .eq('tipo_id', tipoId)
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando EPS', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarEps', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
+
+    /**
+     * Actualizar estado del afiliado
+     */
+    async actualizarEstado(tipoId: string, id: string, nuevoEstado: string): Promise<ApiResponse<null>> {
+        try {
+            const { error } = await supabase
+                .from('bd')
+                .update({ estado: nuevoEstado })
+                .eq('tipo_id', tipoId)
+                .eq('id', id)
+
+            if (error) {
+                console.error('Error actualizando estado', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR
+                }
+            }
+
+            return {
+                success: true,
+                data: null
+            }
+        } catch (error) {
+            console.error('Error en actualizarEstado', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR
+            }
+        }
+    },
 }
 
 export default afiliadosService

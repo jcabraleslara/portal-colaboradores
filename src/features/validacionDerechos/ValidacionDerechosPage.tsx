@@ -311,6 +311,38 @@ export function ValidacionDerechosPage() {
         return false
     }
 
+    const handleEpsUpdate = async (newEps: string): Promise<boolean> => {
+        if (!afiliado?.tipoId || !afiliado?.id) return false
+
+        const result = await afiliadosService.actualizarEps(
+            afiliado.tipoId,
+            afiliado.id,
+            newEps
+        )
+
+        if (result.success) {
+            setAfiliado({ ...afiliado, eps: newEps })
+            return true
+        }
+        return false
+    }
+
+    const handleEstadoUpdate = async (newEstado: string): Promise<boolean> => {
+        if (!afiliado?.tipoId || !afiliado?.id) return false
+
+        const result = await afiliadosService.actualizarEstado(
+            afiliado.tipoId,
+            afiliado.id,
+            newEstado
+        )
+
+        if (result.success) {
+            setAfiliado({ ...afiliado, estado: newEstado })
+            return true
+        }
+        return false
+    }
+
     // Cerrar sugerencias al hacer clic fuera
     useEffect(() => {
         const handleClickOutside = () => setShowSuggestions(false)
@@ -491,7 +523,18 @@ export function ValidacionDerechosPage() {
                             </Card.Header>
                             <Card.Body>
                                 <DataGrid>
-                                    <DataItem label="EPS" value={renderEPS(afiliado.eps)} />
+                                    <DataItem
+                                        label="EPS"
+                                        value={
+                                            <EditableField
+                                                value={afiliado.eps}
+                                                onUpdate={handleEpsUpdate}
+                                                placeholder="Sin EPS"
+                                                disabled={!canEdit}
+                                                displayFormatter={(value) => renderEPS(value)}
+                                            />
+                                        }
+                                    />
                                     <DataItem
                                         label="Régimen"
                                         value={
@@ -506,12 +549,20 @@ export function ValidacionDerechosPage() {
                                     <DataItem
                                         label="Estado"
                                         value={
-                                            <span className={`px-2.5 py-1 rounded-md text-sm font-bold border ${afiliado.estado?.toUpperCase() === 'ACTIVO'
-                                                ? 'bg-green-100 text-green-700 border-green-200'
-                                                : 'bg-red-100 text-red-700 border-red-200 animate-pulse'
-                                                }`}>
-                                                {afiliado.estado}
-                                            </span>
+                                            <EditableField
+                                                value={afiliado.estado}
+                                                onUpdate={handleEstadoUpdate}
+                                                placeholder="Sin estado"
+                                                disabled={!canEdit}
+                                                displayFormatter={(value) => (
+                                                    <span className={`px-2.5 py-1 rounded-md text-sm font-bold border ${value?.toUpperCase() === 'ACTIVO'
+                                                            ? 'bg-green-100 text-green-700 border-green-200'
+                                                            : 'bg-red-100 text-red-700 border-red-200 animate-pulse'
+                                                        }`}>
+                                                        {value}
+                                                    </span>
+                                                )}
+                                            />
                                         }
                                     />
                                     <DataItem
