@@ -18,7 +18,6 @@ import {
     Calendar,
     MessageSquare,
     AlertCircle,
-    CheckCircle,
     ExternalLink,
     Maximize2,
     Minimize2,
@@ -36,6 +35,16 @@ import {
     Sparkles,
     Copy,
     Check,
+    Phone,
+    Clock,
+    ArrowLeftRight,
+    Undo2,
+    CheckCircle,
+    Hourglass,
+    PhoneOff,
+    Ban,
+    ExternalLink as LinkIcon,
+    Image as ImageIcon
 } from 'lucide-react'
 import { Button, RichTextEditor } from '@/components/common'
 import { copyRichText } from '@/utils/clipboard'
@@ -52,6 +61,7 @@ import {
     Direccionamiento,
     TIPO_SOLICITUD_COLORES,
     TIPOS_SOLICITUD_LISTA,
+    RutaBack
 } from '@/types/back.types'
 
 interface CasoDetallePanelProps {
@@ -82,6 +92,19 @@ const TIPO_ICONOS: Record<string, any> = {
     'Renovación de prequirúrgicos': Activity,
     'Gestión de Mipres': Zap,
     'Activación de Ruta': Route,
+}
+
+// Mapa de iconos para estados
+const ESTADO_ICONOS: Record<string, any> = {
+    'Pendiente': Clock,
+    'Contrarreferido': ArrowLeftRight,
+    'Devuelto': Undo2,
+    'Gestionado': CheckCircle,
+    'Autorizado': Check,
+    'Enrutado': LinkIcon,
+    'En espera': Hourglass,
+    'Rechazado': Ban,
+    'No contactable': PhoneOff,
 }
 
 const capitalize = (text: string) => {
@@ -118,6 +141,7 @@ export function CasoDetallePanel({
         caso.estadoRadicado || 'Pendiente'
     )
     const [tipoSolicitud, setTipoSolicitud] = useState<string>(caso.tipoSolicitud) // Nuevo estado
+    const [rutaSeleccionada, setRutaSeleccionada] = useState<RutaBack | null>(caso.ruta) // Nuevo estado para Ruta
 
     // ============================================
     // LOGIC HANDLERS
@@ -380,7 +404,9 @@ export function CasoDetallePanel({
             direccionamiento: direccionamiento || null,
             respuesta_back: respuestaBack || null,
             estado_radicado: estadoRadicado,
-            tipo_solicitud: tipoSolicitud, // Enviar cambio
+            tipo_solicitud: tipoSolicitud,
+            ruta: rutaSeleccionada, // Enviar ruta actualizada (puede ser 'Imágenes' u otra)
+            usuario_respuesta: user?.nombreCompleto || 'Usuario del Sistema'
         })
 
         setGuardando(false)
@@ -498,8 +524,10 @@ export function CasoDetallePanel({
         // Resetear todos los estados editables al valor del nuevo caso
         setDireccionamiento((caso.direccionamiento as Direccionamiento) || '')
         setRespuestaBack((caso.respuestaBack && caso.respuestaBack !== 'NaN') ? caso.respuestaBack : '')
+        setRespuestaBack((caso.respuestaBack && caso.respuestaBack !== 'NaN') ? caso.respuestaBack : '')
         setEstadoRadicado(caso.estadoRadicado || 'Pendiente')
         setTipoSolicitud(caso.tipoSolicitud || 'Auditoría Médica')
+        setRutaSeleccionada(caso.ruta || null)
 
         // Resetear estados de UI
         setGuardadoExitoso(false)
@@ -737,15 +765,15 @@ export function CasoDetallePanel({
                             debemos renderizarlos consecutivamente sin col-span-2.
                         */}
 
-                        {/* Ordenador */}
+                        {/* Teléfono */}
                         <div className="flex items-start gap-3">
-                            <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                <Building size={18} className="text-gray-500" />
+                            <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
+                                <Phone size={18} className="text-indigo-500" />
                             </div>
                             <div>
-                                <p className="text-xs text-gray-500">Ordenador</p>
+                                <p className="text-xs text-gray-500">Teléfono</p>
                                 <p className="font-medium text-gray-800">
-                                    {caso.ordenador || 'No especificado'}
+                                    {caso.paciente?.telefono || 'No registrado'}
                                 </p>
                             </div>
                         </div>
@@ -766,7 +794,7 @@ export function CasoDetallePanel({
                         )}
 
                         {/* Ruta (CONDICIONAL) */}
-                        {caso.ruta && (
+                        {rutaSeleccionada && (
                             <div className="flex items-start gap-3">
                                 <div className="w-9 h-9 rounded-lg bg-cyan-50 flex items-center justify-center flex-shrink-0">
                                     <Route size={18} className="text-cyan-500" />
@@ -774,7 +802,7 @@ export function CasoDetallePanel({
                                 <div>
                                     <p className="text-xs text-gray-500">Ruta Seleccionada</p>
                                     <p className="font-medium text-gray-800">
-                                        {caso.ruta}
+                                        {rutaSeleccionada}
                                     </p>
                                 </div>
                             </div>
@@ -938,14 +966,20 @@ export function CasoDetallePanel({
                                     if (tipoSolicitud === 'Auditoría Médica') {
                                         // Si es Auditoría, NO mostrar 'Gestionado'
                                         if (e === 'Gestionado') return false
+                                    } else if (tipoSolicitud === 'Activación de Ruta') {
+                                        // Si es Rutas, NO mostrar 'Rechazado' ni 'Enrutado'
+                                        if (e === 'Rechazado' || e === 'Enrutado') return false
+                                        // Rutas tampoco usa "Autorizado"
+                                        if (e === 'Autorizado') return false
                                     } else {
-                                        // Si NO es Auditoría, NO mostrar 'Autorizado'
+                                        // Casos generales (no Auditoría)
                                         if (e === 'Autorizado') return false
                                     }
                                     return true
                                 }).map(estado => {
                                     const colores = ESTADO_COLORES[estado as EstadoRadicado]
                                     const activo = estadoRadicado === estado
+                                    const IconoEstado = ESTADO_ICONOS[estado as string] || Clock
 
                                     return (
                                         <button
@@ -953,204 +987,220 @@ export function CasoDetallePanel({
                                             type="button"
                                             onClick={() => handleEstadoRadicadoChange(estado as EstadoRadicado)}
                                             className={`
-                                                px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all
+                                                flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all
                                                 ${activo
                                                     ? `${colores.bg} ${colores.border} ${colores.text} shadow-sm`
                                                     : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
                                                 }
                                             `}
                                         >
+                                            <IconoEstado size={16} />
                                             {estado}
                                         </button>
                                     )
                                 })}
+                                {/* Botón Especial Imágenes - Solo para Rutas y si no está seleccionada ya */}
+                                {tipoSolicitud === 'Activación de Ruta' && rutaSeleccionada !== 'Imágenes' && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            if (confirm('¿Mover este caso a la ruta de Imágenes?')) {
+                                                setRutaSeleccionada('Imágenes')
+                                                toast.info("Ruta cambiada a Imágenes. Guarda para confirmar.")
+                                            }
+                                        }}
+                                        className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed border-slate-300 text-slate-600 hover:bg-slate-50 hover:border-slate-400 text-sm font-medium transition-all"
+                                    >
+                                        <ImageIcon size={16} />
+                                        Mover a Imágenes
+                                    </button>
+                                )}
                             </div>
                         </div>
-                    </div>
 
-                    {/* Mensajes de estado */}
-                    {errorGuardado && (
-                        <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                            <AlertCircle size={18} />
-                            {errorGuardado}
-                        </div>
-                    )}
+                        {/* Mensajes de estado */}
+                        {errorGuardado && (
+                            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                                <AlertCircle size={18} />
+                                {errorGuardado}
+                            </div>
+                        )}
 
-                    {guardadoExitoso && (
-                        <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 animate-fade-in">
-                            <CheckCircle size={18} />
-                            Cambios guardados exitosamente
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer con botones de acción */}
-                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
-                    <div className="flex gap-2">
-                        <Button
-                            variant="ghost"
-                            onClick={onClose}
-                        >
-                            Cancelar
-                        </Button>
-
-                        <Button
-                            variant="ghost"
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => setMostandoConfirmacionEliminar(true)}
-                            leftIcon={<Trash2 size={18} />}
-                        >
-                            Eliminar
-                        </Button>
-                    </div>
-
-                    <div className="flex gap-3">
-                        <Button
-                            variant="secondary"
-                            onClick={() => handleGuardar(true)}
-                            isLoading={guardando}
-                            leftIcon={<Save size={18} />}
-                        >
-                            Guardar y Cerrar
-                        </Button>
-                        {haySiguiente && (
-                            <Button
-                                onClick={() => handleGuardar(false)}
-                                isLoading={guardando}
-                                rightIcon={<ArrowRight size={18} />}
-                            >
-                                Guardar y Siguiente
-                            </Button>
+                        {guardadoExitoso && (
+                            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700 animate-fade-in">
+                                <CheckCircle size={18} />
+                                Cambios guardados exitosamente
+                            </div>
                         )}
                     </div>
+
+                    {/* Footer con botones de acción */}
+                    <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                        <div className="flex gap-2">
+                            <Button
+                                variant="ghost"
+                                onClick={onClose}
+                            >
+                                Cancelar
+                            </Button>
+
+                            <Button
+                                variant="ghost"
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => setMostandoConfirmacionEliminar(true)}
+                                leftIcon={<Trash2 size={18} />}
+                            >
+                                Eliminar
+                            </Button>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <Button
+                                variant="secondary"
+                                onClick={() => handleGuardar(true)}
+                                isLoading={guardando}
+                                leftIcon={<Save size={18} />}
+                            >
+                                Guardar y Cerrar
+                            </Button>
+                            {haySiguiente && (
+                                <Button
+                                    onClick={() => handleGuardar(false)}
+                                    isLoading={guardando}
+                                    rightIcon={<ArrowRight size={18} />}
+                                >
+                                    Guardar y Siguiente
+                                </Button>
+                            )}
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            {/* ============================================ */}
-            {/* MODAL CONFIRMACIÓN ELIMINAR */}
-            {/* ============================================ */}
-            {
-                mostandoConfirmacionEliminar && (
-                    <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fade-in">
-                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-scale-in">
-                            <div className="flex items-center gap-3 text-red-600 mb-4">
-                                <div className="p-3 bg-red-50 rounded-full">
-                                    <AlertTriangle size={24} />
+                {/* ============================================ */}
+                {/* MODAL CONFIRMACIÓN ELIMINAR */}
+                {/* ============================================ */}
+                {
+                    mostandoConfirmacionEliminar && (
+                        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fade-in">
+                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-scale-in">
+                                <div className="flex items-center gap-3 text-red-600 mb-4">
+                                    <div className="p-3 bg-red-50 rounded-full">
+                                        <AlertTriangle size={24} />
+                                    </div>
+                                    <h3 className="text-lg font-bold">¿Eliminar caso?</h3>
                                 </div>
-                                <h3 className="text-lg font-bold">¿Eliminar caso?</h3>
-                            </div>
 
-                            <p className="text-gray-600 mb-6">
-                                Estás a punto de eliminar el caso <strong>{caso.radicado}</strong>.
-                                Esta acción no se puede deshacer y borrará permanentemente todos los datos asociados.
-                            </p>
+                                <p className="text-gray-600 mb-6">
+                                    Estás a punto de eliminar el caso <strong>{caso.radicado}</strong>.
+                                    Esta acción no se puede deshacer y borrará permanentemente todos los datos asociados.
+                                </p>
 
-                            <div className="flex justify-end gap-3">
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => setMostandoConfirmacionEliminar(false)}
-                                    disabled={eliminando}
-                                >
-                                    Cancelar
-                                </Button>
-                                <Button
-                                    variant="primary"
-                                    className="!bg-red-600 hover:!bg-red-700 text-white"
-                                    onClick={handleEliminar}
-                                    isLoading={eliminando}
-                                >
-                                    Sí, eliminar
-                                </Button>
+                                <div className="flex justify-end gap-3">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setMostandoConfirmacionEliminar(false)}
+                                        disabled={eliminando}
+                                    >
+                                        Cancelar
+                                    </Button>
+                                    <Button
+                                        variant="primary"
+                                        className="!bg-red-600 hover:!bg-red-700 text-white"
+                                        onClick={handleEliminar}
+                                        isLoading={eliminando}
+                                    >
+                                        Sí, eliminar
+                                    </Button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )
-            }
+                    )
+                }
 
-            {/* ============================================ */}
-            {/* VISOR DE PDF FULLSCREEN */}
-            {/* ============================================ */}
+                {/* ============================================ */}
+                {/* VISOR DE PDF FULLSCREEN */}
+                {/* ============================================ */}
 
 
-            {/* Renderizar visor PDF en Portal para estar encima de todo (Sidebar, Header) */}
-            {pdfActivo && createPortal(
-                <div
-                    ref={pdfContainerRef}
-                    tabIndex={-1}
-                    className="fixed inset-0 z-[100] bg-black/90 flex flex-col animate-fade-in focus:outline-none"
-                    onKeyDown={(e) => {
-                        if (e.key === 'Escape') {
-                            e.stopPropagation() // Evitar que burbujee si ya lo manejamos aquí
-                            handleCerrarPdf()
-                        }
-                    }}
-                >
-                    {/* Toolbar */}
-                    <div className="flex items-center justify-between px-4 py-3 bg-gray-900/80">
-                        <div className="flex items-center gap-4">
-                            <span className="text-white font-medium">
-                                Soporte {indicePdf + 1} de {caso.soportes?.length || 1}
-                            </span>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={handlePdfAnterior}
-                                    disabled={indicePdf === 0}
-                                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                {/* Renderizar visor PDF en Portal para estar encima de todo (Sidebar, Header) */}
+                {pdfActivo && createPortal(
+                    <div
+                        ref={pdfContainerRef}
+                        tabIndex={-1}
+                        className="fixed inset-0 z-[100] bg-black/90 flex flex-col animate-fade-in focus:outline-none"
+                        onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                                e.stopPropagation() // Evitar que burbujee si ya lo manejamos aquí
+                                handleCerrarPdf()
+                            }
+                        }}
+                    >
+                        {/* Toolbar */}
+                        <div className="flex items-center justify-between px-4 py-3 bg-gray-900/80">
+                            <div className="flex items-center gap-4">
+                                <span className="text-white font-medium">
+                                    Soporte {indicePdf + 1} de {caso.soportes?.length || 1}
+                                </span>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={handlePdfAnterior}
+                                        disabled={indicePdf === 0}
+                                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        <ChevronLeft size={20} className="text-white" />
+                                    </button>
+                                    <button
+                                        onClick={handlePdfSiguiente}
+                                        disabled={!caso.soportes || indicePdf >= caso.soportes.length - 1}
+                                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        <ChevronRight size={20} className="text-white" />
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <a
+                                    href={pdfActivo}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                                    title="Abrir en nueva pestaña"
                                 >
-                                    <ChevronLeft size={20} className="text-white" />
+                                    <ExternalLink size={20} className="text-white" />
+                                </a>
+                                <button
+                                    onClick={() => setPdfFullscreen(!pdfFullscreen)}
+                                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                                    title={pdfFullscreen ? 'Reducir' : 'Pantalla completa'}
+                                >
+                                    {pdfFullscreen ? (
+                                        <Minimize2 size={20} className="text-white" />
+                                    ) : (
+                                        <Maximize2 size={20} className="text-white" />
+                                    )}
                                 </button>
                                 <button
-                                    onClick={handlePdfSiguiente}
-                                    disabled={!caso.soportes || indicePdf >= caso.soportes.length - 1}
-                                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    onClick={handleCerrarPdf}
+                                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
                                 >
-                                    <ChevronRight size={20} className="text-white" />
+                                    <X size={20} className="text-white" />
                                 </button>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <a
-                                href={pdfActivo}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                                title="Abrir en nueva pestaña"
-                            >
-                                <ExternalLink size={20} className="text-white" />
-                            </a>
-                            <button
-                                onClick={() => setPdfFullscreen(!pdfFullscreen)}
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                                title={pdfFullscreen ? 'Reducir' : 'Pantalla completa'}
-                            >
-                                {pdfFullscreen ? (
-                                    <Minimize2 size={20} className="text-white" />
-                                ) : (
-                                    <Maximize2 size={20} className="text-white" />
-                                )}
-                            </button>
-                            <button
-                                onClick={handleCerrarPdf}
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                            >
-                                <X size={20} className="text-white" />
-                            </button>
+
+                        {/* Iframe del PDF */}
+                        <div className="flex-1 p-4">
+                            <iframe
+                                src={`${pdfActivo}#view=FitH`}
+                                className="w-full h-full rounded-lg bg-white"
+                                title={`Soporte PDF ${indicePdf + 1}`}
+                            />
                         </div>
-                    </div>
+                    </div>,
+                    document.body
+                )}
 
-                    {/* Iframe del PDF */}
-                    <div className="flex-1 p-4">
-                        <iframe
-                            src={`${pdfActivo}#view=FitH`}
-                            className="w-full h-full rounded-lg bg-white"
-                            title={`Soporte PDF ${indicePdf + 1}`}
-                        />
-                    </div>
-                </div>,
-                document.body
-            )}
-
-            <style>{`
+                <style>{`
                 @keyframes slide-in-right {
                     from {
                         transform: translateX(100%);
@@ -1170,8 +1220,8 @@ export function CasoDetallePanel({
                     to { opacity: 1; transform: scale(1); }
                 }
             `}</style>
-        </>
-    )
+            </>
+            )
 }
 
-export default CasoDetallePanel
+            export default CasoDetallePanel

@@ -52,6 +52,7 @@ function transformRadicacion(raw: BackRadicacionRaw): BackRadicacion {
         estadoRadicado: raw.estado_radicado as BackRadicacion['estadoRadicado'],
         direccionamiento: raw.direccionamiento as BackRadicacion['direccionamiento'],
         respuestaBack: raw.respuesta_back,
+        usuarioRespuesta: raw.usuario_respuesta,
         createdAt: new Date(raw.created_at),
         updatedAt: new Date(raw.updated_at),
     }
@@ -379,7 +380,7 @@ export const backService = {
             promises.push(
                 supabase
                     .from('afiliados')
-                    .select('id, nombres, apellido1, apellido2, tipo_id, municipio, direccion, ips_primaria, email, eps')
+                    .select('id, nombres, apellido1, apellido2, tipo_id, municipio, direccion, ips_primaria, email, eps, telefono')
                     .in('id', idsUnicos)
             )
 
@@ -430,7 +431,7 @@ export const backService = {
                         apellido1: pacienteRaw.apellido1,
                         apellido2: pacienteRaw.apellido2,
                         tipoId: pacienteRaw.tipo_id,
-                        telefono: null,
+                        telefono: pacienteRaw.telefono,
                         municipio: pacienteRaw.municipio,
                         direccion: pacienteRaw.direccion,
                         ipsPrimaria: pacienteRaw.ips_primaria,
@@ -536,6 +537,8 @@ export const backService = {
             respuesta_back?: string | null
             estado_radicado?: string
             tipo_solicitud?: string
+            ruta?: string | null
+            usuario_respuesta?: string
         }
     ): Promise<ApiResponse<BackRadicacion>> {
         try {
@@ -552,6 +555,12 @@ export const backService = {
             }
             if (datos.tipo_solicitud !== undefined) {
                 updateData.tipo_solicitud = datos.tipo_solicitud
+            }
+            if (datos.ruta !== undefined) {
+                updateData.ruta = datos.ruta
+            }
+            if (datos.usuario_respuesta !== undefined) {
+                updateData.usuario_respuesta = datos.usuario_respuesta
             }
 
             const { data, error } = await supabase

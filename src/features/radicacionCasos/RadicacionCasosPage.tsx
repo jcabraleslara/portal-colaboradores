@@ -1190,6 +1190,11 @@ export function RadicacionCasosPage() {
                                                                     markdown={radicacion.respuestaBack === 'NaN' ? '-' : radicacion.respuestaBack}
                                                                 />
                                                             </div>
+                                                            {radicacion.usuarioRespuesta && (
+                                                                <p className="text-xs italic mt-3 capitalize text-gray-500 border-t border-emerald-100 pt-2">
+                                                                    Respuesta por: {radicacion.usuarioRespuesta.toLowerCase()}
+                                                                </p>
+                                                            )}
                                                         </div>
                                                     )}
 

@@ -116,7 +116,7 @@ export const rutasService = {
             const idsUnicos = [...new Set(rawData.map(r => r.id))]
             const { data: pacientes } = await supabase
                 .from('afiliados')
-                .select('id, nombres, apellido1, apellido2, tipo_id, municipio, direccion, ips_primaria, email, eps')
+                .select('id, nombres, apellido1, apellido2, tipo_id, municipio, direccion, ips_primaria, email, eps, telefono')
                 .in('id', idsUnicos)
 
             const pacientesMap = new Map((pacientes || []).map((p: any) => [p.id, p]))
@@ -132,7 +132,7 @@ export const rutasService = {
                         apellido1: pacienteRaw.apellido1,
                         apellido2: pacienteRaw.apellido2,
                         tipoId: pacienteRaw.tipo_id,
-                        telefono: null,
+                        telefono: pacienteRaw.telefono,
                         municipio: pacienteRaw.municipio,
                         direccion: pacienteRaw.direccion,
                         ipsPrimaria: pacienteRaw.ips_primaria,

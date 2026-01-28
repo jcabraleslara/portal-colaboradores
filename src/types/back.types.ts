@@ -63,6 +63,7 @@ export type RutaBack =
     | 'Autoinmune'
     | 'Terapias Integrales'
     | 'Pre-Quejas'
+    | 'Imágenes'
 
 // Radicación transformada (camelCase) para el frontend
 export interface BackRadicacion {
@@ -80,6 +81,7 @@ export interface BackRadicacion {
     estadoRadicado: EstadoRadicado
     direccionamiento: Direccionamiento | null
     respuestaBack: string | null
+    usuarioRespuesta?: string | null
     createdAt: Date
     updatedAt: Date
 }
@@ -98,6 +100,7 @@ export interface BackRadicacionRaw {
     estado_radicado: string
     direccionamiento: string | null
     respuesta_back: string | null
+    usuario_respuesta?: string | null
     created_at: string
     updated_at: string
 }
@@ -702,6 +705,15 @@ export const RUTAS_CONFIG: RutaConfig[] = [
         icono: 'Megaphone',
         categoria: 'Otros'
     },
+    {
+        ruta: 'Imágenes',
+        visibleExterno: false,
+        visibleInterno: true,
+        labelExterno: 'Imágenes',
+        labelInterno: 'Imágenes Diagnósticas',
+        icono: 'Image',
+        categoria: 'Otros'
+    },
 ]
 
 /**
@@ -746,4 +758,5 @@ export const RUTA_COLORES: Record<string, { bg: string; text: string; border: st
     'Autoinmune': { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200' },
     'Terapias Integrales': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
     'Pre-Quejas': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+    'Imágenes': { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
 }
