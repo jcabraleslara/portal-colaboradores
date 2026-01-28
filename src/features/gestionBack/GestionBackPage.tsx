@@ -273,6 +273,22 @@ export function GestionBackPage() {
         }
     }, [cargarCasos, cargarConteos, paginaActual, indiceSeleccionado, casos, handleCerrarDetalle])
 
+    const handleNavegarAnterior = useCallback(() => {
+        const nuevoIndice = indiceSeleccionado - 1
+        if (nuevoIndice >= 0) {
+            setCasoSeleccionado(casos[nuevoIndice])
+            setIndiceSeleccionado(nuevoIndice)
+        }
+    }, [indiceSeleccionado, casos])
+
+    const handleNavegarSiguiente = useCallback(() => {
+        const nuevoIndice = indiceSeleccionado + 1
+        if (nuevoIndice < casos.length) {
+            setCasoSeleccionado(casos[nuevoIndice])
+            setIndiceSeleccionado(nuevoIndice)
+        }
+    }, [indiceSeleccionado, casos])
+
     // ============================================
     // HELPERS
     // ============================================
@@ -800,6 +816,9 @@ export function GestionBackPage() {
                             cargarConteos()
                         }}
                         haySiguiente={indiceSeleccionado < casos.length - 1}
+                        onAnterior={handleNavegarAnterior}
+                        onSiguiente={handleNavegarSiguiente}
+                        hayAnterior={indiceSeleccionado > 0}
                     />
                 )
             }

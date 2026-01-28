@@ -61,6 +61,9 @@ interface CasoDetallePanelProps {
     onGuardarYSiguiente: () => void
     onCasoEliminado: () => void
     haySiguiente: boolean
+    onAnterior: () => void
+    onSiguiente: () => void
+    hayAnterior: boolean
 }
 
 // Configuración visual para Direccionamiento
@@ -93,6 +96,9 @@ export function CasoDetallePanel({
     onGuardarYSiguiente,
     onCasoEliminado,
     haySiguiente,
+    onAnterior,
+    onSiguiente,
+    hayAnterior,
 }: CasoDetallePanelProps) {
     // ============================================
     // ESTADO
@@ -173,6 +179,9 @@ export function CasoDetallePanel({
         // Si contiene la palabra clave 'CONTRA REFERENCIA', cambiar estado a 'Contrarreferido' de forma automática
         if (valor.toUpperCase().includes('CONTRA REFERENCIA')) {
             setEstadoRadicado('Contrarreferido')
+        } else if (valor.toUpperCase().includes('IMAGEN/DOC')) {
+            // Si contiene 'IMAGEN/DOC', cambiar estado a 'Gestionado'
+            setEstadoRadicado('Gestionado')
         }
     }
 
@@ -398,6 +407,20 @@ export function CasoDetallePanel({
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignorar eventos si estamos en un input o textarea
+            const target = e.target as HTMLElement
+            const esInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+
+            if (e.key === 'ArrowLeft' && !esInput && hayAnterior && !pdfActivo) {
+                onAnterior()
+                return
+            }
+
+            if (e.key === 'ArrowRight' && !esInput && haySiguiente && !pdfActivo) {
+                onSiguiente()
+                return
+            }
+
             if (e.key === 'Escape') {
                 // Prioridad de cierre:
                 // 1. Modal de confirmación de eliminar
@@ -423,7 +446,7 @@ export function CasoDetallePanel({
 
         window.addEventListener('keydown', handleKeyDown)
         return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [onClose, mostandoConfirmacionEliminar, pdfActivo, pdfFullscreen, handleCerrarPdf])
+    }, [onClose, mostandoConfirmacionEliminar, pdfActivo, pdfFullscreen, handleCerrarPdf, onAnterior, onSiguiente, hayAnterior, haySiguiente])
 
     // Sincronizar estado cuando el caso cambie (Navegación Siguiente/Anterior)
     useEffect(() => {
@@ -495,12 +518,35 @@ export function CasoDetallePanel({
                                 </span>
                             </div>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="p-2 rounded-lg hover:bg-white/80 transition-colors"
-                        >
-                            <X size={24} className="text-gray-500" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {/* Navegación entre casos */}
+                            <div className="flex items-center bg-white/60 rounded-lg p-1 border border-indigo-100/50 shadow-sm mr-2">
+                                <button
+                                    onClick={onAnterior}
+                                    disabled={!hayAnterior}
+                                    title="Caso Anterior (Flecha Izquierda)"
+                                    className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-gray-400 hover:text-[var(--color-primary)] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:shadow-none transition-all"
+                                >
+                                    <ChevronLeft size={20} />
+                                </button>
+                                <div className="w-px h-4 bg-gray-200/80 mx-1"></div>
+                                <button
+                                    onClick={onSiguiente}
+                                    disabled={!haySiguiente}
+                                    title="Caso Siguiente (Flecha Derecha)"
+                                    className="p-1.5 rounded-md hover:bg-white hover:shadow-sm text-gray-400 hover:text-[var(--color-primary)] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:shadow-none transition-all"
+                                >
+                                    <ChevronRight size={20} />
+                                </button>
+                            </div>
+
+                            <button
+                                onClick={onClose}
+                                className="p-2 rounded-lg hover:bg-white/80 transition-colors text-gray-400 hover:text-gray-600"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
