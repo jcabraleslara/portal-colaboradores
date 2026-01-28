@@ -567,7 +567,7 @@ export function CasoDetallePanel({
     // RENDER
     // ============================================
 
-    return (
+    return createPortal(
         <>
             {/* Overlay */}
             <div
@@ -1221,7 +1221,8 @@ export function CasoDetallePanel({
                     to { opacity: 1; transform: scale(1); }
                 }
             `}</style>
-        </>
+        </>,
+        document.body
     )
 }
 
