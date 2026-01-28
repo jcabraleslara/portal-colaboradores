@@ -174,5 +174,55 @@ export const emailService = {
 
             return false
         }
+    },
+
+    /**
+     * Enviar notificación de "No Contactable"
+     * Se usa cuando el gestor no logra comunicarse con el paciente.
+     */
+    async enviarNotificacionNoContactable(
+        destinatario: string,
+        radicado: string,
+        datosCaso: Record<string, string>
+    ): Promise<boolean> {
+        try {
+            const datos = {
+                pacienteNombre: datosCaso['Paciente'] || '',
+                pacienteIdentificacion: datosCaso['Identificación'] || '',
+                radicado: radicado,
+                fechaGestion: new Date().toLocaleString('es-CO'),
+            }
+
+            const response = await fetch('/api/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'no_contactable',
+                    destinatario,
+                    radicado,
+                    datos
+                })
+            })
+
+            if (!response.ok) {
+                console.error('Error en respuesta del servidor:', await response.text())
+                return false
+            }
+
+            const result = await response.json()
+            return result.success
+        } catch (error) {
+            console.error('Error enviando correo de no contactable:', error)
+
+            // Notificar error crítico
+            await criticalErrorService.reportEmailFailure(
+                destinatario,
+                'BACK - No Contactable',
+                'Notificación de No Contactable',
+                error instanceof Error ? error : undefined
+            )
+
+            return false
+        }
     }
 }

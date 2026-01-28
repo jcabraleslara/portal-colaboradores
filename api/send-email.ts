@@ -37,11 +37,18 @@ interface DatosDevolucion extends BaseDatosRadicacion {
     tipoSolicitud?: string
 }
 
+interface DatosNoContactable {
+    pacienteNombre: string
+    pacienteIdentificacion: string
+    radicado: string
+    fechaGestion: string
+}
+
 interface RequestBody {
-    type: 'radicacion' | 'rechazo' | 'devolucion'
+    type: 'radicacion' | 'rechazo' | 'devolucion' | 'no_contactable'
     destinatario: string
     radicado: string
-    datos: DatosRadicacionExitosa | DatosRechazo | DatosDevolucion
+    datos: DatosRadicacionExitosa | DatosRechazo | DatosDevolucion | DatosNoContactable
 }
 
 // ==========================================
@@ -314,6 +321,47 @@ function generarTemplateDevolucion(radicado: string, datos: DatosDevolucion): st
     `
 }
 
+function generarTemplateNoContactable(radicado: string, datos: DatosNoContactable): string {
+    return `
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #4b5563; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0; font-size: 24px;">📴 Paciente No Contactable</h1>
+            </div>
+            
+            <div style="padding: 30px; background-color: #f9fafb;">
+                <p>Cordial saludo,</p>
+                
+                <p>Le informamos que en la gestión del radicado <strong>${radicado}</strong>, hemos intentado contactar al paciente sin éxito.</p>
+                
+                <div style="background-color: #f3f4f6; border: 3px solid #4b5563; padding: 20px; margin: 20px 0; border-radius: 8px;">
+                    <h3 style="color: #374151; margin-top: 0; margin-bottom: 10px;">
+                        📌 Información del Intento
+                    </h3>
+                    <ul style="line-height: 1.8; color: #374151;">
+                        <li><strong>Paciente:</strong> ${datos.pacienteNombre}</li>
+                        <li><strong>Identificación:</strong> ${datos.pacienteIdentificacion}</li>
+                        <li><strong>Fecha de Gestión:</strong> ${datos.fechaGestion}</li>
+                    </ul>
+                </div>
+
+                <div style="background-color: #fff7ed; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0;">
+                    <strong>🔄 Acción Requerida:</strong>
+                    <p style="margin: 10px 0 0 0;">
+                        Le sugerimos <strong>validar los datos de contacto del paciente</strong> (teléfonos, dirección) y realizar un nuevo radicado con la información actualizada para poder gestionar su solicitud.
+                    </p>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+                
+                <p style="font-size: 12px; color: #6b7280; text-align: center; margin: 0;">
+                    Este es un mensaje automático generado por el Portal de Colaboradores de Gestar Salud IPS.<br />
+                    No responda a este correo.
+                </p>
+            </div>
+        </div>
+    `
+}
+
 // ==========================================
 // HANDLER PRINCIPAL
 // ==========================================
@@ -337,14 +385,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let htmlBody = ''
 
         if (body.type === 'radicacion') {
-            subject = `Confirmación de Radicación - ${body.radicado}`
+            subject = `Confirmación de Radicación - ${body.radicado} `
             htmlBody = generarTemplateConfirmacion(body.radicado, body.datos as DatosRadicacionExitosa)
         } else if (body.type === 'rechazo') {
-            subject = `Rechazo de Radicado - ${body.radicado}`
+            subject = `Rechazo de Radicado - ${body.radicado} `
             htmlBody = generarTemplateRechazo(body.radicado, body.datos as DatosRechazo)
         } else if (body.type === 'devolucion') {
-            subject = `Devolución de Caso - ${body.radicado}`
+            subject = `Devolución de Caso - ${body.radicado} `
             htmlBody = generarTemplateDevolucion(body.radicado, body.datos as DatosDevolucion)
+        } else if (body.type === 'no_contactable') {
+            subject = `Paciente No Contactable - Radicado ${body.radicado} `
+            htmlBody = generarTemplateNoContactable(body.radicado, body.datos as DatosNoContactable)
         } else {
             return res.status(400).json({ success: false, error: 'Tipo de correo no válido' })
         }

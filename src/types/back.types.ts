@@ -22,6 +22,7 @@ export type EstadoRadicado =
     | 'Enrutado'         // Azul
     | 'En espera'        // Naranja
     | 'Rechazado'        // Rojo oscuro
+    | 'No contactable'   // Gris oscuro
 
 // Opciones de direccionamiento
 export type Direccionamiento =
@@ -61,6 +62,7 @@ export type RutaBack =
     | 'CIDH/PAPSIVI'
     | 'Autoinmune'
     | 'Terapias Integrales'
+    | 'Pre-Quejas'
 
 // Radicación transformada (camelCase) para el frontend
 export interface BackRadicacion {
@@ -142,6 +144,7 @@ export const ESTADO_COLORES: Record<EstadoRadicado, { bg: string; text: string; 
     'Enrutado': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
     'En espera': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
     'Rechazado': { bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-300' },
+    'No contactable': { bg: 'bg-gray-200', text: 'text-gray-800', border: 'border-gray-400' },
 }
 
 // Lista de ordenadores predefinidos
@@ -446,6 +449,7 @@ export const ESTADOS_RADICADO_LISTA: (EstadoRadicado | 'Todos')[] = [
     'Enrutado',
     'En espera',
     'Rechazado',
+    'No contactable',
     'Todos',
 ]
 
@@ -689,6 +693,15 @@ export const RUTAS_CONFIG: RutaConfig[] = [
         icono: 'Accessibility',
         categoria: 'Otros'
     },
+    {
+        ruta: 'Pre-Quejas',
+        visibleExterno: true,
+        visibleInterno: true,
+        labelExterno: 'Pre-Quejas',
+        labelInterno: 'Pre-Quejas',
+        icono: 'Megaphone',
+        categoria: 'Otros'
+    },
 ]
 
 /**
@@ -732,5 +745,5 @@ export const RUTA_COLORES: Record<string, { bg: string; text: string; border: st
     'CIDH/PAPSIVI': { bg: 'bg-lime-50', text: 'text-lime-700', border: 'border-lime-200' },
     'Autoinmune': { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200' },
     'Terapias Integrales': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
+    'Pre-Quejas': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
 }
-

@@ -11,6 +11,17 @@ import { useAuth } from '@/context/AuthContext'
 import type { Cups, LoadingState } from '@/types'
 import { UI } from '@/config/constants'
 
+const CONTRATOS_CONFIG = [
+    { key: 'pgp_rc', label: 'PGP NEPS RC' },
+    { key: 'pgp_rs', label: 'PGP NEPS RS' },
+    { key: 'pgp_derm', label: 'PGP Salud Total DERM' },
+    { key: 'cpt_cerete', label: 'Cápita ST Cereté' },
+    { key: 'cpt_monteria', label: 'Cápita NEPS Montería' },
+    { key: 'cpt_cienaga', label: 'Cápita NEPS Ciénaga' },
+    { key: 'pgp_imat', label: 'PGP IMAT' },
+] as const
+
+
 export function ConsultarCupsPage() {
     const { user } = useAuth()
     const isSuperadmin = user?.rol === 'superadmin'
@@ -296,48 +307,32 @@ export function ConsultarCupsPage() {
                                         {/* Campos booleanos de contratos */}
                                         <FieldGroup label="Contratos Activos">
                                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                                                <BooleanChip
-                                                    label="PGP NEPS RC"
-                                                    value={modoEdicion ? cupsEditado.pgp_rc : cupsSeleccionado.pgp_rc}
-                                                    editable={modoEdicion}
-                                                    onChange={(v) => handleInputChange('pgp_rc', v)}
-                                                />
-                                                <BooleanChip
-                                                    label="PGP NEPS RS"
-                                                    value={modoEdicion ? cupsEditado.pgp_rs : cupsSeleccionado.pgp_rs}
-                                                    editable={modoEdicion}
-                                                    onChange={(v) => handleInputChange('pgp_rs', v)}
-                                                />
-                                                <BooleanChip
-                                                    label="PGP Salud Total DERM"
-                                                    value={modoEdicion ? cupsEditado.pgp_derm : cupsSeleccionado.pgp_derm}
-                                                    editable={modoEdicion}
-                                                    onChange={(v) => handleInputChange('pgp_derm', v)}
-                                                />
-                                                <BooleanChip
-                                                    label="Cápita ST Cereté"
-                                                    value={modoEdicion ? cupsEditado.cpt_cerete : cupsSeleccionado.cpt_cerete}
-                                                    editable={modoEdicion}
-                                                    onChange={(v) => handleInputChange('cpt_cerete', v)}
-                                                />
-                                                <BooleanChip
-                                                    label="Cápita NEPS Montería"
-                                                    value={modoEdicion ? cupsEditado.cpt_monteria : cupsSeleccionado.cpt_monteria}
-                                                    editable={modoEdicion}
-                                                    onChange={(v) => handleInputChange('cpt_monteria', v)}
-                                                />
-                                                <BooleanChip
-                                                    label="Cápita NEPS Ciénaga"
-                                                    value={modoEdicion ? cupsEditado.cpt_cienaga : cupsSeleccionado.cpt_cienaga}
-                                                    editable={modoEdicion}
-                                                    onChange={(v) => handleInputChange('cpt_cienaga', v)}
-                                                />
-                                                <BooleanChip
-                                                    label="PGP IMAT"
-                                                    value={modoEdicion ? cupsEditado.pgp_imat : cupsSeleccionado.pgp_imat}
-                                                    editable={modoEdicion}
-                                                    onChange={(v) => handleInputChange('pgp_imat', v)}
-                                                />
+                                                {CONTRATOS_CONFIG.map(({ key, label }) => {
+                                                    const value = modoEdicion
+                                                        ? cupsEditado?.[key as keyof Cups]
+                                                        : cupsSeleccionado?.[key as keyof Cups]
+
+                                                    // En modo lectura, ocultar los que son false
+                                                    if (!modoEdicion && value !== true) return null
+
+                                                    return (
+                                                        <BooleanChip
+                                                            key={key}
+                                                            label={label}
+                                                            value={value as boolean}
+                                                            editable={modoEdicion}
+                                                            onChange={(v) => handleInputChange(key as keyof Cups, v)}
+                                                        />
+                                                    )
+                                                })}
+
+                                                {!modoEdicion && !CONTRATOS_CONFIG.some(c => cupsSeleccionado?.[c.key as keyof Cups] === true) && (
+                                                    <div className="col-span-full py-2">
+                                                        <p className="text-gray-500 italic text-sm bg-gray-50 px-3 py-2 rounded-lg border border-gray-100 inline-block">
+                                                            Este CUPS no tiene contrato asociado
+                                                        </p>
+                                                    </div>
+                                                )}
                                             </div>
                                         </FieldGroup>
 

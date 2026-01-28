@@ -344,6 +344,38 @@ export function CasoDetallePanel({
             }
         }
 
+        // Validación para estado "No contactable"
+        if (estadoRadicado === 'No contactable') {
+            if (caso.emailRadicador) {
+                try {
+                    const datosCaso = {
+                        'Paciente': getNombreCompleto(),
+                        'Identificación': `${caso.paciente?.tipoId || ''} - ${caso.id}`,
+                    }
+
+                    const emailEnviado = await emailService.enviarNotificacionNoContactable(
+                        caso.emailRadicador,
+                        caso.radicado,
+                        datosCaso
+                    )
+
+                    if (!emailEnviado) {
+                        console.warn("No se pudo enviar el correo de notificación No contactable")
+                        toast.error("No se pudo enviar el correo de notificación al radicador")
+                    } else {
+                        console.info(`✅ Correo No Contactable enviado a: ${caso.emailRadicador}`)
+                        toast.success(`Notificación enviada a ${caso.emailRadicador}`)
+                    }
+                } catch (e) {
+                    console.error("Error enviando email No Contactable", e)
+                    toast.error("Ocurrió un error al intentar enviar el correo")
+                }
+            } else {
+                console.warn("El radicador no tiene correo registrado, no se envió notificación No Contactable.")
+                toast.warning("El radicador no tiene correo, no se pudo enviar notificación.")
+            }
+        }
+
         const result = await backService.actualizarCaso(caso.radicado, {
             direccionamiento: direccionamiento || null,
             respuesta_back: respuestaBack || null,
@@ -484,9 +516,11 @@ export function CasoDetallePanel({
 
     const getNombreCompleto = () => {
         if (!caso.paciente) return 'Sin datos del paciente'
-        return [caso.paciente.nombres, caso.paciente.apellido1, caso.paciente.apellido2]
+        const nombre = [caso.paciente.nombres, caso.paciente.apellido1, caso.paciente.apellido2]
             .filter(Boolean)
             .join(' ')
+
+        return nombre || 'Nombre No Disponible'
     }
 
     const formatFecha = (fecha: Date) => {
@@ -516,10 +550,10 @@ export function CasoDetallePanel({
             {/* Panel lateral */}
             <div className="fixed right-0 top-0 z-50 h-full w-full max-w-2xl bg-white shadow-2xl animate-slide-in-right overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-[var(--color-primary-50)] to-white">
+                <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
                     <div className="flex items-start justify-between">
-                        <div>
-                            <h2 className="text-3xl font-bold text-[var(--color-primary-700)]">
+                        <div className="w-full">
+                            <h2 className="text-2xl font-bold text-gray-800 break-words leading-tight">
                                 {getNombreCompleto()}
                             </h2>
                             <div className="flex items-center gap-3 mt-2">
