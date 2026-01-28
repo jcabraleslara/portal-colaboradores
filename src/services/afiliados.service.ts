@@ -520,7 +520,10 @@ export const afiliadosService = {
         try {
             const { error } = await supabase
                 .from('bd')
-                .update({ eps: nuevaEps })
+                .update({
+                    eps: nuevaEps,
+                    fuente: 'PORTAL_COLABORADORES'
+                })
                 .eq('tipo_id', tipoId)
                 .eq('id', id)
 
