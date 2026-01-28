@@ -1075,132 +1075,133 @@ export function CasoDetallePanel({
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {/* ============================================ */}
-                {/* MODAL CONFIRMACIÓN ELIMINAR */}
-                {/* ============================================ */}
-                {
-                    mostandoConfirmacionEliminar && (
-                        <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fade-in">
-                            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-scale-in">
-                                <div className="flex items-center gap-3 text-red-600 mb-4">
-                                    <div className="p-3 bg-red-50 rounded-full">
-                                        <AlertTriangle size={24} />
-                                    </div>
-                                    <h3 className="text-lg font-bold">¿Eliminar caso?</h3>
+            {/* ============================================ */}
+            {/* MODAL CONFIRMACIÓN ELIMINAR */}
+            {/* ============================================ */}
+            {
+                mostandoConfirmacionEliminar && (
+                    <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fade-in">
+                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-scale-in">
+                            <div className="flex items-center gap-3 text-red-600 mb-4">
+                                <div className="p-3 bg-red-50 rounded-full">
+                                    <AlertTriangle size={24} />
                                 </div>
+                                <h3 className="text-lg font-bold">¿Eliminar caso?</h3>
+                            </div>
 
-                                <p className="text-gray-600 mb-6">
-                                    Estás a punto de eliminar el caso <strong>{caso.radicado}</strong>.
-                                    Esta acción no se puede deshacer y borrará permanentemente todos los datos asociados.
-                                </p>
+                            <p className="text-gray-600 mb-6">
+                                Estás a punto de eliminar el caso <strong>{caso.radicado}</strong>.
+                                Esta acción no se puede deshacer y borrará permanentemente todos los datos asociados.
+                            </p>
 
-                                <div className="flex justify-end gap-3">
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => setMostandoConfirmacionEliminar(false)}
-                                        disabled={eliminando}
-                                    >
-                                        Cancelar
-                                    </Button>
-                                    <Button
-                                        variant="primary"
-                                        className="!bg-red-600 hover:!bg-red-700 text-white"
-                                        onClick={handleEliminar}
-                                        isLoading={eliminando}
-                                    >
-                                        Sí, eliminar
-                                    </Button>
-                                </div>
+                            <div className="flex justify-end gap-3">
+                                <Button
+                                    variant="ghost"
+                                    onClick={() => setMostandoConfirmacionEliminar(false)}
+                                    disabled={eliminando}
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button
+                                    variant="primary"
+                                    className="!bg-red-600 hover:!bg-red-700 text-white"
+                                    onClick={handleEliminar}
+                                    isLoading={eliminando}
+                                >
+                                    Sí, eliminar
+                                </Button>
                             </div>
                         </div>
-                    )
-                }
+                    </div>
+                )
+            }
 
-                {/* ============================================ */}
-                {/* VISOR DE PDF FULLSCREEN */}
-                {/* ============================================ */}
+            {/* ============================================ */}
+            {/* VISOR DE PDF FULLSCREEN */}
+            {/* ============================================ */}
 
 
-                {/* Renderizar visor PDF en Portal para estar encima de todo (Sidebar, Header) */}
-                {pdfActivo && createPortal(
-                    <div
-                        ref={pdfContainerRef}
-                        tabIndex={-1}
-                        className="fixed inset-0 z-[100] bg-black/90 flex flex-col animate-fade-in focus:outline-none"
-                        onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                                e.stopPropagation() // Evitar que burbujee si ya lo manejamos aquí
-                                handleCerrarPdf()
-                            }
-                        }}
-                    >
-                        {/* Toolbar */}
-                        <div className="flex items-center justify-between px-4 py-3 bg-gray-900/80">
-                            <div className="flex items-center gap-4">
-                                <span className="text-white font-medium">
-                                    Soporte {indicePdf + 1} de {caso.soportes?.length || 1}
-                                </span>
-                                <div className="flex gap-2">
-                                    <button
-                                        onClick={handlePdfAnterior}
-                                        disabled={indicePdf === 0}
-                                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        <ChevronLeft size={20} className="text-white" />
-                                    </button>
-                                    <button
-                                        onClick={handlePdfSiguiente}
-                                        disabled={!caso.soportes || indicePdf >= caso.soportes.length - 1}
-                                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                    >
-                                        <ChevronRight size={20} className="text-white" />
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <a
-                                    href={pdfActivo}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                                    title="Abrir en nueva pestaña"
-                                >
-                                    <ExternalLink size={20} className="text-white" />
-                                </a>
+            {/* Renderizar visor PDF en Portal para estar encima de todo (Sidebar, Header) */}
+            {pdfActivo && createPortal(
+                <div
+                    ref={pdfContainerRef}
+                    tabIndex={-1}
+                    className="fixed inset-0 z-[100] bg-black/90 flex flex-col animate-fade-in focus:outline-none"
+                    onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                            e.stopPropagation() // Evitar que burbujee si ya lo manejamos aquí
+                            handleCerrarPdf()
+                        }
+                    }}
+                >
+                    {/* Toolbar */}
+                    <div className="flex items-center justify-between px-4 py-3 bg-gray-900/80">
+                        <div className="flex items-center gap-4">
+                            <span className="text-white font-medium">
+                                Soporte {indicePdf + 1} de {caso.soportes?.length || 1}
+                            </span>
+                            <div className="flex gap-2">
                                 <button
-                                    onClick={() => setPdfFullscreen(!pdfFullscreen)}
-                                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                                    title={pdfFullscreen ? 'Reducir' : 'Pantalla completa'}
+                                    onClick={handlePdfAnterior}
+                                    disabled={indicePdf === 0}
+                                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
-                                    {pdfFullscreen ? (
-                                        <Minimize2 size={20} className="text-white" />
-                                    ) : (
-                                        <Maximize2 size={20} className="text-white" />
-                                    )}
+                                    <ChevronLeft size={20} className="text-white" />
                                 </button>
                                 <button
-                                    onClick={handleCerrarPdf}
-                                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                                    onClick={handlePdfSiguiente}
+                                    disabled={!caso.soportes || indicePdf >= caso.soportes.length - 1}
+                                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                                 >
-                                    <X size={20} className="text-white" />
+                                    <ChevronRight size={20} className="text-white" />
                                 </button>
                             </div>
                         </div>
-
-                        {/* Iframe del PDF */}
-                        <div className="flex-1 p-4">
-                            <iframe
-                                src={`${pdfActivo}#view=FitH`}
-                                className="w-full h-full rounded-lg bg-white"
-                                title={`Soporte PDF ${indicePdf + 1}`}
-                            />
+                        <div className="flex items-center gap-2">
+                            <a
+                                href={pdfActivo}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                                title="Abrir en nueva pestaña"
+                            >
+                                <ExternalLink size={20} className="text-white" />
+                            </a>
+                            <button
+                                onClick={() => setPdfFullscreen(!pdfFullscreen)}
+                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                                title={pdfFullscreen ? 'Reducir' : 'Pantalla completa'}
+                            >
+                                {pdfFullscreen ? (
+                                    <Minimize2 size={20} className="text-white" />
+                                ) : (
+                                    <Maximize2 size={20} className="text-white" />
+                                )}
+                            </button>
+                            <button
+                                onClick={handleCerrarPdf}
+                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                            >
+                                <X size={20} className="text-white" />
+                            </button>
                         </div>
-                    </div>,
-                    document.body
-                )}
+                    </div>
 
-                <style>{`
+                    {/* Iframe del PDF */}
+                    <div className="flex-1 p-4">
+                        <iframe
+                            src={`${pdfActivo}#view=FitH`}
+                            className="w-full h-full rounded-lg bg-white"
+                            title={`Soporte PDF ${indicePdf + 1}`}
+                        />
+                    </div>
+                </div>,
+                document.body
+            )}
+
+            <style>{`
                 @keyframes slide-in-right {
                     from {
                         transform: translateX(100%);
@@ -1220,8 +1221,8 @@ export function CasoDetallePanel({
                     to { opacity: 1; transform: scale(1); }
                 }
             `}</style>
-            </>
-            )
+        </>
+    )
 }
 
-            export default CasoDetallePanel
+export default CasoDetallePanel
