@@ -51,6 +51,7 @@ const ConsultarCupsPage = lazyWithRetry(() => import('@/features/consultarCups/C
 const SoportesFacturacionPage = lazyWithRetry(() => import('@/features/soportesFacturacion/SoportesFacturacionPage'))
 const GestionDemandaInducidaView = lazyWithRetry(() => import('@/features/demandaInducida/GestionDemandaInducidaView'))
 const RutasPage = lazyWithRetry(() => import('@/features/rutas/RutasPage'))
+const ImportarFuentesPage = lazyWithRetry(() => import('@/features/importarFuentes/ImportarFuentesPage'))
 
 /**
  * Componente de protección de rutas
@@ -282,6 +283,17 @@ export function AppRoutes() {
                         <RoleGuard moduleId="demanda-inducida">
                             <LazyWrapper>
                                 <GestionDemandaInducidaView />
+                            </LazyWrapper>
+                        </RoleGuard>
+                    }
+                />
+
+                <Route
+                    path={ROUTES.IMPORTAR_FUENTES}
+                    element={
+                        <RoleGuard moduleId="importar-fuentes">
+                            <LazyWrapper>
+                                <ImportarFuentesPage />
                             </LazyWrapper>
                         </RoleGuard>
                     }

@@ -14,6 +14,7 @@ export const ROUTES = {
     GESTION_BACK: '/gestion-back',
     DIRECTORIO_INSTITUCIONAL: '/directorio-institucional',
     ADMIN_USUARIOS: '/admin/usuarios',
+    IMPORTAR_FUENTES: '/importar-fuentes',
     CONSULTAR_CUPS: '/consultar-cups',
     // Módulos futuros (placeholders)
     SOPORTES_FACTURACION: '/soportes-facturacion',
@@ -205,5 +206,14 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         enabled: true,
         description: 'Gestión de usuarios del portal',
         requiredRoles: ['superadmin'],
+    },
+    {
+        id: 'importar-fuentes',
+        name: 'Importar Fuentes',
+        path: ROUTES.IMPORTAR_FUENTES,
+        icon: 'UploadCloud',
+        enabled: true,
+        description: 'Importación masiva de datos',
+        requiredRoles: ['superadmin', 'auditor'],
     },
 ]
