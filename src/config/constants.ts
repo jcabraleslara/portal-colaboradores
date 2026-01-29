@@ -106,6 +106,7 @@ export interface ModuleConfig {
     enabled: boolean
     description?: string
     requiredRoles?: string[]  // Roles permitidos para ver este módulo (si no está definido, es visible para todos)
+    showInSidebar?: boolean   // Si es false, no se muestra en el sidebar
 }
 
 export const PORTAL_MODULES: ModuleConfig[] = [
@@ -215,5 +216,6 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         enabled: true,
         description: 'Importación masiva de datos',
         requiredRoles: ['superadmin', 'auditor'],
+        showInSidebar: false,
     },
 ]

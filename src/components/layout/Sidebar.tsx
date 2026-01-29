@@ -57,6 +57,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     // Filtrar módulos según rol del usuario
     // Filtrar módulos según rol del usuario
     const visibleModules = PORTAL_MODULES.filter(module => {
+        // Ocultar si está explícitamente oculto del sidebar
+        if (module.showInSidebar === false) return false
+
         // Ocultar módulos inhabilitados
         if (!module.enabled) return false
 

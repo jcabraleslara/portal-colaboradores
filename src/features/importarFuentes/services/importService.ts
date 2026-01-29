@@ -18,11 +18,11 @@ export interface CitaRow {
     cups: string
     procedimiento: string
     unidad_funcional: string
-    dx1: string
-    dx2: string
-    dx3: string
-    dx4: string
-    duracion: string
+    dx1: string | null
+    dx2: string | null
+    dx3: string | null
+    dx4: string | null
+    duracion: string | null
 }
 
 /**
@@ -57,15 +57,15 @@ const COLUMN_MAP: Record<string, keyof CitaRow> = {
  */
 export async function processCitasFile(
     file: File,
-    onProgress: (status: string) => void
+    onProgress: (status: string, percentage?: number) => void
 ): Promise<{ success: number; errors: number }> {
 
     // 1. Read file as text
-    onProgress('Leyendo archivo...')
+    onProgress('Leyendo archivo...', 0)
     const text = await file.text()
 
     // 2. Parse HTML
-    onProgress('Analizando estructura HTML...')
+    onProgress('Analizando estructura HTML...', 5)
     const parser = new DOMParser()
     const doc = parser.parseFromString(text, 'text/html')
 
@@ -118,7 +118,7 @@ export async function processCitasFile(
     }
 
     // 4. Extract Data
-    onProgress('Extrayendo datos...')
+    onProgress('Extrayendo datos...', 10)
     const dataBatch: CitaRow[] = []
     const rows = Array.from(targetTable.rows).slice(headerRowIndex + 1)
 
@@ -167,17 +167,17 @@ export async function processCitasFile(
             procedimiento: getItem('procedimiento'),
             unidad_funcional: getItem('unidad_funcional'),
             dx1: getItem('dx1'),
-            dx2: getItem('dx2'),
-            dx3: getItem('dx3'),
-            dx4: getItem('dx4'),
-            duracion: getItem('duracion')
+            dx2: getItem('dx2') || null,
+            dx3: getItem('dx3') || null,
+            dx4: getItem('dx4') || null,
+            duracion: getItem('duracion') || null
         }
 
         dataBatch.push(rowData)
     }
 
     // 5. Upsert to Supabase
-    onProgress(`Subiendo ${dataBatch.length} registros...`)
+    onProgress(`Subiendo ${dataBatch.length} registros...`, 20)
 
     const BATCH_SIZE = 100
     let successCount = 0
@@ -197,7 +197,8 @@ export async function processCitasFile(
             successCount += chunk.length
         }
 
-        onProgress(`Procesando... ${Math.min(i + BATCH_SIZE, dataBatch.length)} / ${dataBatch.length}`)
+        const percentage = Math.round((Math.min(i + BATCH_SIZE, dataBatch.length) / dataBatch.length) * 100)
+        onProgress(`Procesando... ${Math.min(i + BATCH_SIZE, dataBatch.length)} / ${dataBatch.length}`, percentage)
     }
 
     return { success: successCount, errors: errorCount }
