@@ -207,6 +207,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         enabled: true,
         description: 'Gestión de usuarios del portal',
         requiredRoles: ['superadmin'],
+        showInSidebar: false,
     },
     {
         id: 'importar-fuentes',

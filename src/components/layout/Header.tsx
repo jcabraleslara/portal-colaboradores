@@ -4,7 +4,8 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
-import { LogOut, Menu, Bell, User, Lock, UploadCloud } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { LogOut, Menu, Bell, User, Lock, UploadCloud, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { ChangePasswordModal } from '@/features/auth'
@@ -15,6 +16,7 @@ interface HeaderProps {
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
+    const navigate = useNavigate()
     const { user, logout } = useAuth()
     const [showUserMenu, setShowUserMenu] = useState(false)
     const [showPasswordModal, setShowPasswordModal] = useState(false)
@@ -140,16 +142,24 @@ export function Header({ onMenuClick }: HeaderProps) {
 
                                     <div className="h-px bg-slate-100 my-1" />
 
+                                    {user?.rol === 'superadmin' && (
+                                        <button
+                                            onClick={() => {
+                                                setShowUserMenu(false)
+                                                navigate('/admin/usuarios')
+                                            }}
+                                            className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:text-primary-600 hover:bg-primary-50 transition-colors flex items-center gap-2.5"
+                                        >
+                                            <Users size={16} />
+                                            Administrar Usuarios
+                                        </button>
+                                    )}
+
                                     {(user?.rol === 'superadmin' || user?.rol === 'auditor') && (
                                         <button
                                             onClick={() => {
                                                 setShowUserMenu(false)
-                                                // Navegar usando window.location para forzar recarga si es necesario,
-                                                // o mejor usar useNavigate si estuviera disponible.
-                                                // Como Header no tiene router props inyectadas y usa <a> o similar en otros lados...
-                                                // Pero espera, estamos en React Router context.
-                                                // Mejor emitir evento o usar href simple.
-                                                window.location.href = '/importar-fuentes'
+                                                navigate('/importar-fuentes')
                                             }}
                                             className="w-full text-left px-3 py-2.5 text-sm text-slate-600 hover:text-primary-600 hover:bg-primary-50 transition-colors flex items-center gap-2.5"
                                         >
