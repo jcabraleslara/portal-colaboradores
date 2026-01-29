@@ -135,6 +135,8 @@ export async function processCitasFile(
     onProgress('Extrayendo datos...', 10)
     // Use a Map to deduplicate by id_cita automatically (last entry wins)
     const rowsMap = new Map<string, CitaRow>()
+    console.log("🚀 Iniciando deduplicación con Map v2...")
+
 
     const rows = Array.from(targetTable.rows).slice(headerRowIndex + 1)
 
