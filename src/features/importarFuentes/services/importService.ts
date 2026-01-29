@@ -100,16 +100,31 @@ export async function processCitasFile(
             if (cells.includes('ID CITA') && cells.includes('PACIENTE')) {
                 targetTable = table
                 headerRowIndex = i
+
+                // First pass: exact matches only (prevents false positives)
                 cells.forEach((headerText, index) => {
-                    let dbCol = COLUMN_MAP[headerText]
-                    if (!dbCol) {
-                        const key = Object.keys(COLUMN_MAP).find(k => {
-                            const normalizedKey = normalizeHeader(k)
-                            return headerText.includes(normalizedKey) || normalizedKey.includes(headerText)
-                        })
-                        if (key) dbCol = COLUMN_MAP[key]
+                    const dbCol = COLUMN_MAP[headerText]
+                    if (dbCol && columnIndices[dbCol] === undefined) {
+                        columnIndices[dbCol] = index
                     }
-                    if (dbCol) columnIndices[dbCol] = index
+                })
+
+                // Second pass: fuzzy matches for unmatched columns (e.g., accents)
+                // Only match if the header text is similar length (within 3 chars) to avoid false positives
+                cells.forEach((headerText, index) => {
+                    const key = Object.keys(COLUMN_MAP).find(k => {
+                        if (columnIndices[COLUMN_MAP[k]] !== undefined) return false // Already matched
+                        const normalizedKey = normalizeHeader(k)
+                        const lengthDiff = Math.abs(headerText.length - normalizedKey.length)
+                        if (lengthDiff > 3) return false // Too different in length
+                        return headerText.includes(normalizedKey) || normalizedKey.includes(headerText)
+                    })
+                    if (key) {
+                        const dbCol = COLUMN_MAP[key]
+                        if (columnIndices[dbCol] === undefined) {
+                            columnIndices[dbCol] = index
+                        }
+                    }
                 })
                 break
             }
@@ -173,13 +188,27 @@ export async function processCitasFile(
 
     const rows = Array.from(targetTable.rows).slice(headerRowIndex + 1)
 
-    // Helper to parse dates (DD/MM/YYYY -> YYYY-MM-DD)
+    // Helper to parse dates - supports multiple formats:
+    // - DD/MM/YYYY (legacy)
+    // - YYYY-MM-DD (ISO)
+    // - YYYY-MM-DD HH:MM (ISO with time)
+    // - YYYY-MM-DD HH:MM am/pm (ISO with time and am/pm)
     const parseDate = (val: string) => {
-        if (!val) return null
-        const match = val.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)
-        if (match) {
-            return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`
+        if (!val || !val.trim()) return null
+        const trimmed = val.trim()
+
+        // Try DD/MM/YYYY format first (legacy)
+        const legacyMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+        if (legacyMatch) {
+            return `${legacyMatch[3]}-${legacyMatch[2].padStart(2, '0')}-${legacyMatch[1].padStart(2, '0')}`
         }
+
+        // Try ISO format YYYY-MM-DD (with optional time)
+        const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+        if (isoMatch) {
+            return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`
+        }
+
         return null
     }
 
