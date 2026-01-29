@@ -36,41 +36,29 @@ export interface CitaRow {
  */
 const COLUMN_MAP: Record<string, keyof CitaRow> = {
     'ID CITA': 'id_cita',
-    'TIPO ID': 'tipo_id',
-    'No. IDENTIFICACION': 'identificacion', // Correcto
-    'NUMERO ID': 'identificacion', // Fallback
-    'IDENTIFICACION': 'identificacion', // Fallback
+    'TIPO IDENT.': 'tipo_id',
+    'No. IDENTIFICACION': 'identificacion',
     'PACIENTE': 'nombres_completos',
-    'NOMBRE': 'nombres_completos',
     'FECHA ASIGNACION': 'fecha_asignacion',
-    'FECHA ATENCION': 'fecha_cita', // Correcto per user
-    'FECHA CITA': 'fecha_cita', // Fallback
+    'FECHA ATENCION': 'fecha_cita',
     'ESTADO': 'estado_cita',
     'ASUNTO': 'asunto',
-    'P. ATENCION': 'sede', // Correcto
-    'SEDE': 'sede', // Fallback
+    'P. ATENCION': 'sede',
     'CONTRATO': 'contrato',
-    'USUARIO': 'usuario_agenda', // Correcto
-    'USUARIO AGENDA': 'usuario_agenda', // Fallback
+    'USUARIO': 'usuario_agenda',
     'MEDICO': 'medico',
-    'PROFESIONAL': 'medico',
-    'ESP. MEDICO': 'especialidad', // Correcto
-    'ESPECIALIDAD': 'especialidad', // Fallback
-    'TIPO DE CITA': 'tipo_cita', // Correcto
-    'TIPO CITA': 'tipo_cita', // Fallback
+    'ESP. MEDICO': 'especialidad',
+    'TIPO DE CITA': 'tipo_cita',
     'CUPS': 'cups',
-    'CODIGO': 'cups',
     'PROCEDIMIENTO': 'procedimiento',
     'UNIDAD FUNCIONAL': 'unidad_funcional',
     'DIAGNOSTICO': 'dx1',
-    'CIE10': 'dx1',
     'D. RELACIONADO1': 'dx2',
     'D. RELACIONADO2': 'dx3',
     'D. RELACIONADO3': 'dx4',
-    'DURACION': 'duracion',
+    'FECHA TIEMPO EN CONSULTA': 'duracion', // Best guess based on headers
     'SEXO': 'sexo',
-    'GENERO': 'sexo',
-    'F.NACIMIENTO': 'fecha_nacimiento_temp', // For calculation
+    'F.NACIMIENTO': 'fecha_nacimiento_temp',
     'USUARIO CONFIRMA': 'usuario_confirma'
 }
 
@@ -98,8 +86,8 @@ export async function processCitasFile(
         console.error('Error fetching CUPS:', cupsError)
         throw new Error('No se pudo validar el maestro de CUPS.')
     }
-    // Create Set for O(1) lookup
-    const validCupsSet = new Set(cupsData?.map(c => c.cups?.trim()) || [])
+    // Create Set for O(1) lookup - Normalized
+    const validCupsSet = new Set(cupsData?.map(c => c.cups?.trim().toUpperCase()) || [])
     const invalidCupsList: { id_cita: string; cups: string; descripcion: string }[] = []
 
     // 1. Read file as text
@@ -226,6 +214,10 @@ export async function processCitasFile(
         // Always calculate age from birth date vs assignment date
         const finalAge = calculateAge(fecha_nacimiento_raw, fecha_asignacion)
 
+        // Clean estado_cita: "ATENDIDA - (Normal)" -> "ATENDIDA"
+        const rawEstado = getItem('estado_cita')
+        const estado_clean = rawEstado ? rawEstado.split(' -')[0].trim() : ''
+
         const rowData: CitaRow = {
             id_cita,
             tipo_id: getItem('tipo_id'),
@@ -233,7 +225,7 @@ export async function processCitasFile(
             nombres_completos: getItem('nombres_completos'),
             fecha_asignacion: fecha_asignacion,
             fecha_cita: parseDate(getItem('fecha_cita')),
-            estado_cita: getItem('estado_cita'),
+            estado_cita: estado_clean,
             asunto: getItem('asunto'),
             sede: getItem('sede'),
             contrato: getItem('contrato'),
@@ -256,7 +248,7 @@ export async function processCitasFile(
         }
 
         // Validate CUPS integrity
-        const rowCups = rowData.cups?.trim()
+        const rowCups = rowData.cups?.trim().toUpperCase()
         if (rowCups && !validCupsSet.has(rowCups)) {
             invalidCupsList.push({
                 id_cita: rowData.id_cita,
@@ -304,12 +296,39 @@ export async function processCitasFile(
     const seconds = durationSeconds % 60
     const durationStr = `${minutes}m ${seconds}s`
 
-    // Generate CSV Report if needed
+    // Generate CSV Report if needed (Deduplicated)
     let invalidCupsReport: string | undefined
     if (invalidCupsList.length > 0) {
-        const headers = 'ID_CITA,CUPS_NO_ENCONTRADO,DESCRIPCION\n'
-        const rows = invalidCupsList.map(item => `${item.id_cita},"${item.cups}","${item.descripcion}"`).join('\n')
+        // Deduplicate by CUPS code to show unique missing codes
+        const uniqueCupsMap = new Map<string, string>()
+        invalidCupsList.forEach(item => {
+            if (!uniqueCupsMap.has(item.cups)) {
+                uniqueCupsMap.set(item.cups, item.descripcion)
+            }
+        })
+
+        const headers = 'CUPS_NO_ENCONTRADO,DESCRIPCION_EJEMPLO\n'
+        const rows = Array.from(uniqueCupsMap.entries()).map(([cups, desc]) => `"${cups}","${desc}"`).join('\n')
         invalidCupsReport = headers + rows
+    }
+
+    // 6. Log history
+    try {
+        const { error: logError } = await supabase.from('import_history').insert({
+            usuario: (await supabase.auth.getUser()).data.user?.email || 'unknown',
+            archivo_nombre: file.name,
+            total_registros: rowsMap.size + duplicates,
+            exitosos: successCount,
+            fallidos: errorCount,
+            duplicados: duplicates,
+            duracion: durationStr,
+            detalles: {
+                invalid_cups_count: invalidCupsList.length
+            }
+        })
+        if (logError) console.error('Error logging history:', logError)
+    } catch (e) {
+        console.error('Failed to log import history', e)
     }
 
     return {
