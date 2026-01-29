@@ -1,12 +1,12 @@
 /**
  * Contexto de Autenticación con Supabase Auth
  * Portal de Colaboradores GESTAR SALUD IPS
- * 
- * VERSIÓN 3.0 - FAIL-FAST
- * - Timeout agresivo: máximo 8 segundos para toda la operación
- * - Sin reintentos: si falla, va directo al login
- * - Limpieza automática de sesiones corruptas
- * - Lógica simplificada para evitar race conditions
+ *
+ * VERSIÓN 4.0 - SESIÓN PERSISTENTE
+ * - Sesión de larga duración: caché válido por 24 horas
+ * - Renovación automática del token sin interrumpir al usuario
+ * - Tolerancia a fallos: múltiples reintentos antes de forzar logout
+ * - Prioriza mantener la sesión activa sobre validaciones estrictas
  */
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
@@ -14,14 +14,14 @@ import { supabase } from '@/config/supabase.config'
 import { AuthUser } from '@/types'
 
 // ========================================
-// CONSTANTES - FAIL-FAST APPROACH
+// CONSTANTES - SESIÓN PERSISTENTE
 // ========================================
 const PROFILE_CACHE_KEY = 'gestar-user-profile'
 const FAILED_ATTEMPTS_KEY = 'gestar-auth-failed-attempts'
-const MAX_CACHE_AGE_MS = 30 * 60 * 1000 // 30 minutos de validez
-const GLOBAL_TIMEOUT_MS = 5000 // 5 segundos MÁXIMO para consultas paralelas
-const FAILSAFE_TIMEOUT_MS = 8000 // 8 segundos timeout de seguridad absoluto
-const MAX_FAILED_ATTEMPTS = 2 // Máximo 2 intentos antes de forzar login
+const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000 // 24 horas de validez del caché
+const GLOBAL_TIMEOUT_MS = 15000 // 15 segundos para consultas (conexiones lentas)
+const FAILSAFE_TIMEOUT_MS = 30000 // 30 segundos timeout de seguridad
+const MAX_FAILED_ATTEMPTS = 10 // 10 intentos antes de forzar login (muy tolerante)
 
 // ========================================
 // TIPOS DEL CONTEXTO
@@ -287,11 +287,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     useEffect(() => {
         let mounted = true
 
-        // Timeout de seguridad: Máximo 6 segundos para inicialización completa
+        // Timeout de seguridad: Solo actúa si NO hay caché disponible
         const safetyTimeout = setTimeout(() => {
             if (mounted && isLoading) {
-                console.warn('⚠️ Timeout de seguridad activado - redirigiendo a login')
-                forceCleanSession()
+                // Antes de forzar logout, intentar usar caché existente
+                const fallbackProfile = getCachedProfile()
+                if (fallbackProfile) {
+                    console.info('⏱️ Timeout alcanzado - usando caché de respaldo')
+                    setUser(fallbackProfile)
+                    setIsLoading(false)
+                    initializationComplete.current = true
+                    processingAuth.current = false
+                } else {
+                    console.warn('⚠️ Timeout de seguridad - sin caché disponible, redirigiendo a login')
+                    forceCleanSession()
+                }
             }
         }, FAILSAFE_TIMEOUT_MS)
 
@@ -304,10 +314,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 return
             }
 
-            // Verificar si ya excedimos los intentos fallidos (evitar loop infinito)
+            processingAuth.current = true
+            const email = session?.user?.email
+
+            // Verificar intentos fallidos - pero primero intentar caché
             const failedAttempts = getFailedAttempts()
             if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
-                console.warn(`🛑 Máximo de intentos fallidos alcanzado (${failedAttempts}). Forzando login.`)
+                // Antes de forzar logout, verificar si hay caché disponible
+                const fallbackProfile = getCachedProfile(email)
+                if (fallbackProfile) {
+                    console.info('📦 Muchos intentos fallidos pero hay caché - usando caché')
+                    clearFailedAttempts()
+                    setUser(fallbackProfile)
+                    setIsLoading(false)
+                    initializationComplete.current = true
+                    processingAuth.current = false
+                    return
+                }
+                // Solo forzar logout si realmente no hay alternativa
+                console.warn(`🛑 Máximo de intentos fallidos y sin caché. Requiere re-login.`)
                 clearFailedAttempts()
                 clearProfileCache()
                 setUser(null)
@@ -317,33 +342,32 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 return
             }
 
-            processingAuth.current = true
-            const email = session?.user?.email
-
             try {
                 // ===== CASO 1: Hay sesión válida =====
                 if (session?.user && email) {
                     console.info(`🔐 [${eventType}] Sesión detectada: ${email}`)
 
-                    // Intentar caché primero (instantáneo)
+                    // Intentar caché primero (instantáneo) - PRIORIDAD MÁXIMA
                     const cachedProfile = getCachedProfile(email)
                     if (cachedProfile) {
-                        console.info('📦 Usando perfil cacheado')
+                        console.info('📦 Usando perfil cacheado - sesión persistente')
                         clearFailedAttempts() // Reset en éxito
                         setUser(cachedProfile)
                         setIsLoading(false)
                         initializationComplete.current = true
+                        processingAuth.current = false
 
-                        // Actualizar en background sin bloquear
+                        // Actualizar en background SIN afectar la sesión actual
+                        // Si falla, simplemente mantenemos el caché - no forzamos logout
                         fetchProfileFast(email).then(freshProfile => {
                             if (mounted && freshProfile) {
                                 setUser(freshProfile)
                                 cacheProfile(freshProfile)
+                                console.info('✅ Perfil actualizado en background')
                             }
-                        }).catch(() => {
-                            // Silenciosamente ignorar errores de background
-                        }).finally(() => {
-                            processingAuth.current = false
+                        }).catch((error) => {
+                            // Solo log, NUNCA afectar la sesión del usuario
+                            console.info('ℹ️ Actualización background omitida:', error?.message || 'sin conexión')
                         })
 
                         return
@@ -363,24 +387,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         setIsLoading(false)
                         initializationComplete.current = true
                     } else {
-                        // No se pudo obtener perfil: incrementar intentos y limpiar
+                        // No se pudo obtener perfil - ser tolerante
                         const attempts = incrementFailedAttempts()
-                        console.warn(`⚠️ No se pudo obtener perfil válido (intento ${attempts}/${MAX_FAILED_ATTEMPTS})`)
+                        console.warn(`⚠️ No se pudo obtener perfil (intento ${attempts}/${MAX_FAILED_ATTEMPTS})`)
 
-                        if (attempts >= MAX_FAILED_ATTEMPTS) {
-                            console.warn('🛑 Máximo de intentos alcanzado - forzando login')
-                            clearFailedAttempts()
-                            clearProfileCache()
-                            try {
-                                await supabase.auth.signOut({ scope: 'local' })
-                            } catch {
-                                // Ignorar
+                        // Crear perfil mínimo basado en el email para no bloquear al usuario
+                        if (attempts < MAX_FAILED_ATTEMPTS) {
+                            // Reintentar en el próximo evento de auth
+                            console.info('ℹ️ Se reintentará en el próximo evento de autenticación')
+                            setIsLoading(false)
+                            initializationComplete.current = true
+                        } else {
+                            // Después de muchos intentos, crear perfil básico en lugar de forzar logout
+                            console.warn('⚠️ Creando perfil básico para mantener sesión')
+                            const basicProfile: AuthUser = {
+                                identificacion: 'PENDIENTE',
+                                nombreCompleto: email.split('@')[0],
+                                email: email,
+                                rol: 'operativo',
+                                primerLogin: true,
+                                ultimoLogin: null,
                             }
-                            setUser(null)
+                            clearFailedAttempts()
+                            setUser(basicProfile)
+                            cacheProfile(basicProfile)
                             setIsLoading(false)
                             initializationComplete.current = true
                         }
-                        return
                     }
                 }
                 // ===== CASO 2: No hay sesión =====
@@ -434,7 +467,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         break
 
                     case 'TOKEN_REFRESHED':
-                        console.info('🔄 Token renovado')
+                        console.info('🔄 Token renovado - extendiendo sesión')
+                        // Extender el caché del perfil cuando el token se renueva
+                        if (user) {
+                            cacheProfile(user) // Renueva el timestamp del caché
+                            console.info('✅ Caché de perfil extendido por 24 horas más')
+                        }
                         break
 
                     case 'USER_UPDATED':
