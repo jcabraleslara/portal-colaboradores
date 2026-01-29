@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash, Save, X, Mail } from 'lucide-react'
+import { Plus, Trash, Save, X, Mail, Copy, Building2 } from 'lucide-react'
 import { Button, Card, Input } from '@/components/common'
-import { rutasService, RutaEmailConfig } from '../services/rutas.service'
+import { rutasService, RutaEmailConfig, EPS_DISPONIBLES } from '../services/rutas.service'
 import { RUTAS_CONFIG } from '@/types/back.types'
-import { toast } from 'sonner' // Assuming sonner is used for toasts based on context
+import { toast } from 'sonner'
 
 export function RutasConfig() {
     const [configs, setConfigs] = useState<RutaEmailConfig[]>([])
     const [loading, setLoading] = useState(true)
-    const [editingId, setEditingId] = useState<number | null>(null)
+    const [editingId, setEditingId] = useState<string | null>(null)
     const [tempConfig, setTempConfig] = useState<Partial<RutaEmailConfig>>({})
 
     // Lista plana de rutas del sistema
@@ -28,8 +28,8 @@ export function RutasConfig() {
     }, [])
 
     const handleNuevo = () => {
-        setTempConfig({ activo: true, ruta: rutasSistema[0] }) // Default first route
-        setEditingId(-1) // -1 means new
+        setTempConfig({ estado: true, ruta: rutasSistema[0], eps: 'TODAS' })
+        setEditingId('new')
     }
 
     const handleEditar = (config: RutaEmailConfig) => {
@@ -43,10 +43,16 @@ export function RutasConfig() {
     }
 
     const handleGuardar = async () => {
-        if (!tempConfig.email || !tempConfig.ruta) return
+        if (!tempConfig.destinatarios || !tempConfig.ruta) {
+            toast.error('Ruta y destinatarios son obligatorios')
+            return
+        }
 
         try {
-            const result = await rutasService.guardarConfigEmail(tempConfig)
+            const configToSave = editingId === 'new'
+                ? { ...tempConfig, id: undefined }
+                : tempConfig
+            const result = await rutasService.guardarConfigEmail(configToSave)
             if (result.success) {
                 toast.success('Configuración guardada')
                 setEditingId(null)
@@ -60,7 +66,7 @@ export function RutasConfig() {
         }
     }
 
-    const handleEliminar = async (id: number) => {
+    const handleEliminar = async (id: string) => {
         if (!confirm('¿Estás seguro de eliminar esta configuración?')) return
 
         const result = await rutasService.eliminarConfigEmail(id)
@@ -93,17 +99,19 @@ export function RutasConfig() {
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-gray-100 text-left">
-                                    <th className="px-4 py-2 font-semibold text-gray-600 text-sm">Ruta</th>
-                                    <th className="px-4 py-2 font-semibold text-gray-600 text-sm">Email Destino</th>
-                                    <th className="px-4 py-2 font-semibold text-gray-600 text-sm">Estado</th>
-                                    <th className="px-4 py-2 font-semibold text-gray-600 text-sm w-24">Acciones</th>
+                                    <th className="px-3 py-2 font-semibold text-gray-600 text-sm">Ruta</th>
+                                    <th className="px-3 py-2 font-semibold text-gray-600 text-sm">EPS</th>
+                                    <th className="px-3 py-2 font-semibold text-gray-600 text-sm">Destinatarios</th>
+                                    <th className="px-3 py-2 font-semibold text-gray-600 text-sm">Copias (CC)</th>
+                                    <th className="px-3 py-2 font-semibold text-gray-600 text-sm">Estado</th>
+                                    <th className="px-3 py-2 font-semibold text-gray-600 text-sm w-24">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
                                 {/* Fila de Edición (Nueva o Existente) */}
                                 {editingId !== null && (
                                     <tr className="bg-blue-50">
-                                        <td className="px-4 py-2">
+                                        <td className="px-3 py-2">
                                             <select
                                                 className="w-full p-1.5 border rounded text-sm"
                                                 value={tempConfig.ruta || ''}
@@ -114,25 +122,44 @@ export function RutasConfig() {
                                                 ))}
                                             </select>
                                         </td>
-                                        <td className="px-4 py-2">
+                                        <td className="px-3 py-2">
+                                            <select
+                                                className="w-full p-1.5 border rounded text-sm"
+                                                value={tempConfig.eps || 'TODAS'}
+                                                onChange={e => setTempConfig({ ...tempConfig, eps: e.target.value })}
+                                            >
+                                                {EPS_DISPONIBLES.map(eps => (
+                                                    <option key={eps} value={eps}>{eps}</option>
+                                                ))}
+                                            </select>
+                                        </td>
+                                        <td className="px-3 py-2">
                                             <Input
-                                                value={tempConfig.email || ''}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempConfig({ ...tempConfig, email: e.target.value })}
+                                                value={tempConfig.destinatarios || ''}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempConfig({ ...tempConfig, destinatarios: e.target.value })}
                                                 placeholder="correo@ejemplo.com"
                                                 className="h-8 text-sm"
                                             />
                                         </td>
-                                        <td className="px-4 py-2">
+                                        <td className="px-3 py-2">
+                                            <Input
+                                                value={tempConfig.copias || ''}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempConfig({ ...tempConfig, copias: e.target.value })}
+                                                placeholder="copia@ejemplo.com"
+                                                className="h-8 text-sm"
+                                            />
+                                        </td>
+                                        <td className="px-3 py-2">
                                             <label className="flex items-center gap-2 text-sm">
                                                 <input
                                                     type="checkbox"
-                                                    checked={tempConfig.activo}
-                                                    onChange={e => setTempConfig({ ...tempConfig, activo: e.target.checked })}
+                                                    checked={tempConfig.estado}
+                                                    onChange={e => setTempConfig({ ...tempConfig, estado: e.target.checked })}
                                                 />
                                                 Activo
                                             </label>
                                         </td>
-                                        <td className="px-4 py-2 flex gap-1">
+                                        <td className="px-3 py-2 flex gap-1">
                                             <Button size="sm" variant="ghost" onClick={handleGuardar} className="text-green-600 p-1">
                                                 <Save size={16} />
                                             </Button>
@@ -149,17 +176,41 @@ export function RutasConfig() {
 
                                     return (
                                         <tr key={config.id} className="hover:bg-gray-50">
-                                            <td className="px-4 py-3 text-sm">{config.ruta}</td>
-                                            <td className="px-4 py-3 text-sm flex items-center gap-2">
-                                                <Mail size={14} className="text-gray-400" />
-                                                {config.email}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm">
-                                                <span className={`px-2 py-0.5 rounded-full text-xs ${config.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                                                    {config.activo ? 'Activo' : 'Inactivo'}
+                                            <td className="px-3 py-3 text-sm">{config.ruta}</td>
+                                            <td className="px-3 py-3 text-sm">
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs ${
+                                                    config.eps === 'TODAS' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                                                }`}>
+                                                    <Building2 size={12} />
+                                                    {config.eps}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-3 py-3 text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <Mail size={14} className="text-gray-400 flex-shrink-0" />
+                                                    <span className="truncate max-w-[200px]" title={config.destinatarios}>
+                                                        {config.destinatarios}
+                                                    </span>
+                                                </div>
+                                            </td>
+                                            <td className="px-3 py-3 text-sm">
+                                                {config.copias ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <Copy size={14} className="text-gray-400 flex-shrink-0" />
+                                                        <span className="truncate max-w-[150px] text-gray-500" title={config.copias}>
+                                                            {config.copias}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-300 text-xs">—</span>
+                                                )}
+                                            </td>
+                                            <td className="px-3 py-3 text-sm">
+                                                <span className={`px-2 py-0.5 rounded-full text-xs ${config.estado ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                                                    {config.estado ? 'Activo' : 'Inactivo'}
+                                                </span>
+                                            </td>
+                                            <td className="px-3 py-3">
                                                 <div className="flex gap-1">
                                                     <Button
                                                         size="sm"

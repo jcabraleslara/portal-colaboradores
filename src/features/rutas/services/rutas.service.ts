@@ -37,12 +37,19 @@ function transformRadicacion(raw: BackRadicacionRaw): BackRadicacion {
 }
 
 export interface RutaEmailConfig {
-    id: number
+    id: string
     ruta: string
-    email: string
-    activo: boolean
+    eps: string
+    destinatarios: string
+    copias?: string | null
+    estado: boolean
     created_at?: string
+    updated_at?: string
 }
+
+// Lista de EPS disponibles en el sistema
+export const EPS_DISPONIBLES = ['TODAS', 'NUEVA EPS', 'SALUD TOTAL', 'FAMILIAR DE COLOMBIA'] as const
+export type EpsDisponible = typeof EPS_DISPONIBLES[number]
 
 export const rutasService = {
     /**
@@ -194,6 +201,7 @@ export const rutasService = {
             .from('config_rutas_emails')
             .select('*')
             .order('ruta')
+            .order('eps')
 
         if (error) return { success: false, error: error.message }
         return { success: true, data }
@@ -206,8 +214,10 @@ export const rutasService = {
                 .from('config_rutas_emails')
                 .update({
                     ruta: config.ruta,
-                    email: config.email,
-                    activo: config.activo
+                    eps: config.eps || 'TODAS',
+                    destinatarios: config.destinatarios,
+                    copias: config.copias || null,
+                    estado: config.estado
                 })
                 .eq('id', config.id)
                 .select()
@@ -221,8 +231,10 @@ export const rutasService = {
                 .from('config_rutas_emails')
                 .insert({
                     ruta: config.ruta,
-                    email: config.email,
-                    activo: config.activo ?? true
+                    eps: config.eps || 'TODAS',
+                    destinatarios: config.destinatarios,
+                    copias: config.copias || null,
+                    estado: config.estado ?? true
                 })
                 .select()
                 .single()
@@ -232,7 +244,7 @@ export const rutasService = {
         }
     },
 
-    async eliminarConfigEmail(id: number): Promise<ApiResponse<boolean>> {
+    async eliminarConfigEmail(id: string): Promise<ApiResponse<boolean>> {
         const { error } = await supabase
             .from('config_rutas_emails')
             .delete()

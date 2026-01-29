@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc --noEmit)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfix: mejorar resiliencia de autenticación con consultas paralelas\n\n- Ejecutar RPC y query directa en paralelo \\(Promise.any\\)\n- Agregar control de intentos fallidos para evitar loops infinitos\n- Actualizar target a ES2021 para soportar Promise.any\n- Ajustar timeouts: 5s consultas, 8s seguridad\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(git push:*)",
+      "mcp__claude_ai_Supabase__list_tables",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__claude_ai_Supabase__get_advisors",
+      "mcp__claude_ai_Supabase__apply_migration"
+    ]
+  }
+}
