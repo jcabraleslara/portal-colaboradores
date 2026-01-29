@@ -3,14 +3,14 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { FileDropzone } from './FileDropzone'
 import { processCitasFile } from '../services/importService'
-import { CheckCircle2, AlertCircle, UploadCloud, Play } from 'lucide-react'
+import { CheckCircle2, AlertCircle, UploadCloud, Play, FileSpreadsheet } from 'lucide-react'
 
 export default function CitasImportForm() {
     const [file, setFile] = useState<File | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [progressStatus, setProgressStatus] = useState<string>('')
     const [progressPercent, setProgressPercent] = useState<number>(0)
-    const [result, setResult] = useState<{ success: number; errors: number } | null>(null)
+    const [result, setResult] = useState<{ success: number; errors: number; duplicates: number; totalProcessed: number } | null>(null)
 
     const handleProcess = async () => {
         if (!file) return
@@ -123,46 +123,68 @@ export default function CitasImportForm() {
                             ? 'bg-orange-50/50 border-orange-100'
                             : 'bg-emerald-50/50 border-emerald-100'
                             }`}>
-                            <div className="flex items-start gap-4">
-                                <div className={`p-2 rounded-full shrink-0 ${result.errors > 0 ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'
-                                    }`}>
-                                    {result.errors > 0 ? <AlertCircle size={24} /> : <CheckCircle2 size={24} />}
+                            <div className="flex flex-col gap-6">
+                                <div className="flex items-start gap-4">
+                                    <div className={`p-2 rounded-full shrink-0 ${result.errors > 0 ? 'bg-orange-100 text-orange-600' : 'bg-emerald-100 text-emerald-600'
+                                        }`}>
+                                        {result.errors > 0 ? <AlertCircle size={24} /> : <CheckCircle2 size={24} />}
+                                    </div>
+
+                                    <div className="flex-1">
+                                        <h4 className={`text-lg font-bold ${result.errors > 0 ? 'text-orange-900' : 'text-emerald-900'
+                                            }`}>
+                                            {result.errors > 0 ? 'Importación con observaciones' : '¡Importación Finalizada!'}
+                                        </h4>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <div className="h-2 w-32 bg-slate-200 rounded-full overflow-hidden">
+                                                <div className="h-full bg-emerald-500" style={{ width: `${(result.success / result.totalProcessed) * 100}%` }} />
+                                            </div>
+                                            <span className="text-xs font-semibold text-slate-600">
+                                                {((result.success / result.totalProcessed) * 100).toFixed(1)}% Efectividad
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="flex-1 space-y-1">
-                                    <h4 className={`text-lg font-bold ${result.errors > 0 ? 'text-orange-900' : 'text-emerald-900'
-                                        }`}>
-                                        {result.errors > 0 ? 'Proceso completado con observaciones' : '¡Importación Exitosa!'}
-                                    </h4>
-
-                                    <div className="grid grid-cols-2 gap-4 mt-4 mb-2">
-                                        <div className="bg-white/60 p-3 rounded-lg border border-black/5">
-                                            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Exitosos</p>
-                                            <p className="text-2xl font-bold text-slate-700">{result.success}</p>
-                                        </div>
-                                        <div className="bg-white/60 p-3 rounded-lg border border-black/5">
-                                            <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Fallidos</p>
-                                            <p className={`text-2xl font-bold ${result.errors > 0 ? 'text-orange-600' : 'text-slate-700'}`}>
-                                                {result.errors}
-                                            </p>
-                                        </div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className="bg-white/60 p-4 rounded-xl border border-black/5 shadow-sm">
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mb-1">Total Registros</p>
+                                        <p className="text-2xl font-bold text-slate-800">{result.totalProcessed.toLocaleString()}</p>
                                     </div>
-
-                                    {result.errors > 0 && (
-                                        <p className="text-sm text-orange-700 bg-orange-100/50 p-2 rounded-lg mt-2 inline-flex items-center gap-2">
-                                            <AlertCircle size={14} />
-                                            Algunos registros no pudieron guardarse. Revisa la consola para más detalles.
+                                    <div className="bg-white/60 p-4 rounded-xl border border-black/5 shadow-sm relative overflow-hidden">
+                                        <div className="absolute -right-2 -top-2 text-indigo-100/30">
+                                            <FileSpreadsheet size={64} />
+                                        </div>
+                                        <p className="text-xs text-indigo-600 uppercase tracking-wider font-semibold mb-1">Duplicados (Omitidos)</p>
+                                        <p className="text-2xl font-bold text-indigo-700">{result.duplicates.toLocaleString()}</p>
+                                        <p className="text-[10px] text-slate-400">Ya existían en el archivo</p>
+                                    </div>
+                                    <div className="bg-white/60 p-4 rounded-xl border border-black/5 shadow-sm">
+                                        <p className="text-xs text-emerald-600 uppercase tracking-wider font-semibold mb-1">Importados</p>
+                                        <p className="text-2xl font-bold text-emerald-700">{result.success.toLocaleString()}</p>
+                                    </div>
+                                    <div className="bg-white/60 p-4 rounded-xl border border-black/5 shadow-sm">
+                                        <p className="text-xs text-orange-600 uppercase tracking-wider font-semibold mb-1">Fallidos</p>
+                                        <p className={`text-2xl font-bold ${result.errors > 0 ? 'text-orange-600' : 'text-slate-400'}`}>
+                                            {result.errors.toLocaleString()}
                                         </p>
-                                    )}
-
-                                    <div className="pt-4">
-                                        <button
-                                            onClick={() => { setFile(null); setResult(null); setProgressPercent(0); }}
-                                            className="text-sm font-medium text-slate-600 hover:text-indigo-600 underline decoration-indigo-200 hover:decoration-indigo-500 underline-offset-4 transition-all"
-                                        >
-                                            Importar un nuevo archivo
-                                        </button>
                                     </div>
+                                </div>
+
+                                {result.errors > 0 && (
+                                    <p className="text-sm text-orange-700 bg-orange-100/50 p-3 rounded-lg flex items-center gap-2">
+                                        <AlertCircle size={16} />
+                                        <span>Algunos registros no pudieron guardarse. Revisa la consola (F12) para detalles técnicos.</span>
+                                    </p>
+                                )}
+
+                                <div className="flex justify-center pt-2">
+                                    <button
+                                        onClick={() => { setFile(null); setResult(null); setProgressPercent(0); }}
+                                        className="text-sm font-medium text-slate-600 hover:text-indigo-600 underline decoration-indigo-200 hover:decoration-indigo-500 underline-offset-4 transition-all"
+                                    >
+                                        Importar un nuevo archivo
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -176,3 +198,4 @@ export default function CitasImportForm() {
         </div>
     )
 }
+

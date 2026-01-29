@@ -23,6 +23,10 @@ export interface CitaRow {
     dx3: string | null
     dx4: string | null
     duracion: string | null
+    sexo: string | null
+    edad: number | null
+    usuario_agenda: string | null
+    usuario_confirma: string | null
 }
 
 /**
@@ -32,24 +36,39 @@ const COLUMN_MAP: Record<string, keyof CitaRow> = {
     'ID CITA': 'id_cita',
     'TIPO ID': 'tipo_id',
     'NUMERO ID': 'identificacion',
+    'IDENTIFICACION': 'identificacion', // Alias
+    'DOCUMENTO': 'identificacion', // Alias
     'PACIENTE': 'nombres_completos',
+    'NOMBRE': 'nombres_completos', // Alias
     'FECHA ASIGNACION': 'fecha_asignacion',
-    'FECHA ATENCION': 'fecha_cita', // Updated based on user feedback
+    'FECHA SOLICITUD': 'fecha_asignacion', // Alias
+    'FECHA ATENCION': 'fecha_cita',
+    'FECHA CITA': 'fecha_cita', // Alias
     'ESTADO': 'estado_cita',
     'ASUNTO': 'asunto',
     'SEDE': 'sede',
+    'CENTRO': 'sede', // Alias
     'CONTRATO': 'contrato',
     'MEDICO': 'medico',
+    'PROFESIONAL': 'medico', // Alias
     'ESPECIALIDAD': 'especialidad',
     'TIPO CITA': 'tipo_cita',
     'CUPS': 'cups',
+    'CODIGO': 'cups', // Alias potential
     'PROCEDIMIENTO': 'procedimiento',
     'UNIDAD FUNCIONAL': 'unidad_funcional',
     'DIAGNOSTICO': 'dx1',
+    'CIE10': 'dx1', // Alias
     'D. RELACIONADO1': 'dx2',
     'D. RELACIONADO2': 'dx3',
     'D. RELACIONADO3': 'dx4',
-    'DURACION': 'duracion'
+    'DURACION': 'duracion',
+    'SEXO': 'sexo',
+    'GENERO': 'sexo',
+    'EDAD': 'edad',
+    'USUARIO AGENDA': 'usuario_agenda',
+    'USUARIO CREACION': 'usuario_agenda',
+    'USUARIO CONFIRMA': 'usuario_confirma'
 }
 
 /**
@@ -58,7 +77,7 @@ const COLUMN_MAP: Record<string, keyof CitaRow> = {
 export async function processCitasFile(
     file: File,
     onProgress: (status: string, percentage?: number) => void
-): Promise<{ success: number; errors: number }> {
+): Promise<{ success: number; errors: number; duplicates: number; totalProcessed: number }> {
 
     // Helper for normalizing headers (remove accents, extra spaces)
     const normalizeHeader = (h: string) => {
@@ -135,6 +154,7 @@ export async function processCitasFile(
     onProgress('Extrayendo datos...', 10)
     // Use a Map to deduplicate by id_cita automatically (last entry wins)
     const rowsMap = new Map<string, CitaRow>()
+    let duplicates = 0
 
     const rows = Array.from(targetTable.rows).slice(headerRowIndex + 1)
 
@@ -165,13 +185,25 @@ export async function processCitasFile(
         const id_cita = getItem('id_cita')
         if (!id_cita) continue // Skip invalid rows without ID
 
+        // Count as duplicate if we already have it
+        if (rowsMap.has(id_cita)) {
+            duplicates++
+        }
+
+        // Parse Age (might be "35" or "35 Años")
+        const parseAge = (val: string): number | null => {
+            if (!val) return null
+            const match = val.match(/(\d+)/)
+            return match ? parseInt(match[1], 10) : null
+        }
+
         const rowData: CitaRow = {
             id_cita,
             tipo_id: getItem('tipo_id'),
             identificacion: getItem('identificacion'),
             nombres_completos: getItem('nombres_completos'),
             fecha_asignacion: parseDate(getItem('fecha_asignacion')),
-            fecha_cita: parseDate(getItem('fecha_cita')), // Note: if source has time, parseDate might need adjustment if DB is date-only
+            fecha_cita: parseDate(getItem('fecha_cita')),
             estado_cita: getItem('estado_cita'),
             asunto: getItem('asunto'),
             sede: getItem('sede'),
@@ -186,7 +218,11 @@ export async function processCitasFile(
             dx2: getItem('dx2') || null,
             dx3: getItem('dx3') || null,
             dx4: getItem('dx4') || null,
-            duracion: getItem('duracion') || null
+            duracion: getItem('duracion') || null,
+            sexo: getItem('sexo') || null,
+            edad: parseAge(getItem('edad')),
+            usuario_agenda: getItem('usuario_agenda') || null,
+            usuario_confirma: getItem('usuario_confirma') || null
         }
 
         rowsMap.set(id_cita, rowData)
@@ -219,5 +255,10 @@ export async function processCitasFile(
         onProgress(`Procesando... ${Math.min(i + BATCH_SIZE, dataBatch.length)} / ${dataBatch.length}`, percentage)
     }
 
-    return { success: successCount, errors: errorCount }
+    return {
+        success: successCount,
+        errors: errorCount,
+        duplicates: duplicates,
+        totalProcessed: rowsMap.size + duplicates
+    }
 }
