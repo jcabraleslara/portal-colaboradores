@@ -300,7 +300,7 @@ export function ConsultarCupsPage() {
                                                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-h-[80px]"
                                                 />
                                             ) : (
-                                                <p className="text-gray-700">{cupsSeleccionado.descripcion || '—'}</p>
+                                                <p className="text-gray-800 text-lg font-bold">{cupsSeleccionado.descripcion || '—'}</p>
                                             )}
                                         </FieldGroup>
 
