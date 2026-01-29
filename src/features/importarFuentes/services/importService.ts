@@ -76,39 +76,6 @@ export async function processCitasFile(
         return h.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase()
     }
 
-    // 0. Pre-fetch valid CUPS for integrity check
-    onProgress('Validando maestro de CUPS...', 0)
-
-    let allCups: string[] = []
-    let page = 0
-    const pageSize = 1000
-    let hasMore = true
-
-    while (hasMore) {
-        const { data, error } = await supabase
-            .from('cups')
-            .select('cups')
-            .range(page * pageSize, (page + 1) * pageSize - 1)
-
-        if (error) {
-            console.error('Error fetching CUPS:', error)
-            throw new Error('No se pudo validar el maestro de CUPS.')
-        }
-
-        if (data && data.length > 0) {
-            const cups = data.map(c => c.cups?.trim().toUpperCase()).filter(Boolean) as string[]
-            allCups = [...allCups, ...cups]
-            if (data.length < pageSize) hasMore = false
-        } else {
-            hasMore = false
-        }
-        page++
-    }
-
-    // Create Set for O(1) lookup - Normalized
-    const validCupsSet = new Set(allCups)
-    const invalidCupsList: { id_cita: string; cups: string; descripcion: string }[] = []
-
     // 1. Read file as text
     onProgress('Leyendo archivo...', 0)
     const text = await file.text()
@@ -119,31 +86,22 @@ export async function processCitasFile(
     const doc = parser.parseFromString(text, 'text/html')
 
     // 3. Find the main table
-    // Strategy: Find row with specific headers
     const tables = doc.querySelectorAll('table')
     let targetTable: HTMLTableElement | null = null
     let headerRowIndex = -1
-    let columnIndices: Record<string, number> = {} // maps db_col -> index
+    let columnIndices: Record<string, number> = {}
 
     for (const table of Array.from(tables)) {
         const rows = Array.from(table.rows)
-
-        for (let i = 0; i < Math.min(rows.length, 20); i++) { // Check first 20 rows for header
+        for (let i = 0; i < Math.min(rows.length, 20); i++) {
             const row = rows[i]
-            // Normalize cell content for matching
             const cells = Array.from(row.cells).map(c => normalizeHeader(c.textContent || ''))
 
-            // Check if this row looks like the header
             if (cells.includes('ID CITA') && cells.includes('PACIENTE')) {
                 targetTable = table
                 headerRowIndex = i
-
-                // Build index map
                 cells.forEach((headerText, index) => {
-                    // Direct match attempt
                     let dbCol = COLUMN_MAP[headerText]
-
-                    // If not found, try fuzzy match against our MAP keys
                     if (!dbCol) {
                         const key = Object.keys(COLUMN_MAP).find(k => {
                             const normalizedKey = normalizeHeader(k)
@@ -151,21 +109,54 @@ export async function processCitasFile(
                         })
                         if (key) dbCol = COLUMN_MAP[key]
                     }
-
-                    if (dbCol) {
-                        columnIndices[dbCol] = index
-                    }
+                    if (dbCol) columnIndices[dbCol] = index
                 })
                 break
             }
         }
-
         if (targetTable) break
     }
 
     if (!targetTable) {
         throw new Error('No se encontró la tabla de citas válida en el archivo.')
     }
+
+    // 4. Extract Unique CUPS to Validate (Optimization)
+    onProgress('Validando códigos CUPS...', 10)
+    const fileRows = Array.from(targetTable.rows).slice(headerRowIndex + 1)
+    const uniqueCupsInFile = new Set<string>()
+    const cupsIndex = columnIndices['cups']
+
+    if (cupsIndex !== undefined) {
+        for (const row of fileRows) {
+            const val = row.cells[cupsIndex]?.textContent?.trim().toUpperCase()
+            if (val) uniqueCupsInFile.add(val)
+        }
+    }
+
+    // 5. Query Supabase only for those CUPS
+    const validCupsSet = new Set<string>()
+    const uniqueCupsArray = Array.from(uniqueCupsInFile)
+
+    if (uniqueCupsArray.length > 0) {
+        const BATCH_SIZE_QUERY = 1000
+        for (let i = 0; i < uniqueCupsArray.length; i += BATCH_SIZE_QUERY) {
+            const chunk = uniqueCupsArray.slice(i, i + BATCH_SIZE_QUERY)
+            const { data, error } = await supabase
+                .from('cups')
+                .select('cups')
+                .in('cups', chunk)
+
+            if (error) {
+                console.error('Error validating CUPS batch:', error)
+            } else if (data) {
+                data.forEach(c => c.cups && validCupsSet.add(c.cups.trim().toUpperCase()))
+            }
+        }
+    }
+
+    const invalidCupsList: { id_cita: string; cups: string; descripcion: string }[] = []
+
 
     if (!columnIndices['id_cita']) {
         throw new Error('No se encontró la columna ID CITA requerida.')
