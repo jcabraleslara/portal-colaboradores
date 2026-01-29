@@ -218,6 +218,16 @@ export async function processCitasFile(
         const rawEstado = getItem('estado_cita')
         const estado_clean = rawEstado ? rawEstado.split(' -')[0].trim() : ''
 
+        // Clean duracion: "18 Minutos" -> "18 minutes", "-18 Minutos" -> "18 minutes"
+        const cleanDuration = (val: string) => {
+            if (!val) return null
+            const match = val.match(/-?(\d+)/)
+            if (match) {
+                return `${match[1]} minutes` // Always positive integer + ' minutes' for Postgres interval
+            }
+            return null
+        }
+
         const rowData: CitaRow = {
             id_cita,
             tipo_id: getItem('tipo_id'),
@@ -239,7 +249,7 @@ export async function processCitasFile(
             dx2: getItem('dx2') || null,
             dx3: getItem('dx3') || null,
             dx4: getItem('dx4') || null,
-            duracion: getItem('duracion') || null,
+            duracion: cleanDuration(getItem('duracion')),
             sexo: getItem('sexo') || null,
             edad: finalAge,
             usuario_agenda: getItem('usuario_agenda') || null,
