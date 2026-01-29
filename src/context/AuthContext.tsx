@@ -17,9 +17,11 @@ import { AuthUser } from '@/types'
 // CONSTANTES - FAIL-FAST APPROACH
 // ========================================
 const PROFILE_CACHE_KEY = 'gestar-user-profile'
+const FAILED_ATTEMPTS_KEY = 'gestar-auth-failed-attempts'
 const MAX_CACHE_AGE_MS = 30 * 60 * 1000 // 30 minutos de validez
-const GLOBAL_TIMEOUT_MS = 4000 // 4 segundos MÁXIMO para todo el proceso
-const FAILSAFE_TIMEOUT_MS = 6000 // 6 segundos timeout de seguridad absoluto
+const GLOBAL_TIMEOUT_MS = 5000 // 5 segundos MÁXIMO para consultas paralelas
+const FAILSAFE_TIMEOUT_MS = 8000 // 8 segundos timeout de seguridad absoluto
+const MAX_FAILED_ATTEMPTS = 2 // Máximo 2 intentos antes de forzar login
 
 // ========================================
 // TIPOS DEL CONTEXTO
@@ -117,6 +119,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
     }, [])
 
+    // Control de intentos fallidos para evitar loops infinitos
+    const getFailedAttempts = useCallback((): number => {
+        try {
+            return parseInt(sessionStorage.getItem(FAILED_ATTEMPTS_KEY) || '0', 10)
+        } catch {
+            return 0
+        }
+    }, [])
+
+    const incrementFailedAttempts = useCallback((): number => {
+        try {
+            const current = getFailedAttempts() + 1
+            sessionStorage.setItem(FAILED_ATTEMPTS_KEY, current.toString())
+            console.warn(`⚠️ Intento fallido #${current}`)
+            return current
+        } catch {
+            return 1
+        }
+    }, [getFailedAttempts])
+
+    const clearFailedAttempts = useCallback(() => {
+        try {
+            sessionStorage.removeItem(FAILED_ATTEMPTS_KEY)
+        } catch {
+            // Ignorar
+        }
+    }, [])
+
     // ========================================
     // LIMPIEZA DE SESIÓN CORRUPTA
     // ========================================
@@ -124,6 +154,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const forceCleanSession = useCallback(async () => {
         console.info('🧹 Forzando limpieza de sesión...')
         clearProfileCache()
+        clearFailedAttempts()
         try {
             await supabase.auth.signOut({ scope: 'local' })
         } catch {
@@ -132,7 +163,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(null)
         setIsLoading(false)
         processingAuth.current = false
-    }, [clearProfileCache])
+        initializationComplete.current = true // Marcar como completo para evitar loops
+    }, [clearProfileCache, clearFailedAttempts])
 
     // ========================================
     // OBTENCIÓN DE PERFIL (FAIL-FAST)
@@ -142,34 +174,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         const startTime = performance.now()
         console.info('🔎 Obteniendo perfil para:', email)
 
-        // Una sola operación con timeout global
-        try {
-            const timeoutPromise = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT')), GLOBAL_TIMEOUT_MS)
-            )
-
-            // Intentar RPC primero (más rápida, bypassa RLS)
-            const rpcPromise = supabase
-                .rpc('get_user_profile_by_email', { user_email: email })
-                .then(({ data, error }) => {
-                    if (error) throw error
-                    const userData = Array.isArray(data) && data.length > 0 ? data[0] : data
-                    return userData
-                })
-
-            const userData = await Promise.race([rpcPromise, timeoutPromise])
-
-            const duration = performance.now() - startTime
-            console.info(`✅ Perfil obtenido en ${duration.toFixed(0)}ms`)
-
+        // Función helper para transformar datos del usuario
+        const transformUserData = (userData: any): AuthUser | null => {
             if (!userData) return null
-
-            // Validar usuario activo
             if (userData.activo === false) {
                 console.warn('⚠️ Usuario desactivado')
                 return null
             }
-
             return {
                 identificacion: userData.identificacion || 'N/A',
                 nombreCompleto: userData.nombre_completo || email.split('@')[0],
@@ -178,42 +189,60 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 primerLogin: !userData.last_sign_in_at,
                 ultimoLogin: userData.last_sign_in_at ? new Date(userData.last_sign_in_at) : null,
             }
-        } catch (error: any) {
+        }
+
+        try {
+            // Ejecutar RPC y query directa EN PARALELO
+            // La primera que responda exitosamente gana
+            const rpcPromise = supabase
+                .rpc('get_user_profile_by_email', { user_email: email })
+                .then(({ data, error }) => {
+                    if (error) throw error
+                    const userData = Array.isArray(data) && data.length > 0 ? data[0] : data
+                    if (!userData) throw new Error('RPC_NO_DATA')
+                    console.info('📡 RPC respondió primero')
+                    return userData
+                })
+
+            const queryPromise = supabase
+                .from('usuarios_portal')
+                .select('identificacion, nombre_completo, email_institucional, rol, activo, last_sign_in_at')
+                .eq('email_institucional', email)
+                .single()
+                .then(({ data, error }) => {
+                    if (error) throw error
+                    if (!data) throw new Error('QUERY_NO_DATA')
+                    console.info('🗄️ Query directa respondió primero')
+                    return data
+                })
+
+            const timeoutPromise = new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error('TIMEOUT')), GLOBAL_TIMEOUT_MS)
+            )
+
+            // Promise.any resuelve con la PRIMERA promesa exitosa
+            // Solo rechaza si TODAS fallan
+            const userData = await Promise.any([rpcPromise, queryPromise, timeoutPromise].map(p =>
+                p.catch(e => Promise.reject(e))
+            )).catch(async (aggregateError) => {
+                // Si Promise.any falla, todas las promesas fallaron
+                console.warn('⚠️ Todas las consultas fallaron:', aggregateError.errors?.map((e: Error) => e.message) || aggregateError.message)
+                return null
+            })
+
             const duration = performance.now() - startTime
-            const isTimeout = error.message === 'TIMEOUT'
 
-            console.warn(`❌ Fetch fallido en ${duration.toFixed(0)}ms: ${isTimeout ? 'TIMEOUT' : error.message}`)
-
-            // Intentar query directa como fallback rápido (solo si no fue timeout)
-            if (!isTimeout) {
-                try {
-                    const { data, error: queryError } = await Promise.race([
-                        supabase
-                            .from('usuarios_portal')
-                            .select('identificacion, nombre_completo, email_institucional, rol, activo, last_sign_in_at')
-                            .eq('email_institucional', email)
-                            .single(),
-                        new Promise<never>((_, reject) =>
-                            setTimeout(() => reject(new Error('QUERY_TIMEOUT')), 2000) // 2s fallback
-                        )
-                    ])
-
-                    if (!queryError && data && data.activo !== false) {
-                        console.info('✅ Fallback query exitoso')
-                        return {
-                            identificacion: data.identificacion || 'N/A',
-                            nombreCompleto: data.nombre_completo || email.split('@')[0],
-                            email: data.email_institucional || email,
-                            rol: (data.rol || 'operativo') as any,
-                            primerLogin: !data.last_sign_in_at,
-                            ultimoLogin: data.last_sign_in_at ? new Date(data.last_sign_in_at) : null,
-                        }
-                    }
-                } catch {
-                    // Query fallback también falló
-                }
+            if (!userData) {
+                console.warn(`❌ No se pudo obtener perfil en ${duration.toFixed(0)}ms`)
+                return null
             }
 
+            console.info(`✅ Perfil obtenido en ${duration.toFixed(0)}ms`)
+            return transformUserData(userData)
+
+        } catch (error: any) {
+            const duration = performance.now() - startTime
+            console.warn(`❌ Error inesperado en ${duration.toFixed(0)}ms:`, error.message)
             return null
         }
     }, [])
@@ -276,6 +305,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 return
             }
 
+            // Verificar si ya excedimos los intentos fallidos (evitar loop infinito)
+            const failedAttempts = getFailedAttempts()
+            if (failedAttempts >= MAX_FAILED_ATTEMPTS) {
+                console.warn(`🛑 Máximo de intentos fallidos alcanzado (${failedAttempts}). Forzando login.`)
+                clearFailedAttempts()
+                clearProfileCache()
+                setUser(null)
+                setIsLoading(false)
+                initializationComplete.current = true
+                processingAuth.current = false
+                return
+            }
+
             processingAuth.current = true
             const email = session?.user?.email
 
@@ -288,6 +330,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     const cachedProfile = getCachedProfile(email)
                     if (cachedProfile) {
                         console.info('📦 Usando perfil cacheado')
+                        clearFailedAttempts() // Reset en éxito
                         setUser(cachedProfile)
                         setIsLoading(false)
                         initializationComplete.current = true
@@ -315,17 +358,31 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                     if (profile) {
                         console.info('✅ Autenticación exitosa:', profile.nombreCompleto)
+                        clearFailedAttempts() // Reset en éxito
                         setUser(profile)
                         cacheProfile(profile)
+                        setIsLoading(false)
+                        initializationComplete.current = true
                     } else {
-                        // No se pudo obtener perfil: sesión corrupta o usuario desactivado
-                        console.warn('⚠️ No se pudo obtener perfil válido - limpiando sesión')
-                        await forceCleanSession()
+                        // No se pudo obtener perfil: incrementar intentos y limpiar
+                        const attempts = incrementFailedAttempts()
+                        console.warn(`⚠️ No se pudo obtener perfil válido (intento ${attempts}/${MAX_FAILED_ATTEMPTS})`)
+
+                        if (attempts >= MAX_FAILED_ATTEMPTS) {
+                            console.warn('🛑 Máximo de intentos alcanzado - forzando login')
+                            clearFailedAttempts()
+                            clearProfileCache()
+                            try {
+                                await supabase.auth.signOut({ scope: 'local' })
+                            } catch {
+                                // Ignorar
+                            }
+                            setUser(null)
+                            setIsLoading(false)
+                            initializationComplete.current = true
+                        }
                         return
                     }
-
-                    setIsLoading(false)
-                    initializationComplete.current = true
                 }
                 // ===== CASO 2: No hay sesión =====
                 else {
@@ -333,6 +390,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     // O si es el evento inicial (INITIAL_SESSION)
                     if (!user || eventType === 'INITIAL_SESSION') {
                         console.info(`🔓 [${eventType}] Sin sesión activa`)
+                        clearFailedAttempts() // Reset porque es estado limpio
                         setUser(null)
                         setIsLoading(false)
                         initializationComplete.current = true
