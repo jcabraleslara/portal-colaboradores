@@ -562,6 +562,43 @@ export function CasoDetallePanel({
     const tipoSolicitudConfig = TIPO_SOLICITUD_COLORES[tipoSolicitud] || TIPO_SOLICITUD_COLORES['Auditoría Médica']
     const IconoTipo = TIPO_ICONOS[tipoSolicitud] || FileText
 
+    // Extraer FUM y calcular Edad Gestacional al día
+    const getDatosMaternidad = () => {
+        if (caso.ruta !== 'Maternidad Segura' || !caso.observaciones || typeof caso.observaciones !== 'string') {
+            return null
+        }
+
+        const match = caso.observaciones.match(/\[DATOS MATERNIDAD\] FUM: (\d{4}-\d{2}-\d{2})/)
+        const fumStr = match ? match[1] : null
+
+        if (!fumStr) return null
+
+        // Calcular edad gestacional actual
+        const partes = fumStr.split('-')
+        const dia = parseInt(partes[2])
+        const mes = parseInt(partes[1]) - 1
+        const anio = parseInt(partes[0])
+
+        const fechaFum = new Date(anio, mes, dia)
+        const hoy = new Date()
+        hoy.setHours(0, 0, 0, 0)
+        fechaFum.setHours(0, 0, 0, 0)
+
+        let edadGestacional = 'Fecha inválida'
+
+        if (fechaFum <= hoy) {
+            const diffTime = Math.abs(hoy.getTime() - fechaFum.getTime())
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+            const semanas = Math.floor(diffDays / 7)
+            const dias = diffDays % 7
+            edadGestacional = `${semanas} Semanas y ${dias} Días`
+        }
+
+        return { fum: fumStr, edadGestacional }
+    }
+
+    const datosMaternidad = getDatosMaternidad()
+
     // ============================================
     // RENDER
     // ============================================
@@ -816,6 +853,32 @@ export function CasoDetallePanel({
                                     <p className="font-medium text-gray-800">
                                         {rutaSeleccionada}
                                     </p>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Datos de Maternidad (FUM/Edad Gestacional) */}
+                        {datosMaternidad && (
+                            <div className="col-span-2 bg-pink-50 rounded-lg p-3 border border-pink-100 animate-fade-in mt-1 mb-1">
+                                <div className="flex items-center gap-2 mb-2 text-pink-700 font-bold border-b border-pink-200 pb-1">
+                                    <Stethoscope size={16} />
+                                    <span className="text-xs uppercase tracking-wide">Datos Clínicos (Actualizados)</span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex flex-col">
+                                        <span className="text-xs text-pink-600 font-medium mb-0.5">FUM Registrada</span>
+                                        <div className="flex items-center gap-2 text-gray-700 font-mono bg-white/60 px-2 py-1 rounded border border-pink-100">
+                                            <Calendar size={14} className="text-pink-400" />
+                                            {datosMaternidad.fum}
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className="text-xs text-pink-600 font-medium mb-0.5">Edad Gestacional Hoy</span>
+                                        <div className="flex items-center gap-2 text-pink-700 font-bold bg-white/60 px-2 py-1 rounded border border-pink-100">
+                                            <Clock size={14} className="text-pink-500" />
+                                            {datosMaternidad.edadGestacional}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         )}

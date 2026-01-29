@@ -117,6 +117,43 @@ export function RadicacionCasosPage() {
     const [observaciones, setObservaciones] = useState('')
     const [archivos, setArchivos] = useState<File[]>([])
 
+    // Estado para Maternidad Segura
+    const [fum, setFum] = useState('')
+    const [edadGestacional, setEdadGestacional] = useState('')
+
+    // Calcular edad gestacional
+    useEffect(() => {
+        if (fum) {
+            // Crear fechas asegurando que se interpreten correctamente
+            // input date devuelve YYYY-MM-DD
+            const partes = fum.split('-')
+            const dia = parseInt(partes[2])
+            const mes = parseInt(partes[1]) - 1 // Meses 0-indexed
+            const anio = parseInt(partes[0])
+
+            const fechaFum = new Date(anio, mes, dia)
+            const hoy = new Date()
+
+            // Setear horas a 0 para comparación justa de días
+            hoy.setHours(0, 0, 0, 0)
+            fechaFum.setHours(0, 0, 0, 0)
+
+            if (fechaFum > hoy) {
+                setEdadGestacional('Fecha inválida (futura)')
+                return
+            }
+
+            const diffTime = Math.abs(hoy.getTime() - fechaFum.getTime())
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+            const semanas = Math.floor(diffDays / 7)
+            const dias = diffDays % 7
+
+            setEdadGestacional(`${semanas} Semanas y ${dias} Días`)
+        } else {
+            setEdadGestacional('')
+        }
+    }, [fum])
+
     // Detectar si el usuario es externo
     const esExterno = user?.rol === 'externo'
 
@@ -293,6 +330,8 @@ export function RadicacionCasosPage() {
         setSubmitState('idle')
         setSubmitError('')
         setRadicacionExitosa(null)
+        setFum('')
+        setEdadGestacional('')
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -304,9 +343,16 @@ export function RadicacionCasosPage() {
         }
 
         // Validar ruta si es Activación de Ruta
-        if (tipoSolicitud === 'Activación de Ruta' && !ruta) {
-            setSubmitError('Debes seleccionar una ruta')
-            return
+        if (tipoSolicitud === 'Activación de Ruta') {
+            if (!ruta) {
+                setSubmitError('Debes seleccionar una ruta')
+                return
+            }
+            // Validar FUM para Maternidad Segura
+            if (ruta === 'Maternidad Segura' && !fum) {
+                setSubmitError('La Fecha de Última Menstruación es obligatoria para Maternidad Segura')
+                return
+            }
         }
 
         // Ordenador requerido solo si NO es Solicitud de Historia Clínica NI Activación de Ruta
@@ -321,6 +367,15 @@ export function RadicacionCasosPage() {
 
         const radicadorNombre = user?.nombreCompleto || 'SISTEMA'
 
+        // Preparar observaciones con info clínica si aplica
+        let observacionesFinales = observaciones
+        if (tipoSolicitud === 'Activación de Ruta' && ruta === 'Maternidad Segura' && fum) {
+            const infoClinica = `[DATOS MATERNIDAD] FUM: ${fum} | Edad Gestacional: ${edadGestacional}`
+            observacionesFinales = observacionesFinales
+                ? `${infoClinica}\n\n${observacionesFinales}`
+                : infoClinica
+        }
+
         const result = await backService.crearRadicacion({
             radicador: radicadorNombre,
             id: afiliado.id,
@@ -328,7 +383,7 @@ export function RadicacionCasosPage() {
             especialidad: tipoSolicitud === 'Auditoría Médica' ? especialidad : undefined,
             ruta: tipoSolicitud === 'Activación de Ruta' ? ruta || undefined : undefined,
             ordenador: requiereOrdenador ? ordenador : undefined,
-            observaciones: observaciones || undefined,
+            observaciones: observacionesFinales || undefined,
             archivos: archivos.length > 0 ? archivos : undefined,
             emailRadicador: user?.email || undefined,
         })
@@ -939,6 +994,45 @@ export function RadicacionCasosPage() {
                                             rutaSeleccionada={ruta}
                                             onSeleccionarRuta={setRuta}
                                         />
+
+                                        {/* Campos Específicos Maternidad Segura */}
+                                        {ruta === 'Maternidad Segura' && (
+                                            <div className="mt-4 p-4 bg-pink-50 rounded-xl border border-pink-200 animate-in fade-in zoom-in-95 duration-300">
+                                                <div className="flex items-center gap-2 mb-3 text-pink-700 font-bold border-b border-pink-200 pb-2">
+                                                    <Stethoscope size={18} />
+                                                    Datos Clínicos Maternos
+                                                </div>
+                                                <div className="grid md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-pink-800 mb-1">
+                                                            Fecha de Última Menstruación (FUM) <span className="text-red-500">*</span>
+                                                        </label>
+                                                        <input
+                                                            type="date"
+                                                            value={fum}
+                                                            max={new Date().toISOString().split('T')[0]}
+                                                            onChange={(e) => setFum(e.target.value)}
+                                                            className="w-full px-4 py-2 rounded-lg border border-pink-300 bg-white focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 text-gray-700"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-pink-800 mb-1">
+                                                            Edad Gestacional (Calculada)
+                                                        </label>
+                                                        <div className="w-full px-4 py-2 rounded-lg border border-pink-200 bg-pink-100/50 text-pink-900 font-semibold flex items-center gap-2">
+                                                            {edadGestacional ? (
+                                                                <>
+                                                                    <Clock size={16} className="text-pink-600" />
+                                                                    {edadGestacional}
+                                                                </>
+                                                            ) : (
+                                                                <span className="text-pink-400 font-normal italic">Seleccione FUM...</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 
