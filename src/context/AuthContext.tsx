@@ -222,13 +222,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             // Promise.any resuelve con la PRIMERA promesa exitosa
             // Solo rechaza si TODAS fallan
-            const userData = await Promise.any([rpcPromise, queryPromise, timeoutPromise].map(p =>
-                p.catch(e => Promise.reject(e))
-            )).catch(async (aggregateError) => {
-                // Si Promise.any falla, todas las promesas fallaron
-                console.warn('⚠️ Todas las consultas fallaron:', aggregateError.errors?.map((e: Error) => e.message) || aggregateError.message)
-                return null
-            })
+            const userData = await Promise.any([rpcPromise, queryPromise, timeoutPromise])
+                .catch((aggregateError: AggregateError) => {
+                    // Si Promise.any falla, todas las promesas fallaron
+                    console.warn('⚠️ Todas las consultas fallaron:', aggregateError.errors?.map((e: Error) => e.message) || aggregateError.message)
+                    return null
+                })
 
             const duration = performance.now() - startTime
 
