@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback } from 'react'
+import { toast } from 'sonner'
 import { Search, FileText, Eraser, Save, Check, X } from 'lucide-react'
 import { Card, Button, Input, LoadingOverlay } from '@/components/common'
 import { cupsService, PERTINENCIA_OPTIONS, type PertinenciaOption } from '@/services/cups.service'
@@ -219,15 +220,21 @@ export function ConsultarCupsPage() {
                                         <button
                                             key={cups.cups}
                                             onClick={() => handleSelectCups(cups)}
-                                            className={`w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${cupsSeleccionado?.cups === cups.cups
+                                            onDoubleClick={() => {
+                                                const text = `${cups.cups} - ${cups.descripcion || ''}`;
+                                                navigator.clipboard.writeText(text);
+                                                toast.success('Copiado: ' + text);
+                                            }}
+                                            className={`w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors group ${cupsSeleccionado?.cups === cups.cups
                                                 ? 'bg-primary-50 border-l-4 border-l-primary-500'
                                                 : ''
                                                 }`}
+                                            title="Doble clic para copiar Código + Descripción"
                                         >
-                                            <p className="font-mono text-sm font-bold text-primary-600">
+                                            <p className="font-mono text-sm font-bold text-primary-600 group-hover:text-primary-700">
                                                 {cups.cups}
                                             </p>
-                                            <p className="text-sm text-gray-600 mt-1">
+                                            <p className="text-sm text-gray-600 mt-1 line-clamp-2">
                                                 {cups.descripcion || 'Sin descripción'}
                                             </p>
                                         </button>
@@ -240,14 +247,24 @@ export function ConsultarCupsPage() {
                         {cupsSeleccionado && cupsEditado && (
                             <Card className="lg:col-span-2">
                                 <Card.Header>
-                                    <div className="flex items-center justify-between">
-                                        <span className="flex items-center gap-2">
-                                            <span className="font-mono text-lg font-bold text-primary-600">
+                                    <div className="flex items-start justify-between">
+                                        <div
+                                            className="flex flex-col gap-1 cursor-pointer group"
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(cupsSeleccionado.cups);
+                                                toast.success('Código CUPS copiado: ' + cupsSeleccionado.cups);
+                                            }}
+                                            title="Click para copiar código"
+                                        >
+                                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider group-hover:text-primary-400 transition-colors">
+                                                Código CUPS
+                                            </span>
+                                            <span className="font-mono text-4xl font-black text-primary-600 group-hover:scale-105 transition-transform origin-left">
                                                 {cupsSeleccionado.cups}
                                             </span>
-                                        </span>
+                                        </div>
                                         {isSuperadmin && (
-                                            <div className="flex gap-2">
+                                            <div className="flex gap-2 pt-2">
                                                 {modoEdicion ? (
                                                     <>
                                                         <Button
@@ -270,9 +287,10 @@ export function ConsultarCupsPage() {
                                                     </>
                                                 ) : (
                                                     <Button
+                                                        variant="ghost"
                                                         size="sm"
-                                                        variant="secondary"
                                                         onClick={handleToggleEdicion}
+                                                        className="text-gray-400 hover:text-primary-600 hover:bg-primary-50"
                                                     >
                                                         Editar
                                                     </Button>
@@ -300,7 +318,17 @@ export function ConsultarCupsPage() {
                                                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-h-[80px]"
                                                 />
                                             ) : (
-                                                <p className="text-gray-800 text-lg font-bold">{cupsSeleccionado.descripcion || '—'}</p>
+                                                <p
+                                                    className="text-gray-800 text-xl font-bold hover:text-primary-700 cursor-pointer transition-colors leading-tight"
+                                                    onClick={() => {
+                                                        const desc = cupsSeleccionado.descripcion || '';
+                                                        navigator.clipboard.writeText(desc);
+                                                        toast.success('Descripción copiada');
+                                                    }}
+                                                    title="Click para copiar descripción"
+                                                >
+                                                    {cupsSeleccionado.descripcion || '—'}
+                                                </p>
                                             )}
                                         </FieldGroup>
 
