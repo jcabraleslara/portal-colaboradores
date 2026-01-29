@@ -31,10 +31,10 @@ export interface CitaRow {
 const COLUMN_MAP: Record<string, keyof CitaRow> = {
     'ID CITA': 'id_cita',
     'TIPO ID': 'tipo_id',
-    'NUMERO ID': 'identificacion', // Assumed name in file based on user feedback
+    'NUMERO ID': 'identificacion',
     'PACIENTE': 'nombres_completos',
     'FECHA ASIGNACION': 'fecha_asignacion',
-    'FECHA CITA': 'fecha_cita',
+    'FECHA ATENCION': 'fecha_cita', // Updated based on user feedback
     'ESTADO': 'estado_cita',
     'ASUNTO': 'asunto',
     'SEDE': 'sede',
@@ -60,6 +60,11 @@ export async function processCitasFile(
     onProgress: (status: string, percentage?: number) => void
 ): Promise<{ success: number; errors: number }> {
 
+    // Helper for normalizing headers (remove accents, extra spaces)
+    const normalizeHeader = (h: string) => {
+        return h.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase()
+    }
+
     // 1. Read file as text
     onProgress('Leyendo archivo...', 0)
     const text = await file.text()
@@ -81,7 +86,8 @@ export async function processCitasFile(
 
         for (let i = 0; i < Math.min(rows.length, 20); i++) { // Check first 20 rows for header
             const row = rows[i]
-            const cells = Array.from(row.cells).map(c => c.textContent?.trim().toUpperCase() || '')
+            // Normalize cell content for matching
+            const cells = Array.from(row.cells).map(c => normalizeHeader(c.textContent || ''))
 
             // Check if this row looks like the header
             if (cells.includes('ID CITA') && cells.includes('PACIENTE')) {
@@ -90,12 +96,19 @@ export async function processCitasFile(
 
                 // Build index map
                 cells.forEach((headerText, index) => {
-                    // Try exact match first
+                    // Normalize map keys too just in case, though we used standard ones above
+                    // Actually, we iterate the cells (headers found in file)
+                    // and try to find them in our MAP.
+
+                    // Direct match attempt
                     let dbCol = COLUMN_MAP[headerText]
 
-                    // Fuzzy match logic if needed (e.g. "CONTRATO..." )
+                    // If not found, try fuzzy match against our MAP keys
                     if (!dbCol) {
-                        const key = Object.keys(COLUMN_MAP).find(k => headerText.includes(k))
+                        const key = Object.keys(COLUMN_MAP).find(k => {
+                            const normalizedKey = normalizeHeader(k)
+                            return headerText.includes(normalizedKey) || normalizedKey.includes(headerText)
+                        })
                         if (key) dbCol = COLUMN_MAP[key]
                     }
 
@@ -106,6 +119,7 @@ export async function processCitasFile(
                 break
             }
         }
+
         if (targetTable) break
     }
 
