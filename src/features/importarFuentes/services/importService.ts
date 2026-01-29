@@ -129,8 +129,11 @@ export async function processCitasFile(
 
     if (cupsIndex !== undefined) {
         for (const row of fileRows) {
-            const val = row.cells[cupsIndex]?.textContent?.trim().toUpperCase()
-            if (val) uniqueCupsInFile.add(val)
+            const val = row.cells[cupsIndex]?.textContent?.trim()
+            if (val) {
+                // Tomar solo los primeros 6 caracteres para validación contra maestro
+                uniqueCupsInFile.add(val.substring(0, 6).toUpperCase())
+            }
         }
     }
 
@@ -267,12 +270,14 @@ export async function processCitasFile(
             // Not including fecha_nacimiento_temp strictly in DB object
         }
 
-        // Validate CUPS integrity
-        const rowCups = rowData.cups?.trim().toUpperCase()
-        if (rowCups && !validCupsSet.has(rowCups)) {
+        // Validate CUPS integrity (Check first 6 characters)
+        const rowCupsFull = rowData.cups?.trim().toUpperCase()
+        const rowCupsShort = rowCupsFull ? rowCupsFull.substring(0, 6) : ''
+
+        if (rowCupsShort && !validCupsSet.has(rowCupsShort)) {
             invalidCupsList.push({
                 id_cita: rowData.id_cita,
-                cups: rowCups,
+                cups: rowCupsFull || '', // Reportamos el código largo original
                 descripcion: rowData.procedimiento || 'Sin descripción'
             })
         }
