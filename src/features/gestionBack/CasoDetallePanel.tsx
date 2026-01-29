@@ -778,6 +778,19 @@ export function CasoDetallePanel({
                             </div>
                         </div>
 
+                        {/* Ordenador (Nuevo Campo) */}
+                        <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center flex-shrink-0">
+                                <Stethoscope size={18} className="text-emerald-600" />
+                            </div>
+                            <div>
+                                <p className="text-xs text-gray-500">Ordenador</p>
+                                <p className="font-medium text-gray-800 text-sm">
+                                    {capitalize(caso.ordenador || 'No registrado')}
+                                </p>
+                            </div>
+                        </div>
+
                         {/* Especialidad */}
                         {caso.especialidad && (
                             <div className="flex items-start gap-3">
