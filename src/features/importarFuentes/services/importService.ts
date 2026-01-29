@@ -78,16 +78,35 @@ export async function processCitasFile(
 
     // 0. Pre-fetch valid CUPS for integrity check
     onProgress('Validando maestro de CUPS...', 0)
-    const { data: cupsData, error: cupsError } = await supabase
-        .from('cups')
-        .select('cups')
 
-    if (cupsError) {
-        console.error('Error fetching CUPS:', cupsError)
-        throw new Error('No se pudo validar el maestro de CUPS.')
+    let allCups: string[] = []
+    let page = 0
+    const pageSize = 1000
+    let hasMore = true
+
+    while (hasMore) {
+        const { data, error } = await supabase
+            .from('cups')
+            .select('cups')
+            .range(page * pageSize, (page + 1) * pageSize - 1)
+
+        if (error) {
+            console.error('Error fetching CUPS:', error)
+            throw new Error('No se pudo validar el maestro de CUPS.')
+        }
+
+        if (data && data.length > 0) {
+            const cups = data.map(c => c.cups?.trim().toUpperCase()).filter(Boolean) as string[]
+            allCups = [...allCups, ...cups]
+            if (data.length < pageSize) hasMore = false
+        } else {
+            hasMore = false
+        }
+        page++
     }
+
     // Create Set for O(1) lookup - Normalized
-    const validCupsSet = new Set(cupsData?.map(c => c.cups?.trim().toUpperCase()) || [])
+    const validCupsSet = new Set(allCups)
     const invalidCupsList: { id_cita: string; cups: string; descripcion: string }[] = []
 
     // 1. Read file as text
