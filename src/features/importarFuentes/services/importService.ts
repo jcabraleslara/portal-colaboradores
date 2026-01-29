@@ -133,7 +133,9 @@ export async function processCitasFile(
 
     // 4. Extract Data
     onProgress('Extrayendo datos...', 10)
-    const dataBatch: CitaRow[] = []
+    // Use a Map to deduplicate by id_cita automatically (last entry wins)
+    const rowsMap = new Map<string, CitaRow>()
+
     const rows = Array.from(targetTable.rows).slice(headerRowIndex + 1)
 
     // Helper to parse dates (DD/MM/YYYY -> YYYY-MM-DD)
@@ -187,11 +189,13 @@ export async function processCitasFile(
             duracion: getItem('duracion') || null
         }
 
-        dataBatch.push(rowData)
+        rowsMap.set(id_cita, rowData)
     }
 
+    const dataBatch = Array.from(rowsMap.values())
+
     // 5. Upsert to Supabase
-    onProgress(`Subiendo ${dataBatch.length} registros...`, 20)
+    onProgress(`Subiendo ${dataBatch.length} registros únicos...`, 20)
 
     const BATCH_SIZE = 100
     let successCount = 0
