@@ -45,8 +45,9 @@ export default function CitasImportForm() {
 
             <FileDropzone
                 onFileSelected={setFile}
-                label="Arrastra el archivo Informe_citas.xls aquí"
+                label="Arrastra el archivo Informe_citas.xls aquí (Máx. 100MB)"
                 isProcessing={isProcessing}
+                maxSize={100 * 1024 * 1024} // 100MB
             />
 
             {file && !result && (
