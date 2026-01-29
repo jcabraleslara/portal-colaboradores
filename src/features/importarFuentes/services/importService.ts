@@ -27,6 +27,8 @@ export interface CitaRow {
     edad: number | null
     usuario_agenda: string | null
     usuario_confirma: string | null
+    // Temporary field for age calculation - not sent to DB
+    fecha_nacimiento_temp?: string | null
 }
 
 /**
@@ -35,39 +37,40 @@ export interface CitaRow {
 const COLUMN_MAP: Record<string, keyof CitaRow> = {
     'ID CITA': 'id_cita',
     'TIPO ID': 'tipo_id',
-    'NUMERO ID': 'identificacion',
-    'IDENTIFICACION': 'identificacion', // Alias
-    'DOCUMENTO': 'identificacion', // Alias
+    'No. IDENTIFICACION': 'identificacion', // Correcto
+    'NUMERO ID': 'identificacion', // Fallback
+    'IDENTIFICACION': 'identificacion', // Fallback
     'PACIENTE': 'nombres_completos',
-    'NOMBRE': 'nombres_completos', // Alias
+    'NOMBRE': 'nombres_completos',
     'FECHA ASIGNACION': 'fecha_asignacion',
-    'FECHA SOLICITUD': 'fecha_asignacion', // Alias
-    'FECHA ATENCION': 'fecha_cita',
-    'FECHA CITA': 'fecha_cita', // Alias
+    'FECHA ATENCION': 'fecha_cita', // Correcto per user
+    'FECHA CITA': 'fecha_cita', // Fallback
     'ESTADO': 'estado_cita',
     'ASUNTO': 'asunto',
-    'SEDE': 'sede',
-    'CENTRO': 'sede', // Alias
+    'P. ATENCION': 'sede', // Correcto
+    'SEDE': 'sede', // Fallback
     'CONTRATO': 'contrato',
+    'USUARIO': 'usuario_agenda', // Correcto
+    'USUARIO AGENDA': 'usuario_agenda', // Fallback
     'MEDICO': 'medico',
-    'PROFESIONAL': 'medico', // Alias
-    'ESPECIALIDAD': 'especialidad',
-    'TIPO CITA': 'tipo_cita',
+    'PROFESIONAL': 'medico',
+    'ESP. MEDICO': 'especialidad', // Correcto
+    'ESPECIALIDAD': 'especialidad', // Fallback
+    'TIPO DE CITA': 'tipo_cita', // Correcto
+    'TIPO CITA': 'tipo_cita', // Fallback
     'CUPS': 'cups',
-    'CODIGO': 'cups', // Alias potential
+    'CODIGO': 'cups',
     'PROCEDIMIENTO': 'procedimiento',
     'UNIDAD FUNCIONAL': 'unidad_funcional',
     'DIAGNOSTICO': 'dx1',
-    'CIE10': 'dx1', // Alias
+    'CIE10': 'dx1',
     'D. RELACIONADO1': 'dx2',
     'D. RELACIONADO2': 'dx3',
     'D. RELACIONADO3': 'dx4',
     'DURACION': 'duracion',
     'SEXO': 'sexo',
     'GENERO': 'sexo',
-    'EDAD': 'edad',
-    'USUARIO AGENDA': 'usuario_agenda',
-    'USUARIO CREACION': 'usuario_agenda',
+    'F.NACIMIENTO': 'fecha_nacimiento_temp', // For calculation
     'USUARIO CONFIRMA': 'usuario_confirma'
 }
 
@@ -77,12 +80,27 @@ const COLUMN_MAP: Record<string, keyof CitaRow> = {
 export async function processCitasFile(
     file: File,
     onProgress: (status: string, percentage?: number) => void
-): Promise<{ success: number; errors: number; duplicates: number; totalProcessed: number }> {
+): Promise<{ success: number; errors: number; duplicates: number; totalProcessed: number; duration: string; invalidCupsReport?: string }> {
+    const startTime = performance.now()
 
     // Helper for normalizing headers (remove accents, extra spaces)
     const normalizeHeader = (h: string) => {
         return h.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase()
     }
+
+    // 0. Pre-fetch valid CUPS for integrity check
+    onProgress('Validando maestro de CUPS...', 0)
+    const { data: cupsData, error: cupsError } = await supabase
+        .from('cups')
+        .select('cups')
+
+    if (cupsError) {
+        console.error('Error fetching CUPS:', cupsError)
+        throw new Error('No se pudo validar el maestro de CUPS.')
+    }
+    // Create Set for O(1) lookup
+    const validCupsSet = new Set(cupsData?.map(c => c.cups?.trim()) || [])
+    const invalidCupsList: { id_cita: string; cups: string; descripcion: string }[] = []
 
     // 1. Read file as text
     onProgress('Leyendo archivo...', 0)
@@ -115,10 +133,6 @@ export async function processCitasFile(
 
                 // Build index map
                 cells.forEach((headerText, index) => {
-                    // Normalize map keys too just in case, though we used standard ones above
-                    // Actually, we iterate the cells (headers found in file)
-                    // and try to find them in our MAP.
-
                     // Direct match attempt
                     let dbCol = COLUMN_MAP[headerText]
 
@@ -161,13 +175,29 @@ export async function processCitasFile(
     // Helper to parse dates (DD/MM/YYYY -> YYYY-MM-DD)
     const parseDate = (val: string) => {
         if (!val) return null
-        // Assuming format DD/MM/YYYY HH:MM or similar
-        // Just regex for DD/MM/YYYY
         const match = val.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)
         if (match) {
             return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`
         }
-        return null // or return original if ISO?
+        return null
+    }
+
+    // Calculate age between two dates
+    const calculateAge = (birthDateStr: string | null, refDateStr: string | null): number | null => {
+        if (!birthDateStr || !refDateStr) return null
+
+        // Ensure format YYYY-MM-DD for constructor
+        const d1 = new Date(birthDateStr)
+        const d2 = new Date(refDateStr)
+
+        if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return null
+
+        let age = d2.getFullYear() - d1.getFullYear()
+        const m = d2.getMonth() - d1.getMonth()
+        if (m < 0 || (m === 0 && d2.getDate() < d1.getDate())) {
+            age--
+        }
+        return age >= 0 ? age : 0
     }
 
     for (const row of rows) {
@@ -190,19 +220,18 @@ export async function processCitasFile(
             duplicates++
         }
 
-        // Parse Age (might be "35" or "35 Años")
-        const parseAge = (val: string): number | null => {
-            if (!val) return null
-            const match = val.match(/(\d+)/)
-            return match ? parseInt(match[1], 10) : null
-        }
+        const fecha_nacimiento_raw = parseDate(getItem('fecha_nacimiento_temp'))
+        const fecha_asignacion = parseDate(getItem('fecha_asignacion'))
+
+        // Always calculate age from birth date vs assignment date
+        const finalAge = calculateAge(fecha_nacimiento_raw, fecha_asignacion)
 
         const rowData: CitaRow = {
             id_cita,
             tipo_id: getItem('tipo_id'),
             identificacion: getItem('identificacion'),
             nombres_completos: getItem('nombres_completos'),
-            fecha_asignacion: parseDate(getItem('fecha_asignacion')),
+            fecha_asignacion: fecha_asignacion,
             fecha_cita: parseDate(getItem('fecha_cita')),
             estado_cita: getItem('estado_cita'),
             asunto: getItem('asunto'),
@@ -220,10 +249,24 @@ export async function processCitasFile(
             dx4: getItem('dx4') || null,
             duracion: getItem('duracion') || null,
             sexo: getItem('sexo') || null,
-            edad: parseAge(getItem('edad')),
+            edad: finalAge,
             usuario_agenda: getItem('usuario_agenda') || null,
             usuario_confirma: getItem('usuario_confirma') || null
+            // Not including fecha_nacimiento_temp strictly in DB object
         }
+
+        // Validate CUPS integrity
+        const rowCups = rowData.cups?.trim()
+        if (rowCups && !validCupsSet.has(rowCups)) {
+            invalidCupsList.push({
+                id_cita: rowData.id_cita,
+                cups: rowCups,
+                descripcion: rowData.procedimiento || 'Sin descripción'
+            })
+        }
+
+        // Remove temp field if it strictly needs to match DB (Supabase usually OK with extra fields if not stripping)
+        delete rowData.fecha_nacimiento_temp
 
         rowsMap.set(id_cita, rowData)
     }
@@ -255,10 +298,26 @@ export async function processCitasFile(
         onProgress(`Procesando... ${Math.min(i + BATCH_SIZE, dataBatch.length)} / ${dataBatch.length}`, percentage)
     }
 
+    const endTime = performance.now()
+    const durationSeconds = Math.round((endTime - startTime) / 1000)
+    const minutes = Math.floor(durationSeconds / 60)
+    const seconds = durationSeconds % 60
+    const durationStr = `${minutes}m ${seconds}s`
+
+    // Generate CSV Report if needed
+    let invalidCupsReport: string | undefined
+    if (invalidCupsList.length > 0) {
+        const headers = 'ID_CITA,CUPS_NO_ENCONTRADO,DESCRIPCION\n'
+        const rows = invalidCupsList.map(item => `${item.id_cita},"${item.cups}","${item.descripcion}"`).join('\n')
+        invalidCupsReport = headers + rows
+    }
+
     return {
         success: successCount,
         errors: errorCount,
         duplicates: duplicates,
-        totalProcessed: rowsMap.size + duplicates
+        totalProcessed: rowsMap.size + duplicates,
+        duration: durationStr,
+        invalidCupsReport
     }
 }

@@ -10,7 +10,7 @@ export default function CitasImportForm() {
     const [isProcessing, setIsProcessing] = useState(false)
     const [progressStatus, setProgressStatus] = useState<string>('')
     const [progressPercent, setProgressPercent] = useState<number>(0)
-    const [result, setResult] = useState<{ success: number; errors: number; duplicates: number; totalProcessed: number } | null>(null)
+    const [result, setResult] = useState<{ success: number; errors: number; duplicates: number; totalProcessed: number; duration: string; invalidCupsReport?: string } | null>(null)
 
     const handleProcess = async () => {
         if (!file) return
@@ -27,7 +27,7 @@ export default function CitasImportForm() {
 
             setResult(stats)
             if (stats.errors === 0) {
-                toast.success(`Exito: ${stats.success} registros importados.`)
+                toast.success(`Exito: ${stats.success} registros importados en ${stats.duration}.`)
             } else if (stats.success > 0) {
                 toast.warning(`Completado con advertencias: ${stats.success} importados, ${stats.errors} fallidos.`)
             } else {
@@ -47,6 +47,18 @@ export default function CitasImportForm() {
         if (progressPercent < 30) return 'bg-blue-500'
         if (progressPercent < 70) return 'bg-indigo-500'
         return 'bg-green-500'
+    }
+
+    // Helper to download report
+    const downloadReport = (content: string) => {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.setAttribute('download', `reporte_cups_no_encontrados_${new Date().toISOString().slice(0, 10)}.csv`)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
     }
 
     return (
@@ -142,6 +154,9 @@ export default function CitasImportForm() {
                                             <span className="text-xs font-semibold text-slate-600">
                                                 {((result.success / result.totalProcessed) * 100).toFixed(1)}% Efectividad
                                             </span>
+                                            <span className="text-xs font-mono text-slate-400 ml-2 bg-slate-100 px-2 py-0.5 rounded-full">
+                                                Time: {result.duration}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
@@ -171,7 +186,22 @@ export default function CitasImportForm() {
                                     </div>
                                 </div>
 
-                                {result.errors > 0 && (
+                                {result.invalidCupsReport && (
+                                    <div className="bg-rose-50 border border-rose-100 p-4 rounded-xl flex items-center justify-between">
+                                        <div>
+                                            <h5 className="text-sm font-bold text-rose-800">Inconsistencias de CUPS detectadas</h5>
+                                            <p className="text-xs text-rose-600">Algunos códigos CUPS no existen en el maestro.</p>
+                                        </div>
+                                        <button
+                                            onClick={() => downloadReport(result.invalidCupsReport!)}
+                                            className="px-4 py-2 bg-white border border-rose-200 text-rose-700 text-xs font-bold rounded-lg shadow-sm hover:bg-rose-50 transition-colors"
+                                        >
+                                            Descargar Reporte CSV
+                                        </button>
+                                    </div>
+                                )}
+
+                                {result.errors > 0 && !result.invalidCupsReport && (
                                     <p className="text-sm text-orange-700 bg-orange-100/50 p-3 rounded-lg flex items-center gap-2">
                                         <AlertCircle size={16} />
                                         <span>Algunos registros no pudieron guardarse. Revisa la consola (F12) para detalles técnicos.</span>
