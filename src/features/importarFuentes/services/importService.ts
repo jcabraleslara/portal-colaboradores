@@ -322,7 +322,7 @@ export async function processCitasFile(
     // 5. Upsert to Supabase
     onProgress(`Subiendo ${dataBatch.length} registros únicos...`, 20)
 
-    const BATCH_SIZE = 50 // Reduced to avoid 502/CORS errors on large payloads
+    const BATCH_SIZE = 100 // Incremented to speed up imports, balance between speed and reliability
     let successCount = 0
     let errorCount = 0
 
