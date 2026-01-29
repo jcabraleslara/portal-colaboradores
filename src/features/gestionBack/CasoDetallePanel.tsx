@@ -423,7 +423,7 @@ export function CasoDetallePanel({
         } else {
             setErrorGuardado(result.error || 'Error al guardar')
         }
-    }, [caso, direccionamiento, respuestaBack, estadoRadicado, tipoSolicitud, onGuardarYCerrar, onGuardarYSiguiente])
+    }, [caso, direccionamiento, respuestaBack, estadoRadicado, tipoSolicitud, rutaSeleccionada, user, onGuardarYCerrar, onGuardarYSiguiente])
 
     const handleEliminar = useCallback(async () => {
         setEliminando(true)
@@ -523,7 +523,6 @@ export function CasoDetallePanel({
     useEffect(() => {
         // Resetear todos los estados editables al valor del nuevo caso
         setDireccionamiento((caso.direccionamiento as Direccionamiento) || '')
-        setRespuestaBack((caso.respuestaBack && caso.respuestaBack !== 'NaN') ? caso.respuestaBack : '')
         setRespuestaBack((caso.respuestaBack && caso.respuestaBack !== 'NaN') ? caso.respuestaBack : '')
         setEstadoRadicado(caso.estadoRadicado || 'Pendiente')
         setTipoSolicitud(caso.tipoSolicitud || 'Auditoría Médica')
