@@ -564,7 +564,7 @@ export function CasoDetallePanel({
 
     // Extraer FUM y calcular Edad Gestacional al día
     const getDatosMaternidad = () => {
-        if (caso.ruta !== 'Maternidad Segura' || !caso.observaciones || typeof caso.observaciones !== 'string') {
+        if (!caso.observaciones || typeof caso.observaciones !== 'string') {
             return null
         }
 
