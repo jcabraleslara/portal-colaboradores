@@ -2,7 +2,8 @@ import { X, Route, AlertCircle } from 'lucide-react'
 import {
     ESTADO_COLORES,
     RUTA_COLORES,
-    EstadoRadicado
+    EstadoRadicado,
+    ESTADOS_RADICADO_LISTA
 } from '@/types/back.types'
 
 interface RutasStatsProps {
@@ -27,7 +28,7 @@ export function RutasStats({
 }: RutasStatsProps) {
 
     // Estados que queremos destacar en los contadores superiores
-    const ESTADOS_DESTACADOS: EstadoRadicado[] = ['Pendiente', 'Gestionado', 'En espera']
+    const ESTADOS_DESTACADOS = ESTADOS_RADICADO_LISTA.filter(e => e !== 'Todos') as EstadoRadicado[]
 
     return (
         <div className="space-y-6">

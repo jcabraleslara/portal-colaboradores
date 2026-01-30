@@ -161,34 +161,38 @@ export const rutasService = {
      */
     async obtenerConteos(): Promise<ApiResponse<{ porEstado: Record<string, number>, porRuta: Record<string, number> }>> {
         try {
-            // No hay RPC específico para Rutas, hacemos query manual
-            // Podríamos optimizar con RPC futuro si es lento
-            const { data, error } = await supabase
-                .from('back')
-                .select('estado_radicado, ruta')
-                .eq('tipo_solicitud', 'Activación de Ruta')
-                .eq('estado_radicado', 'Pendiente') // Solo conteos de pendientes nos interesan para alertas? O todos?
-            // Generalmente los tableros muestran pendientes. Si quieres totales, quita el filtro.
-            // Asumiremos pendientes para las cards de "Atención requerida"
+            const { data, error } = await supabase.rpc('obtener_conteos_rutas')
 
             if (error) throw error
 
-            const porEstado: Record<string, number> = {}
-            const porRuta: Record<string, number> = {}
-
-            data?.forEach(row => {
-                if (row.estado_radicado) {
-                    porEstado[row.estado_radicado] = (porEstado[row.estado_radicado] || 0) + 1
-                }
-                if (row.ruta) {
-                    porRuta[row.ruta] = (porRuta[row.ruta] || 0) + 1
-                }
-            })
-
-            return { success: true, data: { porEstado, porRuta } }
+            return { success: true, data: data }
         } catch (error) {
             console.error('Error conteos rutas:', error)
-            return { success: false, error: 'Error cargando estadísticas' }
+
+            // Fallback silencioso a método antiguo si el RPC falla (por seguridad en despliegue)
+            try {
+                const { data: rawData, error: rawError } = await supabase
+                    .from('back')
+                    .select('estado_radicado, ruta')
+                    .eq('tipo_solicitud', 'Activación de Ruta')
+
+                if (rawError) throw rawError
+
+                const porEstado: Record<string, number> = {}
+                const porRuta: Record<string, number> = {}
+
+                rawData?.forEach(row => {
+                    if (row.estado_radicado) {
+                        porEstado[row.estado_radicado] = (porEstado[row.estado_radicado] || 0) + 1
+                    }
+                    if (row.ruta) {
+                        porRuta[row.ruta] = (porRuta[row.ruta] || 0) + 1
+                    }
+                })
+                return { success: true, data: { porEstado, porRuta } }
+            } catch (fallbackError) {
+                return { success: false, error: 'Error cargando estadísticas' }
+            }
         }
     },
 

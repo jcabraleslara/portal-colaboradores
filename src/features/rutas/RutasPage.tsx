@@ -84,7 +84,6 @@ export default function RutasPage() {
 
     useEffect(() => {
         cargarConteos()
-        cargarCasos(0)
     }, [])
     // Nota: cargarCasos se llama en useEffect separado o dep? 
     // Mejor controlar con handlers específicos para evitar loops, 
