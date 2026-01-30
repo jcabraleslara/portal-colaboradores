@@ -15,7 +15,12 @@
       "Bash(grep:*)",
       "mcp__claude_ai_Supabase__list_migrations",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: Implement Gestión de Recobros module\n\n- Add recobros feature with radicación and gestión tabs\n- Create CupsSelector component for dynamic CUPS search\n- Add PDF generation for approved recobros\n- Implement email notification for devolution\n- Enable module in navigation \\(replaces triangulaciones\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(unzip:*)"
+      "Bash(unzip:*)",
+      "Bash(npx vercel --prod --yes)",
+      "Bash(npx vercel:*)",
+      "Bash(curl -X POST https://colaboradores.gestarsaludips.com/api/fix-filenames -H \"Content-Type: application/json\" -d '{\"\"dryRun\"\": true}')",
+      "Bash(python:*)",
+      "Bash(curl:*)"
     ]
   }
 }

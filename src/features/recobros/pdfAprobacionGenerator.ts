@@ -73,6 +73,24 @@ function truncarTexto(texto: string, font: PDFFont, fontSize: number, maxWidth: 
 }
 
 /**
+ * Limpia caracteres de Markdown para el PDF
+ */
+function limpiarMarkdown(texto: string): string {
+    if (!texto) return ''
+    return texto
+        // Eliminar negrita (**texto** o __texto__)
+        .replace(/(\*\*|__)(.*?)\1/g, '$2')
+        // Eliminar cursiva (*texto* o _texto_)
+        .replace(/(\*|_)(.*?)\1/g, '$2')
+        // Eliminar encabezados (### Texto)
+        .replace(/^#+\s+/gm, '')
+        // Reemplazar items de lista (* Item o - Item) por bullet
+        .replace(/^[\*\-]\s+/gm, '• ')
+        // Eliminar enlaces [Texto](url) -> Texto
+        .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+}
+
+/**
  * Dibuja una celda de tabla con borde
  */
 function dibujarCelda(
@@ -337,7 +355,7 @@ export async function generarPdfAprobacion(
     // ========================================
     // REFERENCIA
     // ========================================
-    const refTexto = `Ref.: CARTA DE AUTORIZACIÓN DE RECOBRO POR SERVICIOS DE SALUD, USUARIO [${recobro.pacienteTipoId || 'CC'} ${recobro.pacienteId} ${recobro.pacienteNombres || ''}]`
+    const refTexto = `Ref.: CARTA DE AUTORIZACIÓN DE RECOBRO POR SERVICIOS DE SALUD, USUARIO ${recobro.pacienteTipoId || 'CC'} ${recobro.pacienteId} ${recobro.pacienteNombres || ''}`
 
     // Implement text wrapping for Ref
     let refLinea = ''
@@ -406,10 +424,13 @@ export async function generarPdfAprobacion(
 
     // Función auxiliar para dibujar filas con altura dinámica
     const drawFlexibleRow = (label: string, value: string) => {
+        // Limpiar markdown del valor
+        const cleanValue = limpiarMarkdown(value || '')
+
         // Calcular líneas del valor
         const valueLines: string[] = []
         let currentLine = ''
-        const words = (value || '').split(' ')
+        const words = cleanValue.split(/\s+/)
 
         for (const word of words) {
             const testLine = currentLine + (currentLine ? ' ' : '') + word
@@ -520,7 +541,8 @@ export async function generarPdfAprobacion(
         // Calcular altura basada en la descripción
         const descLines: string[] = []
         let currentDesc = ''
-        const descWords = cups.descripcion.split(' ')
+        const cleanDesc = limpiarMarkdown(cups.descripcion)
+        const descWords = cleanDesc.split(/\s+/)
 
         for (const word of descWords) {
             const testLine = currentDesc + (currentDesc ? ' ' : '') + word

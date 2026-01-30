@@ -345,7 +345,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                         if (!nombreArchivo) {
                             const extension = 'pdf'
                             const prefijoFallback = 'DOC_'
-                            nombreArchivo = `${prefijoFallback}${radicado}_${categoriaId}_${i + 1}.${extension}`
+                            nombreArchivo = `${prefijoFallback}${radicado}_${categoriaId}.${extension}`
                         }
 
                         // Subir a OneDrive con el nombre EXACTO que tiene en Supabase

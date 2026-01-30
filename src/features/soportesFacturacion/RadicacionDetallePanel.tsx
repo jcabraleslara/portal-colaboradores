@@ -241,8 +241,6 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                 const urls: string[] = caso[propiedad] || []
 
                 if (urls.length > 0) {
-                    const prefijo = getPrefijoArchivo(caso.eps, caso.servicioPrestado, categoriaId)
-
                     for (let i = 0; i < urls.length; i++) {
                         const url = urls[i]
                         try {
@@ -251,13 +249,27 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
 
                             const blob = await response.blob()
 
-                            // Determinar extensión segura
-                            let extension = 'pdf'
-                            if (blob.type.includes('image/jpeg')) extension = 'jpg'
-                            else if (blob.type.includes('image/png')) extension = 'png'
+                            // ESTRATEGIA DE NOMBRADO: USAR EL NOMBRE REAL DE SUPABASE
+                            // Igual que en OneDrive: extraer el nombre del archivo desde la URL firmada
+                            // La URL contiene el path real: .../soportes-facturacion/RADICADO/NOMBRE_CORRECTO.pdf?...
+                            let nombreArchivo = ''
+                            try {
+                                const urlObj = new URL(url)
+                                const pathName = urlObj.pathname
+                                const decodedPath = decodeURIComponent(pathName)
+                                nombreArchivo = decodedPath.split('/').pop() || ''
+                            } catch (e) {
+                                console.warn('Error parseando URL de archivo:', e)
+                            }
 
-                            // Nombre archivo: PREFIJO_RADICADO_CATEGORIA_INDICE.ext
-                            const nombreArchivo = `${prefijo}_${caso.radicado}_${categoriaId}_${i + 1}.${extension}`
+                            // Fallback de seguridad si falla el parseo
+                            if (!nombreArchivo) {
+                                const prefijo = getPrefijoArchivo(caso.eps, caso.servicioPrestado, categoriaId)
+                                let extension = 'pdf'
+                                if (blob.type.includes('image/jpeg')) extension = 'jpg'
+                                else if (blob.type.includes('image/png')) extension = 'png'
+                                nombreArchivo = `${prefijo}_${caso.radicado}_${categoriaId}.${extension}`
+                            }
 
                             // Agregar al ZIP (directamente en la raíz del archivo comprimido)
                             zip.file(nombreArchivo, blob)

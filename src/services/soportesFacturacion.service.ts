@@ -197,28 +197,15 @@ export const soportesFacturacionService = {
 
             if (identificacionPaciente) {
                 // ESTRATEGIA A: Identificación encontrada
-                // Formato: PREFIJO_NIT_IDPACIENTE_CONSECUTIVO.ext
-                // El consecutivo (i+1) ayuda a evitar colisiones si suben varios del mismo tipo para el mismo paciente
-                // Si es el primero y único, igual podríamos poner _1 para consistencia, 
-                // pero la tabla ejemplo muestra "CC1065000" sin consecutivo.
-                // Sin embargo, si suben 2 soportes clínicos, uno sobrescribiría al otro si no hay consecutivo.
-                // Solución híbrida: Si hay múltiples archivos en el array, usamos consecutivo. Si es uno, evaluamos riesgo.
-                // Para seguridad y evitar sobrescritura (ya que Storage no versiona por defecto igual),
-                // vamos a agregar siempre un hash corto o consecutivo si hay >1, 
-                // PERO el requerimiento estricto de nombre sugiere formato exacto.
-                // Asumiremos: Si hay 1 solo archivo, SIN consecutivo. Si hay varios, CON consecutivo.
-
-                if (archivos.length > 1) {
-                    nombreFinal = `${prefijo}_${NIT}_${identificacionPaciente}_${i + 1}.${extension}`
-                } else {
-                    nombreFinal = `${prefijo}_${NIT}_${identificacionPaciente}.${extension}`
-                }
+                // Formato: PREFIJO_NIT_IDPACIENTE.ext
+                // Sin consecutivo - el nombre es estandarizado
+                nombreFinal = `${prefijo}_${NIT}_${identificacionPaciente}.${extension}`
 
             } else {
                 // ESTRATEGIA B: Fallback (No se halló ID en el nombre)
                 // Usar Radicado como identificador único
-                // Formato: PREFIJO_RADICADO_CATEGORIA_CONSECUTIVO.ext
-                nombreFinal = `${prefijo}_${radicado}_${categoria}_${i + 1}.${extension}`
+                // Formato: PREFIJO_RADICADO_CATEGORIA.ext
+                nombreFinal = `${prefijo}_${radicado}_${categoria}.${extension}`
             }
 
             const ruta = `${radicado}/${nombreFinal}`
