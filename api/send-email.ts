@@ -44,11 +44,19 @@ interface DatosNoContactable {
     fechaGestion: string
 }
 
+interface DatosDevolucionRecobro {
+    pacienteNombre: string
+    pacienteIdentificacion: string
+    cupsData: { cups: string; descripcion: string; cantidad: number; es_principal: boolean }[]
+    respuestaAuditor: string
+    fechaDevolucion: string
+}
+
 interface RequestBody {
-    type: 'radicacion' | 'rechazo' | 'devolucion' | 'no_contactable'
+    type: 'radicacion' | 'rechazo' | 'devolucion' | 'no_contactable' | 'devolucion_recobro'
     destinatario: string
     radicado: string
-    datos: DatosRadicacionExitosa | DatosRechazo | DatosDevolucion | DatosNoContactable
+    datos: DatosRadicacionExitosa | DatosRechazo | DatosDevolucion | DatosNoContactable | DatosDevolucionRecobro
 }
 
 // ==========================================
@@ -321,6 +329,79 @@ function generarTemplateDevolucion(radicado: string, datos: DatosDevolucion): st
     `
 }
 
+function generarTemplateDevolucionRecobro(consecutivo: string, datos: DatosDevolucionRecobro): string {
+    const cupsHtml = datos.cupsData
+        .map(cups => `
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
+                    ${cups.es_principal ? '⭐ ' : ''}<code style="background-color: #e0f2fe; padding: 2px 6px; border-radius: 4px; color: #0369a1;">${cups.cups}</code>
+                </td>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${cups.descripcion}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${cups.cantidad}</td>
+            </tr>
+        `)
+        .join('')
+
+    return `
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #dc2626; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0; font-size: 24px;">🔄 Recobro Devuelto</h1>
+            </div>
+
+            <div style="padding: 30px; background-color: #f9fafb;">
+                <p>Cordial saludo,</p>
+
+                <p>Le informamos que su solicitud de recobro <strong>${consecutivo}</strong> ha sido devuelta por el área de Auditoría.</p>
+
+                <div style="background-color: #fef2f2; border: 3px solid #dc2626; padding: 20px; margin: 20px 0; border-radius: 8px;">
+                    <h3 style="color: #dc2626; margin-top: 0; margin-bottom: 10px;">
+                        📝 Motivo de Devolución
+                    </h3>
+                    <p style="margin: 0; white-space: pre-wrap; line-height: 1.6; color: #7f1d1d;">
+                        ${datos.respuestaAuditor}
+                    </p>
+                </div>
+
+                <h3 style="color: #dc2626; border-bottom: 2px solid #fecaca; padding-bottom: 8px;">📋 Información del Paciente</h3>
+                <ul style="line-height: 1.8;">
+                    <li><strong>Nombre:</strong> ${datos.pacienteNombre}</li>
+                    <li><strong>Identificación:</strong> ${datos.pacienteIdentificacion}</li>
+                </ul>
+
+                <h3 style="color: #dc2626; border-bottom: 2px solid #fecaca; padding-bottom: 8px;">🏥 Procedimientos Solicitados</h3>
+                <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+                    <thead>
+                        <tr style="background-color: #fef2f2;">
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #fecaca;">Código</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #fecaca;">Descripción</th>
+                            <th style="padding: 8px; text-align: center; border-bottom: 2px solid #fecaca;">Cant.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${cupsHtml}
+                    </tbody>
+                </table>
+                <p style="font-size: 12px; color: #6b7280;">⭐ = Procedimiento principal</p>
+
+                <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+                    <strong>🔄 Próximos Pasos:</strong>
+                    <p style="margin: 10px 0 0 0;">
+                        Por favor, revise las observaciones indicadas y realice los ajustes necesarios.
+                        Puede radicar nuevamente la solicitud de recobro con la información corregida.
+                    </p>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+                <p style="font-size: 12px; color: #6b7280; text-align: center; margin: 0;">
+                    Este es un mensaje automático generado por el Portal de Colaboradores de Gestar Salud IPS.<br />
+                    No responda a este correo.
+                </p>
+            </div>
+        </div>
+    `
+}
+
 function generarTemplateNoContactable(radicado: string, datos: DatosNoContactable): string {
     return `
         <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
@@ -396,6 +477,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } else if (body.type === 'no_contactable') {
             subject = `Paciente No Contactable - Radicado ${body.radicado} `
             htmlBody = generarTemplateNoContactable(body.radicado, body.datos as DatosNoContactable)
+        } else if (body.type === 'devolucion_recobro') {
+            subject = `Recobro Devuelto - ${body.radicado} `
+            htmlBody = generarTemplateDevolucionRecobro(body.radicado, body.datos as DatosDevolucionRecobro)
         } else {
             return res.status(400).json({ success: false, error: 'Tipo de correo no válido' })
         }

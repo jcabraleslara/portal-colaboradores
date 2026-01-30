@@ -165,12 +165,13 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         requiredRoles: ['superadmin', 'auditor', 'asistencial', 'gerencia'],
     },
     {
-        id: 'triangulaciones',
-        name: 'Gestión de Triangulaciones',
+        id: 'recobros',
+        name: 'Gestión de Recobros',
         path: ROUTES.TRIANGULACIONES,
         icon: 'RefreshCw',
-        enabled: false,
-        description: 'En planeación',
+        enabled: true,
+        description: 'Radicación y gestión de recobros',
+        requiredRoles: ['superadmin', 'admin', 'gerencia', 'auditor', 'operativo', 'asistencial', 'externo'],
     },
     {
         id: 'rutas',

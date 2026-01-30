@@ -44,7 +44,6 @@ const ValidacionDerechosPage = lazyWithRetry(() => import('@/features/validacion
 const RadicacionCasosPage = lazyWithRetry(() => import('@/features/radicacionCasos/RadicacionCasosPage'))
 const GestionBackPage = lazyWithRetry(() => import('@/features/gestionBack/GestionBackPage'))
 const DirectorioPage = lazyWithRetry(() => import('@/features/directorioInstitucional/DirectorioPage'))
-const PlaceholderPage = lazyWithRetry(() => import('@/features/placeholder/PlaceholderPage'))
 const AdminUsuariosPage = lazyWithRetry(() => import('@/features/admin/AdminUsuariosPage'))
 const Anexo8Page = lazyWithRetry(() => import('@/features/anexo8/Anexo8Page'))
 const ConsultarCupsPage = lazyWithRetry(() => import('@/features/consultarCups/ConsultarCupsPage'))
@@ -52,6 +51,7 @@ const SoportesFacturacionPage = lazyWithRetry(() => import('@/features/soportesF
 const GestionDemandaInducidaView = lazyWithRetry(() => import('@/features/demandaInducida/GestionDemandaInducidaView'))
 const RutasPage = lazyWithRetry(() => import('@/features/rutas/RutasPage'))
 const ImportarFuentesPage = lazyWithRetry(() => import('@/features/importarFuentes/ImportarFuentesPage'))
+const RecobrosPage = lazyWithRetry(() => import('@/features/recobros/RecobrosPage'))
 
 /**
  * Componente de protección de rutas
@@ -260,9 +260,11 @@ export function AppRoutes() {
                 <Route
                     path={ROUTES.TRIANGULACIONES}
                     element={
-                        <LazyWrapper>
-                            <PlaceholderPage moduleName="Gestión de Triangulaciones" />
-                        </LazyWrapper>
+                        <RoleGuard moduleId="recobros">
+                            <LazyWrapper>
+                                <RecobrosPage />
+                            </LazyWrapper>
+                        </RoleGuard>
                     }
                 />
                 <Route
