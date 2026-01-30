@@ -570,19 +570,9 @@ export async function generarPdfAprobacion(
     cursorY -= firmaHeight + 15
 
     // ========================================
-    // PIE DE PÁGINA
+    // PIE DE PÁGINA (Eliminado por solicitud)
     // ========================================
-    page.drawLine({
-        start: { x: marginX, y: cursorY },
-        end: { x: width - marginX, y: cursorY },
-        thickness: 0.5,
-        color: COLOR_GRIS,
-    })
 
-    cursorY -= 12
-    page.drawText(`Gestionado por: ${nombreAprobador}`, { x: marginX, y: cursorY, size: 8, font: fontRegular, color: COLOR_GRIS })
-    cursorY -= 10
-    page.drawText('Revisado por: COORDINACION ASISTENCIAL', { x: marginX, y: cursorY, size: 8, font: fontRegular, color: COLOR_GRIS })
 
     // ========================================
     // GENERAR BLOB
