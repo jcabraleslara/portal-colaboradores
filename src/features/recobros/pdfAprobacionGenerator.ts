@@ -399,94 +399,172 @@ export async function generarPdfAprobacion(
     }
 
     // ========================================
-    // TABLA DE DATOS PRINCIPALES
+    // TABLA DE DATOS DEL CASO
     // ========================================
-    const cupsPrincipal = recobro.cupsData.find(c => c.es_principal) || recobro.cupsData[0]
-    const cupsRelacionados = recobro.cupsData.filter(c => !c.es_principal)
-
-    const tableRowHeight = 20
     const labelWidth = contentWidth * 0.35
     const valueWidth = contentWidth * 0.65
 
-    const datosTabla = [
-        ['Identificación Usuario(a)', `${recobro.pacienteTipoId || 'CC'} ${recobro.pacienteId}`],
-        ['Nombres y Apellidos Usuario', recobro.pacienteNombres || 'No especificado'],
-        ['CUPS Principal', cupsPrincipal?.cups || 'N/A'],
-        ['Descripción Principal', cupsPrincipal?.descripcion || 'N/A'],
-        ['Cantidad autorizada', String(cupsPrincipal?.cantidad || 1)],
-    ]
+    // Función auxiliar para dibujar filas con altura dinámica
+    const drawFlexibleRow = (label: string, value: string) => {
+        // Calcular líneas del valor
+        const valueLines: string[] = []
+        let currentLine = ''
+        const words = (value || '').split(' ')
 
-    for (const [label, value] of datosTabla) {
-        dibujarCelda(page, marginX, cursorY, labelWidth, tableRowHeight, label, fontBold, 9, { bgColor: COLOR_AZUL_CLARO })
-        dibujarCelda(page, marginX + labelWidth, cursorY, valueWidth, tableRowHeight, value, fontRegular, 9)
-        cursorY -= tableRowHeight
-    }
-
-    cursorY -= 10
-
-    // ========================================
-    // CUPS RELACIONADOS (si hay)
-    // ========================================
-    if (cupsRelacionados.length > 0) {
-        page.drawText('CUPS Relacionados:', { x: marginX, y: cursorY, size: 9, font: fontBold, color: COLOR_NEGRO })
-        cursorY -= 15
-
-        const col1Width = contentWidth * 0.15
-        const col2Width = contentWidth * 0.70
-        const col3Width = contentWidth * 0.15
-
-        // Encabezados
-        dibujarCelda(page, marginX, cursorY, col1Width, 18, 'Código', fontBold, 8, { bgColor: COLOR_AZUL_GESTAR, textColor: rgb(1, 1, 1), align: 'center' })
-        dibujarCelda(page, marginX + col1Width, cursorY, col2Width, 18, 'Descripción', fontBold, 8, { bgColor: COLOR_AZUL_GESTAR, textColor: rgb(1, 1, 1), align: 'center' })
-        dibujarCelda(page, marginX + col1Width + col2Width, cursorY, col3Width, 18, 'Cantidad', fontBold, 8, { bgColor: COLOR_AZUL_GESTAR, textColor: rgb(1, 1, 1), align: 'center' })
-        cursorY -= 18
-
-        // Filas
-        for (const cups of cupsRelacionados) {
-            dibujarCelda(page, marginX, cursorY, col1Width, 16, cups.cups, fontRegular, 8, { align: 'center' })
-            dibujarCelda(page, marginX + col1Width, cursorY, col2Width, 16, cups.descripcion, fontRegular, 8)
-            dibujarCelda(page, marginX + col1Width + col2Width, cursorY, col3Width, 16, String(cups.cantidad), fontRegular, 8, { align: 'center' })
-            cursorY -= 16
-        }
-        cursorY -= 10
-    }
-
-    // ========================================
-    // JUSTIFICACIÓN (si existe)
-    // ========================================
-    if (recobro.justificacion) {
-        dibujarCelda(page, marginX, cursorY, labelWidth, tableRowHeight, 'Justificación', fontBold, 9, { bgColor: COLOR_AZUL_CLARO })
-
-        // Calcular altura necesaria para justificación
-        const justLines: string[] = []
-        let justLinea = ''
-        const justPalabras = recobro.justificacion.split(' ')
-        for (const palabra of justPalabras) {
-            const prueba = justLinea + (justLinea ? ' ' : '') + palabra
-            if (fontRegular.widthOfTextAtSize(prueba, 9) > valueWidth - 10) {
-                justLines.push(justLinea)
-                justLinea = palabra
+        for (const word of words) {
+            const testLine = currentLine + (currentLine ? ' ' : '') + word
+            if (fontRegular.widthOfTextAtSize(testLine, 9) > valueWidth - 10) {
+                valueLines.push(currentLine)
+                currentLine = word
             } else {
-                justLinea = prueba
+                currentLine = testLine
             }
         }
-        if (justLinea) justLines.push(justLinea)
+        if (currentLine) valueLines.push(currentLine)
 
-        const justHeight = Math.max(tableRowHeight, justLines.length * 12 + 8)
+        // Calcular altura
+        const minHeight = 20
+        const textHeight = valueLines.length * 12 + 8
+        const realHeight = Math.max(minHeight, textHeight)
 
-        // Redibujar celda label con altura correcta
-        page.drawRectangle({ x: marginX, y: cursorY - justHeight, width: labelWidth, height: justHeight, color: COLOR_AZUL_CLARO, borderColor: COLOR_NEGRO, borderWidth: 0.5 })
-        page.drawText('Justificación', { x: marginX + 5, y: cursorY - justHeight / 2 - 3, size: 9, font: fontBold, color: COLOR_NEGRO })
+        // Dibujar Label
+        page.drawRectangle({
+            x: marginX,
+            y: cursorY - realHeight,
+            width: labelWidth,
+            height: realHeight,
+            color: COLOR_AZUL_CLARO,
+            borderColor: COLOR_NEGRO,
+            borderWidth: 0.5,
+        })
 
-        // Celda value
-        page.drawRectangle({ x: marginX + labelWidth, y: cursorY - justHeight, width: valueWidth, height: justHeight, borderColor: COLOR_NEGRO, borderWidth: 0.5 })
-        let justY = cursorY - 12
-        for (const line of justLines) {
-            page.drawText(line, { x: marginX + labelWidth + 5, y: justY, size: 9, font: fontRegular, color: COLOR_NEGRO })
-            justY -= 12
+        page.drawText(label, {
+            x: marginX + 5,
+            y: cursorY - realHeight / 2 - 3,
+            size: 9,
+            font: fontBold,
+            color: COLOR_NEGRO,
+        })
+
+        // Dibujar Value
+        page.drawRectangle({
+            x: marginX + labelWidth,
+            y: cursorY - realHeight,
+            width: valueWidth,
+            height: realHeight,
+            borderColor: COLOR_NEGRO,
+            borderWidth: 0.5,
+        })
+
+        // Dibujar texto del valor (centrado verticalmente si es una línea, o top-aligned si son varias)
+        if (valueLines.length === 1) {
+            page.drawText(valueLines[0], {
+                x: marginX + labelWidth + 5,
+                y: cursorY - realHeight / 2 - 3,
+                size: 9,
+                font: fontRegular,
+                color: COLOR_NEGRO,
+            })
+        } else {
+            let textY = cursorY - 12
+            for (const line of valueLines) {
+                page.drawText(line, {
+                    x: marginX + labelWidth + 5,
+                    y: textY,
+                    size: 9,
+                    font: fontRegular,
+                    color: COLOR_NEGRO,
+                })
+                textY -= 12
+            }
         }
-        cursorY -= justHeight + 10
+
+        cursorY -= realHeight
     }
+
+    // 1. Identificación
+    drawFlexibleRow('Identificación Usuario(a)', `${recobro.pacienteTipoId || 'CC'} ${recobro.pacienteId}`)
+
+    // 2. Nombres
+    drawFlexibleRow('Nombres y Apellidos Usuario', recobro.pacienteNombres || 'No especificado')
+
+    // 3. Solicitado por
+    drawFlexibleRow('Solicitado por', recobro.radicadorNombre || 'No especificado')
+
+    // 4. Justificación
+    drawFlexibleRow('Justificación', recobro.justificacion || 'Sin justificación')
+
+    // 5. Respuesta Auditoría
+    drawFlexibleRow('Respuesta de auditoría', recobro.respuestaAuditor || 'Sin observaciones')
+
+    cursorY -= 15
+
+    // ========================================
+    // SERVICIOS AUTORIZADOS (Todos los CUPS)
+    // ========================================
+    page.drawText('Servicios Autorizados:', { x: marginX, y: cursorY, size: 9, font: fontBold, color: COLOR_NEGRO })
+    cursorY -= 15
+
+    const col1Width = contentWidth * 0.15
+    const col2Width = contentWidth * 0.70
+    const col3Width = contentWidth * 0.15
+
+    // Encabezados
+    dibujarCelda(page, marginX, cursorY, col1Width, 18, 'Código', fontBold, 8, { bgColor: COLOR_AZUL_GESTAR, textColor: rgb(1, 1, 1), align: 'center' })
+    dibujarCelda(page, marginX + col1Width, cursorY, col2Width, 18, 'Descripción', fontBold, 8, { bgColor: COLOR_AZUL_GESTAR, textColor: rgb(1, 1, 1), align: 'center' })
+    dibujarCelda(page, marginX + col1Width + col2Width, cursorY, col3Width, 18, 'Cantidad', fontBold, 8, { bgColor: COLOR_AZUL_GESTAR, textColor: rgb(1, 1, 1), align: 'center' })
+    cursorY -= 18
+
+    // Filas de CUPS (Dinámicas para descripción)
+    for (const cups of recobro.cupsData) {
+        // Calcular altura basada en la descripción
+        const descLines: string[] = []
+        let currentDesc = ''
+        const descWords = cups.descripcion.split(' ')
+
+        for (const word of descWords) {
+            const testLine = currentDesc + (currentDesc ? ' ' : '') + word
+            if (fontRegular.widthOfTextAtSize(testLine, 8) > col2Width - 10) {
+                descLines.push(currentDesc)
+                currentDesc = word
+            } else {
+                currentDesc = testLine
+            }
+        }
+        if (currentDesc) descLines.push(currentDesc)
+
+        const rowHeight = Math.max(16, descLines.length * 10 + 6)
+
+        // Dibujar Código
+        dibujarCelda(page, marginX, cursorY, col1Width, rowHeight, cups.cups, fontRegular, 8, { align: 'center' })
+
+        // Dibujar Descripción (Manual para soporte multilínea)
+        page.drawRectangle({
+            x: marginX + col1Width,
+            y: cursorY - rowHeight,
+            width: col2Width,
+            height: rowHeight,
+            borderColor: COLOR_NEGRO,
+            borderWidth: 0.5,
+        })
+        let descY = cursorY - 10
+        for (const line of descLines) {
+            page.drawText(line, {
+                x: marginX + col1Width + 5,
+                y: descY,
+                size: 8,
+                font: fontRegular,
+                color: COLOR_NEGRO,
+            })
+            descY -= 10
+        }
+
+        // Dibujar Cantidad
+        dibujarCelda(page, marginX + col1Width + col2Width, cursorY, col3Width, rowHeight, String(cups.cantidad), fontRegular, 8, { align: 'center' })
+
+        cursorY -= rowHeight
+    }
+    cursorY -= 10
 
     // ========================================
     // DESPEDIDA
@@ -568,10 +646,6 @@ export async function generarPdfAprobacion(
     page.drawText(`Código verificación: ${codigoVerificacion}`, { x: firmaX + 10, y: firmaY, size: 7, font: fontBold, color: COLOR_AZUL_GESTAR })
 
     cursorY -= firmaHeight + 15
-
-    // ========================================
-    // PIE DE PÁGINA (Eliminado por solicitud)
-    // ========================================
 
 
     // ========================================
