@@ -485,7 +485,7 @@ export async function generarPdfAprobacion(
     })
 
     let firmaY = cursorY - 15
-    const firmaTexto1 = '✓ APROBADO ELECTRÓNICAMENTE'
+    const firmaTexto1 = '[X] APROBADO ELECTRONICAMENTE'
     page.drawText(firmaTexto1, {
         x: firmaX + (firmaWidth - fontBold.widthOfTextAtSize(firmaTexto1, 10)) / 2,
         y: firmaY,
@@ -495,7 +495,7 @@ export async function generarPdfAprobacion(
     })
 
     firmaY -= 16
-    const firmaNombre = 'VIVIANA ESTHELA DORIA GONZÁLEZ'
+    const firmaNombre = nombreAprobador.toUpperCase()
     page.drawText(firmaNombre, {
         x: firmaX + (firmaWidth - fontBold.widthOfTextAtSize(firmaNombre, 10)) / 2,
         y: firmaY,
@@ -505,7 +505,7 @@ export async function generarPdfAprobacion(
     })
 
     firmaY -= 12
-    const firmaCargo = 'Directora Administrativa'
+    const firmaCargo = 'Coordinacion Asistencial'
     page.drawText(firmaCargo, {
         x: firmaX + (firmaWidth - fontRegular.widthOfTextAtSize(firmaCargo, 9)) / 2,
         y: firmaY,
