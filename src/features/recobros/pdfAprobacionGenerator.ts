@@ -1,13 +1,12 @@
 /**
- * Generador de PDF de Aprobación para Recobros
+ * Generador de PDF de Carta de Autorización para Recobros
  * Portal de Colaboradores GESTAR SALUD IPS
  *
- * Genera un documento PDF institucional para solicitudes de recobro aprobadas.
- * Destinatario fijo: NUEVA EPS
- * Firma fija: VIVIANA ESTHELA DORIA GONZÁLEZ
+ * Genera un documento PDF institucional usando HTML → html2pdf.js
+ * Respeta el formato SIG-MD-DE-FT-06 del Sistema Integrado de Gestión
  */
 
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import html2pdf from 'html2pdf.js'
 import { Recobro } from '@/types/recobros.types'
 
 interface PdfAprobacionResult {
@@ -15,416 +14,495 @@ interface PdfAprobacionResult {
     filename: string
 }
 
+interface GenerarPdfOptions {
+    recobro: Recobro
+    aprobadoPor: string // Nombre del usuario que aprueba
+}
+
 /**
- * Genera un PDF de aprobación para un recobro
+ * Genera un hash simple para la firma electrónica
+ * No es criptográficamente seguro, pero sirve para identificación visual
  */
-export async function generarPdfAprobacion(recobro: Recobro): Promise<PdfAprobacionResult> {
-    // Crear nuevo documento
-    const pdfDoc = await PDFDocument.create()
-    const page = pdfDoc.addPage([612, 792]) // Carta
-    const { width, height } = page.getSize()
+function generarHashVerificacion(data: string): string {
+    let hash = 0
+    for (let i = 0; i < data.length; i++) {
+        const char = data.charCodeAt(i)
+        hash = ((hash << 5) - hash) + char
+        hash = hash & hash // Convert to 32bit integer
+    }
+    // Convertir a hexadecimal y tomar 8 caracteres
+    const hexHash = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0')
+    return hexHash.slice(0, 8)
+}
 
-    // Cargar fuentes
-    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
-    const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica)
-
-    // Colores
-    const colorPrimario = rgb(0.114, 0.447, 0.263) // Verde institucional
-    const colorTexto = rgb(0.1, 0.1, 0.1)
-    const colorGris = rgb(0.4, 0.4, 0.4)
-
-    // Márgenes
-    const margenX = 50
-    let cursorY = height - 60
-
-    // ========================================
-    // ENCABEZADO
-    // ========================================
-    page.drawText('GESTAR SALUD DE COLOMBIA IPS SAS', {
-        x: margenX,
-        y: cursorY,
-        size: 16,
-        font: fontBold,
-        color: colorPrimario,
-    })
-
-    cursorY -= 18
-    page.drawText('NIT: 900.842.629-2', {
-        x: margenX,
-        y: cursorY,
-        size: 10,
-        font: fontRegular,
-        color: colorGris,
-    })
-
-    cursorY -= 12
-    page.drawText('Montería, Córdoba', {
-        x: margenX,
-        y: cursorY,
-        size: 10,
-        font: fontRegular,
-        color: colorGris,
-    })
-
-    // Línea divisoria
-    cursorY -= 20
-    page.drawLine({
-        start: { x: margenX, y: cursorY },
-        end: { x: width - margenX, y: cursorY },
-        thickness: 1,
-        color: colorPrimario,
-    })
-
-    // ========================================
-    // TÍTULO Y CONSECUTIVO
-    // ========================================
-    cursorY -= 40
-    page.drawText('SOLICITUD DE RECOBRO', {
-        x: margenX,
-        y: cursorY,
-        size: 14,
-        font: fontBold,
-        color: colorTexto,
-    })
-
-    // Consecutivo a la derecha
-    const textoConsecutivo = `Radicado: ${recobro.consecutivo}`
-    const anchoConsecutivo = fontBold.widthOfTextAtSize(textoConsecutivo, 12)
-    page.drawText(textoConsecutivo, {
-        x: width - margenX - anchoConsecutivo,
-        y: cursorY,
-        size: 12,
-        font: fontBold,
-        color: colorPrimario,
-    })
-
-    // Fecha
-    cursorY -= 20
-    const fechaActual = new Date().toLocaleDateString('es-CO', {
+/**
+ * Formatea fecha en español (ej: "30 de enero de 2026")
+ */
+function formatearFecha(fecha: Date): string {
+    return fecha.toLocaleDateString('es-CO', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
     })
-    page.drawText(`Fecha: ${fechaActual}`, {
-        x: margenX,
-        y: cursorY,
-        size: 10,
-        font: fontRegular,
-        color: colorGris,
+}
+
+/**
+ * Formatea timestamp en formato ISO legible
+ */
+function formatearTimestamp(): string {
+    const ahora = new Date()
+    return ahora.toLocaleString('es-CO', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
     })
+}
 
-    // ========================================
-    // DESTINATARIO
-    // ========================================
-    cursorY -= 40
-    page.drawText('Señores:', {
-        x: margenX,
-        y: cursorY,
-        size: 11,
-        font: fontRegular,
-        color: colorTexto,
-    })
+/**
+ * Genera el HTML de la carta de autorización
+ */
+function generarHtmlCarta(options: GenerarPdfOptions): string {
+    const { recobro, aprobadoPor } = options
+    const fecha = formatearFecha(new Date())
+    const timestamp = formatearTimestamp()
 
-    cursorY -= 18
-    page.drawText('NUEVA EPS', {
-        x: margenX,
-        y: cursorY,
-        size: 12,
-        font: fontBold,
-        color: colorTexto,
-    })
+    // Separar CUPS principal y relacionados
+    const cupsPrincipal = recobro.cupsData.find(c => c.es_principal) || recobro.cupsData[0]
+    const cupsRelacionados = recobro.cupsData.filter(c => !c.es_principal)
 
-    cursorY -= 16
-    page.drawText('Departamento de Recobros y Cartera', {
-        x: margenX,
-        y: cursorY,
-        size: 10,
-        font: fontRegular,
-        color: colorGris,
-    })
+    // Generar código de verificación único
+    const datosParaHash = `${recobro.consecutivo}-${recobro.pacienteId}-${timestamp}`
+    const codigoVerificacion = `GS-${generarHashVerificacion(datosParaHash)}`
 
-    // ========================================
-    // ASUNTO
-    // ========================================
-    cursorY -= 30
-    page.drawText('ASUNTO:', {
-        x: margenX,
-        y: cursorY,
-        size: 10,
-        font: fontBold,
-        color: colorTexto,
-    })
-    page.drawText(`Solicitud de Recobro - Radicado ${recobro.consecutivo}`, {
-        x: margenX + 55,
-        y: cursorY,
-        size: 10,
-        font: fontRegular,
-        color: colorTexto,
-    })
+    // Generar filas de CUPS relacionados
+    const filasRelacionados = cupsRelacionados.length > 0
+        ? cupsRelacionados.map(c =>
+            `<tr>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${c.cups}</td>
+                <td style="border: 1px solid #000; padding: 4px;">${c.descripcion}</td>
+                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${c.cantidad}</td>
+            </tr>`
+        ).join('')
+        : `<tr><td colspan="3" style="border: 1px solid #000; padding: 4px; text-align: center; color: #666;">N/A</td></tr>`
 
-    // ========================================
-    // DATOS DEL PACIENTE
-    // ========================================
-    cursorY -= 35
-    page.drawText('DATOS DEL PACIENTE', {
-        x: margenX,
-        y: cursorY,
-        size: 11,
-        font: fontBold,
-        color: colorPrimario,
-    })
-
-    cursorY -= 20
-    page.drawText(`Nombre: ${recobro.pacienteNombres || 'No especificado'}`, {
-        x: margenX,
-        y: cursorY,
-        size: 10,
-        font: fontRegular,
-        color: colorTexto,
-    })
-
-    cursorY -= 16
-    page.drawText(`Identificación: ${recobro.pacienteTipoId || ''} ${recobro.pacienteId}`, {
-        x: margenX,
-        y: cursorY,
-        size: 10,
-        font: fontRegular,
-        color: colorTexto,
-    })
-
-    // ========================================
-    // PROCEDIMIENTOS (CUPS)
-    // ========================================
-    cursorY -= 35
-    page.drawText('PROCEDIMIENTOS SOLICITADOS', {
-        x: margenX,
-        y: cursorY,
-        size: 11,
-        font: fontBold,
-        color: colorPrimario,
-    })
-
-    // Tabla de CUPS
-    cursorY -= 25
-
-    // Encabezados de tabla
-    page.drawText('Código', { x: margenX, y: cursorY, size: 9, font: fontBold, color: colorTexto })
-    page.drawText('Descripción', { x: margenX + 80, y: cursorY, size: 9, font: fontBold, color: colorTexto })
-    page.drawText('Cant.', { x: width - margenX - 40, y: cursorY, size: 9, font: fontBold, color: colorTexto })
-
-    cursorY -= 5
-    page.drawLine({
-        start: { x: margenX, y: cursorY },
-        end: { x: width - margenX, y: cursorY },
-        thickness: 0.5,
-        color: colorGris,
-    })
-
-    // Filas de CUPS
-    for (const cups of recobro.cupsData) {
-        cursorY -= 18
-
-        // Marcar principal con asterisco
-        const codigoTexto = cups.es_principal ? `* ${cups.cups}` : cups.cups
-        page.drawText(codigoTexto, {
-            x: margenX,
-            y: cursorY,
-            size: 9,
-            font: cups.es_principal ? fontBold : fontRegular,
-            color: colorTexto,
-        })
-
-        // Truncar descripción si es muy larga
-        let descripcion = cups.descripcion
-        const maxAncho = 350
-        while (fontRegular.widthOfTextAtSize(descripcion, 9) > maxAncho && descripcion.length > 10) {
-            descripcion = descripcion.slice(0, -4) + '...'
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: letter;
+            margin: 15mm 15mm 20mm 15mm;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #000;
+        }
+        .page-container {
+            width: 100%;
+            max-width: 190mm;
         }
 
-        page.drawText(descripcion, {
-            x: margenX + 80,
-            y: cursorY,
-            size: 9,
-            font: fontRegular,
-            color: colorTexto,
-        })
+        /* Encabezado institucional */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 2px solid #1d7340;
+            margin-bottom: 20px;
+        }
+        .header-table td {
+            border: 1px solid #1d7340;
+            vertical-align: middle;
+        }
+        .logo-cell {
+            width: 25%;
+            padding: 5px;
+            text-align: center;
+        }
+        .logo-cell img {
+            max-height: 50px;
+            max-width: 100%;
+        }
+        .title-cell {
+            width: 75%;
+            text-align: center;
+        }
+        .title-row-1 {
+            background-color: #e8f5e9;
+            font-weight: bold;
+            font-size: 11pt;
+            padding: 5px;
+        }
+        .title-row-2 {
+            font-size: 10pt;
+            padding: 4px;
+        }
+        .title-row-3 {
+            font-weight: bold;
+            font-size: 10pt;
+            padding: 4px;
+            background-color: #f5f5f5;
+        }
+        .meta-row td {
+            font-size: 9pt;
+            padding: 4px;
+            text-align: center;
+            font-weight: bold;
+            background-color: #f9f9f9;
+        }
 
-        page.drawText(cups.cantidad.toString(), {
-            x: width - margenX - 30,
-            y: cursorY,
-            size: 9,
-            font: fontRegular,
-            color: colorTexto,
-        })
+        /* Contenido */
+        .consecutivo {
+            text-align: right;
+            font-size: 10pt;
+            margin-bottom: 10px;
+        }
+        .fecha-ciudad {
+            margin-bottom: 15px;
+        }
+        .destinatario {
+            margin-bottom: 15px;
+        }
+        .referencia {
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .saludo {
+            margin-bottom: 10px;
+        }
+        .parrafo {
+            text-align: justify;
+            margin-bottom: 15px;
+        }
+
+        /* Tabla de datos */
+        .datos-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        .datos-table td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            font-size: 10pt;
+        }
+        .datos-table .label {
+            background-color: #e8f5e9;
+            font-weight: bold;
+            width: 35%;
+        }
+
+        /* Tabla CUPS relacionados */
+        .cups-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 9pt;
+        }
+        .cups-table th {
+            border: 1px solid #000;
+            padding: 5px;
+            background-color: #1d7340;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+        .cups-table td {
+            border: 1px solid #000;
+            padding: 4px;
+        }
+
+        /* Firma electrónica */
+        .firma-container {
+            margin-top: 25px;
+            margin-bottom: 20px;
+        }
+        .firma-electronica {
+            border: 2px dashed #1d7340;
+            padding: 12px;
+            background-color: #f0fff4;
+            display: inline-block;
+            min-width: 280px;
+        }
+        .firma-titulo {
+            font-weight: bold;
+            color: #1d7340;
+            font-size: 10pt;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        .firma-nombre {
+            font-weight: bold;
+            font-size: 11pt;
+            text-align: center;
+            margin-bottom: 3px;
+        }
+        .firma-cargo {
+            font-size: 9pt;
+            text-align: center;
+            color: #333;
+        }
+        .firma-empresa {
+            font-size: 9pt;
+            text-align: center;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .firma-meta {
+            border-top: 1px solid #1d7340;
+            padding-top: 8px;
+            font-size: 8pt;
+            color: #555;
+        }
+        .firma-meta-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        .verificacion-code {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: #1d7340;
+            font-size: 9pt;
+        }
+
+        /* Pie de página */
+        .footer {
+            margin-top: 20px;
+            border-top: 1px solid #ccc;
+            padding-top: 10px;
+            font-size: 9pt;
+        }
+        .footer-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+        .footer-label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="page-container">
+        <!-- ENCABEZADO INSTITUCIONAL -->
+        <table class="header-table">
+            <tr>
+                <td class="logo-cell" rowspan="3">
+                    <img src="/logo_gestar.png" alt="Gestar Salud" />
+                </td>
+                <td class="title-cell title-row-1">SISTEMA INTEGRADO DE GESTIÓN</td>
+            </tr>
+            <tr>
+                <td class="title-cell title-row-2">GESTIÓN DEL TALENTO HUMANO</td>
+            </tr>
+            <tr>
+                <td class="title-cell title-row-3">CARTA DE AUTORIZACIÓN DE RECOBRO POR SERVICIOS DE SALUD</td>
+            </tr>
+            <tr class="meta-row">
+                <td>CÓDIGO: SIG-MD-DE-FT-06</td>
+                <td>VERSIÓN: 01 &nbsp;&nbsp;|&nbsp;&nbsp; EMISIÓN: 30-01-2023 &nbsp;&nbsp;|&nbsp;&nbsp; PÁGINA 1 DE 1</td>
+            </tr>
+        </table>
+
+        <!-- CONSECUTIVO -->
+        <div class="consecutivo">
+            <strong>Consecutivo: TRIAN-${recobro.consecutivo}</strong>
+        </div>
+
+        <!-- FECHA Y CIUDAD -->
+        <div class="fecha-ciudad">
+            Montería, ${fecha}
+        </div>
+
+        <!-- DESTINATARIO -->
+        <div class="destinatario">
+            <p>Sres.</p>
+            <p><strong>NUEVA EMPRESA PROMOTORA DE SALUD S.A. - NUEVA EPS</strong></p>
+            <p>La Ciudad</p>
+        </div>
+
+        <!-- REFERENCIA -->
+        <div class="referencia">
+            Ref.: CARTA DE AUTORIZACIÓN DE RECOBRO POR SERVICIOS DE SALUD, USUARIO [${recobro.pacienteTipoId || 'CC'} ${recobro.pacienteId} ${recobro.pacienteNombres || ''}]
+        </div>
+
+        <!-- SALUDO -->
+        <div class="saludo">
+            Cordial saludo,
+        </div>
+
+        <!-- PÁRRAFO PRINCIPAL -->
+        <div class="parrafo">
+            Mediante la presente, nos permitimos dar visto bueno para realización de los servicios abajo relacionados a través de la Red de la EAPB, con recobro al Pago Global Prospectivo según las tarifas pactadas en el acuerdo de voluntades vigentes (Dec. 441 de 2022, Artículo 2.5.3.4.2.2).
+        </div>
+
+        <!-- TABLA DE DATOS DEL USUARIO Y SERVICIO PRINCIPAL -->
+        <table class="datos-table">
+            <tr>
+                <td class="label">Identificación Usuario(a)</td>
+                <td>${recobro.pacienteTipoId || 'CC'} ${recobro.pacienteId}</td>
+            </tr>
+            <tr>
+                <td class="label">Nombres y Apellidos Usuario</td>
+                <td>${recobro.pacienteNombres || 'No especificado'}</td>
+            </tr>
+            <tr>
+                <td class="label">CUPS Principal</td>
+                <td>${cupsPrincipal?.cups || 'N/A'}</td>
+            </tr>
+            <tr>
+                <td class="label">Descripción Principal</td>
+                <td>${cupsPrincipal?.descripcion || 'N/A'}</td>
+            </tr>
+            <tr>
+                <td class="label">Cantidad autorizada</td>
+                <td>${cupsPrincipal?.cantidad || 1}</td>
+            </tr>
+        </table>
+
+        <!-- CUPS RELACIONADOS -->
+        ${cupsRelacionados.length > 0 || recobro.cupsData.length > 1 ? `
+        <p style="margin-bottom: 8px; font-weight: bold;">CUPS Relacionados:</p>
+        <table class="cups-table">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Código</th>
+                    <th style="width: 70%;">Descripción</th>
+                    <th style="width: 15%;">Cantidad</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${filasRelacionados}
+            </tbody>
+        </table>
+        ` : ''}
+
+        <!-- JUSTIFICACIÓN -->
+        ${recobro.justificacion ? `
+        <table class="datos-table">
+            <tr>
+                <td class="label">Justificación</td>
+                <td>${recobro.justificacion}</td>
+            </tr>
+        </table>
+        ` : ''}
+
+        <!-- DESPEDIDA -->
+        <div style="margin-top: 15px; margin-bottom: 25px;">
+            Cordialmente,
+        </div>
+
+        <!-- FIRMA ELECTRÓNICA -->
+        <div class="firma-container">
+            <div class="firma-electronica">
+                <div class="firma-titulo">✓ APROBADO ELECTRÓNICAMENTE</div>
+                <div class="firma-nombre">VIVIANA ESTHELA DORIA GONZÁLEZ</div>
+                <div class="firma-cargo">Directora Administrativa</div>
+                <div class="firma-empresa">Gestar Salud de Colombia IPS</div>
+                <div class="firma-meta">
+                    <div class="firma-meta-row">
+                        <span>Fecha/Hora:</span>
+                        <span>${timestamp}</span>
+                    </div>
+                    <div class="firma-meta-row">
+                        <span>Código verificación:</span>
+                        <span class="verificacion-code">${codigoVerificacion}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PIE DE PÁGINA - GESTIÓN -->
+        <div class="footer">
+            <div class="footer-row">
+                <span><span class="footer-label">Gestionado por:</span> ${aprobadoPor}</span>
+            </div>
+            <div class="footer-row">
+                <span><span class="footer-label">Revisado por:</span> COORDINACION ASISTENCIAL</span>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+`
+}
+
+/**
+ * Genera un PDF de aprobación para un recobro
+ */
+export async function generarPdfAprobacion(
+    recobro: Recobro,
+    aprobadoPor?: string
+): Promise<PdfAprobacionResult> {
+    // Si no se proporciona aprobadoPor, usar el radicador como fallback
+    const nombreAprobador = aprobadoPor || recobro.radicadorNombre || recobro.radicadorEmail
+
+    // Generar HTML
+    const html = generarHtmlCarta({ recobro, aprobadoPor: nombreAprobador })
+
+    // Crear elemento temporal para renderizar
+    const container = document.createElement('div')
+    container.innerHTML = html
+    container.style.position = 'absolute'
+    container.style.left = '-9999px'
+    container.style.top = '-9999px'
+    document.body.appendChild(container)
+
+    // Configuración de html2pdf
+    const options = {
+        margin: [10, 10, 15, 10] as [number, number, number, number], // top, left, bottom, right (mm)
+        filename: `CARTA_AUTORIZACION_${recobro.consecutivo}.pdf`,
+        image: { type: 'jpeg' as const, quality: 0.98 },
+        html2canvas: {
+            scale: 2,
+            useCORS: true,
+            letterRendering: true,
+            logging: false,
+        },
+        jsPDF: {
+            unit: 'mm' as const,
+            format: 'letter' as const,
+            orientation: 'portrait' as const,
+        },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
     }
 
-    // Nota de procedimiento principal
-    cursorY -= 25
-    page.drawText('* Procedimiento principal', {
-        x: margenX,
-        y: cursorY,
-        size: 8,
-        font: fontRegular,
-        color: colorGris,
-    })
+    try {
+        // Generar PDF como blob
+        const blob = await html2pdf()
+            .set(options)
+            .from(container)
+            .outputPdf('blob')
 
-    // ========================================
-    // JUSTIFICACIÓN (si existe)
-    // ========================================
-    if (recobro.justificacion) {
-        cursorY -= 30
-        page.drawText('JUSTIFICACIÓN CLÍNICA', {
-            x: margenX,
-            y: cursorY,
-            size: 11,
-            font: fontBold,
-            color: colorPrimario,
-        })
+        // Limpiar elemento temporal
+        document.body.removeChild(container)
 
-        cursorY -= 18
-        // Dividir texto en líneas
-        const palabras = recobro.justificacion.split(' ')
-        let linea = ''
-        const maxAnchoLinea = width - 2 * margenX
+        // Nombre del archivo
+        const fechaStr = new Date().toISOString().split('T')[0].replace(/-/g, '')
+        const filename = `CARTA_AUTORIZACION_${recobro.consecutivo}_${fechaStr}.pdf`
 
-        for (const palabra of palabras) {
-            const prueba = linea + (linea ? ' ' : '') + palabra
-            if (fontRegular.widthOfTextAtSize(prueba, 10) > maxAnchoLinea) {
-                page.drawText(linea, {
-                    x: margenX,
-                    y: cursorY,
-                    size: 10,
-                    font: fontRegular,
-                    color: colorTexto,
-                })
-                cursorY -= 14
-                linea = palabra
-            } else {
-                linea = prueba
-            }
+        return { blob, filename }
+    } catch (error) {
+        // Limpiar elemento temporal en caso de error
+        if (document.body.contains(container)) {
+            document.body.removeChild(container)
         }
-        if (linea) {
-            page.drawText(linea, {
-                x: margenX,
-                y: cursorY,
-                size: 10,
-                font: fontRegular,
-                color: colorTexto,
-            })
-        }
+        throw error
     }
-
-    // ========================================
-    // ESTADO DE APROBACIÓN
-    // ========================================
-    cursorY -= 40
-    page.drawRectangle({
-        x: margenX,
-        y: cursorY - 25,
-        width: width - 2 * margenX,
-        height: 35,
-        color: rgb(0.9, 0.97, 0.93), // Verde claro
-        borderColor: colorPrimario,
-        borderWidth: 1,
-    })
-
-    page.drawText('ESTADO: APROBADO', {
-        x: margenX + 15,
-        y: cursorY - 10,
-        size: 12,
-        font: fontBold,
-        color: colorPrimario,
-    })
-
-    // ========================================
-    // FIRMA
-    // ========================================
-    cursorY -= 80
-    page.drawText('Atentamente,', {
-        x: margenX,
-        y: cursorY,
-        size: 10,
-        font: fontRegular,
-        color: colorTexto,
-    })
-
-    cursorY -= 40
-    page.drawLine({
-        start: { x: margenX, y: cursorY },
-        end: { x: margenX + 200, y: cursorY },
-        thickness: 1,
-        color: colorTexto,
-    })
-
-    cursorY -= 15
-    page.drawText('VIVIANA ESTHELA DORIA GONZÁLEZ', {
-        x: margenX,
-        y: cursorY,
-        size: 10,
-        font: fontBold,
-        color: colorTexto,
-    })
-
-    cursorY -= 14
-    page.drawText('Coordinadora de Calidad y Auditoría', {
-        x: margenX,
-        y: cursorY,
-        size: 9,
-        font: fontRegular,
-        color: colorGris,
-    })
-
-    cursorY -= 12
-    page.drawText('GESTAR SALUD DE COLOMBIA IPS SAS', {
-        x: margenX,
-        y: cursorY,
-        size: 9,
-        font: fontRegular,
-        color: colorGris,
-    })
-
-    // ========================================
-    // PIE DE PÁGINA
-    // ========================================
-    const pieY = 40
-    page.drawLine({
-        start: { x: margenX, y: pieY + 15 },
-        end: { x: width - margenX, y: pieY + 15 },
-        thickness: 0.5,
-        color: colorGris,
-    })
-
-    page.drawText('Documento generado automáticamente por el Portal de Colaboradores', {
-        x: margenX,
-        y: pieY,
-        size: 8,
-        font: fontRegular,
-        color: colorGris,
-    })
-
-    const timestamp = new Date().toISOString()
-    const textoTimestamp = `Generado: ${timestamp}`
-    const anchoTimestamp = fontRegular.widthOfTextAtSize(textoTimestamp, 8)
-    page.drawText(textoTimestamp, {
-        x: width - margenX - anchoTimestamp,
-        y: pieY,
-        size: 8,
-        font: fontRegular,
-        color: colorGris,
-    })
-
-    // ========================================
-    // GENERAR BLOB
-    // ========================================
-    const pdfBytes = await pdfDoc.save()
-    const arrayBuffer = pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength) as ArrayBuffer
-    const blob = new Blob([arrayBuffer], { type: 'application/pdf' })
-
-    // Nombre del archivo
-    const fechaStr = new Date().toISOString().split('T')[0].replace(/-/g, '')
-    const filename = `APROBACION_${recobro.consecutivo}_${fechaStr}.pdf`
-
-    return { blob, filename }
 }
 
 /**
@@ -441,4 +519,15 @@ export function descargarPdfAprobacion(blob: Blob, filename: string): void {
     URL.revokeObjectURL(url)
 }
 
-export default { generarPdfAprobacion, descargarPdfAprobacion }
+/**
+ * Genera y descarga el PDF en un solo paso
+ */
+export async function generarYDescargarPdfAprobacion(
+    recobro: Recobro,
+    aprobadoPor?: string
+): Promise<void> {
+    const { blob, filename } = await generarPdfAprobacion(recobro, aprobadoPor)
+    descargarPdfAprobacion(blob, filename)
+}
+
+export default { generarPdfAprobacion, descargarPdfAprobacion, generarYDescargarPdfAprobacion }

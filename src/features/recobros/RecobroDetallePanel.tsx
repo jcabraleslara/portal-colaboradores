@@ -80,11 +80,14 @@ export function RecobroDetallePanel({ recobro, onClose, onUpdate, onSiguiente }:
             if (nuevoEstado === 'Aprobado' && recobro.estado !== 'Aprobado') {
                 setGenerandoPdf(true)
                 try {
-                    const { blob } = await generarPdfAprobacion({
-                        ...recobro,
-                        estado: 'Aprobado',
-                        respuestaAuditor,
-                    })
+                    const { blob } = await generarPdfAprobacion(
+                        {
+                            ...recobro,
+                            estado: 'Aprobado',
+                            respuestaAuditor,
+                        },
+                        user?.nombreCompleto || user?.email || 'Sistema'
+                    )
                     const url = await recobrosService.subirPdfAprobacion(recobro.consecutivo, blob)
                     if (url) {
                         pdfAprobacionUrl = url
@@ -153,7 +156,10 @@ export function RecobroDetallePanel({ recobro, onClose, onUpdate, onSiguiente }:
             // Generar PDF si está aprobado pero no tiene URL
             setGenerandoPdf(true)
             try {
-                const { blob, filename } = await generarPdfAprobacion(recobro)
+                const { blob, filename } = await generarPdfAprobacion(
+                    recobro,
+                    user?.nombreCompleto || user?.email || 'Sistema'
+                )
                 descargarPdfAprobacion(blob, filename)
             } catch (error) {
                 console.error('Error generando PDF:', error)

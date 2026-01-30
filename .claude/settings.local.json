@@ -11,7 +11,11 @@
       "mcp__claude_ai_Supabase__get_advisors",
       "mcp__claude_ai_Supabase__apply_migration",
       "Bash(npx tsc:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(grep:*)",
+      "mcp__claude_ai_Supabase__list_migrations",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: Implement Gestión de Recobros module\n\n- Add recobros feature with radicación and gestión tabs\n- Create CupsSelector component for dynamic CUPS search\n- Add PDF generation for approved recobros\n- Implement email notification for devolution\n- Enable module in navigation \\(replaces triangulaciones\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(unzip:*)"
     ]
   }
 }
