@@ -2,11 +2,11 @@
  * Generador de PDF de Carta de Autorización para Recobros
  * Portal de Colaboradores GESTAR SALUD IPS
  *
- * Genera un documento PDF institucional usando HTML → html2pdf.js
+ * Genera un documento PDF institucional usando pdf-lib (confiable)
  * Respeta el formato SIG-MD-DE-FT-06 del Sistema Integrado de Gestión
  */
 
-import html2pdf from 'html2pdf.js'
+import { PDFDocument, rgb, StandardFonts, PDFFont, PDFPage } from 'pdf-lib'
 import { Recobro } from '@/types/recobros.types'
 
 interface PdfAprobacionResult {
@@ -14,29 +14,29 @@ interface PdfAprobacionResult {
     filename: string
 }
 
-interface GenerarPdfOptions {
-    recobro: Recobro
-    aprobadoPor: string // Nombre del usuario que aprueba
-}
+// Colores institucionales
+const COLOR_VERDE = rgb(0.114, 0.451, 0.251) // #1d7340
+const COLOR_VERDE_CLARO = rgb(0.91, 0.96, 0.91) // #e8f5e9
+const COLOR_GRIS_CLARO = rgb(0.96, 0.96, 0.96) // #f5f5f5
+const COLOR_NEGRO = rgb(0, 0, 0)
+const COLOR_GRIS = rgb(0.4, 0.4, 0.4)
 
 /**
  * Genera un hash simple para la firma electrónica
- * No es criptográficamente seguro, pero sirve para identificación visual
  */
 function generarHashVerificacion(data: string): string {
     let hash = 0
     for (let i = 0; i < data.length; i++) {
         const char = data.charCodeAt(i)
         hash = ((hash << 5) - hash) + char
-        hash = hash & hash // Convert to 32bit integer
+        hash = hash & hash
     }
-    // Convertir a hexadecimal y tomar 8 caracteres
     const hexHash = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0')
     return hexHash.slice(0, 8)
 }
 
 /**
- * Formatea fecha en español (ej: "30 de enero de 2026")
+ * Formatea fecha en español
  */
 function formatearFecha(fecha: Date): string {
     return fecha.toLocaleDateString('es-CO', {
@@ -47,11 +47,10 @@ function formatearFecha(fecha: Date): string {
 }
 
 /**
- * Formatea timestamp en formato ISO legible
+ * Formatea timestamp
  */
 function formatearTimestamp(): string {
-    const ahora = new Date()
-    return ahora.toLocaleString('es-CO', {
+    return new Date().toLocaleString('es-CO', {
         timeZone: 'America/Bogota',
         year: 'numeric',
         month: '2-digit',
@@ -64,396 +63,72 @@ function formatearTimestamp(): string {
 }
 
 /**
- * Genera el HTML de la carta de autorización
+ * Trunca texto si excede el ancho máximo
  */
-function generarHtmlCarta(options: GenerarPdfOptions): string {
-    const { recobro, aprobadoPor } = options
-    const fecha = formatearFecha(new Date())
-    const timestamp = formatearTimestamp()
-
-    // Separar CUPS principal y relacionados
-    const cupsPrincipal = recobro.cupsData.find(c => c.es_principal) || recobro.cupsData[0]
-    const cupsRelacionados = recobro.cupsData.filter(c => !c.es_principal)
-
-    // Generar código de verificación único
-    const datosParaHash = `${recobro.consecutivo}-${recobro.pacienteId}-${timestamp}`
-    const codigoVerificacion = `GS-${generarHashVerificacion(datosParaHash)}`
-
-    // Generar filas de CUPS relacionados
-    const filasRelacionados = cupsRelacionados.length > 0
-        ? cupsRelacionados.map(c =>
-            `<tr>
-                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${c.cups}</td>
-                <td style="border: 1px solid #000; padding: 4px;">${c.descripcion}</td>
-                <td style="border: 1px solid #000; padding: 4px; text-align: center;">${c.cantidad}</td>
-            </tr>`
-        ).join('')
-        : `<tr><td colspan="3" style="border: 1px solid #000; padding: 4px; text-align: center; color: #666;">N/A</td></tr>`
-
-    return `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        @page {
-            size: letter;
-            margin: 15mm 15mm 20mm 15mm;
-        }
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: 'Arial', sans-serif;
-            font-size: 11pt;
-            line-height: 1.4;
-            color: #000;
-        }
-        .page-container {
-            width: 100%;
-            max-width: 190mm;
-        }
-
-        /* Encabezado institucional */
-        .header-table {
-            width: 100%;
-            border-collapse: collapse;
-            border: 2px solid #1d7340;
-            margin-bottom: 20px;
-        }
-        .header-table td {
-            border: 1px solid #1d7340;
-            vertical-align: middle;
-        }
-        .logo-cell {
-            width: 25%;
-            padding: 5px;
-            text-align: center;
-        }
-        .logo-cell img {
-            max-height: 50px;
-            max-width: 100%;
-        }
-        .title-cell {
-            width: 75%;
-            text-align: center;
-        }
-        .title-row-1 {
-            background-color: #e8f5e9;
-            font-weight: bold;
-            font-size: 11pt;
-            padding: 5px;
-        }
-        .title-row-2 {
-            font-size: 10pt;
-            padding: 4px;
-        }
-        .title-row-3 {
-            font-weight: bold;
-            font-size: 10pt;
-            padding: 4px;
-            background-color: #f5f5f5;
-        }
-        .meta-row td {
-            font-size: 9pt;
-            padding: 4px;
-            text-align: center;
-            font-weight: bold;
-            background-color: #f9f9f9;
-        }
-
-        /* Contenido */
-        .consecutivo {
-            text-align: right;
-            font-size: 10pt;
-            margin-bottom: 10px;
-        }
-        .fecha-ciudad {
-            margin-bottom: 15px;
-        }
-        .destinatario {
-            margin-bottom: 15px;
-        }
-        .referencia {
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-        .saludo {
-            margin-bottom: 10px;
-        }
-        .parrafo {
-            text-align: justify;
-            margin-bottom: 15px;
-        }
-
-        /* Tabla de datos */
-        .datos-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 15px;
-        }
-        .datos-table td {
-            border: 1px solid #000;
-            padding: 6px 8px;
-            font-size: 10pt;
-        }
-        .datos-table .label {
-            background-color: #e8f5e9;
-            font-weight: bold;
-            width: 35%;
-        }
-
-        /* Tabla CUPS relacionados */
-        .cups-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 15px;
-            font-size: 9pt;
-        }
-        .cups-table th {
-            border: 1px solid #000;
-            padding: 5px;
-            background-color: #1d7340;
-            color: white;
-            font-weight: bold;
-            text-align: center;
-        }
-        .cups-table td {
-            border: 1px solid #000;
-            padding: 4px;
-        }
-
-        /* Firma electrónica */
-        .firma-container {
-            margin-top: 25px;
-            margin-bottom: 20px;
-        }
-        .firma-electronica {
-            border: 2px dashed #1d7340;
-            padding: 12px;
-            background-color: #f0fff4;
-            display: inline-block;
-            min-width: 280px;
-        }
-        .firma-titulo {
-            font-weight: bold;
-            color: #1d7340;
-            font-size: 10pt;
-            margin-bottom: 5px;
-            text-align: center;
-        }
-        .firma-nombre {
-            font-weight: bold;
-            font-size: 11pt;
-            text-align: center;
-            margin-bottom: 3px;
-        }
-        .firma-cargo {
-            font-size: 9pt;
-            text-align: center;
-            color: #333;
-        }
-        .firma-empresa {
-            font-size: 9pt;
-            text-align: center;
-            color: #333;
-            margin-bottom: 8px;
-        }
-        .firma-meta {
-            border-top: 1px solid #1d7340;
-            padding-top: 8px;
-            font-size: 8pt;
-            color: #555;
-        }
-        .firma-meta-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 2px;
-        }
-        .verificacion-code {
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            color: #1d7340;
-            font-size: 9pt;
-        }
-
-        /* Pie de página */
-        .footer {
-            margin-top: 20px;
-            border-top: 1px solid #ccc;
-            padding-top: 10px;
-            font-size: 9pt;
-        }
-        .footer-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 3px;
-        }
-        .footer-label {
-            font-weight: bold;
-        }
-    </style>
-</head>
-<body>
-    <div class="page-container">
-        <!-- ENCABEZADO INSTITUCIONAL -->
-        <table class="header-table">
-            <tr>
-                <td class="logo-cell" rowspan="3">
-                    <img src="/logo_gestar.png" alt="Gestar Salud" />
-                </td>
-                <td class="title-cell title-row-1">SISTEMA INTEGRADO DE GESTIÓN</td>
-            </tr>
-            <tr>
-                <td class="title-cell title-row-2">GESTIÓN DEL TALENTO HUMANO</td>
-            </tr>
-            <tr>
-                <td class="title-cell title-row-3">CARTA DE AUTORIZACIÓN DE RECOBRO POR SERVICIOS DE SALUD</td>
-            </tr>
-            <tr class="meta-row">
-                <td>CÓDIGO: SIG-MD-DE-FT-06</td>
-                <td>VERSIÓN: 01 &nbsp;&nbsp;|&nbsp;&nbsp; EMISIÓN: 30-01-2023 &nbsp;&nbsp;|&nbsp;&nbsp; PÁGINA 1 DE 1</td>
-            </tr>
-        </table>
-
-        <!-- CONSECUTIVO -->
-        <div class="consecutivo">
-            <strong>Consecutivo: TRIAN-${recobro.consecutivo}</strong>
-        </div>
-
-        <!-- FECHA Y CIUDAD -->
-        <div class="fecha-ciudad">
-            Montería, ${fecha}
-        </div>
-
-        <!-- DESTINATARIO -->
-        <div class="destinatario">
-            <p>Sres.</p>
-            <p><strong>NUEVA EMPRESA PROMOTORA DE SALUD S.A. - NUEVA EPS</strong></p>
-            <p>La Ciudad</p>
-        </div>
-
-        <!-- REFERENCIA -->
-        <div class="referencia">
-            Ref.: CARTA DE AUTORIZACIÓN DE RECOBRO POR SERVICIOS DE SALUD, USUARIO [${recobro.pacienteTipoId || 'CC'} ${recobro.pacienteId} ${recobro.pacienteNombres || ''}]
-        </div>
-
-        <!-- SALUDO -->
-        <div class="saludo">
-            Cordial saludo,
-        </div>
-
-        <!-- PÁRRAFO PRINCIPAL -->
-        <div class="parrafo">
-            Mediante la presente, nos permitimos dar visto bueno para realización de los servicios abajo relacionados a través de la Red de la EAPB, con recobro al Pago Global Prospectivo según las tarifas pactadas en el acuerdo de voluntades vigentes (Dec. 441 de 2022, Artículo 2.5.3.4.2.2).
-        </div>
-
-        <!-- TABLA DE DATOS DEL USUARIO Y SERVICIO PRINCIPAL -->
-        <table class="datos-table">
-            <tr>
-                <td class="label">Identificación Usuario(a)</td>
-                <td>${recobro.pacienteTipoId || 'CC'} ${recobro.pacienteId}</td>
-            </tr>
-            <tr>
-                <td class="label">Nombres y Apellidos Usuario</td>
-                <td>${recobro.pacienteNombres || 'No especificado'}</td>
-            </tr>
-            <tr>
-                <td class="label">CUPS Principal</td>
-                <td>${cupsPrincipal?.cups || 'N/A'}</td>
-            </tr>
-            <tr>
-                <td class="label">Descripción Principal</td>
-                <td>${cupsPrincipal?.descripcion || 'N/A'}</td>
-            </tr>
-            <tr>
-                <td class="label">Cantidad autorizada</td>
-                <td>${cupsPrincipal?.cantidad || 1}</td>
-            </tr>
-        </table>
-
-        <!-- CUPS RELACIONADOS -->
-        ${cupsRelacionados.length > 0 || recobro.cupsData.length > 1 ? `
-        <p style="margin-bottom: 8px; font-weight: bold;">CUPS Relacionados:</p>
-        <table class="cups-table">
-            <thead>
-                <tr>
-                    <th style="width: 15%;">Código</th>
-                    <th style="width: 70%;">Descripción</th>
-                    <th style="width: 15%;">Cantidad</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${filasRelacionados}
-            </tbody>
-        </table>
-        ` : ''}
-
-        <!-- JUSTIFICACIÓN -->
-        ${recobro.justificacion ? `
-        <table class="datos-table">
-            <tr>
-                <td class="label">Justificación</td>
-                <td>${recobro.justificacion}</td>
-            </tr>
-        </table>
-        ` : ''}
-
-        <!-- DESPEDIDA -->
-        <div style="margin-top: 15px; margin-bottom: 25px;">
-            Cordialmente,
-        </div>
-
-        <!-- FIRMA ELECTRÓNICA -->
-        <div class="firma-container">
-            <div class="firma-electronica">
-                <div class="firma-titulo">✓ APROBADO ELECTRÓNICAMENTE</div>
-                <div class="firma-nombre">VIVIANA ESTHELA DORIA GONZÁLEZ</div>
-                <div class="firma-cargo">Directora Administrativa</div>
-                <div class="firma-empresa">Gestar Salud de Colombia IPS</div>
-                <div class="firma-meta">
-                    <div class="firma-meta-row">
-                        <span>Fecha/Hora:</span>
-                        <span>${timestamp}</span>
-                    </div>
-                    <div class="firma-meta-row">
-                        <span>Código verificación:</span>
-                        <span class="verificacion-code">${codigoVerificacion}</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- PIE DE PÁGINA - GESTIÓN -->
-        <div class="footer">
-            <div class="footer-row">
-                <span><span class="footer-label">Gestionado por:</span> ${aprobadoPor}</span>
-            </div>
-            <div class="footer-row">
-                <span><span class="footer-label">Revisado por:</span> COORDINACION ASISTENCIAL</span>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
-`
+function truncarTexto(texto: string, font: PDFFont, fontSize: number, maxWidth: number): string {
+    let truncated = texto
+    while (font.widthOfTextAtSize(truncated, fontSize) > maxWidth && truncated.length > 3) {
+        truncated = truncated.slice(0, -4) + '...'
+    }
+    return truncated
 }
 
 /**
- * Espera a que todas las imágenes del contenedor se carguen
+ * Dibuja una celda de tabla con borde
  */
-async function esperarImagenes(container: HTMLElement): Promise<void> {
-    const images = container.querySelectorAll('img')
-    const promises = Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve()
-        return new Promise<void>((resolve) => {
-            img.onload = () => resolve()
-            img.onerror = () => resolve() // Continuar aunque falle la imagen
+function dibujarCelda(
+    page: PDFPage,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    texto: string,
+    font: PDFFont,
+    fontSize: number,
+    options: {
+        bgColor?: typeof COLOR_VERDE_CLARO
+        textColor?: typeof COLOR_NEGRO
+        bold?: boolean
+        align?: 'left' | 'center'
+        padding?: number
+    } = {}
+) {
+    const { bgColor, textColor = COLOR_NEGRO, align = 'left', padding = 5 } = options
+
+    // Fondo
+    if (bgColor) {
+        page.drawRectangle({
+            x,
+            y: y - height,
+            width,
+            height,
+            color: bgColor,
         })
+    }
+
+    // Borde
+    page.drawRectangle({
+        x,
+        y: y - height,
+        width,
+        height,
+        borderColor: COLOR_NEGRO,
+        borderWidth: 0.5,
     })
-    await Promise.all(promises)
+
+    // Texto
+    const textoTruncado = truncarTexto(texto, font, fontSize, width - padding * 2)
+    const textWidth = font.widthOfTextAtSize(textoTruncado, fontSize)
+    const textX = align === 'center' ? x + (width - textWidth) / 2 : x + padding
+    const textY = y - height / 2 - fontSize / 3
+
+    page.drawText(textoTruncado, {
+        x: textX,
+        y: textY,
+        size: fontSize,
+        font,
+        color: textColor,
+    })
 }
 
 /**
@@ -463,77 +138,434 @@ export async function generarPdfAprobacion(
     recobro: Recobro,
     aprobadoPor?: string
 ): Promise<PdfAprobacionResult> {
-    // Si no se proporciona aprobadoPor, usar el radicador como fallback
-    const nombreAprobador = aprobadoPor || recobro.radicadorNombre || recobro.radicadorEmail
+    const nombreAprobador = aprobadoPor || recobro.radicadorNombre || recobro.radicadorEmail || 'Sistema'
+    const fecha = formatearFecha(new Date())
+    const timestamp = formatearTimestamp()
+    const codigoVerificacion = `GS-${generarHashVerificacion(`${recobro.consecutivo}-${recobro.pacienteId}-${timestamp}`)}`
 
-    // Generar HTML
-    const html = generarHtmlCarta({ recobro, aprobadoPor: nombreAprobador })
+    // Crear documento
+    const pdfDoc = await PDFDocument.create()
+    const page = pdfDoc.addPage([612, 792]) // Tamaño carta
+    const { width, height } = page.getSize()
 
-    // Crear elemento temporal para renderizar - debe ser visible para html2canvas
-    const container = document.createElement('div')
-    container.innerHTML = html
-    // Usar opacity 0 y z-index negativo en vez de position fuera de pantalla
-    container.style.position = 'fixed'
-    container.style.top = '0'
-    container.style.left = '0'
-    container.style.width = '210mm' // Ancho carta
-    container.style.backgroundColor = 'white'
-    container.style.zIndex = '-9999'
-    container.style.opacity = '0'
-    container.style.pointerEvents = 'none'
-    document.body.appendChild(container)
+    // Cargar fuentes
+    const fontRegular = await pdfDoc.embedFont(StandardFonts.Helvetica)
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
 
-    // Esperar a que las imágenes carguen
-    await esperarImagenes(container)
+    // Márgenes
+    const marginX = 40
+    const contentWidth = width - marginX * 2
+    let cursorY = height - 40
 
-    // Pequeña pausa para asegurar renderizado completo
-    await new Promise(resolve => setTimeout(resolve, 100))
+    // ========================================
+    // ENCABEZADO INSTITUCIONAL
+    // ========================================
+    const headerHeight = 80
+    const logoWidth = contentWidth * 0.25
+    const titleWidth = contentWidth * 0.75
 
-    // Configuración de html2pdf
-    const options = {
-        margin: [10, 10, 15, 10] as [number, number, number, number], // top, left, bottom, right (mm)
-        filename: `CARTA_AUTORIZACION_${recobro.consecutivo}.pdf`,
-        image: { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas: {
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            logging: false,
-            backgroundColor: '#ffffff',
-        },
-        jsPDF: {
-            unit: 'mm' as const,
-            format: 'letter' as const,
-            orientation: 'portrait' as const,
-        },
-        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
-    }
+    // Borde exterior del encabezado
+    page.drawRectangle({
+        x: marginX,
+        y: cursorY - headerHeight,
+        width: contentWidth,
+        height: headerHeight,
+        borderColor: COLOR_VERDE,
+        borderWidth: 2,
+    })
 
+    // Celda del logo (izquierda)
+    page.drawRectangle({
+        x: marginX,
+        y: cursorY - headerHeight,
+        width: logoWidth,
+        height: headerHeight,
+        borderColor: COLOR_VERDE,
+        borderWidth: 1,
+    })
+
+    // Cargar e insertar logo
     try {
-        // Hacer visible temporalmente para el renderizado
-        container.style.opacity = '1'
-
-        // Generar PDF como blob
-        const blob = await html2pdf()
-            .set(options)
-            .from(container)
-            .outputPdf('blob')
-
-        // Limpiar elemento temporal
-        document.body.removeChild(container)
-
-        // Nombre del archivo
-        const fechaStr = new Date().toISOString().split('T')[0].replace(/-/g, '')
-        const filename = `CARTA_AUTORIZACION_${recobro.consecutivo}_${fechaStr}.pdf`
-
-        return { blob, filename }
-    } catch (error) {
-        // Limpiar elemento temporal en caso de error
-        if (document.body.contains(container)) {
-            document.body.removeChild(container)
-        }
-        throw error
+        const logoResponse = await fetch('/logo_gestar.png')
+        const logoBytes = await logoResponse.arrayBuffer()
+        const logoImage = await pdfDoc.embedPng(logoBytes)
+        const logoDims = logoImage.scale(0.35)
+        const logoX = marginX + (logoWidth - logoDims.width) / 2
+        const logoY = cursorY - headerHeight / 2 - logoDims.height / 2
+        page.drawImage(logoImage, {
+            x: logoX,
+            y: logoY,
+            width: logoDims.width,
+            height: logoDims.height,
+        })
+    } catch {
+        // Si falla el logo, escribir texto
+        page.drawText('GESTAR SALUD', {
+            x: marginX + 10,
+            y: cursorY - headerHeight / 2,
+            size: 10,
+            font: fontBold,
+            color: COLOR_VERDE,
+        })
     }
+
+    // Filas del título
+    const titleX = marginX + logoWidth
+    const rowHeight = headerHeight / 4
+
+    // Fila 1: SISTEMA INTEGRADO DE GESTIÓN
+    page.drawRectangle({
+        x: titleX,
+        y: cursorY - rowHeight,
+        width: titleWidth,
+        height: rowHeight,
+        color: COLOR_VERDE_CLARO,
+        borderColor: COLOR_VERDE,
+        borderWidth: 0.5,
+    })
+    const texto1 = 'SISTEMA INTEGRADO DE GESTIÓN'
+    page.drawText(texto1, {
+        x: titleX + (titleWidth - fontBold.widthOfTextAtSize(texto1, 11)) / 2,
+        y: cursorY - rowHeight / 2 - 4,
+        size: 11,
+        font: fontBold,
+        color: COLOR_NEGRO,
+    })
+
+    // Fila 2: GESTIÓN DEL TALENTO HUMANO
+    page.drawRectangle({
+        x: titleX,
+        y: cursorY - rowHeight * 2,
+        width: titleWidth,
+        height: rowHeight,
+        borderColor: COLOR_VERDE,
+        borderWidth: 0.5,
+    })
+    const texto2 = 'GESTIÓN DEL TALENTO HUMANO'
+    page.drawText(texto2, {
+        x: titleX + (titleWidth - fontRegular.widthOfTextAtSize(texto2, 10)) / 2,
+        y: cursorY - rowHeight * 1.5 - 4,
+        size: 10,
+        font: fontRegular,
+        color: COLOR_NEGRO,
+    })
+
+    // Fila 3: CARTA DE AUTORIZACIÓN...
+    page.drawRectangle({
+        x: titleX,
+        y: cursorY - rowHeight * 3,
+        width: titleWidth,
+        height: rowHeight,
+        color: COLOR_GRIS_CLARO,
+        borderColor: COLOR_VERDE,
+        borderWidth: 0.5,
+    })
+    const texto3 = 'CARTA DE AUTORIZACIÓN DE RECOBRO POR SERVICIOS DE SALUD'
+    page.drawText(texto3, {
+        x: titleX + (titleWidth - fontBold.widthOfTextAtSize(texto3, 9)) / 2,
+        y: cursorY - rowHeight * 2.5 - 4,
+        size: 9,
+        font: fontBold,
+        color: COLOR_NEGRO,
+    })
+
+    // Fila 4: Código, Versión, Emisión, Página
+    const metaY = cursorY - rowHeight * 4
+    page.drawRectangle({
+        x: marginX,
+        y: metaY,
+        width: contentWidth,
+        height: rowHeight,
+        color: COLOR_GRIS_CLARO,
+        borderColor: COLOR_VERDE,
+        borderWidth: 0.5,
+    })
+
+    page.drawText('CÓDIGO: SIG-MD-DE-FT-06', {
+        x: marginX + 10,
+        y: metaY + rowHeight / 2 - 3,
+        size: 8,
+        font: fontBold,
+        color: COLOR_NEGRO,
+    })
+
+    const metaTexto = 'VERSIÓN: 01  |  EMISIÓN: 30-01-2023  |  PÁGINA 1 DE 1'
+    page.drawText(metaTexto, {
+        x: titleX + (titleWidth - fontBold.widthOfTextAtSize(metaTexto, 8)) / 2,
+        y: metaY + rowHeight / 2 - 3,
+        size: 8,
+        font: fontBold,
+        color: COLOR_NEGRO,
+    })
+
+    cursorY -= headerHeight + 20
+
+    // ========================================
+    // CONSECUTIVO
+    // ========================================
+    const consecutivoTexto = `Consecutivo: TRIAN-${recobro.consecutivo}`
+    page.drawText(consecutivoTexto, {
+        x: width - marginX - fontBold.widthOfTextAtSize(consecutivoTexto, 10),
+        y: cursorY,
+        size: 10,
+        font: fontBold,
+        color: COLOR_NEGRO,
+    })
+    cursorY -= 20
+
+    // ========================================
+    // FECHA Y CIUDAD
+    // ========================================
+    page.drawText(`Montería, ${fecha}`, {
+        x: marginX,
+        y: cursorY,
+        size: 10,
+        font: fontRegular,
+        color: COLOR_NEGRO,
+    })
+    cursorY -= 25
+
+    // ========================================
+    // DESTINATARIO
+    // ========================================
+    page.drawText('Sres.', { x: marginX, y: cursorY, size: 10, font: fontRegular, color: COLOR_NEGRO })
+    cursorY -= 14
+    page.drawText('NUEVA EMPRESA PROMOTORA DE SALUD S.A. - NUEVA EPS', { x: marginX, y: cursorY, size: 10, font: fontBold, color: COLOR_NEGRO })
+    cursorY -= 14
+    page.drawText('La Ciudad', { x: marginX, y: cursorY, size: 10, font: fontRegular, color: COLOR_NEGRO })
+    cursorY -= 20
+
+    // ========================================
+    // REFERENCIA
+    // ========================================
+    const refTexto = `Ref.: CARTA DE AUTORIZACIÓN DE RECOBRO POR SERVICIOS DE SALUD, USUARIO [${recobro.pacienteTipoId || 'CC'} ${recobro.pacienteId} ${recobro.pacienteNombres || ''}]`
+    const refTruncado = truncarTexto(refTexto, fontBold, 9, contentWidth)
+    page.drawText(refTruncado, { x: marginX, y: cursorY, size: 9, font: fontBold, color: COLOR_NEGRO })
+    cursorY -= 20
+
+    // ========================================
+    // SALUDO Y PÁRRAFO
+    // ========================================
+    page.drawText('Cordial saludo,', { x: marginX, y: cursorY, size: 10, font: fontRegular, color: COLOR_NEGRO })
+    cursorY -= 18
+
+    const parrafo = 'Mediante la presente, nos permitimos dar visto bueno para realización de los servicios abajo relacionados a través de la Red de la EAPB, con recobro al Pago Global Prospectivo según las tarifas pactadas en el acuerdo de voluntades vigentes (Dec. 441 de 2022, Artículo 2.5.3.4.2.2).'
+    const palabras = parrafo.split(' ')
+    let linea = ''
+    const maxLineWidth = contentWidth
+
+    for (const palabra of palabras) {
+        const prueba = linea + (linea ? ' ' : '') + palabra
+        if (fontRegular.widthOfTextAtSize(prueba, 10) > maxLineWidth) {
+            page.drawText(linea, { x: marginX, y: cursorY, size: 10, font: fontRegular, color: COLOR_NEGRO })
+            cursorY -= 14
+            linea = palabra
+        } else {
+            linea = prueba
+        }
+    }
+    if (linea) {
+        page.drawText(linea, { x: marginX, y: cursorY, size: 10, font: fontRegular, color: COLOR_NEGRO })
+        cursorY -= 20
+    }
+
+    // ========================================
+    // TABLA DE DATOS PRINCIPALES
+    // ========================================
+    const cupsPrincipal = recobro.cupsData.find(c => c.es_principal) || recobro.cupsData[0]
+    const cupsRelacionados = recobro.cupsData.filter(c => !c.es_principal)
+
+    const tableRowHeight = 20
+    const labelWidth = contentWidth * 0.35
+    const valueWidth = contentWidth * 0.65
+
+    const datosTabla = [
+        ['Identificación Usuario(a)', `${recobro.pacienteTipoId || 'CC'} ${recobro.pacienteId}`],
+        ['Nombres y Apellidos Usuario', recobro.pacienteNombres || 'No especificado'],
+        ['CUPS Principal', cupsPrincipal?.cups || 'N/A'],
+        ['Descripción Principal', cupsPrincipal?.descripcion || 'N/A'],
+        ['Cantidad autorizada', String(cupsPrincipal?.cantidad || 1)],
+    ]
+
+    for (const [label, value] of datosTabla) {
+        dibujarCelda(page, marginX, cursorY, labelWidth, tableRowHeight, label, fontBold, 9, { bgColor: COLOR_VERDE_CLARO })
+        dibujarCelda(page, marginX + labelWidth, cursorY, valueWidth, tableRowHeight, value, fontRegular, 9)
+        cursorY -= tableRowHeight
+    }
+
+    cursorY -= 10
+
+    // ========================================
+    // CUPS RELACIONADOS (si hay)
+    // ========================================
+    if (cupsRelacionados.length > 0) {
+        page.drawText('CUPS Relacionados:', { x: marginX, y: cursorY, size: 9, font: fontBold, color: COLOR_NEGRO })
+        cursorY -= 15
+
+        const col1Width = contentWidth * 0.15
+        const col2Width = contentWidth * 0.70
+        const col3Width = contentWidth * 0.15
+
+        // Encabezados
+        dibujarCelda(page, marginX, cursorY, col1Width, 18, 'Código', fontBold, 8, { bgColor: COLOR_VERDE, textColor: rgb(1, 1, 1), align: 'center' })
+        dibujarCelda(page, marginX + col1Width, cursorY, col2Width, 18, 'Descripción', fontBold, 8, { bgColor: COLOR_VERDE, textColor: rgb(1, 1, 1), align: 'center' })
+        dibujarCelda(page, marginX + col1Width + col2Width, cursorY, col3Width, 18, 'Cantidad', fontBold, 8, { bgColor: COLOR_VERDE, textColor: rgb(1, 1, 1), align: 'center' })
+        cursorY -= 18
+
+        // Filas
+        for (const cups of cupsRelacionados) {
+            dibujarCelda(page, marginX, cursorY, col1Width, 16, cups.cups, fontRegular, 8, { align: 'center' })
+            dibujarCelda(page, marginX + col1Width, cursorY, col2Width, 16, cups.descripcion, fontRegular, 8)
+            dibujarCelda(page, marginX + col1Width + col2Width, cursorY, col3Width, 16, String(cups.cantidad), fontRegular, 8, { align: 'center' })
+            cursorY -= 16
+        }
+        cursorY -= 10
+    }
+
+    // ========================================
+    // JUSTIFICACIÓN (si existe)
+    // ========================================
+    if (recobro.justificacion) {
+        dibujarCelda(page, marginX, cursorY, labelWidth, tableRowHeight, 'Justificación', fontBold, 9, { bgColor: COLOR_VERDE_CLARO })
+
+        // Calcular altura necesaria para justificación
+        const justLines: string[] = []
+        let justLinea = ''
+        const justPalabras = recobro.justificacion.split(' ')
+        for (const palabra of justPalabras) {
+            const prueba = justLinea + (justLinea ? ' ' : '') + palabra
+            if (fontRegular.widthOfTextAtSize(prueba, 9) > valueWidth - 10) {
+                justLines.push(justLinea)
+                justLinea = palabra
+            } else {
+                justLinea = prueba
+            }
+        }
+        if (justLinea) justLines.push(justLinea)
+
+        const justHeight = Math.max(tableRowHeight, justLines.length * 12 + 8)
+
+        // Redibujar celda label con altura correcta
+        page.drawRectangle({ x: marginX, y: cursorY - justHeight, width: labelWidth, height: justHeight, color: COLOR_VERDE_CLARO, borderColor: COLOR_NEGRO, borderWidth: 0.5 })
+        page.drawText('Justificación', { x: marginX + 5, y: cursorY - justHeight / 2 - 3, size: 9, font: fontBold, color: COLOR_NEGRO })
+
+        // Celda value
+        page.drawRectangle({ x: marginX + labelWidth, y: cursorY - justHeight, width: valueWidth, height: justHeight, borderColor: COLOR_NEGRO, borderWidth: 0.5 })
+        let justY = cursorY - 12
+        for (const line of justLines) {
+            page.drawText(line, { x: marginX + labelWidth + 5, y: justY, size: 9, font: fontRegular, color: COLOR_NEGRO })
+            justY -= 12
+        }
+        cursorY -= justHeight + 10
+    }
+
+    // ========================================
+    // DESPEDIDA
+    // ========================================
+    cursorY -= 5
+    page.drawText('Cordialmente,', { x: marginX, y: cursorY, size: 10, font: fontRegular, color: COLOR_NEGRO })
+    cursorY -= 25
+
+    // ========================================
+    // FIRMA ELECTRÓNICA
+    // ========================================
+    const firmaWidth = 250
+    const firmaHeight = 90
+    const firmaX = marginX
+
+    // Borde punteado (simulado con rectángulo)
+    page.drawRectangle({
+        x: firmaX,
+        y: cursorY - firmaHeight,
+        width: firmaWidth,
+        height: firmaHeight,
+        borderColor: COLOR_VERDE,
+        borderWidth: 1.5,
+        color: rgb(0.94, 1, 0.96),
+    })
+
+    let firmaY = cursorY - 15
+    const firmaTexto1 = '✓ APROBADO ELECTRÓNICAMENTE'
+    page.drawText(firmaTexto1, {
+        x: firmaX + (firmaWidth - fontBold.widthOfTextAtSize(firmaTexto1, 10)) / 2,
+        y: firmaY,
+        size: 10,
+        font: fontBold,
+        color: COLOR_VERDE,
+    })
+
+    firmaY -= 16
+    const firmaNombre = 'VIVIANA ESTHELA DORIA GONZÁLEZ'
+    page.drawText(firmaNombre, {
+        x: firmaX + (firmaWidth - fontBold.widthOfTextAtSize(firmaNombre, 10)) / 2,
+        y: firmaY,
+        size: 10,
+        font: fontBold,
+        color: COLOR_NEGRO,
+    })
+
+    firmaY -= 12
+    const firmaCargo = 'Directora Administrativa'
+    page.drawText(firmaCargo, {
+        x: firmaX + (firmaWidth - fontRegular.widthOfTextAtSize(firmaCargo, 9)) / 2,
+        y: firmaY,
+        size: 9,
+        font: fontRegular,
+        color: COLOR_GRIS,
+    })
+
+    firmaY -= 12
+    const firmaEmpresa = 'Gestar Salud de Colombia IPS'
+    page.drawText(firmaEmpresa, {
+        x: firmaX + (firmaWidth - fontRegular.widthOfTextAtSize(firmaEmpresa, 9)) / 2,
+        y: firmaY,
+        size: 9,
+        font: fontRegular,
+        color: COLOR_GRIS,
+    })
+
+    // Línea separadora
+    firmaY -= 8
+    page.drawLine({
+        start: { x: firmaX + 10, y: firmaY },
+        end: { x: firmaX + firmaWidth - 10, y: firmaY },
+        thickness: 0.5,
+        color: COLOR_VERDE,
+    })
+
+    firmaY -= 10
+    page.drawText(`Fecha/Hora: ${timestamp}`, { x: firmaX + 10, y: firmaY, size: 7, font: fontRegular, color: COLOR_GRIS })
+    firmaY -= 10
+    page.drawText(`Código verificación: ${codigoVerificacion}`, { x: firmaX + 10, y: firmaY, size: 7, font: fontBold, color: COLOR_VERDE })
+
+    cursorY -= firmaHeight + 15
+
+    // ========================================
+    // PIE DE PÁGINA
+    // ========================================
+    page.drawLine({
+        start: { x: marginX, y: cursorY },
+        end: { x: width - marginX, y: cursorY },
+        thickness: 0.5,
+        color: COLOR_GRIS,
+    })
+
+    cursorY -= 12
+    page.drawText(`Gestionado por: ${nombreAprobador}`, { x: marginX, y: cursorY, size: 8, font: fontRegular, color: COLOR_GRIS })
+    cursorY -= 10
+    page.drawText('Revisado por: COORDINACION ASISTENCIAL', { x: marginX, y: cursorY, size: 8, font: fontRegular, color: COLOR_GRIS })
+
+    // ========================================
+    // GENERAR BLOB
+    // ========================================
+    const pdfBytes = await pdfDoc.save()
+    const arrayBuffer = pdfBytes.buffer.slice(pdfBytes.byteOffset, pdfBytes.byteOffset + pdfBytes.byteLength) as ArrayBuffer
+    const blob = new Blob([arrayBuffer], { type: 'application/pdf' })
+
+    const fechaStr = new Date().toISOString().split('T')[0].replace(/-/g, '')
+    const filename = `CARTA_AUTORIZACION_${recobro.consecutivo}_${fechaStr}.pdf`
+
+    return { blob, filename }
 }
 
 /**
