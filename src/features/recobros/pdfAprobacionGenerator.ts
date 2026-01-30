@@ -15,9 +15,8 @@ interface PdfAprobacionResult {
 }
 
 // Colores institucionales
-const COLOR_VERDE = rgb(0.114, 0.451, 0.251) // #1d7340
-const COLOR_VERDE_CLARO = rgb(0.91, 0.96, 0.91) // #e8f5e9
-const COLOR_GRIS_CLARO = rgb(0.96, 0.96, 0.96) // #f5f5f5
+const COLOR_AZUL_GESTAR = rgb(0, 0.584, 0.922) // #0095EB
+const COLOR_AZUL_CLARO = rgb(0.902, 0.957, 0.992) // #E6F4FD
 const COLOR_NEGRO = rgb(0, 0, 0)
 const COLOR_GRIS = rgb(0.4, 0.4, 0.4)
 
@@ -86,7 +85,7 @@ function dibujarCelda(
     font: PDFFont,
     fontSize: number,
     options: {
-        bgColor?: typeof COLOR_VERDE_CLARO
+        bgColor?: typeof COLOR_AZUL_CLARO
         textColor?: typeof COLOR_NEGRO
         bold?: boolean
         align?: 'left' | 'center'
@@ -170,8 +169,8 @@ export async function generarPdfAprobacion(
         y: cursorY - headerHeight,
         width: contentWidth,
         height: headerHeight,
-        borderColor: COLOR_VERDE,
-        borderWidth: 2,
+        borderColor: COLOR_NEGRO,
+        borderWidth: 1, // Reduced from 2 to match standard
     })
 
     // Celda del logo (izquierda)
@@ -180,7 +179,7 @@ export async function generarPdfAprobacion(
         y: cursorY - headerHeight,
         width: logoWidth,
         height: headerHeight,
-        borderColor: COLOR_VERDE,
+        borderColor: COLOR_NEGRO,
         borderWidth: 1,
     })
 
@@ -205,7 +204,7 @@ export async function generarPdfAprobacion(
             y: cursorY - headerHeight / 2,
             size: 10,
             font: fontBold,
-            color: COLOR_VERDE,
+            color: COLOR_AZUL_GESTAR,
         })
     }
 
@@ -219,8 +218,8 @@ export async function generarPdfAprobacion(
         y: cursorY - rowHeight,
         width: titleWidth,
         height: rowHeight,
-        color: COLOR_VERDE_CLARO,
-        borderColor: COLOR_VERDE,
+        // color: COLOR_VERDE_CLARO, // Removed background
+        borderColor: COLOR_NEGRO,
         borderWidth: 0.5,
     })
     const texto1 = 'SISTEMA INTEGRADO DE GESTIÓN'
@@ -238,7 +237,7 @@ export async function generarPdfAprobacion(
         y: cursorY - rowHeight * 2,
         width: titleWidth,
         height: rowHeight,
-        borderColor: COLOR_VERDE,
+        borderColor: COLOR_NEGRO,
         borderWidth: 0.5,
     })
     const texto2 = 'GESTIÓN DEL TALENTO HUMANO'
@@ -256,8 +255,8 @@ export async function generarPdfAprobacion(
         y: cursorY - rowHeight * 3,
         width: titleWidth,
         height: rowHeight,
-        color: COLOR_GRIS_CLARO,
-        borderColor: COLOR_VERDE,
+        // color: COLOR_GRIS_CLARO, // Removed background
+        borderColor: COLOR_NEGRO,
         borderWidth: 0.5,
     })
     const texto3 = 'CARTA DE AUTORIZACIÓN DE RECOBRO POR SERVICIOS DE SALUD'
@@ -276,8 +275,8 @@ export async function generarPdfAprobacion(
         y: metaY,
         width: contentWidth,
         height: rowHeight,
-        color: COLOR_GRIS_CLARO,
-        borderColor: COLOR_VERDE,
+        // color: COLOR_GRIS_CLARO, // Removed background
+        borderColor: COLOR_NEGRO,
         borderWidth: 0.5,
     })
 
@@ -303,7 +302,7 @@ export async function generarPdfAprobacion(
     // ========================================
     // CONSECUTIVO
     // ========================================
-    const consecutivoTexto = `Consecutivo: TRIAN-${recobro.consecutivo}`
+    const consecutivoTexto = `Consecutivo: ${recobro.consecutivo}`
     page.drawText(consecutivoTexto, {
         x: width - marginX - fontBold.widthOfTextAtSize(consecutivoTexto, 10),
         y: cursorY,
@@ -339,8 +338,38 @@ export async function generarPdfAprobacion(
     // REFERENCIA
     // ========================================
     const refTexto = `Ref.: CARTA DE AUTORIZACIÓN DE RECOBRO POR SERVICIOS DE SALUD, USUARIO [${recobro.pacienteTipoId || 'CC'} ${recobro.pacienteId} ${recobro.pacienteNombres || ''}]`
-    const refTruncado = truncarTexto(refTexto, fontBold, 9, contentWidth)
-    page.drawText(refTruncado, { x: marginX, y: cursorY, size: 9, font: fontBold, color: COLOR_NEGRO })
+
+    // Implement text wrapping for Ref
+    let refLinea = ''
+    const refPalabras = refTexto.split(' ')
+
+    for (const palabra of refPalabras) {
+        const prueba = refLinea + (refLinea ? ' ' : '') + palabra
+        if (fontBold.widthOfTextAtSize(prueba, 9) > contentWidth) {
+            page.drawText(refLinea, {
+                x: marginX,
+                y: cursorY,
+                size: 9,
+                font: fontBold,
+                color: COLOR_NEGRO
+            })
+            cursorY -= 12 // Line height
+            refLinea = palabra
+        } else {
+            refLinea = prueba
+        }
+    }
+
+    // Draw the last line
+    if (refLinea) {
+        page.drawText(refLinea, {
+            x: marginX,
+            y: cursorY,
+            size: 9,
+            font: fontBold,
+            color: COLOR_NEGRO
+        })
+    }
     cursorY -= 20
 
     // ========================================
@@ -388,7 +417,7 @@ export async function generarPdfAprobacion(
     ]
 
     for (const [label, value] of datosTabla) {
-        dibujarCelda(page, marginX, cursorY, labelWidth, tableRowHeight, label, fontBold, 9, { bgColor: COLOR_VERDE_CLARO })
+        dibujarCelda(page, marginX, cursorY, labelWidth, tableRowHeight, label, fontBold, 9, { bgColor: COLOR_AZUL_CLARO })
         dibujarCelda(page, marginX + labelWidth, cursorY, valueWidth, tableRowHeight, value, fontRegular, 9)
         cursorY -= tableRowHeight
     }
@@ -407,9 +436,9 @@ export async function generarPdfAprobacion(
         const col3Width = contentWidth * 0.15
 
         // Encabezados
-        dibujarCelda(page, marginX, cursorY, col1Width, 18, 'Código', fontBold, 8, { bgColor: COLOR_VERDE, textColor: rgb(1, 1, 1), align: 'center' })
-        dibujarCelda(page, marginX + col1Width, cursorY, col2Width, 18, 'Descripción', fontBold, 8, { bgColor: COLOR_VERDE, textColor: rgb(1, 1, 1), align: 'center' })
-        dibujarCelda(page, marginX + col1Width + col2Width, cursorY, col3Width, 18, 'Cantidad', fontBold, 8, { bgColor: COLOR_VERDE, textColor: rgb(1, 1, 1), align: 'center' })
+        dibujarCelda(page, marginX, cursorY, col1Width, 18, 'Código', fontBold, 8, { bgColor: COLOR_AZUL_GESTAR, textColor: rgb(1, 1, 1), align: 'center' })
+        dibujarCelda(page, marginX + col1Width, cursorY, col2Width, 18, 'Descripción', fontBold, 8, { bgColor: COLOR_AZUL_GESTAR, textColor: rgb(1, 1, 1), align: 'center' })
+        dibujarCelda(page, marginX + col1Width + col2Width, cursorY, col3Width, 18, 'Cantidad', fontBold, 8, { bgColor: COLOR_AZUL_GESTAR, textColor: rgb(1, 1, 1), align: 'center' })
         cursorY -= 18
 
         // Filas
@@ -426,7 +455,7 @@ export async function generarPdfAprobacion(
     // JUSTIFICACIÓN (si existe)
     // ========================================
     if (recobro.justificacion) {
-        dibujarCelda(page, marginX, cursorY, labelWidth, tableRowHeight, 'Justificación', fontBold, 9, { bgColor: COLOR_VERDE_CLARO })
+        dibujarCelda(page, marginX, cursorY, labelWidth, tableRowHeight, 'Justificación', fontBold, 9, { bgColor: COLOR_AZUL_CLARO })
 
         // Calcular altura necesaria para justificación
         const justLines: string[] = []
@@ -446,7 +475,7 @@ export async function generarPdfAprobacion(
         const justHeight = Math.max(tableRowHeight, justLines.length * 12 + 8)
 
         // Redibujar celda label con altura correcta
-        page.drawRectangle({ x: marginX, y: cursorY - justHeight, width: labelWidth, height: justHeight, color: COLOR_VERDE_CLARO, borderColor: COLOR_NEGRO, borderWidth: 0.5 })
+        page.drawRectangle({ x: marginX, y: cursorY - justHeight, width: labelWidth, height: justHeight, color: COLOR_AZUL_CLARO, borderColor: COLOR_NEGRO, borderWidth: 0.5 })
         page.drawText('Justificación', { x: marginX + 5, y: cursorY - justHeight / 2 - 3, size: 9, font: fontBold, color: COLOR_NEGRO })
 
         // Celda value
@@ -479,9 +508,9 @@ export async function generarPdfAprobacion(
         y: cursorY - firmaHeight,
         width: firmaWidth,
         height: firmaHeight,
-        borderColor: COLOR_VERDE,
+        borderColor: COLOR_AZUL_GESTAR,
         borderWidth: 1.5,
-        color: rgb(0.94, 1, 0.96),
+        color: COLOR_AZUL_CLARO,
     })
 
     let firmaY = cursorY - 15
@@ -491,7 +520,7 @@ export async function generarPdfAprobacion(
         y: firmaY,
         size: 10,
         font: fontBold,
-        color: COLOR_VERDE,
+        color: COLOR_AZUL_GESTAR,
     })
 
     firmaY -= 16
@@ -530,13 +559,13 @@ export async function generarPdfAprobacion(
         start: { x: firmaX + 10, y: firmaY },
         end: { x: firmaX + firmaWidth - 10, y: firmaY },
         thickness: 0.5,
-        color: COLOR_VERDE,
+        color: COLOR_AZUL_GESTAR,
     })
 
     firmaY -= 10
     page.drawText(`Fecha/Hora: ${timestamp}`, { x: firmaX + 10, y: firmaY, size: 7, font: fontRegular, color: COLOR_GRIS })
     firmaY -= 10
-    page.drawText(`Código verificación: ${codigoVerificacion}`, { x: firmaX + 10, y: firmaY, size: 7, font: fontBold, color: COLOR_VERDE })
+    page.drawText(`Código verificación: ${codigoVerificacion}`, { x: firmaX + 10, y: firmaY, size: 7, font: fontBold, color: COLOR_AZUL_GESTAR })
 
     cursorY -= firmaHeight + 15
 

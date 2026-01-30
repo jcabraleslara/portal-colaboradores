@@ -60,6 +60,12 @@ export function ConsultarCupsPage() {
             setLoadingState('success')
             if (result.data.length === 0) {
                 setError('No se encontraron resultados')
+            } else if (result.data.length === 1) {
+                const uniqueCups = result.data[0]
+                setCupsSeleccionado(uniqueCups)
+                setCupsEditado({ ...uniqueCups })
+                setModoEdicion(false)
+                setMensajeExito('')
             }
         } else {
             setError(result.error || 'Error al buscar')
