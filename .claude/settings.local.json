@@ -20,7 +20,18 @@
       "Bash(npx vercel:*)",
       "Bash(curl -X POST https://colaboradores.gestarsaludips.com/api/fix-filenames -H \"Content-Type: application/json\" -d '{\"\"dryRun\"\": true}')",
       "Bash(python:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:/OneDrive - GESTARSALUD DE COLOMBIA IPS SAS/Repositorios/Apps/Portal Colaboradores/scripts/fix-onedrive-filenames.ps1\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path ''C:/OneDrive - GESTARSALUD DE COLOMBIA IPS SAS/Soportes Facturacion'' -Recurse -File | Select-Object -First 20 -ExpandProperty Name\")",
+      "Bash(powershell.exe -Command \"Test-Path ''C:/OneDrive - GESTARSALUD DE COLOMBIA IPS SAS/Soportes Facturacion''\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path ''C:/OneDrive - GESTARSALUD DE COLOMBIA IPS SAS'' -Directory | Select-Object -ExpandProperty Name\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path ''C:/OneDrive - GESTARSALUD DE COLOMBIA IPS SAS/Soportes Facturación'' -Recurse -File | Select-Object -First 30 -ExpandProperty Name\")",
+      "Bash(cmd.exe /c \"C:\\\\OneDrive - GESTARSALUD DE COLOMBIA IPS SAS\\\\Repositorios\\\\Apps\\\\Portal Colaboradores\\\\scripts\\\\run-rename.bat\")",
+      "Bash(Measure-Object)",
+      "Bash(Select-Object -ExpandProperty Count \")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:/OneDrive - GESTARSALUD DE COLOMBIA IPS SAS/Repositorios/Apps/Portal Colaboradores/scripts/preview-rename.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:/OneDrive - GESTARSALUD DE COLOMBIA IPS SAS/Repositorios/Apps/Portal Colaboradores/scripts/execute-rename.ps1\")",
+      "Bash(npx @anthropic-ai/claude-code:*)"
     ]
   }
 }

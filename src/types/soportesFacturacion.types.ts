@@ -156,6 +156,7 @@ export interface FiltrosSoportesFacturacion {
     eps?: EpsFacturacion | null
     estado?: EstadoSoporteFacturacion | 'Todos'
     radicadorEmail?: string | null
+    radicadorNombre?: string | null
     servicioPrestado?: ServicioPrestado | null
     fechaInicio?: string
     fechaFin?: string
@@ -163,6 +164,12 @@ export interface FiltrosSoportesFacturacion {
     fechaAtencionFin?: string
     sortBy?: 'fechaRadicacion' | 'fechaAtencion' | 'radicado' | 'estado' | 'servicioPrestado' | 'eps' | 'radicadorEmail'
     sortOrder?: 'asc' | 'desc'
+}
+
+// Interfaz para radicador único
+export interface RadicadorUnico {
+    nombre: string
+    email: string
 }
 
 // Configuración de categorías de archivos

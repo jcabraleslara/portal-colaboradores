@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
     Search,
     Loader2,
@@ -7,6 +7,8 @@ import {
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
+    X,
+    ChevronDown,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
@@ -19,6 +21,7 @@ import {
     EPS_FACTURACION_LISTA,
     SERVICIOS_PRESTADOS_LISTA,
     FiltrosSoportesFacturacion,
+    RadicadorUnico,
 } from '@/types/soportesFacturacion.types'
 import { RadicacionDetallePanel } from './RadicacionDetallePanel'
 
@@ -30,6 +33,141 @@ const Badge = ({ children, className }: { children: React.ReactNode; className?:
         {children}
     </span>
 )
+
+// Componente Autocomplete para radicadores
+interface RadicadorAutocompleteProps {
+    radicadores: RadicadorUnico[]
+    value: string
+    onChange: (nombre: string) => void
+    placeholder?: string
+}
+
+function RadicadorAutocomplete({ radicadores, value, onChange, placeholder = 'Buscar radicador...' }: RadicadorAutocompleteProps) {
+    const [inputValue, setInputValue] = useState(value)
+    const [isOpen, setIsOpen] = useState(false)
+    const inputRef = useRef<HTMLInputElement>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
+
+    // Sincronizar inputValue cuando value cambia externamente
+    useEffect(() => {
+        setInputValue(value)
+    }, [value])
+
+    // Cerrar dropdown al hacer clic fuera
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+                setIsOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
+
+    // Filtrar radicadores basado en el input (búsqueda flexible por palabras)
+    const filteredRadicadores = useMemo(() => {
+        if (!inputValue.trim()) return radicadores
+
+        const palabras = inputValue.toLowerCase().trim().split(/\s+/).filter(p => p.length > 0)
+        return radicadores.filter(r => {
+            const nombreLower = r.nombre.toLowerCase()
+            // Todas las palabras deben estar presentes en el nombre
+            return palabras.every(palabra => nombreLower.includes(palabra))
+        })
+    }, [radicadores, inputValue])
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newValue = e.target.value
+        setInputValue(newValue)
+        setIsOpen(true)
+        // No aplicar filtro hasta que el usuario seleccione o presione enter
+    }
+
+    const handleSelect = (radicador: RadicadorUnico) => {
+        setInputValue(radicador.nombre)
+        onChange(radicador.nombre)
+        setIsOpen(false)
+    }
+
+    const handleClear = () => {
+        setInputValue('')
+        onChange('')
+        inputRef.current?.focus()
+    }
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault()
+            // Si hay exactamente una coincidencia, seleccionarla
+            if (filteredRadicadores.length === 1) {
+                handleSelect(filteredRadicadores[0])
+            } else if (inputValue.trim()) {
+                // Aplicar el filtro con el texto actual
+                onChange(inputValue.trim())
+                setIsOpen(false)
+            }
+        } else if (e.key === 'Escape') {
+            setIsOpen(false)
+        }
+    }
+
+    return (
+        <div className="relative" ref={containerRef}>
+            <div className="relative">
+                <input
+                    ref={inputRef}
+                    type="text"
+                    placeholder={placeholder}
+                    className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)] pr-16"
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onFocus={() => setIsOpen(true)}
+                    onKeyDown={handleKeyDown}
+                />
+                <div className="absolute inset-y-0 right-0 flex items-center pr-2 gap-1">
+                    {inputValue && (
+                        <button
+                            type="button"
+                            onClick={handleClear}
+                            className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                        >
+                            <X size={14} />
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={() => setIsOpen(!isOpen)}
+                        className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                    >
+                        <ChevronDown size={14} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                </div>
+            </div>
+
+            {isOpen && filteredRadicadores.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-60 overflow-auto">
+                    {filteredRadicadores.map((radicador, index) => (
+                        <button
+                            key={`${radicador.email}-${index}`}
+                            type="button"
+                            className="w-full px-3 py-2 text-left hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                            onClick={() => handleSelect(radicador)}
+                        >
+                            <div className="text-sm font-medium text-gray-900">{radicador.nombre}</div>
+                            <div className="text-xs text-gray-500">{radicador.email.split('@')[0]}</div>
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            {isOpen && inputValue && filteredRadicadores.length === 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-3 text-sm text-gray-500">
+                    No se encontraron radicadores
+                </div>
+            )}
+        </div>
+    )
+}
 
 export function GestionRadicadosView() {
     const { user } = useAuth()
@@ -53,6 +191,9 @@ export function GestionRadicadosView() {
 
     // Conteos
     const [conteos, setConteos] = useState<Record<string, number>>({})
+
+    // Radicadores únicos para autocomplete
+    const [radicadores, setRadicadores] = useState<RadicadorUnico[]>([])
 
     // Panel Detalle
     const [casoSeleccionado, setCasoSeleccionado] = useState<SoporteFacturacion | null>(null)
@@ -93,13 +234,21 @@ export function GestionRadicadosView() {
         }
     }, [])
 
+    const cargarRadicadores = useCallback(async () => {
+        const result = await soportesFacturacionService.obtenerRadicadoresUnicos()
+        if (result.success && result.data) {
+            setRadicadores(result.data)
+        }
+    }, [])
+
     useEffect(() => {
         cargarDatos()
     }, [cargarDatos])
 
     useEffect(() => {
         cargarConteos()
-    }, [cargarConteos])
+        cargarRadicadores()
+    }, [cargarConteos, cargarRadicadores])
 
     // ============================================
     // HANDLERS
@@ -298,15 +447,14 @@ export function GestionRadicadosView() {
                         </div>
                         <div className="w-56">
                             <label className="text-xs font-semibold text-gray-500 uppercase mb-1 block">Radicador</label>
-                            <input
-                                type="text"
-                                placeholder="Correo del radicador..."
-                                className="w-full text-sm border-gray-300 rounded-md shadow-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]"
-                                value={filtros.radicadorEmail || ''}
-                                onChange={(e) => {
-                                    setFiltros(prev => ({ ...prev, radicadorEmail: e.target.value || undefined }))
+                            <RadicadorAutocomplete
+                                radicadores={radicadores}
+                                value={filtros.radicadorNombre || ''}
+                                onChange={(nombre) => {
+                                    setFiltros(prev => ({ ...prev, radicadorNombre: nombre || undefined }))
                                     setPaginaActual(0)
                                 }}
+                                placeholder="Buscar por nombre..."
                             />
                         </div>
                         <div className="w-40">

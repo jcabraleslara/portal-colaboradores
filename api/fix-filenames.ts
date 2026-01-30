@@ -29,11 +29,11 @@ const URL_COLUMNS = [
     'urls_notas_enfermeria',
 ]
 
-// Regex para detectar archivos con formato NUEVO que tienen sufijo innecesario
-// Formato: PREFIJO_NIT_IDENTIFICACION_N.ext (ej: HEV_900842629_CC34998254_1.pdf)
-// Solo estos deben renombrarse, NO los archivos con formato antiguo (autorizacion_1.pdf)
-// El patrón busca: PREFIJO(2-4 letras)_NIT(9 dígitos)_TIPOID+NUMERO_CONSECUTIVO.ext
-const SUFFIX_PATTERN = /^([A-Z]{2,4}_\d{9}_[A-Z]{2}\d+)_\d+(\.[a-zA-Z0-9]+)$/
+// Regex para detectar archivos con IDENTIFICACION de paciente que tienen sufijo innecesario
+// Formato: PREFIJO_NIT_TIPOID+NUMERO_N.ext (ej: HEV_900842629_CC34998254_1.pdf)
+// Solo estos deben renombrarse, NO los archivos con RADICADO (FACT1234) ni formato antiguo
+// Tipos de ID válidos: CC, TI, CE, CN, SC, PE, PT, RC, ME, AS
+const SUFFIX_PATTERN = /^([A-Z]{2,4}_\d{9}_(CC|TI|CE|CN|SC|PE|PT|RC|ME|AS)\d+)_\d+(\.[a-zA-Z0-9]+)$/
 
 interface RenameResult {
     radicado: string
@@ -103,8 +103,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 for (const file of filesToRename) {
                     totalProcessed++
                     const oldName = file.name
-                    // Grupo 1: PREFIJO_NIT_ID, Grupo 2: extensión
-                    const newName = oldName.replace(SUFFIX_PATTERN, '$1$2')
+                    // Grupo 1: PREFIJO_NIT_TIPOID+NUMERO, Grupo 2: tipo ID (CC, TI, etc.), Grupo 3: extensión
+                    const newName = oldName.replace(SUFFIX_PATTERN, '$1$3')
                     const oldPath = `${radicado}/${oldName}`
                     const newPath = `${radicado}/${newName}`
 

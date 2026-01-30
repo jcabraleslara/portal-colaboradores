@@ -16,7 +16,9 @@ import {
     FiltrosSoportesFacturacion,
     CategoriaArchivo,
     EpsFacturacion,
-    ServicioPrestado
+    ServicioPrestado,
+    ESTADOS_SOPORTE_LISTA,
+    RadicadorUnico
 } from '@/types/soportesFacturacion.types'
 import { criticalErrorService } from './criticalError.service'
 
@@ -500,6 +502,15 @@ export const soportesFacturacionService = {
                 query = query.eq('eps', filtros.eps)
             }
 
+            if (filtros.radicadorNombre) {
+                // Búsqueda flexible por nombre: dividir el término en palabras y buscar todas
+                const palabras = filtros.radicadorNombre.trim().toLowerCase().split(/\s+/).filter(p => p.length > 0)
+                // Crear condición que requiera todas las palabras (sin importar orden)
+                for (const palabra of palabras) {
+                    query = query.ilike('radicador_nombre', `%${palabra}%`)
+                }
+            }
+
             if (filtros.radicadorEmail) {
                 query = query.eq('radicador_email', filtros.radicadorEmail)
             }
@@ -732,24 +743,72 @@ export const soportesFacturacionService = {
      */
     async obtenerConteosPorEstado(): Promise<ApiResponse<Record<string, number>>> {
         try {
-            const { data, error } = await supabase
-                .from('soportes_facturacion')
-                .select('estado')
+            // Realizar conteos paralelos para evitar el límite de 1000 filas de Supabase
+            // y ser más eficiente que traer todos los datos
+            const promises = ESTADOS_SOPORTE_LISTA
+                .filter(estado => estado !== 'Todos')
+                .map(async (estado) => {
+                    const { count, error } = await supabase
+                        .from('soportes_facturacion')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('estado', estado)
 
-            if (error) {
-                console.error('Error obteniendo conteos:', error)
-                return { success: false, error: ERROR_MESSAGES.SERVER_ERROR }
-            }
+                    if (error) {
+                        console.error(`Error contando estado ${estado}:`, error)
+                        return { estado, count: 0 }
+                    }
+                    return { estado, count: count || 0 }
+                })
+
+            const results = await Promise.all(promises)
 
             const conteos: Record<string, number> = {}
-            for (const registro of data) {
-                const estado = registro.estado || 'Sin estado'
-                conteos[estado] = (conteos[estado] || 0) + 1
-            }
+            results.forEach(r => {
+                conteos[r.estado as string] = r.count
+            })
 
             return { success: true, data: conteos }
         } catch (error) {
             console.error('Error en obtenerConteosPorEstado:', error)
+            return { success: false, error: ERROR_MESSAGES.SERVER_ERROR }
+        }
+    },
+
+    /**
+     * Obtener lista de radicadores únicos (para autocomplete)
+     * Retorna nombre y email de radicadores que ya tienen registros en la tabla
+     */
+    async obtenerRadicadoresUnicos(): Promise<ApiResponse<RadicadorUnico[]>> {
+        try {
+            // Obtener radicadores únicos con nombre no nulo
+            const { data, error } = await supabase
+                .from('soportes_facturacion')
+                .select('radicador_nombre, radicador_email')
+                .not('radicador_nombre', 'is', null)
+                .order('radicador_nombre', { ascending: true })
+
+            if (error) {
+                console.error('Error obteniendo radicadores únicos:', error)
+                return { success: false, error: ERROR_MESSAGES.SERVER_ERROR }
+            }
+
+            // Eliminar duplicados usando un Map con el nombre como clave
+            const radicadoresMap = new Map<string, RadicadorUnico>()
+            for (const item of data || []) {
+                const nombre = item.radicador_nombre as string
+                if (nombre && !radicadoresMap.has(nombre)) {
+                    radicadoresMap.set(nombre, {
+                        nombre,
+                        email: item.radicador_email as string
+                    })
+                }
+            }
+
+            const radicadores = Array.from(radicadoresMap.values())
+
+            return { success: true, data: radicadores }
+        } catch (error) {
+            console.error('Error en obtenerRadicadoresUnicos:', error)
             return { success: false, error: ERROR_MESSAGES.SERVER_ERROR }
         }
     },
