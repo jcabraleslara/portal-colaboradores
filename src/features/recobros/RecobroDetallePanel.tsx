@@ -27,6 +27,7 @@ import { useAuth } from '@/context/AuthContext'
 import { Button, PdfViewerModal } from '@/components/common'
 import { RichTextEditor } from '@/components/common/RichTextEditor'
 import { recobrosService } from '@/services/recobros.service'
+import { emailService } from '@/services/email.service'
 import { generarPdfAprobacion, descargarPdfAprobacion } from './pdfAprobacionGenerator'
 import {
     Recobro,
@@ -107,6 +108,42 @@ export function RecobroDetallePanel({ recobro, onClose, onUpdate, onSiguiente }:
 
             if (result.success) {
                 toast.success('Recobro actualizado exitosamente')
+
+                // Enviar correo automáticamente si el estado cambió a Aprobado o Devuelto
+                const estadoCambio = nuevoEstado !== recobro.estado
+                if (estadoCambio && recobro.radicadorEmail) {
+                    try {
+                        if (nuevoEstado === 'Aprobado') {
+                            await emailService.enviarNotificacionAprobacionRecobro(
+                                recobro.radicadorEmail,
+                                recobro.consecutivo,
+                                {
+                                    pacienteNombre: recobro.pacienteNombres || 'No especificado',
+                                    pacienteId: recobro.pacienteId,
+                                    cupsData: recobro.cupsData,
+                                    pdfUrl: pdfAprobacionUrl || undefined,
+                                }
+                            )
+                            toast.success('Correo de aprobación enviado al radicador')
+                        } else if (nuevoEstado === 'Devuelto') {
+                            await emailService.enviarNotificacionDevolucionRecobro(
+                                recobro.radicadorEmail,
+                                recobro.consecutivo,
+                                respuestaAuditor,
+                                {
+                                    pacienteNombre: recobro.pacienteNombres || 'No especificado',
+                                    pacienteId: recobro.pacienteId,
+                                    cupsData: recobro.cupsData,
+                                }
+                            )
+                            toast.success('Correo de devolución enviado al radicador')
+                        }
+                    } catch (emailError) {
+                        console.error('Error enviando correo:', emailError)
+                        toast.warning('Recobro actualizado, pero no se pudo enviar el correo de notificación')
+                    }
+                }
+
                 onUpdate()
 
                 if (cerrar) {

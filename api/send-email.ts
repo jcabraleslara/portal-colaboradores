@@ -52,11 +52,19 @@ interface DatosDevolucionRecobro {
     fechaDevolucion: string
 }
 
+interface DatosAprobacionRecobro {
+    pacienteNombre: string
+    pacienteIdentificacion: string
+    cupsData: { cups: string; descripcion: string; cantidad: number; es_principal: boolean }[]
+    pdfUrl?: string
+    fechaAprobacion: string
+}
+
 interface RequestBody {
-    type: 'radicacion' | 'rechazo' | 'devolucion' | 'no_contactable' | 'devolucion_recobro'
+    type: 'radicacion' | 'rechazo' | 'devolucion' | 'no_contactable' | 'devolucion_recobro' | 'aprobacion_recobro'
     destinatario: string
     radicado: string
-    datos: DatosRadicacionExitosa | DatosRechazo | DatosDevolucion | DatosNoContactable | DatosDevolucionRecobro
+    datos: DatosRadicacionExitosa | DatosRechazo | DatosDevolucion | DatosNoContactable | DatosDevolucionRecobro | DatosAprobacionRecobro
 }
 
 // ==========================================
@@ -443,6 +451,90 @@ function generarTemplateNoContactable(radicado: string, datos: DatosNoContactabl
     `
 }
 
+function generarTemplateAprobacionRecobro(consecutivo: string, datos: DatosAprobacionRecobro): string {
+    const cupsHtml = datos.cupsData
+        .map(cups => `
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
+                    ${cups.es_principal ? '⭐ ' : ''}<code style="background-color: #d1fae5; padding: 2px 6px; border-radius: 4px; color: #047857;">${cups.cups}</code>
+                </td>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${cups.descripcion}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${cups.cantidad}</td>
+            </tr>
+        `)
+        .join('')
+
+    const pdfSection = datos.pdfUrl
+        ? `
+            <div style="background-color: #d1fae5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0;">
+                <strong>📄 Carta de Autorización:</strong>
+                <a href="${datos.pdfUrl}" target="_blank" style="color: #047857; text-decoration: none; margin-left: 10px;">
+                    Descargar PDF de Aprobación
+                </a>
+            </div>
+        `
+        : ''
+
+    return `
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #059669; color: white; padding: 20px; text-align: center;">
+                <h1 style="margin: 0; font-size: 24px;">✅ Recobro Aprobado</h1>
+            </div>
+
+            <div style="padding: 30px; background-color: #f9fafb;">
+                <p>Cordial saludo,</p>
+
+                <p>Nos complace informarle que su solicitud de recobro <strong>${consecutivo}</strong> ha sido <strong style="color: #059669;">APROBADA</strong> por el área de Auditoría.</p>
+
+                <div style="background-color: #d1fae5; border: 3px solid #059669; padding: 20px; margin: 20px 0; border-radius: 8px; text-align: center;">
+                    <h2 style="color: #059669; margin: 0; font-size: 28px;">✓ APROBADO</h2>
+                    <p style="color: #047857; margin: 10px 0 0 0; font-size: 14px;">
+                        Consecutivo: <strong>${consecutivo}</strong>
+                    </p>
+                </div>
+
+                <h3 style="color: #059669; border-bottom: 2px solid #d1fae5; padding-bottom: 8px;">📋 Información del Paciente</h3>
+                <ul style="line-height: 1.8;">
+                    <li><strong>Nombre:</strong> ${datos.pacienteNombre}</li>
+                    <li><strong>Identificación:</strong> ${datos.pacienteIdentificacion}</li>
+                </ul>
+
+                <h3 style="color: #059669; border-bottom: 2px solid #d1fae5; padding-bottom: 8px;">🏥 Procedimientos Aprobados</h3>
+                <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+                    <thead>
+                        <tr style="background-color: #d1fae5;">
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #10b981;">Código</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #10b981;">Descripción</th>
+                            <th style="padding: 8px; text-align: center; border-bottom: 2px solid #10b981;">Cant.</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${cupsHtml}
+                    </tbody>
+                </table>
+                <p style="font-size: 12px; color: #6b7280;">⭐ = Procedimiento principal</p>
+
+                ${pdfSection}
+
+                <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0;">
+                    <strong>📌 Información Importante:</strong>
+                    <p style="margin: 10px 0 0 0;">
+                        La carta de autorización ha sido generada y almacenada. Puede descargarla desde el enlace anterior
+                        o acceder directamente desde el Portal de Colaboradores en la sección de Gestión de Recobros.
+                    </p>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
+
+                <p style="font-size: 12px; color: #6b7280; text-align: center; margin: 0;">
+                    Este es un mensaje automático generado por el Portal de Colaboradores de Gestar Salud IPS.<br />
+                    No responda a este correo.
+                </p>
+            </div>
+        </div>
+    `
+}
+
 // ==========================================
 // HANDLER PRINCIPAL
 // ==========================================
@@ -480,6 +572,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         } else if (body.type === 'devolucion_recobro') {
             subject = `Recobro Devuelto - ${body.radicado} `
             htmlBody = generarTemplateDevolucionRecobro(body.radicado, body.datos as DatosDevolucionRecobro)
+        } else if (body.type === 'aprobacion_recobro') {
+            subject = `✅ Recobro Aprobado - ${body.radicado}`
+            htmlBody = generarTemplateAprobacionRecobro(body.radicado, body.datos as DatosAprobacionRecobro)
         } else {
             return res.status(400).json({ success: false, error: 'Tipo de correo no válido' })
         }

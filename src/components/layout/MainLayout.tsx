@@ -10,9 +10,11 @@ import { Sidebar } from './Sidebar'
 
 export function MainLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+    const [isCollapsed, setIsCollapsed] = useState(false)
 
     const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen)
     const closeSidebar = () => setIsSidebarOpen(false)
+    const toggleCollapse = () => setIsCollapsed(!isCollapsed)
 
     return (
         <div className="min-h-screen" style={{ background: '#F8FAFC' }}>
@@ -23,10 +25,20 @@ export function MainLayout() {
             <Header onMenuClick={toggleSidebar} isSidebarOpen={isSidebarOpen} />
 
             {/* Sidebar */}
-            <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
+            <Sidebar
+                isOpen={isSidebarOpen}
+                onClose={closeSidebar}
+                isCollapsed={isCollapsed}
+                toggleCollapse={toggleCollapse}
+            />
 
             {/* Contenido principal */}
-            <main className="relative pt-16 lg:pl-72 min-h-screen">
+            <main
+                className={`
+                    relative pt-16 min-h-screen transition-all duration-300 ease-out
+                    ${isCollapsed ? 'lg:pl-20' : 'lg:pl-72'}
+                `}
+            >
                 <div className="p-4 md:p-6 lg:p-8">
                     <Outlet />
                 </div>

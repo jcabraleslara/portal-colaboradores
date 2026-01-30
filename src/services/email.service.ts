@@ -279,5 +279,60 @@ export const emailService = {
 
             return false
         }
+    },
+
+    /**
+     * Enviar notificación de aprobación de recobro
+     */
+    async enviarNotificacionAprobacionRecobro(
+        destinatario: string,
+        consecutivo: string,
+        datosRecobro: {
+            pacienteNombre: string
+            pacienteId: string
+            cupsData: { cups: string; descripcion: string; cantidad: number; es_principal: boolean }[]
+            pdfUrl?: string
+        }
+    ): Promise<boolean> {
+        try {
+            const datos = {
+                pacienteNombre: datosRecobro.pacienteNombre,
+                pacienteIdentificacion: datosRecobro.pacienteId,
+                cupsData: datosRecobro.cupsData,
+                pdfUrl: datosRecobro.pdfUrl,
+                fechaAprobacion: new Date().toLocaleString('es-CO'),
+            }
+
+            const response = await fetch('/api/send-email', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'aprobacion_recobro',
+                    destinatario,
+                    radicado: consecutivo,
+                    datos
+                })
+            })
+
+            if (!response.ok) {
+                console.error('Error en respuesta del servidor:', await response.text())
+                return false
+            }
+
+            const result = await response.json()
+            return result.success
+        } catch (error) {
+            console.error('Error enviando correo de aprobación de recobro:', error)
+
+            // Notificar error crítico
+            await criticalErrorService.reportEmailFailure(
+                destinatario,
+                'Gestión de Recobros',
+                'Notificación de Aprobación',
+                error instanceof Error ? error : undefined
+            )
+
+            return false
+        }
     }
 }

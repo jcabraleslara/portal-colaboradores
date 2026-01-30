@@ -20,6 +20,7 @@ import {
     X,
     MapPin,
     Building2,
+    Download,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, Button, Input, LoadingOverlay } from '@/components/common'
@@ -63,6 +64,11 @@ export function RadicacionRecobrosView() {
     const [submitState, setSubmitState] = useState<LoadingState>('idle')
     const [submitError, setSubmitError] = useState('')
     const [radicacionExitosa, setRadicacionExitosa] = useState<Recobro | null>(null)
+
+    // ============================================
+    // ESTADO - Drag & Drop
+    // ============================================
+    const [isDragging, setIsDragging] = useState(false)
 
     // ============================================
     // EFECTOS
@@ -158,6 +164,33 @@ export function RadicacionRecobrosView() {
     const handleRemoveFile = useCallback((index: number) => {
         setArchivos(prev => prev.filter((_, i) => i !== index))
     }, [])
+
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (paciente) {
+            setIsDragging(true)
+        }
+    }, [paciente])
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragging(false)
+    }, [])
+
+    const handleDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragging(false)
+
+        if (!paciente) return
+
+        const files = e.dataTransfer.files
+        if (files && files.length > 0) {
+            handleFilesChange(files)
+        }
+    }, [paciente, handleFilesChange])
 
     // ============================================
     // HANDLERS - Historial
@@ -430,13 +463,28 @@ export function RadicacionRecobrosView() {
                                                         {recobro.cupsData.length} CUPS
                                                     </p>
                                                 </div>
-                                                <div className="text-right">
-                                                    <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${colores.bg} ${colores.text}`}>
-                                                        {recobro.estado}
-                                                    </span>
-                                                    <p className="text-xs text-gray-400 mt-1">
-                                                        {recobro.createdAt.toLocaleDateString('es-CO')}
-                                                    </p>
+                                                <div className="flex items-center gap-2">
+                                                    {/* Botón de descarga de PDF si está aprobado */}
+                                                    {recobro.estado === 'Aprobado' && recobro.pdfAprobacionUrl && (
+                                                        <a
+                                                            href={recobro.pdfAprobacionUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="p-1.5 bg-emerald-100 hover:bg-emerald-200 rounded-full text-emerald-600 transition-colors"
+                                                            title="Descargar carta de aprobación"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <Download size={14} />
+                                                        </a>
+                                                    )}
+                                                    <div className="text-right">
+                                                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${colores.bg} ${colores.text}`}>
+                                                            {recobro.estado}
+                                                        </span>
+                                                        <p className="text-xs text-gray-400 mt-1">
+                                                            {recobro.createdAt.toLocaleDateString('es-CO')}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )
@@ -535,16 +583,26 @@ export function RadicacionRecobrosView() {
 
                                 {/* Dropzone */}
                                 {archivos.length < 10 && (
-                                    <label className={`
-                                        flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors
-                                        ${paciente
-                                            ? 'border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-blue-300'
-                                            : 'border-gray-200 bg-gray-100 cursor-not-allowed'
-                                        }
-                                    `}>
-                                        <Upload size={32} className="text-gray-400 mb-2" />
-                                        <p className="text-sm text-gray-600 text-center">
-                                            Arrastra archivos aquí o haz clic para seleccionar
+                                    <label
+                                        className={`
+                                            flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg cursor-pointer transition-all
+                                            ${!paciente
+                                                ? 'border-gray-200 bg-gray-100 cursor-not-allowed'
+                                                : isDragging
+                                                    ? 'border-blue-500 bg-blue-50 scale-[1.02]'
+                                                    : 'border-gray-300 bg-gray-50 hover:bg-gray-100 hover:border-blue-300'
+                                            }
+                                        `}
+                                        onDragOver={handleDragOver}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={handleDrop}
+                                    >
+                                        <Upload size={32} className={`mb-2 ${isDragging ? 'text-blue-500' : 'text-gray-400'}`} />
+                                        <p className={`text-sm text-center ${isDragging ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
+                                            {isDragging
+                                                ? 'Suelta los archivos aquí'
+                                                : 'Arrastra archivos aquí o haz clic para seleccionar'
+                                            }
                                         </p>
                                         <p className="text-xs text-gray-400 mt-1">
                                             Solo archivos PDF (máx. 10)

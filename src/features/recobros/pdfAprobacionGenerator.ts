@@ -442,6 +442,21 @@ function generarHtmlCarta(options: GenerarPdfOptions): string {
 }
 
 /**
+ * Espera a que todas las imágenes del contenedor se carguen
+ */
+async function esperarImagenes(container: HTMLElement): Promise<void> {
+    const images = container.querySelectorAll('img')
+    const promises = Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve()
+        return new Promise<void>((resolve) => {
+            img.onload = () => resolve()
+            img.onerror = () => resolve() // Continuar aunque falle la imagen
+        })
+    })
+    await Promise.all(promises)
+}
+
+/**
  * Genera un PDF de aprobación para un recobro
  */
 export async function generarPdfAprobacion(
@@ -454,13 +469,25 @@ export async function generarPdfAprobacion(
     // Generar HTML
     const html = generarHtmlCarta({ recobro, aprobadoPor: nombreAprobador })
 
-    // Crear elemento temporal para renderizar
+    // Crear elemento temporal para renderizar - debe ser visible para html2canvas
     const container = document.createElement('div')
     container.innerHTML = html
-    container.style.position = 'absolute'
-    container.style.left = '-9999px'
-    container.style.top = '-9999px'
+    // Usar opacity 0 y z-index negativo en vez de position fuera de pantalla
+    container.style.position = 'fixed'
+    container.style.top = '0'
+    container.style.left = '0'
+    container.style.width = '210mm' // Ancho carta
+    container.style.backgroundColor = 'white'
+    container.style.zIndex = '-9999'
+    container.style.opacity = '0'
+    container.style.pointerEvents = 'none'
     document.body.appendChild(container)
+
+    // Esperar a que las imágenes carguen
+    await esperarImagenes(container)
+
+    // Pequeña pausa para asegurar renderizado completo
+    await new Promise(resolve => setTimeout(resolve, 100))
 
     // Configuración de html2pdf
     const options = {
@@ -472,6 +499,7 @@ export async function generarPdfAprobacion(
             useCORS: true,
             letterRendering: true,
             logging: false,
+            backgroundColor: '#ffffff',
         },
         jsPDF: {
             unit: 'mm' as const,
@@ -482,6 +510,9 @@ export async function generarPdfAprobacion(
     }
 
     try {
+        // Hacer visible temporalmente para el renderizado
+        container.style.opacity = '1'
+
         // Generar PDF como blob
         const blob = await html2pdf()
             .set(options)
