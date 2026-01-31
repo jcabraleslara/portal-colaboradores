@@ -386,7 +386,7 @@ export function GestionRadicadosView() {
                     <form onSubmit={handleBuscar} className="flex gap-4">
                         <div className="flex-1 relative">
                             <Input
-                                placeholder="Buscar por radicado, identificación o nombre..."
+                                placeholder="Buscar por radicado, identificación, nombre o ID en archivos..."
                                 value={busquedaInput}
                                 onChange={(e) => setBusquedaInput(e.target.value)}
                                 className="pl-10"

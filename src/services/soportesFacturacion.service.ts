@@ -51,6 +51,7 @@ function transformSoporte(raw: SoporteFacturacionRaw): SoporteFacturacion {
         urlsRegistroAnestesia: raw.urls_registro_anestesia || [],
         urlsHojaMedicamentos: raw.urls_hoja_medicamentos || [],
         urlsNotasEnfermeria: raw.urls_notas_enfermeria || [],
+        identificacionesArchivos: raw.identificaciones_archivos || [],
         onedriveFolderId: raw.onedrive_folder_id,
         onedriveFolderUrl: raw.onedrive_folder_url,
         onedriveSyncStatus: raw.onedrive_sync_status as SoporteFacturacion['onedriveSyncStatus'],
@@ -147,7 +148,7 @@ export function getPrefijoArchivo(eps: EpsFacturacion, servicio: ServicioPrestad
  * Ejemplo: "CC123456.pdf" -> "CC123456"
  * Ejemplo: "Soporte_TI987654321_Feb.pdf" -> "TI987654321"
  */
-function extraerIdentificacionArchivo(nombreArchivo: string): string | null {
+export function extraerIdentificacionArchivo(nombreArchivo: string): string | null {
     // Tipos de ID válidos según DB: CE, CN, SC, PE, PT, TI, CC, RC, ME, AS
     // Regex busca: (Límite de palabra o inicio)(TIPO_ID)(Dígitos)(Límite o fin no alfanumérico)
     // Se usa 'i' para case-insensitive
@@ -167,11 +168,37 @@ function extraerIdentificacionArchivo(nombreArchivo: string): string | null {
     return null
 }
 
+/**
+ * Extraer identificaciones de un array de URLs firmadas
+ * Para cada URL, decodifica el pathname y extrae la identificación del nombre del archivo
+ * @returns Array de identificaciones únicas (con tipo y solo número)
+ */
+export function extraerIdentificacionesDeUrls(urls: string[]): string[] {
+    const identificaciones = new Set<string>()
+    for (const url of urls) {
+        try {
+            const urlObj = new URL(url)
+            const pathName = decodeURIComponent(urlObj.pathname)
+            const nombreArchivo = pathName.split('/').pop() || ''
+            const id = extraerIdentificacionArchivo(nombreArchivo)
+            if (id) {
+                identificaciones.add(id)
+                // También agregar solo el número para búsqueda flexible
+                const soloNumero = id.replace(/^(CC|TI|CE|CN|SC|PE|PT|RC|ME|AS)/i, '')
+                if (soloNumero) identificaciones.add(soloNumero)
+            }
+        } catch {
+            // URL malformada, ignorar
+        }
+    }
+    return Array.from(identificaciones)
+}
+
 export const soportesFacturacionService = {
     /**
      * Subir archivos al bucket de soportes-facturacion
      * Renombrado dinámico: [PREFIJO]_900842629_[ID_PACIENTE]_[CONSECUTIVO].pdf
-     * @returns Array de URLs firmadas de los archivos subidos
+     * @returns Objeto con URLs firmadas y las identificaciones extraídas de los archivos
      */
     async subirArchivos(
         archivos: File[],
@@ -179,15 +206,16 @@ export const soportesFacturacionService = {
         radicado: string,
         eps: EpsFacturacion,
         servicio?: ServicioPrestado
-    ): Promise<string[]> {
+    ): Promise<{ urls: string[]; identificacionesExtraidas: string[] }> {
         const urls: string[] = []
+        const identificacionesSet = new Set<string>()
         // NIT fijo para renombrado
         const NIT = '900842629'
         const prefijo = getPrefijoArchivo(eps, servicio || 'Consulta Ambulatoria', categoria) // Fallback seguro de servicio
 
         for (let i = 0; i < archivos.length; i++) {
             const archivo = archivos[i]
-            // Siempre forzar extensión .pdf como buena práctica si el cliente lo prefiere, 
+            // Siempre forzar extensión .pdf como buena práctica si el cliente lo prefiere,
             // pero mantenemos la original si es imagen, aunque el renombrado sugerido es .pdf
             // El usuario no especificó conversión, así que mantenemos extensión original.
             const extension = archivo.name.split('.').pop()?.toLowerCase() || 'pdf'
@@ -202,6 +230,12 @@ export const soportesFacturacionService = {
                 // Formato: PREFIJO_NIT_IDPACIENTE.ext
                 // Sin consecutivo - el nombre es estandarizado
                 nombreFinal = `${prefijo}_${NIT}_${identificacionPaciente}.${extension}`
+
+                // Acumular identificaciones extraídas para búsqueda
+                identificacionesSet.add(identificacionPaciente)
+                // También agregar solo el número para búsqueda flexible
+                const soloNumero = identificacionPaciente.replace(/^(CC|TI|CE|CN|SC|PE|PT|RC|ME|AS)/i, '')
+                if (soloNumero) identificacionesSet.add(soloNumero)
 
             } else {
                 // ESTRATEGIA B: Fallback (No se halló ID en el nombre)
@@ -243,7 +277,10 @@ export const soportesFacturacionService = {
             }
         }
 
-        return urls
+        return {
+            urls,
+            identificacionesExtraidas: Array.from(identificacionesSet)
+        }
     },
 
     /**
@@ -284,11 +321,12 @@ export const soportesFacturacionService = {
 
             // Subir archivos por categoría
             const urlsUpdate: Record<string, string[]> = {}
+            const todasIdentificaciones = new Set<string>()
 
             for (const grupo of data.archivos) {
                 if (grupo.files.length > 0) {
                     try {
-                        const urls = await this.subirArchivos(
+                        const { urls, identificacionesExtraidas } = await this.subirArchivos(
                             grupo.files,
                             grupo.categoria,
                             radicado,
@@ -297,6 +335,11 @@ export const soportesFacturacionService = {
                         )
                         const columnName = getCategoriaColumnName(grupo.categoria)
                         urlsUpdate[columnName] = urls
+
+                        // Acumular identificaciones extraídas de todos los archivos
+                        for (const id of identificacionesExtraidas) {
+                            todasIdentificaciones.add(id)
+                        }
                     } catch (uploadError) {
                         console.error(`Error subiendo archivos de ${grupo.categoria}:`, uploadError)
                         // Continuar con otras categorías
@@ -304,7 +347,12 @@ export const soportesFacturacionService = {
                 }
             }
 
-            // Actualizar registro con URLs de archivos
+            // Agregar identificaciones_archivos al update si hay identificaciones extraídas
+            if (todasIdentificaciones.size > 0) {
+                urlsUpdate['identificaciones_archivos'] = Array.from(todasIdentificaciones)
+            }
+
+            // Actualizar registro con URLs de archivos e identificaciones
             if (Object.keys(urlsUpdate).length > 0) {
                 const { error: updateError } = await supabase
                     .from('soportes_facturacion')
@@ -536,10 +584,20 @@ export const soportesFacturacionService = {
                 query = query.lte('fecha_atencion', filtros.fechaAtencionFin + 'T23:59:59')
             }
 
-            // Búsqueda por radicado o identificación
+            // Búsqueda por radicado, identificación, nombre o ID en archivos
             if (filtros.busqueda && filtros.busqueda.trim()) {
                 const termino = filtros.busqueda.trim()
-                query = query.or(`radicado.ilike.%${termino}%,identificacion.ilike.%${termino}%,nombres_completos.ilike.%${termino}%`)
+                const terminoUpper = termino.toUpperCase()
+
+                // Búsqueda en campos tradicionales + nuevo campo de archivos
+                // cs (contains) busca si el array contiene el elemento exacto
+                query = query.or(
+                    `radicado.ilike.%${termino}%,` +
+                    `identificacion.ilike.%${termino}%,` +
+                    `nombres_completos.ilike.%${termino}%,` +
+                    `identificaciones_archivos.cs.{${terminoUpper}},` +
+                    `identificaciones_archivos.cs.{${termino}}`
+                )
             }
 
             // Ordenamiento

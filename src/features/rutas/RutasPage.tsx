@@ -132,10 +132,21 @@ export default function RutasPage() {
         handleCerrarDetalle()
     }
 
-    const handleGuardarYSiguiente = async () => {
-        await cargarCasos(paginaActual)
-        await cargarConteos()
+    const handleGuardarYSiguiente = async (datosActualizados?: Partial<BackRadicacionExtendido>) => {
+        // 1. Actualización optimista local
+        if (datosActualizados && casoSeleccionado) {
+            setCasos(prevCasos => prevCasos.map(c =>
+                c.radicado === casoSeleccionado.radicado
+                    ? { ...c, ...datosActualizados }
+                    : c
+            ))
+        }
 
+        // 2. Fire & forget updates
+        cargarCasos(paginaActual).catch(console.error)
+        cargarConteos().catch(console.error)
+
+        // 3. Next case
         const nuevoIndice = indiceSeleccionado + 1
         if (nuevoIndice < casos.length) {
             setCasoSeleccionado(casos[nuevoIndice])

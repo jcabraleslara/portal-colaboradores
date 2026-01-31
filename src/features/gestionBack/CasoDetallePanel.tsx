@@ -68,7 +68,7 @@ interface CasoDetallePanelProps {
     caso: BackRadicacionExtendido
     onClose: () => void
     onGuardarYCerrar: () => void
-    onGuardarYSiguiente: () => void
+    onGuardarYSiguiente: (datosActualizados?: Partial<BackRadicacionExtendido>) => void
     onCasoEliminado: () => void
     haySiguiente: boolean
     onAnterior: () => void
@@ -417,7 +417,14 @@ export function CasoDetallePanel({
                 if (cerrar) {
                     onGuardarYCerrar()
                 } else {
-                    onGuardarYSiguiente()
+                    onGuardarYSiguiente({
+                        direccionamiento: direccionamiento || null,
+                        respuestaBack: respuestaBack || null,
+                        estadoRadicado: estadoRadicado,
+                        tipoSolicitud: tipoSolicitud as any, // Cast necesario si el tipo difiere
+                        ruta: rutaSeleccionada,
+                        usuarioRespuesta: user?.nombreCompleto || 'Usuario del Sistema'
+                    })
                 }
             }, 300)
         } else {

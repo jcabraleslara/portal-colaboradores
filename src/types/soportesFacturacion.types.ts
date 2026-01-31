@@ -87,6 +87,9 @@ export interface SoporteFacturacion {
     urlsHojaMedicamentos: string[]
     urlsNotasEnfermeria: string[]
 
+    // Identificaciones extraídas de archivos
+    identificacionesArchivos: string[]
+
     // OneDrive
     onedriveFolderId: string | null
     onedriveFolderUrl: string | null
@@ -124,6 +127,7 @@ export interface SoporteFacturacionRaw {
     urls_registro_anestesia: string[]
     urls_hoja_medicamentos: string[]
     urls_notas_enfermeria: string[]
+    identificaciones_archivos: string[]
     onedrive_folder_id: string | null
     onedrive_folder_url: string | null
     onedrive_sync_status: string

@@ -258,20 +258,30 @@ export function GestionBackPage() {
         await cargarConteos()
     }, [handleCerrarDetalle, cargarCasos, paginaActual, cargarConteos])
 
-    const handleGuardarYSiguiente = useCallback(async () => {
-        await cargarCasos(paginaActual)
-        await cargarConteos()
+    const handleGuardarYSiguiente = useCallback(async (datosActualizados?: Partial<BackRadicacionExtendido>) => {
+        // 1. Actualización optimista local (si recibimos datos)
+        if (datosActualizados && casoSeleccionado) {
+            setCasos(prevCasos => prevCasos.map(c =>
+                c.radicado === casoSeleccionado.radicado
+                    ? { ...c, ...datosActualizados }
+                    : c
+            ))
+        }
 
-        // Ir al siguiente caso
+        // 2. Refetch en segundo plano (Fire & Forget)
+        // No esperamos a que terminen para avanzar
+        cargarCasos(paginaActual).catch(console.error)
+        cargarConteos().catch(console.error)
+
+        // 3. Transición inmediata
         const nuevoIndice = indiceSeleccionado + 1
         if (nuevoIndice < casos.length) {
             setCasoSeleccionado(casos[nuevoIndice])
             setIndiceSeleccionado(nuevoIndice)
         } else {
-            // Si no hay más casos en esta página, cerrar
             handleCerrarDetalle()
         }
-    }, [cargarCasos, cargarConteos, paginaActual, indiceSeleccionado, casos, handleCerrarDetalle])
+    }, [cargarCasos, cargarConteos, paginaActual, indiceSeleccionado, casos, casoSeleccionado, handleCerrarDetalle])
 
     const handleNavegarAnterior = useCallback(() => {
         const nuevoIndice = indiceSeleccionado - 1
