@@ -164,7 +164,7 @@ export function RutasConfig() {
                                             <Input
                                                 value={tempConfig.destinatarios || ''}
                                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempConfig({ ...tempConfig, destinatarios: e.target.value })}
-                                                placeholder="correo@ejemplo.com"
+                                                placeholder="correo1@ejemplo.com, correo2@ejemplo.com"
                                                 className="h-8 text-sm"
                                             />
                                         </td>
@@ -172,7 +172,7 @@ export function RutasConfig() {
                                             <Input
                                                 value={tempConfig.copias || ''}
                                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempConfig({ ...tempConfig, copias: e.target.value })}
-                                                placeholder="copia@ejemplo.com"
+                                                placeholder="copia1@ejemplo.com, copia2@ejemplo.com"
                                                 className="h-8 text-sm"
                                             />
                                         </td>
