@@ -1045,6 +1045,9 @@ export function CasoDetallePanel({
                                 {ESTADOS_RADICADO_LISTA.filter(e => {
                                     if (e === 'Todos') return false
                                     // Validación VISUAL de estados según requerimiento
+                                    // 'No contactable' solo visible para Rutas
+                                    if (e === 'No contactable' && tipoSolicitud !== 'Activación de Ruta') return false
+
                                     if (tipoSolicitud === 'Auditoría Médica') {
                                         // Si es Auditoría, NO mostrar 'Gestionado'
                                         if (e === 'Gestionado') return false
