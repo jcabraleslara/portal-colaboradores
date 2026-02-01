@@ -28,7 +28,12 @@ export function RutasStats({
 }: RutasStatsProps) {
 
     // Estados que queremos destacar en los contadores superiores
-    const ESTADOS_DESTACADOS = ESTADOS_RADICADO_LISTA.filter(e => e !== 'Todos') as EstadoRadicado[]
+    const ESTADOS_DESTACADOS = ESTADOS_RADICADO_LISTA.filter(e =>
+        e !== 'Todos' &&
+        e !== 'Autorizado' &&
+        e !== 'Rechazado' &&
+        e !== 'Contrarreferido'
+    ) as EstadoRadicado[]
 
     return (
         <div className="space-y-6">

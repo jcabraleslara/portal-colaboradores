@@ -107,7 +107,7 @@ Deno.serve(async (req) => {
     }
 
     try {
-        const { dryRun = true, limit } = await req.json()
+        const { dryRun = true, limit, batchSize = 500 } = await req.json()
 
         // Crear cliente Supabase con service role para acceso total
         const supabase = createClient(
@@ -115,96 +115,105 @@ Deno.serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
         )
 
-        // Construir query para obtener radicados
-        let query = supabase
-            .from('soportes_facturacion')
-            .select('radicado, ' + CATEGORIAS_URLS.join(', '))
-            .order('created_at', { ascending: false })
-
-        if (limit && typeof limit === 'number' && limit > 0) {
-            query = query.limit(limit)
-        }
-
-        const { data: radicados, error: fetchError } = await query
-
-        if (fetchError) {
-            console.error('Error obteniendo radicados:', fetchError)
-            return new Response(
-                JSON.stringify({ error: 'Error consultando radicados' }),
-                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            )
-        }
-
-        if (!radicados || radicados.length === 0) {
-            return new Response(
-                JSON.stringify({
-                    success: true,
-                    message: 'No hay radicados para procesar',
-                    stats: { total: 0, procesados: 0, conIdentificaciones: 0 }
-                }),
-                { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            )
-        }
-
         const resultados: {
             radicado: string
             identificaciones: string[]
             actualizado: boolean
         }[] = []
 
-        let procesados = 0
-        let conIdentificaciones = 0
-        let errores = 0
+        let totalProcesados = 0
+        let totalConIdentificaciones = 0
+        let totalErrores = 0
+        let totalRegistros = 0
+        let offset = 0
+        let hayMas = true
 
-        for (const row of radicados) {
-            const registro = row as SoporteRecord
-            try {
-                const todasUrls: string[] = []
+        // Procesar en lotes para evitar límite de 1000 filas
+        while (hayMas) {
+            // Construir query para obtener radicados en lotes
+            let query = supabase
+                .from('soportes_facturacion')
+                .select('radicado, ' + CATEGORIAS_URLS.join(', '))
+                .order('created_at', { ascending: true })
+                .range(offset, offset + batchSize - 1)
 
-                // Recopilar URLs de todas las categorías
-                for (const categoria of CATEGORIAS_URLS) {
-                    const urls = registro[categoria]
-                    if (urls && Array.isArray(urls)) {
-                        todasUrls.push(...urls)
-                    }
-                }
+            const { data: radicados, error: fetchError } = await query
 
-                // Extraer identificaciones de todas las URLs
-                const identificaciones = extraerIdentificacionesDeUrls(todasUrls)
+            if (fetchError) {
+                console.error('Error obteniendo radicados:', fetchError)
+                return new Response(
+                    JSON.stringify({ error: 'Error consultando radicados', offset }),
+                    { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                )
+            }
 
-                if (identificaciones.length > 0) {
-                    conIdentificaciones++
+            if (!radicados || radicados.length === 0) {
+                hayMas = false
+                break
+            }
 
-                    if (!dryRun) {
-                        // Actualizar en BD
-                        const { error: updateError } = await supabase
-                            .from('soportes_facturacion')
-                            .update({ identificaciones_archivos: identificaciones })
-                            .eq('radicado', registro.radicado)
+            totalRegistros += radicados.length
 
-                        if (updateError) {
-                            console.error(`Error actualizando ${registro.radicado}:`, updateError)
-                            errores++
-                            resultados.push({
-                                radicado: registro.radicado,
-                                identificaciones,
-                                actualizado: false
-                            })
-                            continue
+            for (const row of radicados) {
+                const registro = row as SoporteRecord
+                try {
+                    const todasUrls: string[] = []
+
+                    // Recopilar URLs de todas las categorías
+                    for (const categoria of CATEGORIAS_URLS) {
+                        const urls = registro[categoria]
+                        if (urls && Array.isArray(urls)) {
+                            todasUrls.push(...urls)
                         }
                     }
 
-                    resultados.push({
-                        radicado: registro.radicado,
-                        identificaciones,
-                        actualizado: !dryRun
-                    })
-                }
+                    // Extraer identificaciones de todas las URLs
+                    const identificaciones = extraerIdentificacionesDeUrls(todasUrls)
 
-                procesados++
-            } catch (err) {
-                console.error(`Error procesando ${registro.radicado}:`, err)
-                errores++
+                    if (identificaciones.length > 0) {
+                        totalConIdentificaciones++
+
+                        if (!dryRun) {
+                            // Actualizar en BD
+                            const { error: updateError } = await supabase
+                                .from('soportes_facturacion')
+                                .update({ identificaciones_archivos: identificaciones })
+                                .eq('radicado', registro.radicado)
+
+                            if (updateError) {
+                                console.error(`Error actualizando ${registro.radicado}:`, updateError)
+                                totalErrores++
+                                continue
+                            }
+                        }
+
+                        // Solo guardar primeros 50 resultados para la respuesta
+                        if (resultados.length < 50) {
+                            resultados.push({
+                                radicado: registro.radicado,
+                                identificaciones,
+                                actualizado: !dryRun
+                            })
+                        }
+                    }
+
+                    totalProcesados++
+                } catch (err) {
+                    console.error(`Error procesando ${registro.radicado}:`, err)
+                    totalErrores++
+                }
+            }
+
+            // Si recibimos menos registros que el batch, ya no hay más
+            if (radicados.length < batchSize) {
+                hayMas = false
+            } else {
+                offset += batchSize
+            }
+
+            // Si hay límite y ya procesamos suficientes, parar
+            if (limit && typeof limit === 'number' && totalRegistros >= limit) {
+                hayMas = false
             }
         }
 
@@ -213,17 +222,16 @@ Deno.serve(async (req) => {
                 success: true,
                 dryRun,
                 message: dryRun
-                    ? `Simulación completada. ${conIdentificaciones} radicados tienen identificaciones en archivos.`
-                    : `Poblado completado. ${conIdentificaciones} radicados actualizados.`,
+                    ? `Simulación completada. ${totalConIdentificaciones} radicados tienen identificaciones en archivos.`
+                    : `Poblado completado. ${totalConIdentificaciones} radicados actualizados.`,
                 stats: {
-                    total: radicados.length,
-                    procesados,
-                    conIdentificaciones,
-                    errores
+                    total: totalRegistros,
+                    procesados: totalProcesados,
+                    conIdentificaciones: totalConIdentificaciones,
+                    errores: totalErrores
                 },
-                // Solo incluir detalles en modo dryRun o si hay pocos resultados
-                resultados: dryRun || resultados.length <= 50 ? resultados : resultados.slice(0, 50),
-                truncated: !dryRun && resultados.length > 50
+                resultados,
+                truncated: totalConIdentificaciones > 50
             }),
             { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )

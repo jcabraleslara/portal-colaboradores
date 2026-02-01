@@ -1049,10 +1049,8 @@ export function CasoDetallePanel({
                                         // Si es Auditoría, NO mostrar 'Gestionado'
                                         if (e === 'Gestionado') return false
                                     } else if (tipoSolicitud === 'Activación de Ruta') {
-                                        // Si es Rutas, NO mostrar 'Rechazado' ni 'Enrutado'
-                                        if (e === 'Rechazado' || e === 'Enrutado') return false
-                                        // Rutas tampoco usa "Autorizado"
-                                        if (e === 'Autorizado') return false
+                                        // Si es Rutas, NO mostrar 'Rechazado', 'Enrutado', 'Autorizado' ni 'Contrarreferido'
+                                        if (['Rechazado', 'Enrutado', 'Autorizado', 'Contrarreferido'].includes(e)) return false
                                     } else {
                                         // Casos generales (no Auditoría)
                                         if (e === 'Autorizado') return false

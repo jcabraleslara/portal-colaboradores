@@ -99,7 +99,11 @@ export function RutasFilters({
                                 onChange={(e) => onFiltroChange('estadoRadicado', e.target.value as EstadoRadicado | 'Todos')}
                                 className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)]"
                             >
-                                {ESTADOS_RADICADO_LISTA.map(estado => (
+                                {ESTADOS_RADICADO_LISTA.filter(e =>
+                                    e !== 'Autorizado' &&
+                                    e !== 'Rechazado' &&
+                                    e !== 'Contrarreferido'
+                                ).map(estado => (
                                     <option key={estado} value={estado}>{estado}</option>
                                 ))}
                             </select>

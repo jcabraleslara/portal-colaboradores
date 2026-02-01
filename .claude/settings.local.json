@@ -31,7 +31,12 @@
       "Bash(Select-Object -ExpandProperty Count \")",
       "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:/OneDrive - GESTARSALUD DE COLOMBIA IPS SAS/Repositorios/Apps/Portal Colaboradores/scripts/preview-rename.ps1\")",
       "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:/OneDrive - GESTARSALUD DE COLOMBIA IPS SAS/Repositorios/Apps/Portal Colaboradores/scripts/execute-rename.ps1\")",
-      "Bash(npx @anthropic-ai/claude-code:*)"
+      "Bash(npx @anthropic-ai/claude-code:*)",
+      "Bash(git status:*)",
+      "Bash(git check-ignore:*)",
+      "Bash(dir:*)",
+      "Bash(supabase functions invoke:*)",
+      "Bash(supabase functions deploy:*)"
     ]
   }
 }
