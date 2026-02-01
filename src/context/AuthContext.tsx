@@ -22,12 +22,11 @@ const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000 // 24 horas de validez del caché
 const GLOBAL_TIMEOUT_MS = 15000 // 15 segundos para consultas (conexiones lentas)
 const FAILSAFE_TIMEOUT_MS = 30000 // 30 segundos timeout de seguridad
 
-// Habilitar logs detallados solo en desarrollo
-const DEBUG_AUTH = import.meta.env.DEV && import.meta.env.VITE_DEBUG_AUTH === 'true'
+// Logs siempre activos para diagnóstico (prefijo para filtrar fácilmente)
 const log = {
-    info: (...args: unknown[]) => DEBUG_AUTH && console.info(...args),
-    warn: (...args: unknown[]) => console.warn(...args),
-    error: (...args: unknown[]) => console.error(...args),
+    info: (...args: unknown[]) => console.info('[Auth]', ...args),
+    warn: (...args: unknown[]) => console.warn('[Auth]', ...args),
+    error: (...args: unknown[]) => console.error('[Auth]', ...args),
 }
 
 // ========================================
@@ -130,8 +129,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // LIMPIEZA DE SESIÓN CORRUPTA
     // ========================================
 
-    const forceCleanSession = useCallback(async () => {
-        log.info('Forzando limpieza de sesión...')
+    const forceCleanSession = useCallback(async (reason: string = 'desconocido') => {
+        log.warn(`FORZANDO LIMPIEZA DE SESIÓN - Razón: ${reason}`)
+        log.warn('Stack trace:', new Error().stack)
         clearProfileCache()
         try {
             await supabase.auth.signOut({ scope: 'local' })
@@ -276,6 +276,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         // Timeout de seguridad: Solo actúa si NO hay caché disponible
         const safetyTimeout = setTimeout(() => {
             if (mounted && isLoading) {
+                log.warn(`SAFETY TIMEOUT activado después de ${FAILSAFE_TIMEOUT_MS}ms - isLoading aún true`)
                 const fallbackProfile = getCachedProfile()
                 if (fallbackProfile) {
                     log.info('Timeout alcanzado - usando caché de respaldo')
@@ -284,8 +285,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     initializationComplete.current = true
                     processingAuth.current = false
                 } else {
-                    log.warn('Timeout de seguridad - sin caché disponible, redirigiendo a login')
-                    forceCleanSession()
+                    forceCleanSession('SAFETY_TIMEOUT sin caché')
                 }
             }
         }, FAILSAFE_TIMEOUT_MS)
@@ -372,8 +372,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     initializationComplete.current = true
                 }
             } catch (error) {
-                log.error('Error en handleAuthSession:', error instanceof Error ? error.message : error)
-                await forceCleanSession()
+                const errorMsg = error instanceof Error ? error.message : String(error)
+                log.error('Error en handleAuthSession:', errorMsg)
+                await forceCleanSession(`ERROR en handleAuthSession: ${errorMsg}`)
             } finally {
                 processingAuth.current = false
             }
@@ -404,7 +405,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         break
 
                     case 'SIGNED_OUT':
-                        log.info('Usuario desconectado')
+                        log.warn('SIGNED_OUT recibido de Supabase - cerrando sesión')
+                        log.warn('Stack trace:', new Error().stack)
                         clearProfileCache()
                         setUser(null)
                         userRef.current = null

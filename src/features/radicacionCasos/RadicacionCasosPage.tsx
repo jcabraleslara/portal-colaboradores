@@ -50,7 +50,6 @@ import {
     REGIMEN_LISTA,
     TIPO_COTIZANTE_LISTA,
     MUNICIPIOS_CORDOBA,
-    IPS_PRIMARIA_LISTA,
     EPS_LISTA,
 } from '@/types/back.types'
 import { RutaSelectionGrid } from './components/RutaSelectionGrid'
@@ -70,7 +69,6 @@ interface NuevoAfiliadoForm {
     municipioNombre: string
     departamento: string
     regimen: string
-    ipsPrimaria: string
     tipoCotizante: string
     eps: string
 }
@@ -101,7 +99,6 @@ export function RadicacionCasosPage() {
         municipioNombre: '',
         departamento: '23', // Córdoba por defecto
         regimen: '',
-        ipsPrimaria: '',
         tipoCotizante: '',
         eps: 'NUEVA EPS',
     })
@@ -198,6 +195,8 @@ export function RadicacionCasosPage() {
         }
     }, [location.state])
 
+
+
     // Cargar historial cuando hay afiliado
     useEffect(() => {
         if (afiliado?.id) {
@@ -269,7 +268,6 @@ export function RadicacionCasosPage() {
             municipio: nuevoAfiliado.municipioCodigo || undefined,
             departamento: nuevoAfiliado.departamento || undefined,
             regimen: nuevoAfiliado.regimen || undefined,
-            ipsPrimaria: nuevoAfiliado.ipsPrimaria || undefined,
             tipoCotizante: nuevoAfiliado.tipoCotizante || undefined,
             eps: nuevoAfiliado.eps || undefined,
         })
@@ -292,7 +290,7 @@ export function RadicacionCasosPage() {
                 municipio: nuevoAfiliado.municipioCodigo || null,
                 departamento: nuevoAfiliado.departamento || null,
                 observaciones: null,
-                ipsPrimaria: nuevoAfiliado.ipsPrimaria || null,
+                ipsPrimaria: null,
                 tipoCotizante: nuevoAfiliado.tipoCotizante || null,
                 rango: null,
                 email: null,
@@ -735,19 +733,7 @@ export function RadicacionCasosPage() {
                                         </select>
                                     </div>
 
-                                    {/* IPS Primaria - Autocomplete */}
-                                    <div className="md:col-span-2">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            IPS Primaria
-                                        </label>
-                                        <Autocomplete
-                                            value={nuevoAfiliado.ipsPrimaria}
-                                            onChange={(val: string) => setNuevoAfiliado(prev => ({ ...prev, ipsPrimaria: val }))}
-                                            options={IPS_PRIMARIA_LISTA}
-                                            placeholder="Buscar IPS..."
-                                            allowFreeText={true}
-                                        />
-                                    </div>
+
                                 </div>
 
                                 {searchError && (
@@ -982,6 +968,8 @@ export function RadicacionCasosPage() {
                                         </div>
                                     )}
                                 </div>
+
+
 
                                 {/* Selector de Ruta (solo para Activación de Ruta) */}
                                 {tipoSolicitud === 'Activación de Ruta' && (

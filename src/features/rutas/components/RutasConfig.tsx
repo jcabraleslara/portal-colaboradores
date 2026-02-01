@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash, Save, X, Mail, Copy, Building2 } from 'lucide-react'
-import { Button, Card, Input } from '@/components/common'
+import { Plus, Trash, Save, X, Mail, Copy, Building2, MapPin } from 'lucide-react'
+import { Button, Card, Input, MultiSelector } from '@/components/common'
 import { rutasService, RutaEmailConfig, EPS_DISPONIBLES } from '../services/rutas.service'
 import { RUTAS_CONFIG } from '@/types/back.types'
 import { toast } from 'sonner'
@@ -10,25 +10,40 @@ export function RutasConfig() {
     const [loading, setLoading] = useState(true)
     const [editingId, setEditingId] = useState<string | null>(null)
     const [tempConfig, setTempConfig] = useState<Partial<RutaEmailConfig>>({})
+    const [ipsOptions, setIpsOptions] = useState<string[]>([])
 
     // Lista plana de rutas del sistema
     const rutasSistema = RUTAS_CONFIG.map(r => r.ruta)
 
-    const cargarConfigs = async () => {
+    const cargarDatos = async () => {
         setLoading(true)
-        const result = await rutasService.obtenerConfigEmails()
-        if (result.success && result.data) {
-            setConfigs(result.data)
+        try {
+            const [configsResult, ipsResult] = await Promise.all([
+                rutasService.obtenerConfigEmails(),
+                rutasService.obtenerIps()
+            ])
+
+            if (configsResult.success && configsResult.data) {
+                setConfigs(configsResult.data)
+            }
+
+            if (ipsResult.success && ipsResult.data) {
+                setIpsOptions(ipsResult.data)
+            }
+        } catch (error) {
+            toast.error('Error cargando datos')
+            console.error(error)
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }
 
     useEffect(() => {
-        cargarConfigs()
+        cargarDatos()
     }, [])
 
     const handleNuevo = () => {
-        setTempConfig({ estado: true, ruta: rutasSistema[0], eps: 'TODAS' })
+        setTempConfig({ estado: true, ruta: rutasSistema[0], eps: 'TODAS', ips_primaria: [] })
         setEditingId('new')
     }
 
@@ -57,7 +72,7 @@ export function RutasConfig() {
                 toast.success('Configuración guardada')
                 setEditingId(null)
                 setTempConfig({})
-                cargarConfigs()
+                cargarDatos()
             } else {
                 toast.error('Error al guardar: ' + result.error)
             }
@@ -72,7 +87,7 @@ export function RutasConfig() {
         const result = await rutasService.eliminarConfigEmail(id)
         if (result.success) {
             toast.success('Configuración eliminada')
-            cargarConfigs()
+            cargarDatos()
         } else {
             toast.error('Error al eliminar')
         }
@@ -101,6 +116,7 @@ export function RutasConfig() {
                                 <tr className="border-b border-gray-100 text-left">
                                     <th className="px-3 py-2 font-semibold text-gray-600 text-sm">Ruta</th>
                                     <th className="px-3 py-2 font-semibold text-gray-600 text-sm">EPS</th>
+                                    <th className="px-3 py-2 font-semibold text-gray-600 text-sm w-[200px]">IPS Primaria</th>
                                     <th className="px-3 py-2 font-semibold text-gray-600 text-sm">Destinatarios</th>
                                     <th className="px-3 py-2 font-semibold text-gray-600 text-sm">Copias (CC)</th>
                                     <th className="px-3 py-2 font-semibold text-gray-600 text-sm">Estado</th>
@@ -111,7 +127,7 @@ export function RutasConfig() {
                                 {/* Fila de Edición (Nueva o Existente) */}
                                 {editingId !== null && (
                                     <tr className="bg-blue-50">
-                                        <td className="px-3 py-2">
+                                        <td className="px-3 py-2 align-top">
                                             <select
                                                 className="w-full p-1.5 border rounded text-sm"
                                                 value={tempConfig.ruta || ''}
@@ -122,7 +138,7 @@ export function RutasConfig() {
                                                 ))}
                                             </select>
                                         </td>
-                                        <td className="px-3 py-2">
+                                        <td className="px-3 py-2 align-top">
                                             <select
                                                 className="w-full p-1.5 border rounded text-sm"
                                                 value={tempConfig.eps || 'TODAS'}
@@ -133,7 +149,18 @@ export function RutasConfig() {
                                                 ))}
                                             </select>
                                         </td>
-                                        <td className="px-3 py-2">
+                                        <td className="px-3 py-2 align-top">
+                                            <div className="min-w-[200px]">
+                                                <MultiSelector
+                                                    value={tempConfig.ips_primaria || []}
+                                                    onChange={val => setTempConfig({ ...tempConfig, ips_primaria: val })}
+                                                    options={ipsOptions}
+                                                    placeholder="Todas las IPS"
+                                                />
+                                                <p className="text-[10px] text-gray-500 mt-1">Dejar vacío para todas</p>
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-2 align-top">
                                             <Input
                                                 value={tempConfig.destinatarios || ''}
                                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempConfig({ ...tempConfig, destinatarios: e.target.value })}
@@ -141,7 +168,7 @@ export function RutasConfig() {
                                                 className="h-8 text-sm"
                                             />
                                         </td>
-                                        <td className="px-3 py-2">
+                                        <td className="px-3 py-2 align-top">
                                             <Input
                                                 value={tempConfig.copias || ''}
                                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempConfig({ ...tempConfig, copias: e.target.value })}
@@ -149,8 +176,8 @@ export function RutasConfig() {
                                                 className="h-8 text-sm"
                                             />
                                         </td>
-                                        <td className="px-3 py-2">
-                                            <label className="flex items-center gap-2 text-sm">
+                                        <td className="px-3 py-2 align-top">
+                                            <label className="flex items-center gap-2 text-sm mt-1">
                                                 <input
                                                     type="checkbox"
                                                     checked={tempConfig.estado}
@@ -159,7 +186,7 @@ export function RutasConfig() {
                                                 Activo
                                             </label>
                                         </td>
-                                        <td className="px-3 py-2 flex gap-1">
+                                        <td className="px-3 py-2 flex gap-1 align-top">
                                             <Button size="sm" variant="ghost" onClick={handleGuardar} className="text-green-600 p-1">
                                                 <Save size={16} />
                                             </Button>
@@ -178,12 +205,28 @@ export function RutasConfig() {
                                         <tr key={config.id} className="hover:bg-gray-50">
                                             <td className="px-3 py-3 text-sm">{config.ruta}</td>
                                             <td className="px-3 py-3 text-sm">
-                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs ${
-                                                    config.eps === 'TODAS' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-                                                }`}>
+                                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs ${config.eps === 'TODAS' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                                                    }`}>
                                                     <Building2 size={12} />
                                                     {config.eps}
                                                 </span>
+                                            </td>
+                                            <td className="px-3 py-3 text-sm">
+                                                {config.ips_primaria && config.ips_primaria.length > 0 ? (
+                                                    <div className="flex items-start gap-1 max-w-[200px]">
+                                                        <MapPin size={14} className="text-gray-400 mt-1 flex-shrink-0" />
+                                                        <span className="text-xs text-gray-600 whitespace-normal block">
+                                                            {config.ips_primaria.slice(0, 3).join(', ')}
+                                                            {config.ips_primaria.length > 3 && (
+                                                                <span className="text-gray-400 ml-1">
+                                                                    +{config.ips_primaria.length - 3} más
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400 text-xs italic">Todas</span>
+                                                )}
                                             </td>
                                             <td className="px-3 py-3 text-sm">
                                                 <div className="flex items-center gap-2">

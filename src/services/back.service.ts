@@ -705,6 +705,23 @@ export const backService = {
             return url
         }
     },
+
+    /**
+     * Obtener lista de IPS desde la tabla red
+     */
+    async obtenerIps(): Promise<string[]> {
+        const { data, error } = await supabase
+            .from('red')
+            .select('nombre_ips')
+            .order('nombre_ips', { ascending: true })
+
+        if (error) {
+            console.error('Error obteniendo IPS:', error)
+            return []
+        }
+
+        return (data || []).map((item: { nombre_ips: string }) => item.nombre_ips)
+    },
 }
 
 export default backService
