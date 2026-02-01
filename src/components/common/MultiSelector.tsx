@@ -77,9 +77,17 @@ export function MultiSelector({
             }
         }
 
-        const handleScroll = () => {
-            // Opcional: Cerrar al hacer scroll para evitar desalineación simple
-            // O recalcular posición. Por simplicidad, cerramos.
+        const handleScroll = (event: Event) => {
+            // Verificar si el scroll ocurre dentro del dropdown
+            const target = event.target as HTMLElement
+            const isScrollInDropdown = dropdownRef.current?.contains(target) || target === dropdownRef.current
+
+            // Si es un scroll dentro del dropdown, no cerrar
+            if (isScrollInDropdown) {
+                return
+            }
+
+            // Si es un scroll fuera (ej: la página principal), cerramos para evitar desalineación
             setOpen(false)
         }
 
