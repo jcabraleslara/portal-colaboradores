@@ -42,7 +42,7 @@ import {
     CheckCircle,
     Hourglass,
     PhoneOff,
-    Ban,
+
     ExternalLink as LinkIcon,
     Image as ImageIcon
 } from 'lucide-react'
@@ -103,7 +103,7 @@ const ESTADO_ICONOS: Record<string, any> = {
     'Autorizado': Check,
     'Enrutado': LinkIcon,
     'En espera': Hourglass,
-    'Rechazado': Ban,
+
     'No contactable': PhoneOff,
 }
 

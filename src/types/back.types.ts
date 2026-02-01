@@ -21,7 +21,6 @@ export type EstadoRadicado =
     | 'Autorizado'       // Verde
     | 'Enrutado'         // Azul
     | 'En espera'        // Naranja
-    | 'Rechazado'        // Rojo oscuro
     | 'No contactable'   // Gris oscuro
 
 // Opciones de direccionamiento
@@ -146,7 +145,6 @@ export const ESTADO_COLORES: Record<EstadoRadicado, { bg: string; text: string; 
     'Autorizado': { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300' },
     'Enrutado': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
     'En espera': { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
-    'Rechazado': { bg: 'bg-rose-100', text: 'text-rose-800', border: 'border-rose-300' },
     'No contactable': { bg: 'bg-gray-200', text: 'text-gray-800', border: 'border-gray-400' },
 }
 
@@ -451,7 +449,6 @@ export const ESTADOS_RADICADO_LISTA: (EstadoRadicado | 'Todos')[] = [
     'Autorizado',
     'Enrutado',
     'En espera',
-    'Rechazado',
     'No contactable',
     'Todos',
 ]

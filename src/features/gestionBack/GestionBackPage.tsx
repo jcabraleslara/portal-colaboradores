@@ -70,7 +70,7 @@ const ESPECIALIDAD_ICONOS: Record<string, React.ComponentType<{ size?: number; c
     'Reumatología': Accessibility,
 }
 
-const ITEMS_POR_PAGINA = 30
+const ITEMS_POR_PAGINA = 10
 
 export function GestionBackPage() {
     // ============================================
