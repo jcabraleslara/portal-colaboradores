@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Plus, Trash, Save, X, Mail, Copy, Building2, MapPin } from 'lucide-react'
-import { Button, Card, Input, MultiSelector } from '@/components/common'
+import { Button, Card, MultiSelector } from '@/components/common'
 import { rutasService, RutaEmailConfig, EPS_DISPONIBLES } from '../services/rutas.service'
 import { RUTAS_CONFIG } from '@/types/back.types'
 import { toast } from 'sonner'
@@ -160,20 +160,21 @@ export function RutasConfig() {
                                                 <p className="text-[10px] text-gray-500 mt-1">Dejar vacío para todas</p>
                                             </div>
                                         </td>
+
                                         <td className="px-3 py-2 align-top">
-                                            <Input
+                                            <textarea
                                                 value={tempConfig.destinatarios || ''}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempConfig({ ...tempConfig, destinatarios: e.target.value })}
+                                                onChange={(e) => setTempConfig({ ...tempConfig, destinatarios: e.target.value })}
                                                 placeholder="correo1@ejemplo.com, correo2@ejemplo.com"
-                                                className="h-8 text-sm"
+                                                className="w-full p-2 border rounded text-sm min-h-[80px] resize-y focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-[var(--color-primary)]"
                                             />
                                         </td>
                                         <td className="px-3 py-2 align-top">
-                                            <Input
+                                            <textarea
                                                 value={tempConfig.copias || ''}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempConfig({ ...tempConfig, copias: e.target.value })}
+                                                onChange={(e) => setTempConfig({ ...tempConfig, copias: e.target.value })}
                                                 placeholder="copia1@ejemplo.com, copia2@ejemplo.com"
-                                                className="h-8 text-sm"
+                                                className="w-full p-2 border rounded text-sm min-h-[80px] resize-y focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-[var(--color-primary)]"
                                             />
                                         </td>
                                         <td className="px-3 py-2 align-top">
