@@ -40,7 +40,8 @@
       "Bash(supabase functions list:*)",
       "Bash(supabase secrets set:*)",
       "Bash(supabase secrets list:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git -C \"C:\\\\OneDrive - GESTARSALUD DE COLOMBIA IPS SAS\\\\Repositorios\\\\Apps\\\\Portal Colaboradores\" log --oneline)"
     ]
   }
 }

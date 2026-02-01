@@ -3,12 +3,12 @@
  * Portal de Colaboradores GESTAR SALUD IPS
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { RutasStats } from './components/RutasStats'
 import { RutasFilters } from './components/RutasFilters'
 import { RutasTable } from './components/RutasTable'
 import { rutasService } from './services/rutas.service'
-import { BackRadicacionExtendido, EstadoRadicado } from '@/types/back.types'
+import { BackRadicacionExtendido, EstadoRadicado, BackRadicacionRaw } from '@/types/back.types'
 import { CasoDetallePanel } from '@/features/gestionBack/CasoDetallePanel' // Reutilizamos panel de detalle
 import { RutasConfig } from './components/RutasConfig'
 import { Settings, LayoutGrid } from 'lucide-react'
@@ -21,7 +21,10 @@ export default function RutasPage() {
 
     // Datos
     const [casos, setCasos] = useState<BackRadicacionExtendido[]>([])
-    const [conteos, setConteos] = useState<{ porEstado: Record<string, number>, porRuta: Record<string, number> } | null>(null)
+    // Optimización: Base de datos para estadísticas en memoria
+    const [statsBaseData, setStatsBaseData] = useState<Pick<BackRadicacionRaw, 'estado_radicado' | 'ruta'>[]>([])
+
+    // El conteo se deriva síncronamente de la base y el filtro (Cero Latencia)
     const [total, setTotal] = useState(0)
 
     // Paginación
@@ -50,14 +53,22 @@ export default function RutasPage() {
     const [indiceSeleccionado, setIndiceSeleccionado] = useState<number>(-1)
 
     // ============================================
+    // CÁLCULO MEMOIZADO (OPTIMIZACIÓN)
+    // ============================================
+
+    const conteos = useMemo(() => {
+        return rutasService.calcularConteosLocales(statsBaseData, filtros.estadoRadicado)
+    }, [statsBaseData, filtros.estadoRadicado])
+
+    // ============================================
     // CARGA DE DATOS
     // ============================================
 
-    const cargarConteos = useCallback(async () => {
+    const cargarDatosEstadisticos = useCallback(async () => {
         setCargandoConteos(true)
-        const result = await rutasService.obtenerConteos()
+        const result = await rutasService.obtenerDatosEstadisticosBase()
         if (result.success && result.data) {
-            setConteos(result.data)
+            setStatsBaseData(result.data)
         }
         setCargandoConteos(false)
     }, [])
@@ -82,24 +93,21 @@ export default function RutasPage() {
         setCargando(false)
     }, [filtros, busqueda])
 
+    // Carga inicial de estadísticas
     useEffect(() => {
-        cargarConteos()
-    }, [])
-    // Nota: cargarCasos se llama en useEffect separado o dep? 
-    // Mejor controlar con handlers específicos para evitar loops, 
-    // pero aquí para simplicidad inicial cargamos al montar.
-    // Realmente, cuando cambian filtros queremos recargar:
+        cargarDatosEstadisticos()
+    }, []) // Solo al montar (o explícitamente al refrescar)
+
+    // Cargar casos al cambiar filtros (Esto sí requiere red)
     useEffect(() => {
         cargarCasos(0)
-    }, [filtros]) // Al cambiar filtros reseteamos a pág 0
+    }, [filtros])
 
     // ============================================
     // HANDLERS
     // ============================================
 
     const handleBuscar = () => {
-        // Al buscar, forzamos recarga.
-        // Si hay búsqueda, quizás queramos limpiar filtros de estado para buscar en todo
         if (busqueda.trim()) {
             setFiltros(prev => ({ ...prev, estadoRadicado: 'Todos' }))
         }
@@ -111,7 +119,7 @@ export default function RutasPage() {
     }
 
     const handleFiltroRuta = (ruta: string | null) => {
-        setFiltros(prev => ({ ...prev, ruta: ruta || undefined })) // toggle logic is in component
+        setFiltros(prev => ({ ...prev, ruta: ruta || undefined }))
     }
 
     // Detalle
@@ -125,7 +133,7 @@ export default function RutasPage() {
         setIndiceSeleccionado(-1)
         // Refrescar datos al cerrar por si hubo cambios
         cargarCasos(paginaActual)
-        cargarConteos()
+        cargarDatosEstadisticos() // Actualizamos stas de fondo
     }
 
     const handleGuardarYCerrar = async () => {
@@ -144,7 +152,7 @@ export default function RutasPage() {
 
         // 2. Fire & forget updates
         cargarCasos(paginaActual).catch(console.error)
-        cargarConteos().catch(console.error)
+        cargarDatosEstadisticos().catch(console.error)
 
         // 3. Next case
         const nuevoIndice = indiceSeleccionado + 1
@@ -241,7 +249,7 @@ export default function RutasPage() {
                         }}
                         onRefrescar={() => {
                             cargarCasos(paginaActual)
-                            cargarConteos()
+                            cargarDatosEstadisticos()
                         }}
                     />
 

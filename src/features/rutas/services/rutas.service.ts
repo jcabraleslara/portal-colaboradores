@@ -157,42 +157,69 @@ export const rutasService = {
     },
 
     /**
-     * Obtener conteos rápidos para las cards
+     * Obtener conteos dinámicos.
+     * - porEstado: Conteo global de todos los casos de rutas (independiente del filtro actual).
+     * - porRuta: Conteo filtrado por el estado seleccionado (para que coincida con lo que ve el usuario).
      */
-    async obtenerConteos(): Promise<ApiResponse<{ porEstado: Record<string, number>, porRuta: Record<string, number> }>> {
+    /**
+     * Obtener datos base para estadísticas (Optimización: Una sola llamada a red)
+     * Retorna solo las columnas necesarias para calcular conteos en cliente.
+     */
+    async obtenerDatosEstadisticosBase(): Promise<ApiResponse<Pick<BackRadicacionRaw, 'estado_radicado' | 'ruta'>[]>> {
         try {
-            const { data, error } = await supabase.rpc('obtener_conteos_rutas')
+            const { data, error } = await supabase
+                .from('back')
+                .select('estado_radicado, ruta')
+                .eq('tipo_solicitud', 'Activación de Ruta')
 
             if (error) throw error
-
-            return { success: true, data: data }
+            return { success: true, data: data || [] }
         } catch (error) {
-            console.error('Error conteos rutas:', error)
+            console.error('Error fetching stats base:', error)
+            return { success: false, error: 'Error cargando datos base de estadísticas' }
+        }
+    },
 
-            // Fallback silencioso a método antiguo si el RPC falla (por seguridad en despliegue)
-            try {
-                const { data: rawData, error: rawError } = await supabase
-                    .from('back')
-                    .select('estado_radicado, ruta')
-                    .eq('tipo_solicitud', 'Activación de Ruta')
+    /**
+     * Calcular conteos de forma síncrona en memoria (Zero Latency)
+     * @param rawData Datos crudos obtenidos de obtenerDatosEstadisticosBase
+     * @param estadoFiltro Filtro de estado actual aplicar a las rutas
+     */
+    calcularConteosLocales(
+        rawData: Pick<BackRadicacionRaw, 'estado_radicado' | 'ruta'>[],
+        estadoFiltro?: string
+    ): { porEstado: Record<string, number>, porRuta: Record<string, number> } {
+        const porEstado: Record<string, number> = {}
+        const porRuta: Record<string, number> = {}
 
-                if (rawError) throw rawError
-
-                const porEstado: Record<string, number> = {}
-                const porRuta: Record<string, number> = {}
-
-                rawData?.forEach(row => {
-                    if (row.estado_radicado) {
-                        porEstado[row.estado_radicado] = (porEstado[row.estado_radicado] || 0) + 1
-                    }
-                    if (row.ruta) {
-                        porRuta[row.ruta] = (porRuta[row.ruta] || 0) + 1
-                    }
-                })
-                return { success: true, data: { porEstado, porRuta } }
-            } catch (fallbackError) {
-                return { success: false, error: 'Error cargando estadísticas' }
+        rawData.forEach(row => {
+            // 1. Conteo Global por Estado
+            if (row.estado_radicado) {
+                porEstado[row.estado_radicado] = (porEstado[row.estado_radicado] || 0) + 1
             }
+
+            // 2. Conteo Dinámico por Ruta (basado en filtro)
+            if (row.ruta) {
+                const cumpleFiltro = !estadoFiltro || estadoFiltro === 'Todos' || row.estado_radicado === estadoFiltro
+                if (cumpleFiltro) {
+                    porRuta[row.ruta] = (porRuta[row.ruta] || 0) + 1
+                }
+            }
+        })
+
+        return { porEstado, porRuta }
+    },
+
+    /**
+     * Wrapper legado o para usos simples directos
+     */
+    async obtenerConteos(estadoFiltro?: string): Promise<ApiResponse<{ porEstado: Record<string, number>, porRuta: Record<string, number> }>> {
+        const result = await this.obtenerDatosEstadisticosBase()
+        if (!result.success || !result.data) return { success: false, error: result.error, data: { porEstado: {}, porRuta: {} } }
+
+        return {
+            success: true,
+            data: this.calcularConteosLocales(result.data, estadoFiltro)
         }
     },
 
