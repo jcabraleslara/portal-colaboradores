@@ -16,7 +16,7 @@ import {
     CrearAfiliadoData,
     BackRadicacionExtendido,
     FiltrosCasosBack,
-
+    EstadoRadicado,
     ConteosCasosBack,
 } from '@/types/back.types'
 import { ragService } from './rag.service'
@@ -455,13 +455,15 @@ export const backService = {
     },
 
     /**
-     * Obtener conteos de casos pendientes (OPTIMIZADO CON RPC)
+     * Obtener conteos de casos (Dinámico por estado)
      * Utiliza función RPC en base de datos para cálculo instantáneo
      */
-    async obtenerConteosPendientes(): Promise<ApiResponse<ConteosCasosBack>> {
+    async obtenerConteos(estado: EstadoRadicado | 'Todos' = 'Pendiente'): Promise<ApiResponse<ConteosCasosBack>> {
         try {
             // 1. Obtener estadísticas base (Tipos y Especialidades) via RPC
-            const { data: baseData, error: rpcError } = await supabase.rpc('get_tablero_back_stats')
+            const { data: baseData, error: rpcError } = await supabase.rpc('get_tablero_back_stats_dynamic', {
+                p_estado: estado
+            })
 
             if (rpcError) {
                 console.error('Error obteniendo conteos RPC:', rpcError)
@@ -471,14 +473,19 @@ export const backService = {
                 }
             }
 
-            // 2. Obtener estadísticas de Rutas manualmente (ya que RPC quizás no lo incluye aún)
-            // Solo contamos los PENDIENTES que sean de Activación de Ruta
-            const { data: rutasData, error: rutasError } = await supabase
+            // 2. Obtener estadísticas de Rutas manualmente
+            // Contamos según el estado seleccionado
+            let query = supabase
                 .from('back')
                 .select('ruta')
-                .eq('estado_radicado', 'Pendiente')
                 .eq('tipo_solicitud', 'Activación de Ruta')
                 .not('ruta', 'is', null)
+
+            if (estado !== 'Todos') {
+                query = query.eq('estado_radicado', estado)
+            }
+
+            const { data: rutasData, error: rutasError } = await query
 
             let porRuta: { ruta: string; cantidad: number }[] = []
 
@@ -501,25 +508,15 @@ export const backService = {
             const result: ConteosCasosBack = {
                 porTipoSolicitud: (baseData.porTipoSolicitud || []).filter((t: any) => t.tipo !== 'Activación de Ruta'),
                 porEspecialidad: baseData.porEspecialidad || [],
-                porRuta: porRuta // Mantenemos porRuta por compatibilidad o lo vaciamos? El usuario dijo "ya no se necesitaría".
-                // Si filtramos arriba, esto estará vacío o irrelevante. Mejor lo dejamos vacío para no confundir.
+                porRuta: porRuta
             }
-
-            // Si el usuario quiere que NO salgan, entonces porRuta debería ser vacío o ignorado.
-            // La query manual de arriba buscaba especificamente activacion de ruta.
-            // Si ya no lo queremos, podemos simplificar.
-            // Pero para respetar el contrato de tipo, devolvemos array vacío si así se desea
-            // o dejamos la lógica existente pero el frontal no la usará si no mostramos el filtro.
-            // ACTUALIZACIÓN: El usuario dijo "no se necesitaría que salgan". 
-            // Así que forzamos vaciar o filtar.
-            // result.porRuta = [] // Ya no mostramos rutas en dashboard general - COMENTADO para permitir acceso a Terapias Integrales
 
             return {
                 success: true,
                 data: result,
             }
         } catch (error) {
-            console.error('Error en obtenerConteosPendientes:', error)
+            console.error('Error en obtenerConteos:', error)
             return {
                 success: false,
                 error: ERROR_MESSAGES.SERVER_ERROR,

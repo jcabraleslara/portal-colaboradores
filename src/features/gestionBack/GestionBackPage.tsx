@@ -20,6 +20,7 @@ import {
     Stethoscope,
     BookOpen,
     FileEdit,
+    FileSignature,
     Activity,
     Zap,
     Route,
@@ -56,6 +57,7 @@ const TIPO_ICONOS: Record<string, React.ComponentType<{ size?: number; className
     'Solicitud de Historia Clínica': BookOpen,
     'Ajuste de Ordenamiento': FileEdit,
     'Renovación de prequirúrgicos': Activity,
+    'Ordenamientos externos': FileSignature,
     'Gestión de Mipres': Zap,
     'Activación de Ruta': Route,
 }
@@ -109,12 +111,13 @@ export function GestionBackPage() {
 
     const cargarConteos = useCallback(async () => {
         setCargandoConteos(true)
-        const result = await backService.obtenerConteosPendientes()
+        const estado = filtros.estadoRadicado || 'Pendiente'
+        const result = await backService.obtenerConteos(estado)
         if (result.success && result.data) {
             setConteos(result.data)
         }
         setCargandoConteos(false)
-    }, [])
+    }, [filtros.estadoRadicado])
 
     const cargarCasos = useCallback(async (nuevasPagina = 0) => {
         setCargando(true)
@@ -359,7 +362,7 @@ export function GestionBackPage() {
             <div>
                 <h2 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
                     <Filter size={16} />
-                    Pendientes por Tipo de Solicitud
+                    {filtros.estadoRadicado === 'Todos' ? 'Total' : (filtros.estadoRadicado || 'Pendiente')}{['En espera', 'Todos'].includes(filtros.estadoRadicado || '') ? '' : 's'} por Tipo de Solicitud
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                     {cargandoConteos ? (
@@ -455,7 +458,7 @@ export function GestionBackPage() {
             <div>
                 <h2 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
                     <Stethoscope size={16} />
-                    Pendientes por Especialidad
+                    {filtros.estadoRadicado === 'Todos' ? 'Total' : (filtros.estadoRadicado || 'Pendiente')}{['En espera', 'Todos'].includes(filtros.estadoRadicado || '') ? '' : 's'} por Especialidad
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                     {cargandoConteos ? (

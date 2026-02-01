@@ -9,6 +9,7 @@ export type TipoSolicitudBack =
     | 'Solicitud de Historia Clínica'
     | 'Ajuste de Ordenamiento'
     | 'Renovación de prequirúrgicos'
+    | 'Ordenamientos externos'
     | 'Gestión de Mipres'
     | 'Activación de Ruta'
 
@@ -221,6 +222,7 @@ export const TIPOS_SOLICITUD_LISTA: TipoSolicitudBack[] = [
     'Solicitud de Historia Clínica',
     'Ajuste de Ordenamiento',
     'Renovación de prequirúrgicos',
+    'Ordenamientos externos',
     'Gestión de Mipres',
     'Activación de Ruta',
 ]
@@ -426,6 +428,7 @@ export const TIPO_SOLICITUD_COLORES: Record<string, { bg: string; text: string; 
     'Solicitud de Historia Clínica': { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: 'BookOpen' },
     'Ajuste de Ordenamiento': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: 'FileEdit' },
     'Renovación de prequirúrgicos': { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', icon: 'Activity' },
+    'Ordenamientos externos': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', icon: 'FileSignature' },
     'Gestión de Mipres': { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', icon: 'Zap' },
     'Activación de Ruta': { bg: 'bg-cyan-50', text: 'text-cyan-700', border: 'border-cyan-200', icon: 'Route' },
 }

@@ -27,6 +27,7 @@ import {
     AlertTriangle,
     Stethoscope,
     Activity,
+    FileSignature,
     BookOpen,
     FileEdit,
     Zap,
@@ -90,6 +91,7 @@ const TIPO_ICONOS: Record<string, any> = {
     'Solicitud de Historia Clínica': BookOpen,
     'Ajuste de Ordenamiento': FileEdit,
     'Renovación de prequirúrgicos': Activity,
+    'Ordenamientos externos': FileSignature,
     'Gestión de Mipres': Zap,
     'Activación de Ruta': Route,
 }
