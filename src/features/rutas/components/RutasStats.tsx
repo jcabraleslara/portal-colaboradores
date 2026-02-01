@@ -31,7 +31,6 @@ export function RutasStats({
     const ESTADOS_DESTACADOS = ESTADOS_RADICADO_LISTA.filter(e =>
         e !== 'Todos' &&
         e !== 'Autorizado' &&
-        e !== 'Rechazado' &&
         e !== 'Contrarreferido'
     ) as EstadoRadicado[]
 

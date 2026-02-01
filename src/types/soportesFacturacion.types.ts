@@ -29,7 +29,7 @@ export type EstadoSoporteFacturacion =
     | 'Pendiente'
     | 'En Revisión'
     | 'Aprobado'
-    | 'Rechazado'
+    | 'Devuelto'
     | 'Facturado'
 
 // Estado de sincronización OneDrive
@@ -214,7 +214,7 @@ export const ESTADOS_SOPORTE_LISTA: (EstadoSoporteFacturacion | 'Todos')[] = [
     'Pendiente',
     'En Revisión',
     'Aprobado',
-    'Rechazado',
+    'Devuelto',
     'Facturado',
     'Todos',
 ]
@@ -291,6 +291,6 @@ export const ESTADO_COLORES: Record<EstadoSoporteFacturacion, { bg: string; text
     'Pendiente': { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300' },
     'En Revisión': { bg: 'bg-blue-100', text: 'text-blue-700', border: 'border-blue-300' },
     'Aprobado': { bg: 'bg-emerald-100', text: 'text-emerald-700', border: 'border-emerald-300' },
-    'Rechazado': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' },
+    'Devuelto': { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' },
     'Facturado': { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
 }

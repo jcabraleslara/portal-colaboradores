@@ -657,11 +657,11 @@ export const soportesFacturacionService = {
         observaciones?: string
     ): Promise<ApiResponse<SoporteFacturacion>> {
         try {
-            // Validar que si el estado es "Rechazado", las observaciones no estén vacías
-            if (estado === 'Rechazado' && (!observaciones || !observaciones.trim())) {
+            // Validar que si el estado es "Devuelto", las observaciones no estén vacías
+            if (estado === 'Devuelto' && (!observaciones || !observaciones.trim())) {
                 return {
                     success: false,
-                    error: 'Debe ingresar observaciones de facturación para rechazar el radicado',
+                    error: 'Debe ingresar observaciones de facturación para devolver el radicado',
                 }
             }
 
@@ -687,8 +687,8 @@ export const soportesFacturacionService = {
 
             const soporteActualizado = transformSoporte(data as SoporteFacturacionRaw)
 
-            // Si el estado es "Rechazado", enviar correo de notificación
-            if (estado === 'Rechazado' && soporteActualizado.radicadorEmail) {
+            // Si el estado es "Devuelto", enviar correo de notificación
+            if (estado === 'Devuelto' && soporteActualizado.radicadorEmail) {
                 try {
                     // Importar dinámicamente el servicio de email
                     const { emailService } = await import('./email.service')

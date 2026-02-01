@@ -98,9 +98,9 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
     // HANDLERS
     // ============================================
     const handleGuardar = async () => {
-        // Validar que si el estado es "Rechazado", las observaciones no estén vacías
-        if (nuevoEstado === 'Rechazado' && !observaciones.trim()) {
-            toast.warning('Debe ingresar observaciones de facturación para rechazar el radicado')
+        // Validar que si el estado es "Devuelto", las observaciones no estén vacías
+        if (nuevoEstado === 'Devuelto' && !observaciones.trim()) {
+            toast.warning('Debe ingresar observaciones de facturación para devolver el radicado')
             return
         }
 

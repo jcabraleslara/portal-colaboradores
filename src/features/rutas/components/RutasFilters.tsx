@@ -101,7 +101,6 @@ export function RutasFilters({
                             >
                                 {ESTADOS_RADICADO_LISTA.filter(e =>
                                     e !== 'Autorizado' &&
-                                    e !== 'Rechazado' &&
                                     e !== 'Contrarreferido'
                                 ).map(estado => (
                                     <option key={estado} value={estado}>{estado}</option>
