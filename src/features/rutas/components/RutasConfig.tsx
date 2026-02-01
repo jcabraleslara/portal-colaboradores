@@ -10,7 +10,7 @@ export function RutasConfig() {
     const [loading, setLoading] = useState(true)
     const [editingId, setEditingId] = useState<string | null>(null)
     const [tempConfig, setTempConfig] = useState<Partial<RutaEmailConfig>>({})
-    const [ipsOptions, setIpsOptions] = useState<string[]>([])
+    const [provinciasOptions, setProvinciasOptions] = useState<string[]>([])
 
     // Lista plana de rutas del sistema
     const rutasSistema = RUTAS_CONFIG.map(r => r.ruta)
@@ -18,17 +18,17 @@ export function RutasConfig() {
     const cargarDatos = async () => {
         setLoading(true)
         try {
-            const [configsResult, ipsResult] = await Promise.all([
+            const [configsResult, provinciasResult] = await Promise.all([
                 rutasService.obtenerConfigEmails(),
-                rutasService.obtenerIps()
+                rutasService.obtenerProvincias()
             ])
 
             if (configsResult.success && configsResult.data) {
                 setConfigs(configsResult.data)
             }
 
-            if (ipsResult.success && ipsResult.data) {
-                setIpsOptions(ipsResult.data)
+            if (provinciasResult.success && provinciasResult.data) {
+                setProvinciasOptions(provinciasResult.data)
             }
         } catch (error) {
             toast.error('Error cargando datos')
@@ -43,7 +43,7 @@ export function RutasConfig() {
     }, [])
 
     const handleNuevo = () => {
-        setTempConfig({ estado: true, ruta: rutasSistema[0], eps: 'TODAS', ips_primaria: [] })
+        setTempConfig({ estado: true, ruta: rutasSistema[0], eps: 'TODAS', provincia: [] })
         setEditingId('new')
     }
 
@@ -116,7 +116,7 @@ export function RutasConfig() {
                                 <tr className="border-b border-gray-100 text-left">
                                     <th className="px-3 py-2 font-semibold text-gray-600 text-sm">Ruta</th>
                                     <th className="px-3 py-2 font-semibold text-gray-600 text-sm">EPS</th>
-                                    <th className="px-3 py-2 font-semibold text-gray-600 text-sm w-[200px]">IPS Primaria</th>
+                                    <th className="px-3 py-2 font-semibold text-gray-600 text-sm w-[200px]">Provincia</th>
                                     <th className="px-3 py-2 font-semibold text-gray-600 text-sm">Destinatarios</th>
                                     <th className="px-3 py-2 font-semibold text-gray-600 text-sm">Copias (CC)</th>
                                     <th className="px-3 py-2 font-semibold text-gray-600 text-sm">Estado</th>
@@ -152,10 +152,10 @@ export function RutasConfig() {
                                         <td className="px-3 py-2 align-top">
                                             <div className="min-w-[200px]">
                                                 <MultiSelector
-                                                    value={tempConfig.ips_primaria || []}
-                                                    onChange={val => setTempConfig({ ...tempConfig, ips_primaria: val })}
-                                                    options={ipsOptions}
-                                                    placeholder="Todas las IPS"
+                                                    value={tempConfig.provincia || []}
+                                                    onChange={val => setTempConfig({ ...tempConfig, provincia: val })}
+                                                    options={provinciasOptions}
+                                                    placeholder="Todas las provincias"
                                                 />
                                                 <p className="text-[10px] text-gray-500 mt-1">Dejar vacío para todas</p>
                                             </div>
@@ -212,14 +212,14 @@ export function RutasConfig() {
                                                 </span>
                                             </td>
                                             <td className="px-3 py-3 text-sm">
-                                                {config.ips_primaria && config.ips_primaria.length > 0 ? (
+                                                {config.provincia && config.provincia.length > 0 ? (
                                                     <div className="flex items-start gap-1 max-w-[200px]">
                                                         <MapPin size={14} className="text-gray-400 mt-1 flex-shrink-0" />
                                                         <span className="text-xs text-gray-600 whitespace-normal block">
-                                                            {config.ips_primaria.slice(0, 3).join(', ')}
-                                                            {config.ips_primaria.length > 3 && (
+                                                            {config.provincia.slice(0, 3).join(', ')}
+                                                            {config.provincia.length > 3 && (
                                                                 <span className="text-gray-400 ml-1">
-                                                                    +{config.ips_primaria.length - 3} más
+                                                                    +{config.provincia.length - 3} más
                                                                 </span>
                                                             )}
                                                         </span>

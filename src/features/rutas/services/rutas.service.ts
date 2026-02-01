@@ -42,7 +42,7 @@ export interface RutaEmailConfig {
     eps: string
     destinatarios: string
     copias?: string | null
-    ips_primaria?: string[] | null
+    provincia?: string[] | null
     estado: boolean
     created_at?: string
     updated_at?: string
@@ -249,7 +249,7 @@ export const rutasService = {
                     eps: config.eps || 'TODAS',
                     destinatarios: config.destinatarios,
                     copias: config.copias || null,
-                    ips_primaria: config.ips_primaria || null,
+                    provincia: config.provincia || null,
                     estado: config.estado
                 })
                 .eq('id', config.id)
@@ -267,7 +267,7 @@ export const rutasService = {
                     eps: config.eps || 'TODAS',
                     destinatarios: config.destinatarios,
                     copias: config.copias || null,
-                    ips_primaria: config.ips_primaria || null,
+                    provincia: config.provincia || null,
                     estado: config.estado ?? true
                 })
                 .select()
@@ -289,17 +289,21 @@ export const rutasService = {
     },
 
     /**
-     * Obtener lista de IPS disponibles
+     * Obtener lista de Provincias disponibles
      */
-    async obtenerIps(): Promise<ApiResponse<string[]>> {
+    async obtenerProvincias(): Promise<ApiResponse<string[]>> {
         const { data, error } = await supabase
             .from('red')
-            .select('nombre_ips')
-            .order('nombre_ips', { ascending: true })
+            .select('provincia')
+            .order('provincia', { ascending: true })
 
         if (error) return { success: false, error: error.message, data: [] }
 
-        const ips = (data || []).map((item: any) => item.nombre_ips)
-        return { success: true, data: ips }
+        // Filtrar únicos y no nulos
+        const provincias = [...new Set((data || [])
+            .map((item: any) => item.provincia)
+            .filter(Boolean))]
+
+        return { success: true, data: provincias }
     }
 }
