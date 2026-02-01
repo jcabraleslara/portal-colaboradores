@@ -1,14 +1,15 @@
 /**
  * Servicio RAG (Retrieval Augmented Generation)
- * Maneja la vectorización de PDFs y búsqueda semántica
- * 
+ * Maneja la vectorizacion de PDFs y busqueda semantica
+ *
  * Soporta PDFs escaneados mediante:
- * - Document AI OCR (producción, más rápido)
- * - Gemini 3 Flash (fallback)
+ * - Document AI OCR (produccion, mas rapido) - Vercel
+ * - Gemini 3 Flash (fallback) - Supabase Edge Function
  */
 import { supabase } from '@/config/supabase.config'
 import { generateEmbedding, splitTextIntoChunks } from './embedding.service'
 import type { TextItem } from 'pdfjs-dist/types/src/display/api'
+import { EDGE_FUNCTIONS, VERCEL_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
 
 
 interface VectorizacionResult {
@@ -74,8 +75,8 @@ async function extractTextWithDocumentAI(pdfUrl: string): Promise<string> {
             new Uint8Array(pdfBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
         )
 
-        // Llamar al endpoint serverless
-        const ocrResponse = await fetch('/api/ocr', {
+        // Llamar al endpoint de Vercel (Document AI no compatible con Deno)
+        const ocrResponse = await fetch(VERCEL_FUNCTIONS.ocr, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ pdfBase64: base64Pdf })
@@ -119,10 +120,10 @@ async function extractTextWithGemini(pdfUrl: string): Promise<string> {
             new Uint8Array(pdfBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
         )
 
-        // Llamar al endpoint serverless
-        const ocrResponse = await fetch('/api/gemini-ocr', {
+        // Llamar a Edge Function de Supabase
+        const ocrResponse = await fetch(EDGE_FUNCTIONS.geminiOcr, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getEdgeFunctionHeaders(),
             body: JSON.stringify({ pdfBase64: base64Pdf })
         })
 

@@ -8,6 +8,7 @@ import * as XLSX from 'xlsx'
 import { supabase } from '@/config/supabase.config'
 import { CreateUserData } from '@/services/usuariosPortal.service'
 import { toast } from 'sonner'
+import { EDGE_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
 
 interface ImportUserModalProps {
     onClose: () => void
@@ -153,12 +154,9 @@ export default function ImportUserModal({ onClose, onCreated }: ImportUserModalP
             }
 
             try {
-                const response = await fetch('/api/create-user', {
+                const response = await fetch(EDGE_FUNCTIONS.createUser, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                    headers: getEdgeFunctionHeaders(token),
                     body: JSON.stringify(userData)
                 })
 

@@ -45,6 +45,7 @@ import {
     ESPECIALIDADES_LISTA,
     EstadoRadicado,
     TipoSolicitudBack,
+    RUTA_COLORES,
 
 } from '@/types/back.types'
 import { CasoDetallePanel } from './CasoDetallePanel'
@@ -181,6 +182,24 @@ export function GestionBackPage() {
             ...prev,
             especialidad: prev.especialidad === especialidad ? null : especialidad,
         }))
+    }, [])
+
+    const handleFiltroTerapias = useCallback(() => {
+        setFiltros(prev => {
+            if (prev.ruta === 'Terapias Integrales') {
+                return {
+                    ...prev,
+                    tipoSolicitud: null,
+                    ruta: null,
+                }
+            }
+            return {
+                ...prev,
+                tipoSolicitud: 'Activación de Ruta',
+                ruta: 'Terapias Integrales',
+                estadoRadicado: 'Pendiente' // Asegurar que vemos pendientes
+            }
+        })
     }, [])
 
 
@@ -349,10 +368,50 @@ export function GestionBackPage() {
                         ))
                     ) : (
                         TIPOS_SOLICITUD_LISTA.map(tipo => {
+                            // INTERCEPCIÓN: Reemplazar 'Activación de Ruta' por 'Terapias Integrales'
+                            if (tipo === 'Activación de Ruta') {
+                                const rutaNombre = 'Terapias Integrales'
+                                const conteo = conteos?.porRuta.find(r => r.ruta === rutaNombre)?.cantidad || 0
+                                const colores = RUTA_COLORES[rutaNombre] || { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' }
+                                const activo = filtros.ruta === rutaNombre
+
+                                return (
+                                    <button
+                                        key={rutaNombre}
+                                        onClick={handleFiltroTerapias}
+                                        className={`
+                                            relative p-4 rounded-xl border-2 transition-all duration-300
+                                            hover:shadow-lg hover:-translate-y-0.5 flex flex-col items-center text-center
+                                            ${activo
+                                                ? `${colores.bg} ${colores.border} shadow-md ring-2 ring-offset-2 ring-${colores.border.replace('border-', '')}`
+                                                : 'bg-white border-gray-100 hover:border-gray-200'
+                                            }
+                                        `}
+                                    >
+                                        <div className="flex items-center justify-center gap-3 mb-2">
+                                            <div className={`w-10 h-10 rounded-lg ${colores.bg} flex items-center justify-center flex-shrink-0`}>
+                                                <Accessibility size={20} className={colores.text} />
+                                            </div>
+                                            <p className={`text-3xl font-bold ${activo ? colores.text : 'text-gray-800'}`}>
+                                                {conteo}
+                                            </p>
+                                        </div>
+                                        <p className="text-sm text-gray-600 font-medium leading-snug" title={rutaNombre}>
+                                            {rutaNombre}
+                                        </p>
+                                        {activo && (
+                                            <div className="absolute top-2 right-2">
+                                                <X size={14} className={colores.text} />
+                                            </div>
+                                        )}
+                                    </button>
+                                )
+                            }
+
                             const conteo = conteos?.porTipoSolicitud.find(c => c.tipo === tipo)?.cantidad || 0
                             const colores = TIPO_SOLICITUD_COLORES[tipo]
                             const IconoTipo = TIPO_ICONOS[tipo] || AlertCircle
-                            const activo = filtros.tipoSolicitud === tipo
+                            const activo = filtros.tipoSolicitud === tipo && !filtros.ruta
 
                             return (
                                 <button

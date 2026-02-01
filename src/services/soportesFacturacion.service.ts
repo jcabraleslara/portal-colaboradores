@@ -9,6 +9,7 @@
 import { supabase } from '@/config/supabase.config'
 import { ERROR_MESSAGES } from '@/config/constants'
 import { ApiResponse } from '@/types'
+import { EDGE_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
 import {
     SoporteFacturacion,
     SoporteFacturacionRaw,
@@ -753,11 +754,9 @@ export const soportesFacturacionService = {
      */
     async sincronizarOneDrive(radicado: string): Promise<ApiResponse<{ folderUrl: string }>> {
         try {
-            const response = await fetch('/api/upload-onedrive', {
+            const response = await fetch(EDGE_FUNCTIONS.uploadOnedrive, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: getEdgeFunctionHeaders(),
                 body: JSON.stringify({ radicado }),
             })
 
@@ -1017,10 +1016,10 @@ export const soportesFacturacionService = {
             // 2. Eliminar de OneDrive (Serverless Function)
             if (folderId) {
                 try {
-                    console.log(`☁️ Eliminando carpeta de OneDrive (${folderId})...`)
-                    await fetch('/api/delete-onedrive', {
+                    console.log(`Eliminando carpeta de OneDrive (${folderId})...`)
+                    await fetch(EDGE_FUNCTIONS.deleteOnedrive, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: getEdgeFunctionHeaders(),
                         body: JSON.stringify({ folderId, radicado }),
                     })
                 } catch (odError) {

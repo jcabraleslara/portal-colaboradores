@@ -1,15 +1,16 @@
 /**
- * API Serverless: Sincronización con OneDrive
+ * Supabase Edge Function: Sincronizacion con OneDrive
  * Portal de Colaboradores GESTAR SALUD IPS
- * 
- * Sincroniza archivos de soportes de facturación con OneDrive usando Microsoft Graph API.
- * Este endpoint descarga los archivos de Supabase Storage y los sube a OneDrive
- * en una carpeta organizada según la nomenclatura definida.
+ *
+ * POST /functions/v1/upload-onedrive
+ * Body: { radicado: string }
+ *
+ * Sincroniza archivos de soportes de facturacion con OneDrive usando Microsoft Graph API.
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
-import { notifyAuthenticationError, notifyServiceUnavailable } from './_utils/critical-error-utils.js'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
+import { notifyAuthenticationError, notifyServiceUnavailable } from '../_shared/critical-error-utils.ts'
 
 // Tipos para Microsoft Graph
 interface GraphTokenResponse {
@@ -24,31 +25,20 @@ interface GraphDriveItem {
     webUrl: string
 }
 
-// Configuración
-const AZURE_CLIENT_ID = process.env.AZURE_CLIENT_ID || ''
-const AZURE_CLIENT_SECRET = process.env.AZURE_CLIENT_SECRET || ''
-const AZURE_TENANT_ID = process.env.AZURE_TENANT_ID || ''
-const SUPABASE_URL = process.env.VITE_SUPABASE_URL || ''
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-
-// ID de la carpeta destino en OneDrive (configurar en variables de entorno)
-// Si no está configurado, se buscará por ruta
-const ONEDRIVE_FOLDER_ID = process.env.ONEDRIVE_FOLDER_ID || ''
-const ONEDRIVE_FOLDER_PATH = process.env.ONEDRIVE_FOLDER_PATH || '/Documents/Soportes Facturación'
-
-
-
-
 /**
  * Obtener access token de Microsoft Graph usando Client Credentials flow
  */
 async function getGraphAccessToken(): Promise<string> {
-    const tokenUrl = `https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/token`
+    const clientId = Deno.env.get('AZURE_CLIENT_ID') ?? ''
+    const clientSecret = Deno.env.get('AZURE_CLIENT_SECRET') ?? ''
+    const tenantId = Deno.env.get('AZURE_TENANT_ID') ?? ''
+
+    const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`
 
     const params = new URLSearchParams({
         grant_type: 'client_credentials',
-        client_id: AZURE_CLIENT_ID,
-        client_secret: AZURE_CLIENT_SECRET,
+        client_id: clientId,
+        client_secret: clientSecret,
         scope: 'https://graph.microsoft.com/.default',
     })
 
@@ -63,14 +53,11 @@ async function getGraphAccessToken(): Promise<string> {
     if (!response.ok) {
         const errorText = await response.text()
 
-        // Si es error de autenticación (401/403/400), notificar al equipo técnico
         if (response.status === 401 || response.status === 403 || response.status === 400) {
-            console.error('⚠️ ERROR CRÍTICO: Credenciales de Azure OAuth2 inválidas o expiradas')
-
-            // Notificar error crítico de autenticación
+            console.error('ERROR CRITICO: Credenciales de Azure OAuth2 invalidas o expiradas')
             await notifyAuthenticationError(
                 'Azure AD (Microsoft Graph)',
-                'Sincronización con OneDrive',
+                'Sincronizacion con OneDrive',
                 response.status
             )
         }
@@ -100,15 +87,13 @@ async function obtenerIdPorPath(
     })
 
     if (!response.ok) {
-        // Si es error de servicio, notificar
         if (response.status >= 500) {
             await notifyServiceUnavailable(
                 'Microsoft Graph API',
-                'Sincronización con OneDrive',
+                'Sincronizacion con OneDrive',
                 response.status
             )
         }
-
         throw new Error(`Error obteniendo carpeta por path: ${response.status}`)
     }
 
@@ -117,7 +102,7 @@ async function obtenerIdPorPath(
 }
 
 /**
- * Crear carpeta en OneDrive dentro de una carpeta padre específica
+ * Crear carpeta en OneDrive dentro de una carpeta padre especifica
  */
 async function crearCarpetaOneDrive(
     accessToken: string,
@@ -143,11 +128,10 @@ async function crearCarpetaOneDrive(
     if (!response.ok) {
         const errorText = await response.text()
 
-        // Si es error de servicio, notificar
         if (response.status >= 500) {
             await notifyServiceUnavailable(
                 'Microsoft Graph API',
-                'Sincronización con OneDrive - Crear Carpeta',
+                'Sincronizacion con OneDrive - Crear Carpeta',
                 response.status
             )
         }
@@ -182,11 +166,10 @@ async function subirArchivoOneDrive(
     if (!response.ok) {
         const errorText = await response.text()
 
-        // Si es error de servicio, notificar
         if (response.status >= 500) {
             await notifyServiceUnavailable(
                 'Microsoft Graph API',
-                'Sincronización con OneDrive - Subir Archivo',
+                'Sincronizacion con OneDrive - Subir Archivo',
                 response.status
             )
         }
@@ -198,8 +181,7 @@ async function subirArchivoOneDrive(
 }
 
 /**
- * Generar nombre de carpeta según nomenclatura
- * Ejemplo: FACT0001_0120_NEPS_CON_ConsultaEsp
+ * Generar nombre de carpeta segun nomenclatura
  */
 function generarNombreCarpeta(soporte: Record<string, unknown>): string {
     const radicado = soporte.radicado as string || 'FACT0000'
@@ -221,11 +203,11 @@ function generarNombreCarpeta(soporte: Record<string, unknown>): string {
 
     const servicioCorto: Record<string, string> = {
         'Laboratorio': 'Lab',
-        'Imágenes': 'Img',
+        'Imagenes': 'Img',
         'Consulta Especializada': 'ConsultaEsp',
         'Procedimiento': 'Proc',
-        'Cirugía': 'Cir',
-        'Hospitalización': 'Hosp',
+        'Cirugia': 'Cir',
+        'Hospitalizacion': 'Hosp',
         'Urgencias': 'Urg',
         'Terapias': 'Ter',
     }
@@ -237,33 +219,55 @@ function generarNombreCarpeta(soporte: Record<string, unknown>): string {
     return `${radicado}_${mes}${dia}_${eps}_${regimen}_${servicio}`
 }
 
-/**
- * Handler principal de la API
- */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+Deno.serve(async (req) => {
+    // Manejar preflight CORS
+    if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders })
+    }
+
     // Solo permitir POST
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Método no permitido' })
+        return new Response(
+            JSON.stringify({ error: 'Metodo no permitido' }),
+            { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
     }
 
-    // Verificar configuración
-    if (!AZURE_CLIENT_ID || !AZURE_CLIENT_SECRET || !AZURE_TENANT_ID) {
-        return res.status(500).json({ error: 'Credenciales de Azure no configuradas' })
+    const clientId = Deno.env.get('AZURE_CLIENT_ID')
+    const clientSecret = Deno.env.get('AZURE_CLIENT_SECRET')
+    const tenantId = Deno.env.get('AZURE_TENANT_ID')
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const onedriveFolderId = Deno.env.get('ONEDRIVE_FOLDER_ID') || ''
+    const onedriveFolderPath = Deno.env.get('ONEDRIVE_FOLDER_PATH') || '/Documents/Soportes Facturacion'
+
+    // Verificar configuracion
+    if (!clientId || !clientSecret || !tenantId) {
+        return new Response(
+            JSON.stringify({ error: 'Credenciales de Azure no configuradas' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
     }
 
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-        return res.status(500).json({ error: 'Configuración de Supabase no disponible' })
+    if (!supabaseUrl || !supabaseServiceKey) {
+        return new Response(
+            JSON.stringify({ error: 'Configuracion de Supabase no disponible' }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
     }
 
     try {
-        const { radicado } = req.body
+        const { radicado } = await req.json()
 
         if (!radicado) {
-            return res.status(400).json({ error: 'Radicado es requerido' })
+            return new Response(
+                JSON.stringify({ error: 'Radicado es requerido' }),
+                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
         // Crear cliente Supabase con service role para acceso total
-        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
         // Obtener datos del soporte
         const { data: soporte, error: soporteError } = await supabase
@@ -273,19 +277,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .single()
 
         if (soporteError || !soporte) {
-            return res.status(404).json({ error: `No se encontró el radicado ${radicado}` })
+            return new Response(
+                JSON.stringify({ error: `No se encontro el radicado ${radicado}` }),
+                { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
         // Obtener access token de Microsoft Graph
-        let onedriveResult = { success: false, message: '' }
         try {
             const accessToken = await getGraphAccessToken()
 
-            // Obtener ID de la carpeta base (Soportes Facturación)
-            let carpetaBaseId = ONEDRIVE_FOLDER_ID
+            // Obtener ID de la carpeta base (Soportes Facturacion)
+            let carpetaBaseId = onedriveFolderId
             if (!carpetaBaseId) {
-                // Si no hay ID configurado, buscar por path
-                carpetaBaseId = await obtenerIdPorPath(accessToken, ONEDRIVE_FOLDER_PATH)
+                carpetaBaseId = await obtenerIdPorPath(accessToken, onedriveFolderPath)
             }
 
             // Crear subcarpeta para este radicado
@@ -322,43 +327,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
                         const contenido = await archivoResponse.arrayBuffer()
 
-                        // ESTRATEGIA DE NOMBRADO: USAR EL NOMBRE REAL DE SUPABASE
-                        // La URL firmada contiene el path real: .../soportes-facturacion/RADICADO/NOMBRE_CORRECTO.pdf?...
-                        // Debemos extraer ese nombre para mantener la consistencia total entre Supabase y OneDrive.
-
+                        // Extraer nombre del archivo de la URL
                         let nombreArchivo = ''
                         try {
-                            // 1. Obtener path sin query params
                             const urlObj = new URL(url)
-                            const pathName = urlObj.pathname // /storage/v1/object/sign/soportes-facturacion/RAD/...
-
-                            // 2. Decodificar caracteres especiales (espacios, tildes, etc)
-                            const decodedPath = decodeURIComponent(pathName)
-
-                            // 3. Extraer el último segmento (nombre del archivo)
-                            nombreArchivo = decodedPath.split('/').pop() || ''
-                        } catch (e) {
-                            console.warn('Error parseando URL de archivo:', e)
+                            const pathName = decodeURIComponent(urlObj.pathname)
+                            nombreArchivo = pathName.split('/').pop() || ''
+                        } catch {
+                            // URL malformada
                         }
 
-                        // Fallback de seguridad si falla el parseo (muy raro)
+                        // Fallback de seguridad
                         if (!nombreArchivo) {
-                            const extension = 'pdf'
-                            const prefijoFallback = 'DOC_'
-                            nombreArchivo = `${prefijoFallback}${radicado}_${categoriaId}.${extension}`
+                            nombreArchivo = `DOC_${radicado}_${categoriaId}_${i + 1}.pdf`
                         }
 
-                        // Subir a OneDrive con el nombre EXACTO que tiene en Supabase
+                        // Subir a OneDrive
                         await subirArchivoOneDrive(accessToken, carpeta.id, nombreArchivo, contenido)
                         archivosSubidos++
                     } catch (uploadError) {
                         console.error(`Error subiendo archivo de ${categoriaId}:`, uploadError)
-                        // Continuar con otros archivos
                     }
                 }
             }
 
-            // Actualizar registro en Supabase solo si hubo éxito en OneDrive
+            // Actualizar registro en Supabase
             await supabase
                 .from('soportes_facturacion')
                 .update({
@@ -369,24 +362,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 })
                 .eq('radicado', radicado)
 
-            onedriveResult = {
-                success: true,
-                message: `Sincronizado exitosamente: ${archivosSubidos} archivo(s) en carpeta ${nombreCarpeta}`
-            }
-
-            return res.status(200).json({
-                success: true,
-                folderId: carpeta.id,
-                folderUrl: carpeta.webUrl,
-                archivosSubidos,
-                message: onedriveResult.message,
-            })
+            return new Response(
+                JSON.stringify({
+                    success: true,
+                    folderId: carpeta.id,
+                    folderUrl: carpeta.webUrl,
+                    archivosSubidos,
+                    message: `Sincronizado exitosamente: ${archivosSubidos} archivo(s) en carpeta ${nombreCarpeta}`
+                }),
+                { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
 
         } catch (onedriveError) {
-            console.error('Error específico de OneDrive:', onedriveError)
+            console.error('Error especifico de OneDrive:', onedriveError)
 
-            // Si falla OneDrive, no fallamos toda la petición, pero notificamos
-            // Actualizamos estado a 'failed'
+            // Actualizar estado a 'failed'
             await supabase
                 .from('soportes_facturacion')
                 .update({
@@ -395,18 +385,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 })
                 .eq('radicado', radicado)
 
-            return res.status(200).json({
-                success: false, // Indicamos que la sincro falló
-                warning: true,
-                message: 'Radicado procesado, pero falló la sincronización con OneDrive. Se reintentará luego.',
-                errorDetails: onedriveError instanceof Error ? onedriveError.message : 'Error desconocido de OneDrive'
-            })
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    warning: true,
+                    message: 'Radicado procesado, pero fallo la sincronizacion con OneDrive. Se reintentara luego.',
+                    errorDetails: onedriveError instanceof Error ? onedriveError.message : 'Error desconocido de OneDrive'
+                }),
+                { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
     } catch (error) {
         console.error('Error general en upload-onedrive:', error)
-        return res.status(500).json({
-            error: error instanceof Error ? error.message : 'Error interno del servidor',
-        })
+        return new Response(
+            JSON.stringify({
+                error: error instanceof Error ? error.message : 'Error interno del servidor',
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
     }
-}
+})

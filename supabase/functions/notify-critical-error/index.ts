@@ -1,32 +1,26 @@
 /**
- * Vercel Serverless Function: Notificación de Errores Críticos
+ * Supabase Edge Function: Notificacion de Errores Criticos
  * Portal de Colaboradores - Gestar Salud IPS
- * 
- * Envía alertas por correo cuando ocurren errores críticos que requieren
- * intervención inmediata del equipo técnico.
+ *
+ * POST /functions/v1/notify-critical-error
+ * Envia alertas por correo cuando ocurren errores criticos.
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { sendGmailEmail } from './_utils/gmail-utils.js'
+import { corsHeaders } from '../_shared/cors.ts'
+import { sendGmailEmail } from '../_shared/gmail-utils.ts'
 
-/**
- * Severidad del error crítico
- */
 type ErrorSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM'
 
-/**
- * Categoría del error para mejor clasificación
- */
 type ErrorCategory =
-    | 'API_KEY_FAILURE'          // API keys que no funcionan
-    | 'EMAIL_FAILURE'            // Correos que no se envían
-    | 'SERVICE_UNAVAILABLE'      // Servicios externos caídos
-    | 'STORAGE_FAILURE'          // Fallas en Supabase Storage
-    | 'DATABASE_ERROR'           // Errores de base de datos
-    | 'AUTHENTICATION_ERROR'     // Problemas de autenticación
-    | 'INTEGRATION_ERROR'        // Errores en integraciones (OneDrive, Airtable, etc)
-    | 'GEMINI_API_ERROR'         // Errores con Gemini AI
-    | 'UNKNOWN'                  // Errores no clasificados
+    | 'API_KEY_FAILURE'
+    | 'EMAIL_FAILURE'
+    | 'SERVICE_UNAVAILABLE'
+    | 'STORAGE_FAILURE'
+    | 'DATABASE_ERROR'
+    | 'AUTHENTICATION_ERROR'
+    | 'INTEGRATION_ERROR'
+    | 'GEMINI_API_ERROR'
+    | 'UNKNOWN'
 
 interface CriticalErrorPayload {
     severity: ErrorSeverity
@@ -35,14 +29,11 @@ interface CriticalErrorPayload {
     errorStack?: string
     userEmail?: string
     userId?: string
-    feature: string              // Nombre del módulo/funcionalidad afectada
+    feature: string
     timestamp: string
-    metadata?: Record<string, unknown>  // Datos adicionales del contexto
+    metadata?: Record<string, unknown>
 }
 
-/**
- * Obtener emoji según severidad
- */
 function getSeverityEmoji(severity: ErrorSeverity): string {
     const emojis: Record<ErrorSeverity, string> = {
         CRITICAL: '🚨',
@@ -52,9 +43,6 @@ function getSeverityEmoji(severity: ErrorSeverity): string {
     return emojis[severity]
 }
 
-/**
- * Obtener emoji según categoría
- */
 function getCategoryEmoji(category: ErrorCategory): string {
     const emojis: Record<ErrorCategory, string> = {
         API_KEY_FAILURE: '🔑',
@@ -70,27 +58,20 @@ function getCategoryEmoji(category: ErrorCategory): string {
     return emojis[category]
 }
 
-/**
- * Obtener color según severidad
- */
 function getSeverityColor(severity: ErrorSeverity): string {
     const colors: Record<ErrorSeverity, string> = {
-        CRITICAL: '#dc2626',   // Rojo intenso
-        HIGH: '#f59e0b',       // Naranja
-        MEDIUM: '#3b82f6'      // Azul
+        CRITICAL: '#dc2626',
+        HIGH: '#f59e0b',
+        MEDIUM: '#3b82f6'
     }
     return colors[severity]
 }
 
-/**
- * Generar template HTML para notificación de error crítico
- */
 function generarTemplateErrorCritico(error: CriticalErrorPayload): string {
     const severityEmoji = getSeverityEmoji(error.severity)
     const categoryEmoji = getCategoryEmoji(error.category)
     const severityColor = getSeverityColor(error.severity)
 
-    // Formatear metadata si existe
     const metadataHtml = error.metadata && Object.keys(error.metadata).length > 0
         ? `
             <h3 style="color: ${severityColor}; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
@@ -104,7 +85,6 @@ function generarTemplateErrorCritico(error: CriticalErrorPayload): string {
         `
         : ''
 
-    // Formatear stack trace si existe
     const stackTraceHtml = error.errorStack
         ? `
             <h3 style="color: ${severityColor}; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
@@ -126,13 +106,22 @@ function generarTemplateErrorCritico(error: CriticalErrorPayload): string {
         `
         : ''
 
+    const fechaFormateada = new Date(error.timestamp).toLocaleString('es-CO', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    })
+
     return `
         <div style="font-family: Arial, sans-serif; color: #333; max-width: 700px; margin: 0 auto;">
             <div style="background-color: ${severityColor}; color: white; padding: 20px; text-align: center;">
-                <h1 style="margin: 0; font-size: 26px;">${severityEmoji} Error Crítico Detectado</h1>
+                <h1 style="margin: 0; font-size: 26px;">${severityEmoji} Error Critico Detectado</h1>
                 <p style="margin: 10px 0 0 0; font-size: 14px;">Portal de Colaboradores - Gestar Salud IPS</p>
             </div>
-            
+
             <div style="padding: 30px; background-color: #f9fafb;">
                 <div style="background-color: white; border-left: 5px solid ${severityColor}; padding: 20px; margin: 20px 0; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                     <h2 style="color: ${severityColor}; margin-top: 0; font-size: 20px;">
@@ -142,17 +131,10 @@ function generarTemplateErrorCritico(error: CriticalErrorPayload): string {
                         <strong>Severidad:</strong> <span style="color: ${severityColor}; font-weight: bold;">${error.severity}</span>
                     </p>
                     <p style="margin: 5px 0; font-size: 14px; color: #6b7280;">
-                        <strong>Módulo:</strong> ${error.feature}
+                        <strong>Modulo:</strong> ${error.feature}
                     </p>
                     <p style="margin: 5px 0; font-size: 14px; color: #6b7280;">
-                        <strong>Timestamp:</strong> ${new Date(error.timestamp).toLocaleString('es-CO', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-    })}
+                        <strong>Timestamp:</strong> ${fechaFormateada}
                     </p>
                 </div>
 
@@ -170,16 +152,16 @@ function generarTemplateErrorCritico(error: CriticalErrorPayload): string {
                 ${stackTraceHtml}
 
                 <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
-                    <strong>⚡ Acción Requerida:</strong>
+                    <strong>⚡ Accion Requerida:</strong>
                     <p style="margin: 10px 0 0 0;">
-                        Este error requiere atención inmediata. Por favor, revise el sistema y tome las medidas correctivas necesarias.
+                        Este error requiere atencion inmediata. Por favor, revise el sistema y tome las medidas correctivas necesarias.
                     </p>
                 </div>
 
                 <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
-                
+
                 <p style="font-size: 12px; color: #6b7280; text-align: center; margin: 0;">
-                    Este es un mensaje automático del Sistema de Monitoreo de Errores Críticos.<br />
+                    Este es un mensaje automatico del Sistema de Monitoreo de Errores Criticos.<br />
                     Portal de Colaboradores - Gestar Salud IPS
                 </p>
             </div>
@@ -187,27 +169,35 @@ function generarTemplateErrorCritico(error: CriticalErrorPayload): string {
     `
 }
 
-/**
- * Handler principal
- */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+Deno.serve(async (req) => {
+    // Manejar preflight CORS
+    if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders })
+    }
+
     // Solo permitir POST
     if (req.method !== 'POST') {
-        return res.status(405).json({ success: false, error: 'Método no permitido' })
+        return new Response(
+            JSON.stringify({ success: false, error: 'Metodo no permitido' }),
+            { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
     }
 
     try {
-        const error = req.body as CriticalErrorPayload
+        const error = await req.json() as CriticalErrorPayload
 
         // Validar campos requeridos
         if (!error.severity || !error.category || !error.errorMessage || !error.feature || !error.timestamp) {
-            return res.status(400).json({
-                success: false,
-                error: 'Faltan campos requeridos: severity, category, errorMessage, feature, timestamp'
-            })
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    error: 'Faltan campos requeridos: severity, category, errorMessage, feature, timestamp'
+                }),
+                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
-        // Email de destino para notificaciones críticas
+        // Email de destino para notificaciones criticas
         const CRITICAL_ERRORS_EMAIL = 'coordinacionmedica@gestarsaludips.com'
 
         // Generar subject
@@ -221,7 +211,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Enviar correo
         await sendGmailEmail(CRITICAL_ERRORS_EMAIL, subject, htmlBody)
 
-        // Log para debugging
         console.log(`[CRITICAL ERROR NOTIFICATION] Sent to ${CRITICAL_ERRORS_EMAIL}:`, {
             severity: error.severity,
             category: error.category,
@@ -229,16 +218,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             timestamp: error.timestamp
         })
 
-        return res.status(200).json({
-            success: true,
-            message: 'Notificación de error crítico enviada exitosamente'
-        })
+        return new Response(
+            JSON.stringify({
+                success: true,
+                message: 'Notificacion de error critico enviada exitosamente'
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
 
     } catch (error) {
-        console.error('Error enviando notificación de error crítico:', error)
-        return res.status(500).json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Error desconocido'
-        })
+        console.error('Error enviando notificacion de error critico:', error)
+        return new Response(
+            JSON.stringify({
+                success: false,
+                error: error instanceof Error ? error.message : 'Error desconocido'
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
     }
-}
+})

@@ -13,6 +13,7 @@ import { supabase } from '@/config/supabase.config'
 import { ragService } from './rag.service'
 import type { ContrarreferenciaResult } from '@/types/back.types'
 import { criticalErrorService } from './criticalError.service'
+import { EDGE_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
 
 interface CachedContrarreferencia {
     texto: string
@@ -145,10 +146,10 @@ async function generarContrarreferenciaConIA_ConRetry(
 
     for (let intento = 0; intento <= maxRetries; intento++) {
         try {
-            // Llamar al endpoint serverless de Vercel
-            const response = await fetch('/api/generar-contrarreferencia', {
+            // Llamar a Edge Function de Supabase
+            const response = await fetch(EDGE_FUNCTIONS.generarContrarreferencia, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     textoSoporte,
                     especialidad

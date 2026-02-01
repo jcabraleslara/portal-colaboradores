@@ -512,7 +512,7 @@ export const backService = {
             // o dejamos la lógica existente pero el frontal no la usará si no mostramos el filtro.
             // ACTUALIZACIÓN: El usuario dijo "no se necesitaría que salgan". 
             // Así que forzamos vaciar o filtar.
-            result.porRuta = [] // Ya no mostramos rutas en dashboard general
+            // result.porRuta = [] // Ya no mostramos rutas en dashboard general - COMENTADO para permitir acceso a Terapias Integrales
 
             return {
                 success: true,

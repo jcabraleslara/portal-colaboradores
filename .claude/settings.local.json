@@ -36,7 +36,11 @@
       "Bash(git check-ignore:*)",
       "Bash(dir:*)",
       "Bash(supabase functions invoke:*)",
-      "Bash(supabase functions deploy:*)"
+      "Bash(supabase functions deploy:*)",
+      "Bash(supabase functions list:*)",
+      "Bash(supabase secrets set:*)",
+      "Bash(supabase secrets list:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

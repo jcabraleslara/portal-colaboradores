@@ -1,7 +1,7 @@
 /**
  * Modal para crear un nuevo usuario del portal
  * Solo accesible para superadmin
- * Utiliza el endpoint serverless /api/create-user
+ * Utiliza Supabase Edge Function create-user
  */
 
 import { useState, useRef, useEffect } from 'react'
@@ -10,6 +10,7 @@ import { UsuarioPortal, CreateUserData } from '@/services/usuariosPortal.service
 import { contactosService } from '@/services/contactos.service'
 import { Contacto } from '@/types/contactos.types'
 import { supabase } from '@/config/supabase.config'
+import { EDGE_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
 
 interface CreateUserModalProps {
     onClose: () => void
@@ -138,13 +139,10 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                 return
             }
 
-            // Llamar al API serverless
-            const response = await fetch('/api/create-user', {
+            // Llamar a Edge Function de Supabase
+            const response = await fetch(EDGE_FUNCTIONS.createUser, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${session.access_token}`
-                },
+                headers: getEdgeFunctionHeaders(session.access_token),
                 body: JSON.stringify(formData)
             })
 

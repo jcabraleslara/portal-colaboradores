@@ -3,6 +3,8 @@
  * Genera vectores de 768 dimensiones usando text-embedding-004
  */
 
+import { EDGE_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
+
 // Gemini embedding-001 genera vectores de 768 dimensiones
 // Ajustamos la tabla si es necesario (1536 era para OpenAI, Gemini usa 768)
 export const EMBEDDING_DIMENSIONS = 768
@@ -19,11 +21,9 @@ interface EmbeddingResult {
  */
 export async function generateEmbedding(text: string): Promise<EmbeddingResult> {
     try {
-        const response = await fetch('/api/generate-embedding', {
+        const response = await fetch(EDGE_FUNCTIONS.generateEmbedding, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: getEdgeFunctionHeaders(),
             body: JSON.stringify({ text })
         })
 

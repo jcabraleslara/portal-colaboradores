@@ -1,10 +1,12 @@
 /**
- * Servicio de Notificación de Errores Críticos
+ * Servicio de Notificacion de Errores Criticos
  * Portal de Colaboradores - Gestar Salud IPS
- * 
- * Servicio centralizado para reportar errores críticos que requieren intervención
- * inmediata del equipo técnico mediante notificaciones por correo electrónico.
+ *
+ * Servicio centralizado para reportar errores criticos que requieren intervencion
+ * inmediata del equipo tecnico mediante notificaciones por correo electronico.
  */
+
+import { EDGE_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
 
 /**
  * Severidad del error crítico
@@ -112,10 +114,10 @@ export const criticalErrorService = {
                 metadata: options.metadata
             }
 
-            // Enviar notificación al endpoint serverless
-            const response = await fetch('/api/notify-critical-error', {
+            // Enviar notificacion a Edge Function
+            const response = await fetch(EDGE_FUNCTIONS.notifyCriticalError, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getEdgeFunctionHeaders(),
                 body: JSON.stringify(payload)
             })
 

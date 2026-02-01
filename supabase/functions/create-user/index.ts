@@ -1,20 +1,16 @@
 /**
- * API Serverless - Crear Usuario del Portal
- * Endpoint: POST /api/create-user
- * 
+ * Supabase Edge Function: Crear Usuario del Portal
+ * Portal de Colaboradores GESTAR SALUD IPS
+ *
+ * POST /functions/v1/create-user
+ *
  * Este endpoint crea usuarios tanto en Supabase Auth como en usuarios_portal.
  * Solo accesible para usuarios autenticados con rol superadmin.
- * 
- * Variables de entorno requeridas:
- * - SUPABASE_URL
- * - SUPABASE_SERVICE_ROLE_KEY
- * - SUPABASE_ANON_KEY
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { corsHeaders } from '../_shared/cors.ts'
 
-// Crear cliente con service_role para operaciones admin
 interface CreateUserRequest {
     identificacion: string
     nombre_completo: string
@@ -24,24 +20,33 @@ interface CreateUserRequest {
     contacto_id?: string | null
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-    // Solo permitir POST
-    if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' })
+Deno.serve(async (req) => {
+    // Manejar preflight CORS
+    if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders })
     }
 
-    // 0. Inicializar clientes dentro del handler para asegurar env vars frescas
-    // Intentar obtener de SUPABASE_URL o VITE_SUPABASE_URL por compatibilidad
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY
-    const anonKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY
+    // Solo permitir POST
+    if (req.method !== 'POST') {
+        return new Response(
+            JSON.stringify({ error: 'Method not allowed' }),
+            { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+    }
+
+    // Inicializar clientes
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 
     if (!supabaseUrl || !serviceRoleKey || !anonKey) {
-        return res.status(500).json({
-            error: 'Configuración incompleta en el servidor',
-            details: `Faltan: ${!supabaseUrl ? 'URL ' : ''}${!serviceRoleKey ? 'ServiceKey ' : ''}${!anonKey ? 'AnonKey' : ''}`,
-            hint: 'Asegúrate de configurar SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY y SUPABASE_ANON_KEY en Vercel'
-        })
+        return new Response(
+            JSON.stringify({
+                error: 'Configuracion incompleta en el servidor',
+                details: `Faltan: ${!supabaseUrl ? 'URL ' : ''}${!serviceRoleKey ? 'ServiceKey ' : ''}${!anonKey ? 'AnonKey' : ''}`,
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
     }
 
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
@@ -50,24 +55,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabaseAnon = createClient(supabaseUrl, anonKey)
 
     try {
-        // 1. Verificar que el usuario esté autenticado
-        const authHeader = req.headers.authorization
+        // 1. Verificar que el usuario este autenticado
+        const authHeader = req.headers.get('authorization')
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json({ error: 'No autorizado: token no proporcionado' })
+            return new Response(
+                JSON.stringify({ error: 'No autorizado: token no proporcionado' }),
+                { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
         const token = authHeader.split(' ')[1]
 
-        // Verificar el token usando el cliente anónimo
+        // Verificar el token usando el cliente anonimo
         const { data: { user: authUser }, error: authError } = await supabaseAnon.auth.getUser(token)
 
         if (authError || !authUser) {
-            console.error('Error de autenticación:', authError)
-            return res.status(401).json({
-                error: 'No autorizado: token inválido',
-                details: authError?.message || 'Error de red al validar token',
-                hint: `Verifica que el servidor pueda conectar a ${supabaseUrl}. Error: ${authError?.name || 'FetchError'}`
-            })
+            console.error('Error de autenticacion:', authError)
+            return new Response(
+                JSON.stringify({
+                    error: 'No autorizado: token invalido',
+                    details: authError?.message || 'Error de red al validar token',
+                }),
+                { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
         // 2. Verificar que el usuario sea superadmin
@@ -78,18 +88,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .single()
 
         if (profileError || !userProfile || userProfile.rol !== 'superadmin') {
-            return res.status(403).json({ error: 'Acceso denegado: solo superadmin puede crear usuarios' })
+            return new Response(
+                JSON.stringify({ error: 'Acceso denegado: solo superadmin puede crear usuarios' }),
+                { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
         // 3. Validar datos de entrada
-        const { identificacion, nombre_completo, email_institucional, rol, password, contacto_id } = req.body as CreateUserRequest
+        const body = await req.json() as CreateUserRequest
+        const { identificacion, nombre_completo, email_institucional, rol, password, contacto_id } = body
 
         if (!identificacion || !nombre_completo || !email_institucional || !rol || !password) {
-            return res.status(400).json({ error: 'Faltan campos requeridos' })
+            return new Response(
+                JSON.stringify({ error: 'Faltan campos requeridos' }),
+                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
         if (password.length < 6) {
-            return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' })
+            return new Response(
+                JSON.stringify({ error: 'La contrasena debe tener al menos 6 caracteres' }),
+                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
         // 4. Verificar que no exista el usuario
@@ -100,7 +120,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .single()
 
         if (existing) {
-            return res.status(409).json({ error: 'Ya existe un usuario con esa identificación o email' })
+            return new Response(
+                JSON.stringify({ error: 'Ya existe un usuario con esa identificacion o email' }),
+                { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
         // 5. Crear usuario en Supabase Auth
@@ -116,7 +139,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         if (createAuthError) {
             console.error('Error creando usuario en auth:', createAuthError)
-            return res.status(500).json({ error: `Error creando credenciales: ${createAuthError.message}` })
+            return new Response(
+                JSON.stringify({ error: `Error creando credenciales: ${createAuthError.message}` }),
+                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
         // 6. Crear registro en usuarios_portal
@@ -138,13 +164,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             console.error('Error creando usuario_portal:', portalError)
             // Rollback: eliminar usuario de auth
             await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
-            return res.status(500).json({ error: `Error creando perfil: ${portalError.message}` })
+            return new Response(
+                JSON.stringify({ error: `Error creando perfil: ${portalError.message}` }),
+                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
         }
 
         // 7. Actualizar datos del contacto si es necesario
         if (contacto_id) {
             try {
-                // Obtener datos actuales del contacto
                 const { data: contactData } = await supabaseAdmin
                     .from('contactos')
                     .select('email_personal, email_institucional')
@@ -152,7 +180,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                     .single()
 
                 if (contactData) {
-                    // Si el email usado es el personal y no tiene institucional, lo movemos
                     if (!contactData.email_institucional && contactData.email_personal === email_institucional) {
                         await supabaseAdmin
                             .from('contactos')
@@ -161,9 +188,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                                 email_personal: null
                             })
                             .eq('id', contacto_id)
-                    }
-                    // Si no tiene institucional pero el personal es diferente, solo ponemos el institucional
-                    else if (!contactData.email_institucional) {
+                    } else if (!contactData.email_institucional) {
                         await supabaseAdmin
                             .from('contactos')
                             .update({ email_institucional: email_institucional })
@@ -172,24 +197,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 }
             } catch (contactUpdateError) {
                 console.error('Error actualizando contacto:', contactUpdateError)
-                // No detenemos el proceso si falla la actualización del contacto
-                // ya que el usuario ya fue creado exitosamente
             }
         }
 
         // 8. Respuesta exitosa
-        return res.status(201).json({
-            success: true,
-            message: 'Usuario creado exitosamente',
-            usuario: usuarioPortal
-        })
+        return new Response(
+            JSON.stringify({
+                success: true,
+                message: 'Usuario creado exitosamente',
+                usuario: usuarioPortal
+            }),
+            { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error inesperado:', error)
-        return res.status(500).json({
-            error: 'Error interno del servidor',
-            details: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        })
+        return new Response(
+            JSON.stringify({
+                error: 'Error interno del servidor',
+                details: error instanceof Error ? error.message : 'Unknown error'
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
     }
-}
+})

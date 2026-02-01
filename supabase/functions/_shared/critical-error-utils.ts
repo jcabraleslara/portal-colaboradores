@@ -1,9 +1,10 @@
 /**
- * Utilidades para Notificación de Errores Críticos desde APIs Serverless
+ * Utilidades para Notificacion de Errores Criticos desde Edge Functions
  * Portal de Colaboradores - Gestar Salud IPS
- * 
- * Este módulo permite enviar notificaciones de errores críticos desde las
- * APIs serverless (Vercel Functions) llamando al endpoint de notificación.
+ *
+ * Este modulo permite enviar notificaciones de errores criticos
+ * llamando al endpoint de notificacion.
+ * Adaptado para Deno runtime.
  */
 
 type ErrorSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM'
@@ -30,10 +31,10 @@ interface CriticalErrorPayload {
 }
 
 /**
- * Enviar notificación de error crítico desde API serverless
- * 
- * @param options - Opciones del error crítico
- * @returns true si la notificación se envió exitosamente
+ * Enviar notificacion de error critico desde Edge Function
+ *
+ * @param options - Opciones del error critico
+ * @returns true si la notificacion se envio exitosamente
  */
 export async function notifyCriticalError(options: {
     category: ErrorCategory
@@ -54,14 +55,16 @@ export async function notifyCriticalError(options: {
             metadata: options.metadata
         }
 
-        // Determinar la URL base del endpoint de notificación
-        const baseUrl = process.env.VERCEL_URL
-            ? `https://${process.env.VERCEL_URL}`
-            : 'http://localhost:3000'
+        // Usar URL de Supabase Functions
+        const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+        const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
 
-        const response = await fetch(`${baseUrl}/api/notify-critical-error`, {
+        const response = await fetch(`${supabaseUrl}/functions/v1/notify-critical-error`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabaseAnonKey}`
+            },
             body: JSON.stringify(payload)
         })
 
@@ -71,18 +74,18 @@ export async function notifyCriticalError(options: {
         }
 
         const result = await response.json()
-        console.log('[CRITICAL ERROR UTILS] ✅ Notificación enviada:', options.category, options.feature)
+        console.log('[CRITICAL ERROR UTILS] Notificacion enviada:', options.category, options.feature)
         return result.success
 
     } catch (error) {
-        // No queremos que el sistema de notificación rompa las APIs serverless
-        console.error('[CRITICAL ERROR UTILS] Error enviando notificación:', error)
+        // No queremos que el sistema de notificacion rompa las Edge Functions
+        console.error('[CRITICAL ERROR UTILS] Error enviando notificacion:', error)
         return false
     }
 }
 
 /**
- * Wrapper para reportar fallos de API keys desde serverless
+ * Wrapper para reportar fallos de API keys
  */
 export async function notifyApiKeyFailure(
     apiName: string,
@@ -92,7 +95,7 @@ export async function notifyApiKeyFailure(
 ): Promise<void> {
     await notifyCriticalError({
         category: 'API_KEY_FAILURE',
-        errorMessage: `${apiName} retornó error ${statusCode} - Posible API key inválida o expirada`,
+        errorMessage: `${apiName} retorno error ${statusCode} - Posible API key invalida o expirada`,
         feature,
         severity: 'CRITICAL',
         error,
@@ -101,7 +104,7 @@ export async function notifyApiKeyFailure(
 }
 
 /**
- * Wrapper para reportar errores de autenticación OAuth2 desde serverless
+ * Wrapper para reportar errores de autenticacion OAuth2
  */
 export async function notifyAuthenticationError(
     provider: string,
@@ -111,7 +114,7 @@ export async function notifyAuthenticationError(
 ): Promise<void> {
     await notifyCriticalError({
         category: 'AUTHENTICATION_ERROR',
-        errorMessage: `Error de autenticación con ${provider} (${statusCode}) - Credenciales OAuth2 pueden estar expiradas`,
+        errorMessage: `Error de autenticacion con ${provider} (${statusCode}) - Credenciales OAuth2 pueden estar expiradas`,
         feature,
         severity: 'CRITICAL',
         error,
@@ -120,7 +123,7 @@ export async function notifyAuthenticationError(
 }
 
 /**
- * Wrapper para reportar servicios no disponibles desde serverless
+ * Wrapper para reportar servicios no disponibles
  */
 export async function notifyServiceUnavailable(
     serviceName: string,

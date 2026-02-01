@@ -1,5 +1,6 @@
 import { supabase } from '@/config/supabase.config'
 import { BackRadicacion } from '@/types/back.types'
+import { EDGE_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
 
 // Servicio para manejar notificaciones SMS
 export const smsService = {
@@ -66,11 +67,9 @@ export const smsService = {
             // Si estamos en local puro sin `vercel dev`, esto fallará a menos que se apunte a prod o mock.
             // Usaremos fetch relativo '/api/sms'.
 
-            const response = await fetch('/api/sms', {
+            const response = await fetch(EDGE_FUNCTIONS.sms, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     phone: paciente.telefono,
                     message: mensaje

@@ -1,12 +1,13 @@
 /**
  * Servicio de Correo
  * Portal de Colaboradores - Gestar Salud IPS
- * 
- * Utiliza Vercel Serverless Functions para enviar correos de forma segura.
- * Las credenciales OAuth2 están protegidas en el backend.
+ *
+ * Utiliza Supabase Edge Functions para enviar correos de forma segura.
+ * Las credenciales OAuth2 estan protegidas en el backend.
  */
 
 import { criticalErrorService } from './criticalError.service'
+import { EDGE_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
 
 export const emailService = {
     /**
@@ -34,9 +35,9 @@ export const emailService = {
                 tipoSolicitud: datosCaso['Tipo Solicitud'] || ''
             }
 
-            const response = await fetch('/api/send-email', {
+            const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'devolucion',
                     destinatario,
@@ -92,9 +93,9 @@ export const emailService = {
                 observacionesFacturacion
             }
 
-            const response = await fetch('/api/send-email', {
+            const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'rechazo',
                     destinatario,
@@ -143,9 +144,9 @@ export const emailService = {
         }
     ): Promise<boolean> {
         try {
-            const response = await fetch('/api/send-email', {
+            const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'radicacion',
                     destinatario,
@@ -193,9 +194,9 @@ export const emailService = {
                 fechaGestion: new Date().toLocaleString('es-CO'),
             }
 
-            const response = await fetch('/api/send-email', {
+            const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'no_contactable',
                     destinatario,
@@ -248,9 +249,9 @@ export const emailService = {
                 fechaDevolucion: new Date().toLocaleString('es-CO'),
             }
 
-            const response = await fetch('/api/send-email', {
+            const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'devolucion_recobro',
                     destinatario,
@@ -303,9 +304,9 @@ export const emailService = {
                 fechaAprobacion: new Date().toLocaleString('es-CO'),
             }
 
-            const response = await fetch('/api/send-email', {
+            const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'aprobacion_recobro',
                     destinatario,

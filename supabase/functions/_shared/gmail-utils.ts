@@ -1,8 +1,9 @@
 /**
  * Utilidades para Gmail API
- * Vercel Serverless Functions - Portal de Colaboradores
- * 
+ * Supabase Edge Functions - Portal de Colaboradores
+ *
  * Funciones compartidas para envío de correos usando Gmail API con OAuth2
+ * Adaptado para Deno runtime
  */
 
 interface GoogleTokenResponse {
@@ -16,9 +17,9 @@ interface GoogleTokenResponse {
  * Obtener access token de Gmail usando refresh token
  */
 export async function getGmailAccessToken(): Promise<string> {
-    const clientId = process.env.GOOGLE_CLIENT_ID
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET
-    const refreshToken = process.env.GOOGLE_REFRESH_TOKEN
+    const clientId = Deno.env.get('GOOGLE_CLIENT_ID')
+    const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET')
+    const refreshToken = Deno.env.get('GOOGLE_REFRESH_TOKEN')
 
     if (!clientId || !clientSecret || !refreshToken) {
         throw new Error('Faltan credenciales de Google OAuth2 en variables de entorno')
@@ -40,12 +41,8 @@ export async function getGmailAccessToken(): Promise<string> {
     if (!response.ok) {
         const error = await response.text()
 
-        // Si es error 40x, probablemente sea problema con las credenciales OAuth
         if (response.status === 401 || response.status === 403 || response.status === 400) {
-            console.error('⚠️ ERROR CRÍTICO: Credenciales de Gmail OAuth2 inválidas o expiradas')
-            // Aquí podríamos llamar a otro endpoint para notificar al equipo técnico
-            // pero evitamos dependencias circulares. El sistema de notificación
-            // se activará desde el frontend cuando detecte que falla el envío de email.
+            console.error('[Gmail Utils] ERROR CRITICO: Credenciales de Gmail OAuth2 invalidas o expiradas')
         }
 
         throw new Error(`Error renovando token de Gmail: ${error}`)
@@ -56,11 +53,24 @@ export async function getGmailAccessToken(): Promise<string> {
 }
 
 /**
+ * Codificar texto a Base64 (compatible con Deno)
+ */
+function encodeBase64(text: string): string {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(text)
+    let binary = ''
+    for (let i = 0; i < data.length; i++) {
+        binary += String.fromCharCode(data[i])
+    }
+    return btoa(binary)
+}
+
+/**
  * Codificar texto para encabezados de correo (RFC 2047)
  * Necesario para asuntos con tildes y caracteres especiales
  */
 function encodeHeader(text: string): string {
-    const encoded = Buffer.from(text, 'utf-8').toString('base64')
+    const encoded = encodeBase64(text)
     return `=?utf-8?B?${encoded}?=`
 }
 
@@ -68,8 +78,7 @@ function encodeHeader(text: string): string {
  * Codificar mensaje de correo para Gmail API (Base64URL)
  */
 function encodeEmailMessage(raw: string): string {
-    return Buffer.from(raw, 'utf-8')
-        .toString('base64')
+    return encodeBase64(raw)
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, '')
@@ -84,10 +93,9 @@ export async function sendGmailEmail(
     htmlBody: string
 ): Promise<void> {
     const token = await getGmailAccessToken()
-    const userEmail = process.env.GOOGLE_USER_EMAIL || 'info@gestarsaludips.com'
+    const userEmail = Deno.env.get('GOOGLE_USER_EMAIL') || 'info@gestarsaludips.com'
 
     // Construir mensaje RFC 2822
-    // IMPORTANTE: El asunto (Subject) debe estar codificado si contiene caracteres especiales
     const email = [
         `To: ${to}`,
         `From: Gestar Salud IPS <${userEmail}>`,
@@ -114,7 +122,7 @@ export async function sendGmailEmail(
 
     if (!response.ok) {
         const errorData = await response.json()
-        console.error('Error Gmail API:', errorData)
-        throw new Error(`Falló el envío del correo: ${JSON.stringify(errorData)}`)
+        console.error('[Gmail Utils] Error Gmail API:', errorData)
+        throw new Error(`Fallo el envio del correo: ${JSON.stringify(errorData)}`)
     }
 }
