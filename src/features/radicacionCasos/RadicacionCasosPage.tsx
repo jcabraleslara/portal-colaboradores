@@ -900,7 +900,7 @@ export function RadicacionCasosPage() {
                                                 { id: 'Auditoría Médica', icon: Stethoscope, color: 'blue', desc: 'Evaluación técnica de pertinencia médica' },
                                                 { id: 'Solicitud de Historia Clínica', icon: BookOpen, color: 'emerald', desc: 'Copia o resumen de registro clínico' },
                                                 { id: 'Ajuste de Ordenamiento', icon: FileEdit, color: 'amber', desc: 'Corrección o cambio en órdenes médicas' },
-                                                { id: 'Ordenamientos externos', icon: FileSignature, color: 'indigo', desc: 'Casos ordenados fuera de red y requieren aprobación' },
+                                                { id: 'Ordenamientos externos', icon: FileSignature, color: 'indigo', desc: 'Casos ordenados por fuera de la red' },
                                                 { id: 'Gestión de Mipres', icon: Zap, color: 'purple', desc: 'Trámite de tecnologías no PBS' },
                                                 { id: 'Activación de Ruta', icon: Route, color: 'cyan', desc: 'Ingreso a rutas integrales de atención' },
                                             ].map((opcion) => (

@@ -371,6 +371,9 @@ export function GestionBackPage() {
                         ))
                     ) : (
                         TIPOS_SOLICITUD_LISTA.map(tipo => {
+                            // INTERCEPCIÓN: Ocultar 'Renovación de prequirúrgicos' (solo histórico)
+                            if (tipo === 'Renovación de prequirúrgicos') return null
+
                             // INTERCEPCIÓN: Reemplazar 'Activación de Ruta' por 'Terapias Integrales'
                             if (tipo === 'Activación de Ruta') {
                                 const rutaNombre = 'Terapias Integrales'

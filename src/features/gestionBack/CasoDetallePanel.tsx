@@ -51,6 +51,7 @@ import { Button, RichTextEditor } from '@/components/common'
 import { copyRichText } from '@/utils/clipboard'
 import { backService } from '@/services/back.service'
 import { emailService } from '@/services/email.service'
+import { teamsService } from '@/services/teams.service'
 import { generarContrarreferenciaAutomatica } from '@/services/contrarreferenciaService'
 import { useAuth } from '@/context/AuthContext'
 import {
@@ -368,6 +369,25 @@ export function CasoDetallePanel({
             } else {
                 console.warn("El radicador no tiene correo registrado, no se envió notificación.")
             }
+
+            // Notificación a Teams para la líder back (en paralelo, no bloquea)
+            teamsService.notificarDevolucionBack({
+                radicado: caso.radicado,
+                paciente: getNombreCompleto(),
+                identificacion: `${caso.paciente?.tipoId || 'CC'} - ${caso.id}`,
+                tipoSolicitud: tipoSolicitud,
+                fechaRadicacion: formatFecha(caso.createdAt),
+                radicador: caso.nombreRadicador || caso.radicador || 'No registrado',
+                motivoDevolucion: respuestaBack
+            }).then(result => {
+                if (result.success) {
+                    console.info(`✅ Notificación Teams enviada para radicado: ${caso.radicado}`)
+                } else {
+                    console.warn(`⚠️ No se pudo enviar notificación Teams: ${result.error}`)
+                }
+            }).catch(err => {
+                console.error('Error enviando notificación Teams:', err)
+            })
         }
 
         // Validación para estado "No contactable"
