@@ -22,9 +22,9 @@ const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000 // 24 horas de validez del caché
 const GLOBAL_TIMEOUT_MS = 15000 // 15 segundos para consultas (conexiones lentas)
 const FAILSAFE_TIMEOUT_MS = 30000 // 30 segundos timeout de seguridad
 
-// Logs siempre activos para diagnóstico (prefijo para filtrar fácilmente)
+// Solo logs de advertencia/error en producción (los importantes para diagnóstico)
 const log = {
-    info: (...args: unknown[]) => console.info('[Auth]', ...args),
+    debug: (...args: unknown[]) => import.meta.env.DEV && console.info('[Auth]', ...args),
     warn: (...args: unknown[]) => console.warn('[Auth]', ...args),
     error: (...args: unknown[]) => console.error('[Auth]', ...args),
 }
@@ -60,6 +60,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // Refs para control de estado
     const initializationComplete = useRef(false)
     const processingAuth = useRef(false)
+    const backgroundFetchDone = useRef(false)
 
     // ========================================
     // CACHÉ (Simplificada)
@@ -150,7 +151,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const fetchProfileFast = useCallback(async (email: string): Promise<AuthUser | null> => {
         const startTime = performance.now()
-        log.info('Obteniendo perfil para:', email)
+        log.debug('Obteniendo perfil para:', email)
 
         // Flag para evitar logs de promesas "perdedoras"
         let resolved = false
@@ -182,7 +183,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     if (!userData) throw new Error('RPC_NO_DATA')
                     if (!resolved) {
                         resolved = true
-                        log.info('RPC respondió primero')
+                        log.debug('RPC respondió primero')
                     }
                     return userData
                 })
@@ -197,7 +198,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     if (!data) throw new Error('QUERY_NO_DATA')
                     if (!resolved) {
                         resolved = true
-                        log.info('Query directa respondió primero')
+                        log.debug('Query directa respondió primero')
                     }
                     return data
                 })
@@ -220,7 +221,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 return null
             }
 
-            log.info(`Perfil obtenido en ${duration.toFixed(0)}ms`)
+            log.debug(`Perfil obtenido en ${duration.toFixed(0)}ms`)
             return transformUserData(userData as Record<string, unknown>)
 
         } catch (error) {
@@ -249,7 +250,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, [cacheProfile])
 
     const logout = useCallback(async () => {
-        log.info('Cerrando sesión...')
+        log.debug('Cerrando sesión...')
         clearProfileCache()
         await supabase.auth.signOut()
         setUser(null)
@@ -279,7 +280,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 log.warn(`SAFETY TIMEOUT activado después de ${FAILSAFE_TIMEOUT_MS}ms - isLoading aún true`)
                 const fallbackProfile = getCachedProfile()
                 if (fallbackProfile) {
-                    log.info('Timeout alcanzado - usando caché de respaldo')
+                    log.debug('Timeout alcanzado - usando caché de respaldo')
                     setUser(fallbackProfile)
                     setIsLoading(false)
                     initializationComplete.current = true
@@ -295,7 +296,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
             // Evitar procesamiento concurrente
             if (processingAuth.current) {
-                log.info(`[${eventType}] Procesamiento en curso, omitiendo...`)
+                log.debug(`[${eventType}] Procesamiento en curso, omitiendo...`)
                 return
             }
 
@@ -305,41 +306,44 @@ export function AuthProvider({ children }: AuthProviderProps) {
             try {
                 // ===== CASO 1: Hay sesión válida =====
                 if (session?.user && email) {
-                    log.info(`[${eventType}] Sesión detectada: ${email}`)
+                    log.debug(`[${eventType}] Sesión detectada: ${email}`)
 
                     // Intentar caché primero (instantáneo)
                     const cachedProfile = getCachedProfile(email)
                     if (cachedProfile) {
-                        log.info('Usando perfil cacheado')
+                        log.debug('Usando perfil cacheado')
                         setUser(cachedProfile)
                         userRef.current = cachedProfile
                         setIsLoading(false)
                         initializationComplete.current = true
                         processingAuth.current = false
 
-                        // Actualizar en background SIN afectar la sesión actual
-                        fetchProfileFast(email).then(freshProfile => {
-                            if (mounted && freshProfile) {
-                                setUser(freshProfile)
-                                userRef.current = freshProfile
-                                cacheProfile(freshProfile)
-                                log.info('Perfil actualizado en background')
-                            }
-                        }).catch(() => {
-                            // Silencioso - mantener caché
-                        })
+                        // Actualizar en background UNA SOLA VEZ
+                        if (!backgroundFetchDone.current) {
+                            backgroundFetchDone.current = true
+                            fetchProfileFast(email).then(freshProfile => {
+                                if (mounted && freshProfile) {
+                                    setUser(freshProfile)
+                                    userRef.current = freshProfile
+                                    cacheProfile(freshProfile)
+                                    log.debug('Perfil actualizado en background')
+                                }
+                            }).catch(() => {
+                                // Silencioso - mantener caché
+                            })
+                        }
 
                         return
                     }
 
                     // Sin caché: obtener perfil
-                    log.info('Sin caché, obteniendo perfil...')
+                    log.debug('Sin caché, obteniendo perfil...')
                     const profile = await fetchProfileFast(email)
 
                     if (!mounted) return
 
                     if (profile) {
-                        log.info('Autenticación exitosa:', profile.nombreCompleto)
+                        log.debug('Autenticación exitosa:', profile.nombreCompleto)
                         setUser(profile)
                         userRef.current = profile
                         cacheProfile(profile)
@@ -365,7 +369,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 }
                 // ===== CASO 2: No hay sesión =====
                 else {
-                    log.info(`[${eventType}] Sin sesión activa`)
+                    log.debug(`[${eventType}] Sin sesión activa`)
                     setUser(null)
                     userRef.current = null
                     setIsLoading(false)
@@ -385,20 +389,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
             async (event, session) => {
                 if (!mounted) return
 
-                log.info(`Auth event: ${event}`)
+                log.debug(`Auth event: ${event}`)
                 clearTimeout(safetyTimeout)
 
                 switch (event) {
                     case 'INITIAL_SESSION':
-                        // Este es el evento principal - determina estado inicial
-                        await handleAuthSession(session, event)
-                        break
-
                     case 'SIGNED_IN':
-                        // IMPORTANTE: Ignorar si ya se procesó INITIAL_SESSION
-                        // Supabase dispara SIGNED_IN antes de INITIAL_SESSION a veces
+                        // Solo procesar UNA VEZ - el primero que llegue gana
                         if (initializationComplete.current) {
-                            log.info('SIGNED_IN ignorado - ya inicializado')
+                            log.debug(`${event} ignorado - ya inicializado`)
                             return
                         }
                         await handleAuthSession(session, event)
@@ -406,20 +405,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                     case 'SIGNED_OUT':
                         log.warn('SIGNED_OUT recibido de Supabase - cerrando sesión')
-                        log.warn('Stack trace:', new Error().stack)
                         clearProfileCache()
                         setUser(null)
                         userRef.current = null
                         setIsLoading(false)
                         initializationComplete.current = false
                         processingAuth.current = false
+                        backgroundFetchDone.current = false
                         break
 
                     case 'TOKEN_REFRESHED':
                         // Extender el caché del perfil cuando el token se renueva
                         if (userRef.current) {
                             cacheProfile(userRef.current)
-                            log.info('Token renovado - caché extendido')
+                            log.debug('Token renovado - caché extendido')
                         }
                         break
 
