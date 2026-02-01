@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash, Save, X, Mail, Copy, Building2, MapPin } from 'lucide-react'
+import { Plus, Trash, Save, X, Mail, Copy, Building2, MapPin, Pencil } from 'lucide-react'
 import { Button, Card, MultiSelector } from '@/components/common'
 import { rutasService, RutaEmailConfig, EPS_DISPONIBLES } from '../services/rutas.service'
 import { RUTAS_CONFIG } from '@/types/back.types'
@@ -55,6 +55,13 @@ export function RutasConfig() {
     const handleCancelar = () => {
         setEditingId(null)
         setTempConfig({})
+    }
+
+    const handleDuplicar = (config: RutaEmailConfig) => {
+        // Copiar todo excepto ID y fechas
+        const { id, created_at, updated_at, ...rest } = config
+        setTempConfig({ ...rest })
+        setEditingId('new') // Modo creación
     }
 
     const handleGuardar = async () => {
@@ -255,20 +262,31 @@ export function RutasConfig() {
                                                 </span>
                                             </td>
                                             <td className="px-3 py-3">
-                                                <div className="flex gap-1">
+                                                <div className="flex gap-1 items-center">
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
                                                         onClick={() => handleEditar(config)}
                                                         className="text-blue-600 h-7 w-7 p-0"
+                                                        title="Editar"
                                                     >
-                                                        <span className="text-xs">Edit</span>
+                                                        <Pencil size={14} />
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        onClick={() => handleDuplicar(config)}
+                                                        className="text-amber-600 h-7 w-7 p-0"
+                                                        title="Duplicar"
+                                                    >
+                                                        <Copy size={14} />
                                                     </Button>
                                                     <Button
                                                         size="sm"
                                                         variant="ghost"
                                                         onClick={() => handleEliminar(config.id)}
                                                         className="text-red-600 h-7 w-7 p-0"
+                                                        title="Eliminar"
                                                     >
                                                         <Trash size={14} />
                                                     </Button>
