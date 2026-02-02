@@ -543,7 +543,7 @@ function generarTemplateEnrutado(radicado: string, datos: DatosEnrutado): string
 
                 ${datos.observaciones ? `
                 <h3 style="color: ${GESTAR_COLORS.primary}; border-bottom: 2px solid ${GESTAR_COLORS.primaryLight}; padding-bottom: 8px; margin-top: 24px; font-size: 16px; font-weight: 600;">
-                    ðŸ“ Observaciones
+                    &#128221; Observaciones
                 </h3>
                 <div style="background-color: #ffffff; padding: 16px; border-radius: 8px; border-left: 4px solid ${GESTAR_COLORS.success}; margin-top: 12px;">
                     <p style="margin: 0; white-space: pre-wrap; line-height: 1.6; font-size: 14px; color: ${GESTAR_COLORS.text};">${datos.observaciones}</p>
@@ -554,7 +554,7 @@ function generarTemplateEnrutado(radicado: string, datos: DatosEnrutado): string
 
                 <!-- Call to Action -->
                 <div style="background-color: #FEF3C7; border-left: 4px solid ${GESTAR_COLORS.warning}; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
-                    <strong style="color: #92400E; font-size: 14px;">âš¡ Accion Requerida:</strong>
+                    <strong style="color: #92400E; font-size: 14px;">&#9889; Accion Requerida:</strong>
                     <p style="margin: 8px 0 0 0; font-size: 14px; color: #78350F; line-height: 1.5;">
                         Por favor contacte al paciente y realice la gestion correspondiente segun el protocolo de la <strong>Ruta ${datos.ruta}</strong>.
                     </p>
