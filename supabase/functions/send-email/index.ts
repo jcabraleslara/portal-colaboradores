@@ -375,61 +375,102 @@ function generarTemplateAprobacionRecobro(consecutivo: string, datos: DatosAprob
     const cupsHtml = datos.cupsData
         .map(cups => `
             <tr>
-                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">
-                    ${cups.es_principal ? 'â­ ' : ''}<code style="background-color: #d1fae5; padding: 2px 6px; border-radius: 4px; color: #047857;">${cups.cups}</code>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0;">
+                    ${cups.es_principal ? '&#11088; ' : ''}<code style="background-color: ${GESTAR_COLORS.primaryLight}; padding: 2px 8px; border-radius: 4px; color: ${GESTAR_COLORS.primary}; font-weight: 600;">${cups.cups}</code>
                 </td>
-                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${cups.descripcion}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #e5e7eb; text-align: center;">${cups.cantidad}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; font-size: 14px;">${cups.descripcion}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #E2E8F0; text-align: center; font-weight: 600;">${cups.cantidad}</td>
             </tr>
         `)
         .join('')
 
-    const pdfSection = datos.pdfUrl
-        ? `<div style="background-color: #d1fae5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0;">
-            <strong>ðŸ“„ Carta de Autorizacion:</strong>
-            <a href="${datos.pdfUrl}" target="_blank" style="color: #047857; text-decoration: none; margin-left: 10px;">
-                Descargar PDF de Aprobacion
-            </a>
+    // Nota: El PDF ahora se adjunta directamente al correo
+    const pdfNote = datos.pdfUrl
+        ? `<div style="background-color: ${GESTAR_COLORS.primaryLight}; border-left: 4px solid ${GESTAR_COLORS.primary}; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+            <strong style="color: ${GESTAR_COLORS.primaryDark};">&#128206; Carta de Autorizacion Adjunta</strong>
+            <p style="margin: 8px 0 0 0; font-size: 14px; color: ${GESTAR_COLORS.text};">
+                La carta de autorizacion se encuentra adjunta a este correo en formato PDF.
+            </p>
         </div>`
         : ''
 
     return `
-        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: #059669; color: white; padding: 20px; text-align: center;">
-                <h1 style="margin: 0; font-size: 24px;">✅ Recobro Aprobado</h1>
+        <div style="font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color: ${GESTAR_COLORS.text}; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <!-- Header con Logo -->
+            <div style="background-color: ${GESTAR_COLORS.primary}; background: linear-gradient(135deg, ${GESTAR_COLORS.primary} 0%, ${GESTAR_COLORS.primaryDark} 100%); padding: 24px 30px; text-align: center;">
+                <img src="cid:logo-gestar" alt="Gestar Salud IPS" style="height: 50px; margin-bottom: 12px;" />
+                <h1 style="margin: 0; font-size: 22px; font-weight: 600; color: #ffffff; letter-spacing: -0.5px;">
+                    &#9989; Recobro Aprobado
+                </h1>
             </div>
-            <div style="padding: 30px; background-color: #f9fafb;">
-                <p>Cordial saludo,</p>
-                <p>Nos complace informarle que su solicitud de recobro <strong>${consecutivo}</strong> ha sido <strong style="color: #059669;">APROBADA</strong> por el area de Auditoria.</p>
-                <div style="background-color: #d1fae5; border: 3px solid #059669; padding: 20px; margin: 20px 0; border-radius: 8px; text-align: center;">
-                    <h2 style="color: #059669; margin: 0; font-size: 28px;">✓ APROBADO</h2>
-                    <p style="color: #047857; margin: 10px 0 0 0; font-size: 14px;">Consecutivo: <strong>${consecutivo}</strong></p>
+
+            <!-- Contenido Principal -->
+            <div style="padding: 30px; background-color: ${GESTAR_COLORS.background};">
+                <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6;">Cordial saludo,</p>
+                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">
+                    Nos complace informarle que su solicitud de recobro <strong>${consecutivo}</strong> ha sido
+                    <strong style="color: ${GESTAR_COLORS.success};">APROBADA</strong> por el area de Auditoria.
+                </p>
+
+                <!-- Card Estado -->
+                <div style="background-color: #ffffff; border: 2px solid ${GESTAR_COLORS.success}; padding: 20px; margin: 20px 0; border-radius: 8px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <h2 style="color: ${GESTAR_COLORS.success}; margin: 0; font-size: 26px; font-weight: 700;">&#10003; APROBADO</h2>
+                    <p style="color: ${GESTAR_COLORS.textSecondary}; margin: 10px 0 0 0; font-size: 14px;">
+                        Consecutivo: <strong style="color: ${GESTAR_COLORS.text}; font-family: 'JetBrains Mono', monospace;">${consecutivo}</strong>
+                    </p>
                 </div>
-                <h3 style="color: #059669; border-bottom: 2px solid #d1fae5; padding-bottom: 8px;">📋 Informacion del Paciente</h3>
-                <ul style="line-height: 1.8;">
-                    <li><strong>Nombre:</strong> ${datos.pacienteNombre}</li>
-                    <li><strong>Identificacion:</strong> ${datos.pacienteIdentificacion}</li>
-                </ul>
-                <h3 style="color: #059669; border-bottom: 2px solid #d1fae5; padding-bottom: 8px;">🏥 Procedimientos Aprobados</h3>
-                <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+
+                <!-- Datos del Paciente -->
+                <h3 style="color: ${GESTAR_COLORS.primary}; border-bottom: 2px solid ${GESTAR_COLORS.primaryLight}; padding-bottom: 8px; margin-top: 24px; font-size: 16px; font-weight: 600;">
+                    &#128203; Informacion del Paciente
+                </h3>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                    <tr>
+                        <td style="padding: 10px 0; color: ${GESTAR_COLORS.textSecondary}; width: 140px; font-size: 14px; border-bottom: 1px solid #E2E8F0;">Nombre:</td>
+                        <td style="padding: 10px 0; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.pacienteNombre}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; color: ${GESTAR_COLORS.textSecondary}; font-size: 14px;">Identificacion:</td>
+                        <td style="padding: 10px 0; font-weight: 600; font-size: 14px;">${datos.pacienteIdentificacion}</td>
+                    </tr>
+                </table>
+
+                <!-- Procedimientos -->
+                <h3 style="color: ${GESTAR_COLORS.primary}; border-bottom: 2px solid ${GESTAR_COLORS.primaryLight}; padding-bottom: 8px; margin-top: 24px; font-size: 16px; font-weight: 600;">
+                    &#127973; Procedimientos Aprobados
+                </h3>
+                <table style="width: 100%; border-collapse: collapse; margin: 12px 0;">
                     <thead>
-                        <tr style="background-color: #d1fae5;">
-                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #10b981;">Codigo</th>
-                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid #10b981;">Descripcion</th>
-                            <th style="padding: 8px; text-align: center; border-bottom: 2px solid #10b981;">Cant.</th>
+                        <tr style="background-color: ${GESTAR_COLORS.primaryLight};">
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid ${GESTAR_COLORS.primary}; font-size: 13px; color: ${GESTAR_COLORS.primaryDark};">Codigo</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid ${GESTAR_COLORS.primary}; font-size: 13px; color: ${GESTAR_COLORS.primaryDark};">Descripcion</th>
+                            <th style="padding: 10px; text-align: center; border-bottom: 2px solid ${GESTAR_COLORS.primary}; font-size: 13px; color: ${GESTAR_COLORS.primaryDark};">Cant.</th>
                         </tr>
                     </thead>
                     <tbody>${cupsHtml}</tbody>
                 </table>
-                <p style="font-size: 12px; color: #6b7280;">⭐ = Procedimiento principal</p>
-                ${pdfSection}
-                <div style="background-color: #ecfdf5; border-left: 4px solid #059669; padding: 15px; margin: 20px 0;">
-                    <strong>📍 Informacion Importante:</strong>
-                    <p style="margin: 10px 0 0 0;">La carta de autorizacion ha sido generada y almacenada. Puede descargarla desde el enlace anterior o acceder directamente desde el Portal de Colaboradores en la seccion de Gestion de Recobros.</p>
+                <p style="font-size: 12px; color: ${GESTAR_COLORS.textSecondary};">&#11088; = Procedimiento principal</p>
+
+                ${pdfNote}
+
+                <!-- Informacion Importante -->
+                <div style="background-color: #FEF3C7; border-left: 4px solid ${GESTAR_COLORS.warning}; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+                    <strong style="color: #92400E; font-size: 14px;">&#128205; Informacion Importante:</strong>
+                    <p style="margin: 8px 0 0 0; font-size: 14px; color: #78350F; line-height: 1.5;">
+                        La carta de autorizacion ha sido generada y almacenada. Tambien puede acceder directamente desde el Portal de Colaboradores en la seccion de Gestion de Recobros.
+                    </p>
                 </div>
-                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;" />
-                <p style="font-size: 12px; color: #6b7280; text-align: center; margin: 0;">
-                    Este es un mensaje automatico generado por el Portal de Colaboradores de Gestar Salud IPS.<br />No responda a este correo.
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #1E293B; padding: 20px 30px; text-align: center;">
+                <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.6;">
+                    Este es un mensaje automatico generado por el<br />
+                    <strong style="color: #E2E8F0;">Portal de Colaboradores de Gestar Salud IPS</strong><br />
+                    No responda a este correo.
+                </p>
+                <p style="font-size: 11px; color: #64748B; margin: 12px 0 0 0;">
+                    &#169; ${new Date().getFullYear()} Gestar Salud de Colombia IPS S.A.S.
                 </p>
             </div>
         </div>
@@ -632,7 +673,7 @@ Deno.serve(async (req: Request) => {
             subject = `Recobro Devuelto - ${body.radicado}`
             htmlBody = generarTemplateDevolucionRecobro(body.radicado, body.datos as DatosDevolucionRecobro)
         } else if (body.type === 'aprobacion_recobro') {
-            subject = `âœ… Recobro Aprobado - ${body.radicado}`
+            subject = `Recobro Aprobado - ${body.radicado}`
             htmlBody = generarTemplateAprobacionRecobro(body.radicado, body.datos as DatosAprobacionRecobro)
         } else if (body.type === 'enrutado') {
             const datosEnrutado = body.datos as DatosEnrutado
@@ -646,9 +687,9 @@ Deno.serve(async (req: Request) => {
             )
         }
 
-        // Preparar imagenes inline si es necesario (ej: logo corporativo para enrutado)
+        // Preparar imagenes inline si es necesario (logo corporativo)
         const inlineImages: InlineImage[] = []
-        if (body.type === 'enrutado') {
+        if (body.type === 'enrutado' || body.type === 'aprobacion_recobro') {
             inlineImages.push({
                 cid: 'logo-gestar',
                 content: GESTAR_LOGO_BASE64,
@@ -657,7 +698,7 @@ Deno.serve(async (req: Request) => {
         }
 
         // Usar nueva API con soporte para CC, adjuntos e imagenes inline si es necesario
-        if (body.type === 'enrutado' || body.cc || body.adjuntos) {
+        if (body.type === 'enrutado' || body.type === 'aprobacion_recobro' || body.cc || body.adjuntos) {
             await sendGmailEmail({
                 to: body.destinatario,
                 cc: body.cc,

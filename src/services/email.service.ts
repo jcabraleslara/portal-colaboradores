@@ -284,6 +284,7 @@ export const emailService = {
 
     /**
      * Enviar notificación de aprobación de recobro
+     * Descarga el PDF de autorización y lo adjunta al correo
      */
     async enviarNotificacionAprobacionRecobro(
         destinatario: string,
@@ -296,6 +297,37 @@ export const emailService = {
         }
     ): Promise<boolean> {
         try {
+            // Preparar adjuntos si hay PDF
+            const adjuntos: { filename: string; content: string; mimeType: string }[] = []
+
+            if (datosRecobro.pdfUrl) {
+                try {
+                    console.log('[EmailService] Descargando carta de autorización...')
+                    const response = await fetch(datosRecobro.pdfUrl)
+
+                    if (response.ok) {
+                        const blob = await response.blob()
+                        const arrayBuffer = await blob.arrayBuffer()
+                        const base64 = btoa(
+                            new Uint8Array(arrayBuffer)
+                                .reduce((data, byte) => data + String.fromCharCode(byte), '')
+                        )
+
+                        adjuntos.push({
+                            filename: `Carta_Autorizacion_${consecutivo}.pdf`,
+                            content: base64,
+                            mimeType: 'application/pdf'
+                        })
+                        console.log('[EmailService] Carta de autorización preparada para adjuntar')
+                    } else {
+                        console.warn('[EmailService] No se pudo descargar la carta de autorización')
+                    }
+                } catch (err) {
+                    console.error('[EmailService] Error descargando carta de autorización:', err)
+                    // Continuar sin adjunto
+                }
+            }
+
             const datos = {
                 pacienteNombre: datosRecobro.pacienteNombre,
                 pacienteIdentificacion: datosRecobro.pacienteId,
@@ -304,6 +336,8 @@ export const emailService = {
                 fechaAprobacion: new Date().toLocaleString('es-CO'),
             }
 
+            console.log(`[EmailService] Enviando notificación de recobro aprobado con ${adjuntos.length} adjunto(s)`)
+
             const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
                 headers: getEdgeFunctionHeaders(),
@@ -311,19 +345,25 @@ export const emailService = {
                     type: 'aprobacion_recobro',
                     destinatario,
                     radicado: consecutivo,
-                    datos
+                    datos,
+                    adjuntos: adjuntos.length > 0 ? adjuntos : undefined
                 })
             })
 
             if (!response.ok) {
-                console.error('Error en respuesta del servidor:', await response.text())
+                console.error('[EmailService] Error en respuesta del servidor:', await response.text())
                 return false
             }
 
             const result = await response.json()
+
+            if (result.success) {
+                console.log(`[EmailService] ✅ Notificación de recobro aprobado enviada: ${consecutivo}`)
+            }
+
             return result.success
         } catch (error) {
-            console.error('Error enviando correo de aprobación de recobro:', error)
+            console.error('[EmailService] Error enviando correo de aprobación de recobro:', error)
 
             // Notificar error crítico
             await criticalErrorService.reportEmailFailure(
