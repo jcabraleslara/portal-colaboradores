@@ -1186,16 +1186,33 @@ export function CasoDetallePanel({
                                     const activo = estadoRadicado === estado
                                     const IconoEstado = ESTADO_ICONOS[estado as string] || Clock
 
+                                    // Validación especial: 'Enrutado' requiere PDF adjunto
+                                    const esEnrutado = estado === 'Enrutado'
+                                    const tieneSoportes = caso.soportes && caso.soportes.length > 0
+                                    const enrutadoDeshabilitado = esEnrutado && !tieneSoportes
+
+                                    const handleClickEstado = () => {
+                                        if (enrutadoDeshabilitado) {
+                                            toast.warning('Para enrutar el caso debes cargar primero un PDF como soporte adjunto. Este archivo se enviará como adjunto en el correo de activación de ruta.')
+                                            return
+                                        }
+                                        handleEstadoRadicadoChange(estado as EstadoRadicado)
+                                    }
+
                                     return (
                                         <button
                                             key={estado}
                                             type="button"
-                                            onClick={() => handleEstadoRadicadoChange(estado as EstadoRadicado)}
+                                            onClick={handleClickEstado}
+                                            disabled={enrutadoDeshabilitado}
+                                            title={enrutadoDeshabilitado ? 'Requiere PDF adjunto para enviar notificación' : undefined}
                                             className={`
                                                 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all
-                                                ${activo
-                                                    ? `${colores.bg} ${colores.border} ${colores.text} shadow-sm`
-                                                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                                                ${enrutadoDeshabilitado
+                                                    ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                                                    : activo
+                                                        ? `${colores.bg} ${colores.border} ${colores.text} shadow-sm`
+                                                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
                                                 }
                                             `}
                                         >

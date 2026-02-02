@@ -3,9 +3,9 @@
 
 export const BUILD_INFO = {
     version: '1.0',
-    commitHash: '6f250bd',
+    commitHash: '5dfda34',
     buildDate: '02/02/2026 09:04',
-    buildTimestamp: '2026-02-02T14:04:04.000Z',
+    buildTimestamp: '2026-02-02T14:04:08.000Z',
 } as const;
 
 export default BUILD_INFO;
