@@ -305,5 +305,121 @@ export const rutasService = {
             .filter(Boolean))]
 
         return { success: true, data: provincias }
+    },
+
+    /**
+     * Buscar destinatarios para notificación de enrutado
+     * @param ruta Tipo de ruta activada (ej: 'Maternidad Segura', 'Imágenes')
+     * @param eps EPS del paciente
+     * @param ipsPrimaria IPS Primaria del paciente para determinar provincia
+     * @returns Destinatarios y copias si se encuentra configuración activa
+     */
+    async buscarDestinatariosEnrutado(
+        ruta: string,
+        eps: string,
+        ipsPrimaria: string
+    ): Promise<ApiResponse<{ destinatarios: string[]; copias: string[] } | null>> {
+        try {
+            // 1. Buscar la provincia asociada a la IPS Primaria
+            let provincia: string | null = null
+
+            if (ipsPrimaria) {
+                const { data: redData } = await supabase
+                    .from('red')
+                    .select('provincia')
+                    .eq('nombre_ips', ipsPrimaria)
+                    .limit(1)
+                    .single()
+
+                if (redData?.provincia) {
+                    provincia = redData.provincia
+                }
+            }
+
+            console.log(`[RutasService] Buscando config para: ruta=${ruta}, eps=${eps}, provincia=${provincia}`)
+
+            // 2. Buscar configuración de email que coincida
+            // Prioridad: Config específica (eps + provincia) > Config por eps > Config TODAS
+            const { data: configs, error } = await supabase
+                .from('config_rutas_emails')
+                .select('*')
+                .eq('ruta', ruta)
+                .eq('estado', true)
+                .order('eps', { ascending: true }) // 'TODAS' viene primero alfabéticamente
+
+            if (error) {
+                console.error('[RutasService] Error buscando config emails:', error)
+                return { success: false, error: error.message }
+            }
+
+            if (!configs || configs.length === 0) {
+                console.warn(`[RutasService] No hay configuración de emails para ruta: ${ruta}`)
+                return { success: true, data: null }
+            }
+
+            // 3. Filtrar configuraciones que aplican
+            let configAplicable: RutaEmailConfig | null = null
+
+            for (const config of configs) {
+                // Verificar si la EPS coincide
+                const epsCoincide = config.eps === 'TODAS' || config.eps === eps
+
+                if (!epsCoincide) continue
+
+                // Verificar si la provincia coincide (null = todas las provincias)
+                const provinciaCoincide =
+                    !config.provincia ||
+                    config.provincia.length === 0 ||
+                    (provincia && config.provincia.includes(provincia))
+
+                if (!provinciaCoincide) continue
+
+                // Esta configuración aplica - preferir la más específica
+                if (!configAplicable) {
+                    configAplicable = config
+                } else {
+                    // Preferir configuración con EPS específica sobre 'TODAS'
+                    if (config.eps !== 'TODAS' && configAplicable.eps === 'TODAS') {
+                        configAplicable = config
+                    }
+                    // Preferir configuración con provincia específica
+                    else if (config.provincia && config.provincia.length > 0 &&
+                             (!configAplicable.provincia || configAplicable.provincia.length === 0)) {
+                        configAplicable = config
+                    }
+                }
+            }
+
+            if (!configAplicable) {
+                console.warn(`[RutasService] No hay config aplicable para: ruta=${ruta}, eps=${eps}, provincia=${provincia}`)
+                return { success: true, data: null }
+            }
+
+            console.log(`[RutasService] Config encontrada: id=${configAplicable.id}, eps=${configAplicable.eps}`)
+
+            // 4. Parsear destinatarios y copias (pueden ser separados por coma o ser JSON array)
+            const parseEmails = (emailStr: string | null | undefined): string[] => {
+                if (!emailStr) return []
+                // Intentar parsear como JSON array primero
+                try {
+                    const parsed = JSON.parse(emailStr)
+                    if (Array.isArray(parsed)) return parsed.filter(Boolean)
+                } catch {
+                    // No es JSON, tratar como string separado por comas
+                }
+                return emailStr.split(',').map(e => e.trim()).filter(Boolean)
+            }
+
+            return {
+                success: true,
+                data: {
+                    destinatarios: parseEmails(configAplicable.destinatarios),
+                    copias: parseEmails(configAplicable.copias)
+                }
+            }
+        } catch (error) {
+            console.error('[RutasService] Error en buscarDestinatariosEnrutado:', error)
+            return { success: false, error: 'Error buscando destinatarios de enrutado' }
+        }
     }
 }

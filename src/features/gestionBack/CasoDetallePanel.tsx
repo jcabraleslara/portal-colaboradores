@@ -52,6 +52,7 @@ import { copyRichText } from '@/utils/clipboard'
 import { backService } from '@/services/back.service'
 import { emailService } from '@/services/email.service'
 import { teamsService } from '@/services/teams.service'
+import { rutasService } from '@/features/rutas/services/rutas.service'
 import { generarContrarreferenciaAutomatica } from '@/services/contrarreferenciaService'
 import { useAuth } from '@/context/AuthContext'
 import {
@@ -419,6 +420,68 @@ export function CasoDetallePanel({
             } else {
                 console.warn("El radicador no tiene correo registrado, no se envió notificación No Contactable.")
                 toast.warning("El radicador no tiene correo, no se pudo enviar notificación.")
+            }
+        }
+
+        // Notificación para estado "Enrutado" - Activación de Ruta
+        if (estadoRadicado === 'Enrutado' && rutaSeleccionada) {
+            try {
+                const eps = caso.paciente?.eps || ''
+                const ipsPrimaria = caso.paciente?.ipsPrimaria || ''
+
+                // Buscar destinatarios configurados para esta ruta + eps + provincia
+                const configResult = await rutasService.buscarDestinatariosEnrutado(
+                    rutaSeleccionada,
+                    eps,
+                    ipsPrimaria
+                )
+
+                if (configResult.success && configResult.data) {
+                    const { destinatarios, copias } = configResult.data
+
+                    if (destinatarios.length > 0) {
+                        // Preparar datos del caso para el correo
+                        const datosCaso = {
+                            pacienteNombre: getNombreCompleto(),
+                            pacienteIdentificacion: caso.id,
+                            pacienteTipoId: caso.paciente?.tipoId || 'CC',
+                            eps: eps,
+                            ipsPrimaria: ipsPrimaria,
+                            ruta: rutaSeleccionada,
+                            telefono: caso.paciente?.telefono || undefined,
+                            direccion: caso.paciente?.direccion || undefined,
+                            municipio: caso.paciente?.municipio || undefined,
+                            fechaRadicacion: caso.createdAt.toISOString(),
+                            observaciones: caso.observaciones || undefined
+                        }
+
+                        // Enviar notificación con archivos adjuntos
+                        const emailEnviado = await emailService.enviarNotificacionEnrutado(
+                            destinatarios,
+                            copias,
+                            caso.radicado,
+                            datosCaso,
+                            caso.soportes || []
+                        )
+
+                        if (emailEnviado) {
+                            console.info(`✅ Notificación de enrutado enviada para radicado: ${caso.radicado}`)
+                            toast.success(`Notificación de ruta enviada a ${destinatarios.length} destinatario(s)`)
+                        } else {
+                            console.warn("No se pudo enviar la notificación de enrutado")
+                            toast.error("No se pudo enviar la notificación de activación de ruta")
+                        }
+                    } else {
+                        console.warn(`No hay destinatarios configurados para ruta: ${rutaSeleccionada}, eps: ${eps}`)
+                        toast.warning("No hay destinatarios configurados para esta ruta/EPS")
+                    }
+                } else {
+                    console.warn("No se encontró configuración de emails para enrutado:", configResult.error)
+                    toast.warning("No hay configuración de notificaciones para esta ruta")
+                }
+            } catch (e) {
+                console.error("Error enviando notificación de enrutado:", e)
+                toast.error("Error al enviar notificación de activación de ruta")
             }
         }
 

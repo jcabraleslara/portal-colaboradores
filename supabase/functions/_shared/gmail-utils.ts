@@ -14,6 +14,15 @@ interface GoogleTokenResponse {
 }
 
 /**
+ * Interfaz para adjuntos de correo
+ */
+export interface EmailAttachment {
+    filename: string
+    content: string  // Base64 encoded content
+    mimeType: string // e.g., 'application/pdf', 'image/png'
+}
+
+/**
  * Obtener access token de Gmail usando refresh token
  */
 export async function getGmailAccessToken(): Promise<string> {
@@ -85,26 +94,133 @@ function encodeEmailMessage(raw: string): string {
 }
 
 /**
- * Enviar correo usando Gmail API
+ * Opciones extendidas para envío de correo
  */
-export async function sendGmailEmail(
-    to: string,
-    subject: string,
+export interface SendEmailOptions {
+    to: string | string[]     // Destinatario(s) principal(es)
+    cc?: string | string[]    // Copia(s) opcional(es)
+    subject: string
     htmlBody: string
-): Promise<void> {
-    const token = await getGmailAccessToken()
-    const userEmail = Deno.env.get('GOOGLE_USER_EMAIL') || 'info@gestarsaludips.com'
+    attachments?: EmailAttachment[]  // Adjuntos opcionales
+}
 
-    // Construir mensaje RFC 2822
-    const email = [
+/**
+ * Generar boundary único para mensajes multipart
+ */
+function generateBoundary(): string {
+    return `----=_Part_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
+
+/**
+ * Construir mensaje MIME con adjuntos
+ */
+function buildMimeMessageWithAttachments(
+    to: string,
+    cc: string | undefined,
+    subject: string,
+    htmlBody: string,
+    attachments: EmailAttachment[],
+    userEmail: string
+): string {
+    const boundary = generateBoundary()
+
+    const headers = [
         `To: ${to}`,
+        cc ? `Cc: ${cc}` : null,
         `From: Gestar Salud IPS <${userEmail}>`,
         `Subject: ${encodeHeader(subject)}`,
-        'Content-Type: text/html; charset=utf-8',
         'MIME-Version: 1.0',
+        `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    ].filter(Boolean).join('\r\n')
+
+    // Parte HTML
+    const htmlPart = [
+        `--${boundary}`,
+        'Content-Type: text/html; charset=utf-8',
+        'Content-Transfer-Encoding: base64',
         '',
-        htmlBody
+        encodeBase64(htmlBody)
     ].join('\r\n')
+
+    // Partes de adjuntos
+    const attachmentParts = attachments.map(att => [
+        `--${boundary}`,
+        `Content-Type: ${att.mimeType}; name="${att.filename}"`,
+        'Content-Transfer-Encoding: base64',
+        `Content-Disposition: attachment; filename="${att.filename}"`,
+        '',
+        att.content  // Ya viene en base64
+    ].join('\r\n')).join('\r\n')
+
+    // Ensamblar mensaje completo
+    return [
+        headers,
+        '',
+        htmlPart,
+        attachmentParts,
+        `--${boundary}--`
+    ].join('\r\n')
+}
+
+/**
+ * Enviar correo usando Gmail API
+ * Soporta múltiples destinatarios, CC y adjuntos MIME
+ */
+export async function sendGmailEmail(
+    toOrOptions: string | SendEmailOptions,
+    subject?: string,
+    htmlBody?: string
+): Promise<void> {
+    const token = await getGmailAccessToken()
+    const userEmail = Deno.env.get('GOOGLE_USER_EMAIL') || 'info@gestarsaludips.com.co'
+
+    let email: string
+
+    // Soporte para llamada legacy (3 parámetros) o nueva (objeto de opciones)
+    if (typeof toOrOptions === 'string') {
+        // Llamada legacy: sendGmailEmail(to, subject, htmlBody)
+        const to = toOrOptions
+        email = [
+            `To: ${to}`,
+            `From: Gestar Salud IPS <${userEmail}>`,
+            `Subject: ${encodeHeader(subject!)}`,
+            'Content-Type: text/html; charset=utf-8',
+            'MIME-Version: 1.0',
+            '',
+            htmlBody!
+        ].join('\r\n')
+    } else {
+        // Nueva llamada con opciones extendidas
+        const opts = toOrOptions
+        const toStr = Array.isArray(opts.to) ? opts.to.join(', ') : opts.to
+        const ccStr = opts.cc
+            ? (Array.isArray(opts.cc) ? opts.cc.join(', ') : opts.cc)
+            : undefined
+
+        if (opts.attachments && opts.attachments.length > 0) {
+            // Mensaje con adjuntos (multipart/mixed)
+            email = buildMimeMessageWithAttachments(
+                toStr,
+                ccStr,
+                opts.subject,
+                opts.htmlBody,
+                opts.attachments,
+                userEmail
+            )
+        } else {
+            // Mensaje simple sin adjuntos
+            email = [
+                `To: ${toStr}`,
+                ccStr ? `Cc: ${ccStr}` : null,
+                `From: Gestar Salud IPS <${userEmail}>`,
+                `Subject: ${encodeHeader(opts.subject)}`,
+                'Content-Type: text/html; charset=utf-8',
+                'MIME-Version: 1.0',
+                '',
+                opts.htmlBody
+            ].filter(Boolean).join('\r\n')
+        }
+    }
 
     const encodedEmail = encodeEmailMessage(email)
 

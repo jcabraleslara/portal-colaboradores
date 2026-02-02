@@ -6,7 +6,7 @@
  */
 
 import { corsHeaders } from '../_shared/cors.ts'
-import { sendGmailEmail } from '../_shared/gmail-utils.ts'
+import { sendGmailEmail, type EmailAttachment } from '../_shared/gmail-utils.ts'
 
 // ==========================================
 // INTERFACES
@@ -62,11 +62,28 @@ interface DatosAprobacionRecobro {
     fechaAprobacion: string
 }
 
+interface DatosEnrutado {
+    pacienteNombre: string
+    pacienteIdentificacion: string
+    pacienteTipoId: string
+    eps: string
+    ipsPrimaria: string
+    ruta: string
+    telefono?: string
+    direccion?: string
+    municipio?: string
+    fechaRadicacion: string
+    observaciones?: string
+    archivosUrls?: string[]  // URLs de los archivos para enlaces de descarga
+}
+
 interface RequestBody {
-    type: 'radicacion' | 'rechazo' | 'devolucion' | 'no_contactable' | 'devolucion_recobro' | 'aprobacion_recobro'
-    destinatario: string
+    type: 'radicacion' | 'rechazo' | 'devolucion' | 'no_contactable' | 'devolucion_recobro' | 'aprobacion_recobro' | 'enrutado'
+    destinatario: string | string[]  // Soporta múltiples destinatarios
+    cc?: string | string[]           // Copias opcionales
     radicado: string
-    datos: DatosRadicacionExitosa | DatosRechazo | DatosDevolucion | DatosNoContactable | DatosDevolucionRecobro | DatosAprobacionRecobro
+    datos: DatosRadicacionExitosa | DatosRechazo | DatosDevolucion | DatosNoContactable | DatosDevolucionRecobro | DatosAprobacionRecobro | DatosEnrutado
+    adjuntos?: EmailAttachment[]     // Adjuntos opcionales para enrutado
 }
 
 // ==========================================
@@ -419,6 +436,146 @@ function generarTemplateAprobacionRecobro(consecutivo: string, datos: DatosAprob
     `
 }
 
+/**
+ * Paleta de colores corporativos GESTAR SALUD IPS
+ */
+const GESTAR_COLORS = {
+    primary: '#0095EB',      // Azul GESTAR
+    primaryLight: '#E6F4FD', // Fondo claro
+    primaryDark: '#0077BC',  // Hover/énfasis
+    text: '#1E293B',         // Texto principal
+    textSecondary: '#64748B', // Texto secundario
+    success: '#85C54C',      // Verde éxito
+    warning: '#F59E0B',      // Amarillo advertencia
+    background: '#F8FAFC',   // Fondo secundario
+}
+
+// Logo Gestar Salud en Base64 (PNG pequeño optimizado para email)
+const GESTAR_LOGO_URL = 'https://portal-colaboradores.vercel.app/logo_gestar.png'
+
+function generarTemplateEnrutado(radicado: string, datos: DatosEnrutado): string {
+    const archivosHtml = datos.archivosUrls && datos.archivosUrls.length > 0
+        ? `
+            <h3 style="color: ${GESTAR_COLORS.primary}; border-bottom: 2px solid ${GESTAR_COLORS.primaryLight}; padding-bottom: 8px;">📎 Documentos Adjuntos</h3>
+            <ul style="line-height: 1.8;">
+                ${datos.archivosUrls.map((url, idx) => `
+                    <li><a href="${url}" target="_blank" style="color: ${GESTAR_COLORS.primary}; text-decoration: none;">
+                        📄 Documento ${idx + 1}
+                    </a></li>
+                `).join('')}
+            </ul>
+        `
+        : ''
+
+    return `
+        <div style="font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color: ${GESTAR_COLORS.text}; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <!-- Header con Logo -->
+            <div style="background: linear-gradient(135deg, ${GESTAR_COLORS.primary} 0%, ${GESTAR_COLORS.primaryDark} 100%); padding: 24px 30px; text-align: center;">
+                <img src="${GESTAR_LOGO_URL}" alt="Gestar Salud IPS" style="height: 50px; margin-bottom: 12px;" />
+                <h1 style="margin: 0; font-size: 22px; font-weight: 600; color: white; letter-spacing: -0.5px;">
+                    Activacion de Ruta: ${datos.ruta}
+                </h1>
+            </div>
+
+            <!-- Contenido Principal -->
+            <div style="padding: 30px; background-color: ${GESTAR_COLORS.background};">
+                <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6;">Cordial saludo,</p>
+                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">
+                    Se ha activado la <strong style="color: ${GESTAR_COLORS.primary};">Ruta ${datos.ruta}</strong> para el siguiente paciente. Por favor gestionar a la brevedad:
+                </p>
+
+                <!-- Card Paciente -->
+                <div style="background-color: #ffffff; border: 1px solid #E2E8F0; border-left: 4px solid ${GESTAR_COLORS.primary}; padding: 20px; margin: 20px 0; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr>
+                            <td style="vertical-align: top;">
+                                <h2 style="color: ${GESTAR_COLORS.text}; margin: 0 0 8px 0; font-size: 20px; font-weight: 600;">${datos.pacienteNombre}</h2>
+                                <p style="color: ${GESTAR_COLORS.textSecondary}; margin: 0; font-size: 14px;">
+                                    <strong>${datos.pacienteTipoId}:</strong> ${datos.pacienteIdentificacion}
+                                </p>
+                            </td>
+                            <td style="text-align: right; vertical-align: top; width: 120px;">
+                                <p style="color: ${GESTAR_COLORS.textSecondary}; margin: 0 0 4px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;">Radicado</p>
+                                <p style="color: ${GESTAR_COLORS.primary}; margin: 0; font-size: 16px; font-weight: 700; font-family: 'JetBrains Mono', monospace;">${radicado}</p>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <!-- Datos del Paciente -->
+                <h3 style="color: ${GESTAR_COLORS.primary}; border-bottom: 2px solid ${GESTAR_COLORS.primaryLight}; padding-bottom: 8px; margin-top: 24px; font-size: 16px; font-weight: 600;">
+                    📋 Datos del Paciente
+                </h3>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
+                    <tr>
+                        <td style="padding: 10px 0; color: ${GESTAR_COLORS.textSecondary}; width: 140px; font-size: 14px; border-bottom: 1px solid #E2E8F0;">EPS:</td>
+                        <td style="padding: 10px 0; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.eps}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; color: ${GESTAR_COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0;">IPS Primaria:</td>
+                        <td style="padding: 10px 0; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.ipsPrimaria}</td>
+                    </tr>
+                    ${datos.telefono ? `
+                    <tr>
+                        <td style="padding: 10px 0; color: ${GESTAR_COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0;">Telefono:</td>
+                        <td style="padding: 10px 0; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">
+                            <a href="tel:${datos.telefono}" style="color: ${GESTAR_COLORS.primary}; text-decoration: none;">${datos.telefono}</a>
+                        </td>
+                    </tr>
+                    ` : ''}
+                    ${datos.direccion ? `
+                    <tr>
+                        <td style="padding: 10px 0; color: ${GESTAR_COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0;">Direccion:</td>
+                        <td style="padding: 10px 0; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.direccion}</td>
+                    </tr>
+                    ` : ''}
+                    ${datos.municipio ? `
+                    <tr>
+                        <td style="padding: 10px 0; color: ${GESTAR_COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0;">Municipio:</td>
+                        <td style="padding: 10px 0; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.municipio}</td>
+                    </tr>
+                    ` : ''}
+                    <tr>
+                        <td style="padding: 10px 0; color: ${GESTAR_COLORS.textSecondary}; font-size: 14px;">Fecha Radicacion:</td>
+                        <td style="padding: 10px 0; font-size: 14px;">${formatDateTime(datos.fechaRadicacion)}</td>
+                    </tr>
+                </table>
+
+                ${datos.observaciones ? `
+                <h3 style="color: ${GESTAR_COLORS.primary}; border-bottom: 2px solid ${GESTAR_COLORS.primaryLight}; padding-bottom: 8px; margin-top: 24px; font-size: 16px; font-weight: 600;">
+                    📝 Observaciones
+                </h3>
+                <div style="background-color: #ffffff; padding: 16px; border-radius: 8px; border-left: 4px solid ${GESTAR_COLORS.success}; margin-top: 12px;">
+                    <p style="margin: 0; white-space: pre-wrap; line-height: 1.6; font-size: 14px; color: ${GESTAR_COLORS.text};">${datos.observaciones}</p>
+                </div>
+                ` : ''}
+
+                ${archivosHtml}
+
+                <!-- Call to Action -->
+                <div style="background-color: #FEF3C7; border-left: 4px solid ${GESTAR_COLORS.warning}; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
+                    <strong style="color: #92400E; font-size: 14px;">⚡ Accion Requerida:</strong>
+                    <p style="margin: 8px 0 0 0; font-size: 14px; color: #78350F; line-height: 1.5;">
+                        Por favor contacte al paciente y realice la gestion correspondiente segun el protocolo de la <strong>Ruta ${datos.ruta}</strong>.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #1E293B; padding: 20px 30px; text-align: center;">
+                <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.6;">
+                    Este es un mensaje automatico generado por el<br />
+                    <strong style="color: #E2E8F0;">Portal de Colaboradores de Gestar Salud IPS</strong><br />
+                    No responda a este correo.
+                </p>
+                <p style="font-size: 11px; color: #64748B; margin: 12px 0 0 0;">
+                    © ${new Date().getFullYear()} Gestar Salud de Colombia IPS S.A.S.
+                </p>
+            </div>
+        </div>
+    `
+}
+
 // ==========================================
 // HANDLER PRINCIPAL
 // ==========================================
@@ -440,7 +597,12 @@ Deno.serve(async (req) => {
     try {
         const body = await req.json() as RequestBody
 
-        if (!body.type || !body.destinatario || !body.radicado || !body.datos) {
+        // Validar campos requeridos (destinatario puede ser string o array)
+        const tieneDestinatario = body.destinatario &&
+            (typeof body.destinatario === 'string' ||
+             (Array.isArray(body.destinatario) && body.destinatario.length > 0))
+
+        if (!body.type || !tieneDestinatario || !body.radicado || !body.datos) {
             return new Response(
                 JSON.stringify({
                     success: false,
@@ -471,6 +633,11 @@ Deno.serve(async (req) => {
         } else if (body.type === 'aprobacion_recobro') {
             subject = `✅ Recobro Aprobado - ${body.radicado}`
             htmlBody = generarTemplateAprobacionRecobro(body.radicado, body.datos as DatosAprobacionRecobro)
+        } else if (body.type === 'enrutado') {
+            const datosEnrutado = body.datos as DatosEnrutado
+            // Asunto con datos del paciente: Ruta + TipoID + ID + Nombre
+            subject = `Ruta ${datosEnrutado.ruta} - ${datosEnrutado.pacienteTipoId} ${datosEnrutado.pacienteIdentificacion} - ${datosEnrutado.pacienteNombre}`
+            htmlBody = generarTemplateEnrutado(body.radicado, datosEnrutado)
         } else {
             return new Response(
                 JSON.stringify({ success: false, error: 'Tipo de correo no valido' }),
@@ -478,7 +645,19 @@ Deno.serve(async (req) => {
             )
         }
 
-        await sendGmailEmail(body.destinatario, subject, htmlBody)
+        // Usar nueva API con soporte para CC y adjuntos si es necesario
+        if (body.type === 'enrutado' || body.cc || body.adjuntos) {
+            await sendGmailEmail({
+                to: body.destinatario,
+                cc: body.cc,
+                subject,
+                htmlBody,
+                attachments: body.adjuntos
+            })
+        } else {
+            // Llamada legacy para compatibilidad
+            await sendGmailEmail(body.destinatario as string, subject, htmlBody)
+        }
 
         return new Response(
             JSON.stringify({

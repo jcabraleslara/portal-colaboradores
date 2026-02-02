@@ -335,5 +335,124 @@ export const emailService = {
 
             return false
         }
+    },
+
+    /**
+     * Enviar notificación de activación de ruta (Enrutado)
+     * @param destinatarios Array de correos principales
+     * @param copias Array de correos en copia (CC)
+     * @param radicado Número del radicado
+     * @param datosCaso Datos del caso y paciente
+     * @param archivosUrls URLs de los archivos para descargar y adjuntar
+     */
+    async enviarNotificacionEnrutado(
+        destinatarios: string[],
+        copias: string[],
+        radicado: string,
+        datosCaso: {
+            pacienteNombre: string
+            pacienteIdentificacion: string
+            pacienteTipoId: string
+            eps: string
+            ipsPrimaria: string
+            ruta: string
+            telefono?: string
+            direccion?: string
+            municipio?: string
+            fechaRadicacion: string
+            observaciones?: string
+        },
+        archivosUrls: string[] = []
+    ): Promise<boolean> {
+        try {
+            // Descargar archivos y convertir a base64 para adjuntos MIME
+            const adjuntos: { filename: string; content: string; mimeType: string }[] = []
+
+            for (let i = 0; i < archivosUrls.length; i++) {
+                const url = archivosUrls[i]
+                try {
+                    console.log(`[EmailService] Descargando archivo ${i + 1}/${archivosUrls.length}...`)
+                    const response = await fetch(url)
+
+                    if (!response.ok) {
+                        console.warn(`[EmailService] No se pudo descargar archivo: ${url}`)
+                        continue
+                    }
+
+                    const blob = await response.blob()
+                    const arrayBuffer = await blob.arrayBuffer()
+                    const base64 = btoa(
+                        new Uint8Array(arrayBuffer)
+                            .reduce((data, byte) => data + String.fromCharCode(byte), '')
+                    )
+
+                    // Determinar extensión y mimeType
+                    const urlPath = new URL(url).pathname
+                    const extension = urlPath.split('.').pop()?.toLowerCase() || 'pdf'
+                    const mimeType = extension === 'pdf' ? 'application/pdf'
+                        : extension === 'png' ? 'image/png'
+                        : extension === 'jpg' || extension === 'jpeg' ? 'image/jpeg'
+                        : 'application/octet-stream'
+
+                    adjuntos.push({
+                        filename: `Soporte_${radicado}_${i + 1}.${extension}`,
+                        content: base64,
+                        mimeType
+                    })
+
+                    console.log(`[EmailService] Archivo ${i + 1} preparado: ${adjuntos[adjuntos.length - 1].filename}`)
+                } catch (err) {
+                    console.error(`[EmailService] Error descargando archivo ${i + 1}:`, err)
+                    // Continuar con los demás archivos
+                }
+            }
+
+            const datos = {
+                ...datosCaso,
+                // Incluir URLs como respaldo si falló la descarga de algún archivo
+                archivosUrls: adjuntos.length < archivosUrls.length ? archivosUrls : undefined
+            }
+
+            console.log(`[EmailService] Enviando notificación enrutado a ${destinatarios.length} destinatario(s) con ${adjuntos.length} adjunto(s)`)
+
+            const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
+                method: 'POST',
+                headers: getEdgeFunctionHeaders(),
+                body: JSON.stringify({
+                    type: 'enrutado',
+                    destinatario: destinatarios,
+                    cc: copias.length > 0 ? copias : undefined,
+                    radicado,
+                    datos,
+                    adjuntos: adjuntos.length > 0 ? adjuntos : undefined
+                })
+            })
+
+            if (!response.ok) {
+                const errorText = await response.text()
+                console.error('[EmailService] Error en respuesta del servidor:', errorText)
+                return false
+            }
+
+            const result = await response.json()
+
+            if (result.success) {
+                console.log(`[EmailService] ✅ Notificación de enrutado enviada exitosamente para radicado: ${radicado}`)
+            }
+
+            return result.success
+        } catch (error) {
+            console.error('[EmailService] Error enviando correo de enrutado:', error)
+
+            // Notificar error crítico al equipo técnico
+            await criticalErrorService.reportEmailFailure(
+                destinatarios.join(', '),
+                'BACK - Activación de Ruta',
+                `Notificación de Enrutado - Ruta: ${datosCaso.ruta}`,
+                error instanceof Error ? error : undefined
+            )
+
+            return false
+        }
     }
 }
