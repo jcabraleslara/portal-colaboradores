@@ -57,6 +57,7 @@ interface DatosDevolucionRecobro {
 interface DatosAprobacionRecobro {
     pacienteNombre: string
     pacienteIdentificacion: string
+    pacienteTipoId?: string
     cupsData: { cups: string; descripcion: string; cantidad: number; es_principal: boolean }[]
     pdfUrl?: string
     fechaAprobacion: string
@@ -673,8 +674,11 @@ Deno.serve(async (req: Request) => {
             subject = `Recobro Devuelto - ${body.radicado}`
             htmlBody = generarTemplateDevolucionRecobro(body.radicado, body.datos as DatosDevolucionRecobro)
         } else if (body.type === 'aprobacion_recobro') {
-            subject = `Recobro Aprobado - ${body.radicado}`
-            htmlBody = generarTemplateAprobacionRecobro(body.radicado, body.datos as DatosAprobacionRecobro)
+            const datosRecobro = body.datos as DatosAprobacionRecobro
+            // Asunto con datos del paciente: Consecutivo + TipoID + ID + Nombre
+            const tipoId = datosRecobro.pacienteTipoId || 'CC'
+            subject = `Recobro Aprobado - ${body.radicado} - ${tipoId} ${datosRecobro.pacienteIdentificacion} - ${datosRecobro.pacienteNombre}`
+            htmlBody = generarTemplateAprobacionRecobro(body.radicado, datosRecobro)
         } else if (body.type === 'enrutado') {
             const datosEnrutado = body.datos as DatosEnrutado
             // Asunto con datos del paciente: Ruta + TipoID + ID + Nombre

@@ -292,6 +292,7 @@ export const emailService = {
         datosRecobro: {
             pacienteNombre: string
             pacienteId: string
+            pacienteTipoId?: string
             cupsData: { cups: string; descripcion: string; cantidad: number; es_principal: boolean }[]
             pdfUrl?: string
         }
@@ -331,6 +332,7 @@ export const emailService = {
             const datos = {
                 pacienteNombre: datosRecobro.pacienteNombre,
                 pacienteIdentificacion: datosRecobro.pacienteId,
+                pacienteTipoId: datosRecobro.pacienteTipoId || 'CC',
                 cupsData: datosRecobro.cupsData,
                 pdfUrl: datosRecobro.pdfUrl,
                 fechaAprobacion: new Date().toLocaleString('es-CO'),
