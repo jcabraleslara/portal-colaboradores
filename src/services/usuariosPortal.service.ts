@@ -92,6 +92,50 @@ export const usuariosPortalService = {
     },
 
     /**
+     * Obtener todos los usuarios para exportar (sin paginación)
+     */
+    async getAllForExport(
+        filters?: {
+            search?: string
+            rol?: string
+            activo?: string
+        }
+    ): Promise<{ data: UsuarioPortal[] | null; error: string | null }> {
+        try {
+            let query = supabase
+                .from('usuarios_portal')
+                .select('*')
+
+            // Filtros
+            if (filters?.search) {
+                const term = filters.search.toLowerCase()
+                query = query.or(`nombre_completo.ilike.%${term}%,identificacion.ilike.%${term}%,email_institucional.ilike.%${term}%`)
+            }
+
+            if (filters?.rol && filters.rol !== 'all') {
+                query = query.eq('rol', filters.rol)
+            }
+
+            if (filters?.activo && filters.activo !== 'all') {
+                const isActive = filters.activo === 'active'
+                query = query.eq('activo', isActive)
+            }
+
+            const { data, error } = await query
+                .order('created_at', { ascending: false })
+
+            if (error) {
+                console.error('Error obteniendo usuarios para exportar:', error)
+                return { data: null, error: error.message }
+            }
+
+            return { data, error: null }
+        } catch (err: any) {
+            return { data: null, error: err.message }
+        }
+    },
+
+    /**
      * Obtener un usuario por ID
      */
     async getById(id: string): Promise<{ data: UsuarioPortal | null; error: string | null }> {

@@ -8,8 +8,9 @@ import { useState, useEffect, useCallback } from 'react'
 import {
     Users, UserPlus, Search, Shield, ShieldCheck, ShieldX,
     ToggleLeft, ToggleRight, Trash2, RefreshCw, AlertCircle,
-    ChevronLeft, ChevronRight, FileUp
+    ChevronLeft, ChevronRight, FileUp, FileDown
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { usuariosPortalService, UsuarioPortal } from '@/services/usuariosPortal.service'
@@ -164,6 +165,51 @@ export default function AdminUsuariosPage() {
         setShowCreateModal(false)
     }
 
+    // Exportar usuarios a Excel
+    const handleExport = async () => {
+        try {
+            const { data, error: err } = await usuariosPortalService.getAllForExport({
+                search: debouncedSearch,
+                rol: filterRol,
+                activo: filterActivo
+            })
+
+            if (err || !data) {
+                toast.error(`Error al exportar: ${err || 'No data'}`)
+                return
+            }
+
+            if (data.length === 0) {
+                toast.info('No hay usuarios para exportar con los filtros actuales')
+                return
+            }
+
+            // Transformar datos para Excel
+            const exportData = data.map(u => ({
+                'Nombre Completo': u.nombre_completo,
+                'Identificación': u.identificacion,
+                'Email Institucional': u.email_institucional,
+                'Rol': ROL_LABELS[u.rol]?.label || u.rol,
+                'Estado': u.activo ? 'Activo' : 'Inactivo',
+                'Fecha Creación': new Date(u.created_at).toLocaleDateString(),
+                'Último Acceso': u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString() : 'Nunca'
+            }))
+
+            // Crear hoja de trabajo
+            const ws = XLSX.utils.json_to_sheet(exportData)
+            const wb = XLSX.utils.book_new()
+            XLSX.utils.book_append_sheet(wb, ws, "Usuarios")
+
+            // Generar archivo
+            XLSX.writeFile(wb, `Usuarios_Portal_${new Date().toISOString().split('T')[0]}.xlsx`)
+            toast.success('Exportación exitosa')
+
+        } catch (e: any) {
+            console.error('Error exportando:', e)
+            toast.error('Error al generar el archivo Excel')
+        }
+    }
+
     return (
         <div className="p-6 max-w-7xl mx-auto">
             {/* Header */}
@@ -178,6 +224,13 @@ export default function AdminUsuariosPage() {
                     </div>
                 </div>
                 <div className="flex gap-2">
+                    <button
+                        onClick={handleExport}
+                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition-all hover:scale-105"
+                    >
+                        <FileDown className="w-5 h-5 text-blue-600" />
+                        Exportar
+                    </button>
                     <button
                         onClick={() => setShowImportModal(true)}
                         className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg shadow-sm hover:bg-gray-50 transition-all hover:scale-105"
