@@ -109,40 +109,53 @@ export function RecobroDetallePanel({ recobro, onClose, onUpdate, onSiguiente }:
             if (result.success) {
                 toast.success('Recobro actualizado exitosamente')
 
-                // Enviar correo automáticamente si el estado cambió a Aprobado o Devuelto
+                // Enviar correo en background (sin bloquear UI)
                 const estadoCambio = nuevoEstado !== recobro.estado
                 if (estadoCambio && recobro.radicadorEmail) {
-                    try {
-                        if (nuevoEstado === 'Aprobado') {
-                            await emailService.enviarNotificacionAprobacionRecobro(
-                                recobro.radicadorEmail,
-                                recobro.consecutivo,
-                                {
-                                    pacienteNombre: recobro.pacienteNombres || 'No especificado',
-                                    pacienteId: recobro.pacienteId,
-                                    pacienteTipoId: recobro.pacienteTipoId || undefined,
-                                    cupsData: recobro.cupsData,
-                                    pdfUrl: pdfAprobacionUrl || undefined,
+                    // Ejecutar en background sin await
+                    const enviarCorreoEnBackground = async () => {
+                        try {
+                            if (nuevoEstado === 'Aprobado') {
+                                const enviado = await emailService.enviarNotificacionAprobacionRecobro(
+                                    recobro.radicadorEmail,
+                                    recobro.consecutivo,
+                                    {
+                                        pacienteNombre: recobro.pacienteNombres || 'No especificado',
+                                        pacienteId: recobro.pacienteId,
+                                        pacienteTipoId: recobro.pacienteTipoId || undefined,
+                                        cupsData: recobro.cupsData,
+                                        pdfUrl: pdfAprobacionUrl || undefined,
+                                    }
+                                )
+                                if (enviado) {
+                                    toast.success('Correo de aprobación enviado al radicador')
+                                } else {
+                                    toast.warning('No se pudo enviar el correo de aprobación')
                                 }
-                            )
-                            toast.success('Correo de aprobación enviado al radicador')
-                        } else if (nuevoEstado === 'Devuelto') {
-                            await emailService.enviarNotificacionDevolucionRecobro(
-                                recobro.radicadorEmail,
-                                recobro.consecutivo,
-                                respuestaAuditor,
-                                {
-                                    pacienteNombre: recobro.pacienteNombres || 'No especificado',
-                                    pacienteId: recobro.pacienteId,
-                                    cupsData: recobro.cupsData,
+                            } else if (nuevoEstado === 'Devuelto') {
+                                const enviado = await emailService.enviarNotificacionDevolucionRecobro(
+                                    recobro.radicadorEmail,
+                                    recobro.consecutivo,
+                                    respuestaAuditor,
+                                    {
+                                        pacienteNombre: recobro.pacienteNombres || 'No especificado',
+                                        pacienteId: recobro.pacienteId,
+                                        cupsData: recobro.cupsData,
+                                    }
+                                )
+                                if (enviado) {
+                                    toast.success('Correo de devolución enviado al radicador')
+                                } else {
+                                    toast.warning('No se pudo enviar el correo de devolución')
                                 }
-                            )
-                            toast.success('Correo de devolución enviado al radicador')
+                            }
+                        } catch (emailError) {
+                            console.error('Error enviando correo:', emailError)
+                            toast.warning('No se pudo enviar el correo de notificación')
                         }
-                    } catch (emailError) {
-                        console.error('Error enviando correo:', emailError)
-                        toast.warning('Recobro actualizado, pero no se pudo enviar el correo de notificación')
                     }
+                    // Iniciar sin esperar - el toast aparecerá cuando termine
+                    enviarCorreoEnBackground()
                 }
 
                 onUpdate()
