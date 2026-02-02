@@ -64,7 +64,9 @@ import {
     Direccionamiento,
     TIPO_SOLICITUD_COLORES,
     TIPOS_SOLICITUD_LISTA,
-    RutaBack
+    RutaBack,
+    RUTAS_CONFIG,
+    RUTA_COLORES
 } from '@/types/back.types'
 
 interface CasoDetallePanelProps {
@@ -197,6 +199,14 @@ export function CasoDetallePanel({
 
             if (!esCompatibleConAutorizado && !esCompatibleConEnrutado) {
                 setDireccionamiento('')
+            }
+        }
+
+        // Cuando se selecciona "Enrutado", establecer ruta predeterminada si no hay una
+        if (nuevoEstado === 'Enrutado' && !rutaSeleccionada) {
+            // Si es Auditoría Médica, predeterminar "Autoinmune"
+            if (tipoSolicitud === 'Auditoría Médica') {
+                setRutaSeleccionada('Autoinmune')
             }
         }
     }
@@ -423,11 +433,22 @@ export function CasoDetallePanel({
             }
         }
 
-        // Notificación para estado "Enrutado" - Activación de Ruta
-        if (estadoRadicado === 'Enrutado' && rutaSeleccionada) {
+        // Validación y notificación para estado "Enrutado" - Activación de Ruta
+        if (estadoRadicado === 'Enrutado') {
+            // Validar que haya una ruta seleccionada
+            if (!rutaSeleccionada) {
+                setErrorGuardado('Debes seleccionar una ruta para poder enrutar el caso.')
+                setGuardando(false)
+                return
+            }
+
+            console.log(`[Enrutado] Iniciando notificación para radicado: ${caso.radicado}, ruta: ${rutaSeleccionada}`)
+
             try {
                 const eps = caso.paciente?.eps || ''
                 const ipsPrimaria = caso.paciente?.ipsPrimaria || ''
+
+                console.log(`[Enrutado] Buscando destinatarios: ruta=${rutaSeleccionada}, eps=${eps}, ipsPrimaria=${ipsPrimaria}`)
 
                 // Buscar destinatarios configurados para esta ruta + eps + provincia
                 const configResult = await rutasService.buscarDestinatariosEnrutado(
@@ -435,6 +456,8 @@ export function CasoDetallePanel({
                     eps,
                     ipsPrimaria
                 )
+
+                console.log('[Enrutado] Resultado búsqueda config:', configResult)
 
                 if (configResult.success && configResult.data) {
                     const { destinatarios, copias } = configResult.data
@@ -1185,6 +1208,52 @@ export function CasoDetallePanel({
                                 )}
                             </div>
                         </div>
+
+                        {/* Selector de Ruta - Visible cuando estado es "Enrutado" */}
+                        {estadoRadicado === 'Enrutado' && (
+                            <div className="animate-fade-in">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    <Route size={16} className="inline mr-1.5 text-cyan-600" />
+                                    Seleccionar Ruta para Enrutamiento <span className="text-red-500">*</span>
+                                </label>
+                                <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-lg border border-gray-200">
+                                    {RUTAS_CONFIG.filter(r => r.visibleInterno).map(config => {
+                                        const colores = RUTA_COLORES[config.ruta] || { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' }
+                                        const activo = rutaSeleccionada === config.ruta
+
+                                        return (
+                                            <button
+                                                key={config.ruta}
+                                                type="button"
+                                                onClick={() => setRutaSeleccionada(config.ruta)}
+                                                className={`
+                                                    flex items-center justify-center px-2 py-1.5 rounded-md border text-xs font-medium transition-all
+                                                    ${activo
+                                                        ? `${colores.bg} ${colores.border} ${colores.text} ring-2 ring-offset-1 ring-cyan-400 shadow-sm`
+                                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300'
+                                                    }
+                                                `}
+                                                title={config.labelInterno}
+                                            >
+                                                {config.ruta}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                                {!rutaSeleccionada && (
+                                    <p className="mt-2 text-xs text-amber-600 flex items-center gap-1">
+                                        <AlertCircle size={14} />
+                                        Debes seleccionar una ruta para poder enviar la notificación
+                                    </p>
+                                )}
+                                {rutaSeleccionada && (
+                                    <p className="mt-2 text-xs text-cyan-600 flex items-center gap-1">
+                                        <CheckCircle size={14} />
+                                        Se enviará notificación a los gestores de la ruta <strong>{rutaSeleccionada}</strong>
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         {/* Mensajes de estado */}
                         {errorGuardado && (
