@@ -23,6 +23,15 @@ export interface EmailAttachment {
 }
 
 /**
+ * Interfaz para imágenes embebidas (inline) con Content-ID
+ */
+export interface InlineImage {
+    cid: string       // Content-ID sin los brackets (ej: 'logo-gestar')
+    content: string   // Base64 encoded content
+    mimeType: string  // e.g., 'image/png', 'image/jpeg'
+}
+
+/**
  * Obtener access token de Gmail usando refresh token
  */
 export async function getGmailAccessToken(): Promise<string> {
@@ -102,6 +111,7 @@ export interface SendEmailOptions {
     subject: string
     htmlBody: string
     attachments?: EmailAttachment[]  // Adjuntos opcionales
+    inlineImages?: InlineImage[]     // Imágenes embebidas con CID
 }
 
 /**
@@ -112,7 +122,12 @@ function generateBoundary(): string {
 }
 
 /**
- * Construir mensaje MIME con adjuntos
+ * Construir mensaje MIME con adjuntos e imágenes inline
+ * Soporta:
+ * - Solo HTML: text/html
+ * - HTML + imágenes inline: multipart/related
+ * - HTML + adjuntos: multipart/mixed
+ * - HTML + imágenes inline + adjuntos: multipart/mixed con multipart/related anidado
  */
 function buildMimeMessageWithAttachments(
     to: string,
@@ -120,9 +135,56 @@ function buildMimeMessageWithAttachments(
     subject: string,
     htmlBody: string,
     attachments: EmailAttachment[],
-    userEmail: string
+    userEmail: string,
+    inlineImages?: InlineImage[]
 ): string {
-    const boundary = generateBoundary()
+    const hasInlineImages = inlineImages && inlineImages.length > 0
+    const hasAttachments = attachments && attachments.length > 0
+
+    // Caso: Solo HTML + imágenes inline (sin adjuntos)
+    if (hasInlineImages && !hasAttachments) {
+        const boundaryRelated = generateBoundary()
+
+        const headers = [
+            `To: ${to}`,
+            cc ? `Cc: ${cc}` : null,
+            `From: Gestar Salud IPS <${userEmail}>`,
+            `Subject: ${encodeHeader(subject)}`,
+            'MIME-Version: 1.0',
+            `Content-Type: multipart/related; boundary="${boundaryRelated}"`,
+        ].filter(Boolean).join('\r\n')
+
+        // Parte HTML
+        const htmlPart = [
+            `--${boundaryRelated}`,
+            'Content-Type: text/html; charset=utf-8',
+            'Content-Transfer-Encoding: base64',
+            '',
+            encodeBase64(htmlBody)
+        ].join('\r\n')
+
+        // Partes de imágenes inline
+        const inlineImageParts = inlineImages.map(img => [
+            `--${boundaryRelated}`,
+            `Content-Type: ${img.mimeType}`,
+            'Content-Transfer-Encoding: base64',
+            `Content-ID: <${img.cid}>`,
+            'Content-Disposition: inline',
+            '',
+            img.content
+        ].join('\r\n')).join('\r\n')
+
+        return [
+            headers,
+            '',
+            htmlPart,
+            inlineImageParts,
+            `--${boundaryRelated}--`
+        ].join('\r\n')
+    }
+
+    // Caso: HTML + adjuntos + (opcionalmente) imágenes inline
+    const boundaryMixed = generateBoundary()
 
     const headers = [
         `To: ${to}`,
@@ -130,35 +192,72 @@ function buildMimeMessageWithAttachments(
         `From: Gestar Salud IPS <${userEmail}>`,
         `Subject: ${encodeHeader(subject)}`,
         'MIME-Version: 1.0',
-        `Content-Type: multipart/mixed; boundary="${boundary}"`,
+        `Content-Type: multipart/mixed; boundary="${boundaryMixed}"`,
     ].filter(Boolean).join('\r\n')
 
-    // Parte HTML
-    const htmlPart = [
-        `--${boundary}`,
-        'Content-Type: text/html; charset=utf-8',
-        'Content-Transfer-Encoding: base64',
-        '',
-        encodeBase64(htmlBody)
-    ].join('\r\n')
+    let contentPart: string
+
+    if (hasInlineImages) {
+        // HTML + imágenes inline dentro de multipart/related
+        const boundaryRelated = generateBoundary()
+
+        const relatedHeader = [
+            `--${boundaryMixed}`,
+            `Content-Type: multipart/related; boundary="${boundaryRelated}"`,
+            ''
+        ].join('\r\n')
+
+        const htmlPart = [
+            `--${boundaryRelated}`,
+            'Content-Type: text/html; charset=utf-8',
+            'Content-Transfer-Encoding: base64',
+            '',
+            encodeBase64(htmlBody)
+        ].join('\r\n')
+
+        const inlineImageParts = inlineImages.map(img => [
+            `--${boundaryRelated}`,
+            `Content-Type: ${img.mimeType}`,
+            'Content-Transfer-Encoding: base64',
+            `Content-ID: <${img.cid}>`,
+            'Content-Disposition: inline',
+            '',
+            img.content
+        ].join('\r\n')).join('\r\n')
+
+        contentPart = [
+            relatedHeader,
+            htmlPart,
+            inlineImageParts,
+            `--${boundaryRelated}--`
+        ].join('\r\n')
+    } else {
+        // Solo HTML
+        contentPart = [
+            `--${boundaryMixed}`,
+            'Content-Type: text/html; charset=utf-8',
+            'Content-Transfer-Encoding: base64',
+            '',
+            encodeBase64(htmlBody)
+        ].join('\r\n')
+    }
 
     // Partes de adjuntos
     const attachmentParts = attachments.map(att => [
-        `--${boundary}`,
+        `--${boundaryMixed}`,
         `Content-Type: ${att.mimeType}; name="${att.filename}"`,
         'Content-Transfer-Encoding: base64',
         `Content-Disposition: attachment; filename="${att.filename}"`,
         '',
-        att.content  // Ya viene en base64
+        att.content
     ].join('\r\n')).join('\r\n')
 
-    // Ensamblar mensaje completo
     return [
         headers,
         '',
-        htmlPart,
+        contentPart,
         attachmentParts,
-        `--${boundary}--`
+        `--${boundaryMixed}--`
     ].join('\r\n')
 }
 
@@ -197,18 +296,22 @@ export async function sendGmailEmail(
             ? (Array.isArray(opts.cc) ? opts.cc.join(', ') : opts.cc)
             : undefined
 
-        if (opts.attachments && opts.attachments.length > 0) {
-            // Mensaje con adjuntos (multipart/mixed)
+        const hasAttachments = opts.attachments && opts.attachments.length > 0
+        const hasInlineImages = opts.inlineImages && opts.inlineImages.length > 0
+
+        if (hasAttachments || hasInlineImages) {
+            // Mensaje con adjuntos y/o imágenes inline (multipart)
             email = buildMimeMessageWithAttachments(
                 toStr,
                 ccStr,
                 opts.subject,
                 opts.htmlBody,
-                opts.attachments,
-                userEmail
+                opts.attachments || [],
+                userEmail,
+                opts.inlineImages
             )
         } else {
-            // Mensaje simple sin adjuntos
+            // Mensaje simple sin adjuntos ni imágenes inline
             email = [
                 `To: ${toStr}`,
                 ccStr ? `Cc: ${ccStr}` : null,

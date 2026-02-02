@@ -6,7 +6,7 @@
  */
 
 import { corsHeaders } from '../_shared/cors.ts'
-import { sendGmailEmail, type EmailAttachment } from '../_shared/gmail-utils.ts'
+import { sendGmailEmail, type EmailAttachment, type InlineImage } from '../_shared/gmail-utils.ts'
 
 // ==========================================
 // INTERFACES
