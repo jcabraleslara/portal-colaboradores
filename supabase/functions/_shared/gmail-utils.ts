@@ -84,6 +84,19 @@ function encodeBase64(text: string): string {
 }
 
 /**
+ * Formatear contenido Base64 con saltos de línea cada 76 caracteres
+ * Requerido por RFC 2045 para contenido MIME
+ */
+function formatBase64ForMime(base64: string): string {
+    const lineLength = 76
+    const lines: string[] = []
+    for (let i = 0; i < base64.length; i += lineLength) {
+        lines.push(base64.slice(i, i + lineLength))
+    }
+    return lines.join('\r\n')
+}
+
+/**
  * Codificar texto para encabezados de correo (RFC 2047)
  * Necesario para asuntos con tildes y caracteres especiales
  */
@@ -163,7 +176,7 @@ function buildMimeMessageWithAttachments(
             encodeBase64(htmlBody)
         ].join('\r\n')
 
-        // Partes de imágenes inline
+        // Partes de imágenes inline (con base64 formateado según RFC 2045)
         const inlineImageParts = inlineImages.map(img => [
             `--${boundaryRelated}`,
             `Content-Type: ${img.mimeType}`,
@@ -171,7 +184,7 @@ function buildMimeMessageWithAttachments(
             `Content-ID: <${img.cid}>`,
             'Content-Disposition: inline',
             '',
-            img.content
+            formatBase64ForMime(img.content)
         ].join('\r\n')).join('\r\n')
 
         return [
@@ -222,7 +235,7 @@ function buildMimeMessageWithAttachments(
             `Content-ID: <${img.cid}>`,
             'Content-Disposition: inline',
             '',
-            img.content
+            formatBase64ForMime(img.content)
         ].join('\r\n')).join('\r\n')
 
         contentPart = [
@@ -242,14 +255,14 @@ function buildMimeMessageWithAttachments(
         ].join('\r\n')
     }
 
-    // Partes de adjuntos
+    // Partes de adjuntos (con base64 formateado según RFC 2045)
     const attachmentParts = attachments.map(att => [
         `--${boundaryMixed}`,
         `Content-Type: ${att.mimeType}; name="${att.filename}"`,
         'Content-Transfer-Encoding: base64',
         `Content-Disposition: attachment; filename="${att.filename}"`,
         '',
-        att.content
+        formatBase64ForMime(att.content)
     ].join('\r\n')).join('\r\n')
 
     return [
