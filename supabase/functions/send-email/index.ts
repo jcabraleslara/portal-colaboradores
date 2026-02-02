@@ -580,7 +580,8 @@ function generarTemplateEnrutado(radicado: string, datos: DatosEnrutado): string
 // HANDLER PRINCIPAL
 // ==========================================
 
-Deno.serve(async (req) => {
+// @ts-ignore
+Deno.serve(async (req: Request) => {
     // Manejar preflight CORS
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })

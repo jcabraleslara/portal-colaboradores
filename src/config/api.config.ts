@@ -49,6 +49,10 @@ export function getEdgeFunctionHeaders(authToken?: string): HeadersInit {
 
     if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`
+    } else {
+        // Si no se proporciona token de usuario, usar la Anon Key como Authorization
+        // Esto evita el error 401 "Missing authorization header" en funciones publicas/anonimas
+        headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`
     }
 
     return headers
