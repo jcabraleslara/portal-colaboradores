@@ -1,11 +1,11 @@
 // Auto-generado - NO EDITAR MANUALMENTE
-// Generado el: 02/02/2026 09:15
+// Generado el: 02/02/2026 09:16
 
 export const BUILD_INFO = {
     version: '1.0',
-    commitHash: 'dcae2ab',
-    buildDate: '02/02/2026 09:15',
-    buildTimestamp: '2026-02-02T14:15:31.000Z',
+    commitHash: '9581531',
+    buildDate: '02/02/2026 09:16',
+    buildTimestamp: '2026-02-02T14:16:56.000Z',
 } as const;
 
 export default BUILD_INFO;
