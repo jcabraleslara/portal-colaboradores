@@ -120,7 +120,7 @@ export function RecobroDetallePanel({ recobro, onClose, onUpdate, onSiguiente }:
                                 {
                                     pacienteNombre: recobro.pacienteNombres || 'No especificado',
                                     pacienteId: recobro.pacienteId,
-                                    pacienteTipoId: recobro.pacienteTipoId,
+                                    pacienteTipoId: recobro.pacienteTipoId || undefined,
                                     cupsData: recobro.cupsData,
                                     pdfUrl: pdfAprobacionUrl || undefined,
                                 }
