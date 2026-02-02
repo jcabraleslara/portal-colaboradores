@@ -238,14 +238,16 @@ export const recobrosService = {
      */
     async obtenerConteosPorEstado(): Promise<ApiResponse<Record<string, number>>> {
         try {
-            const { data, error } = await supabase
-                .from('recobros')
-                .select('estado')
+            const estados: EstadoRecobro[] = ['Pendiente', 'En gestión', 'Aprobado', 'Devuelto']
 
-            if (error) {
-                console.error('Error obteniendo conteos:', error)
-                return { success: false, error: ERROR_MESSAGES.SERVER_ERROR }
-            }
+            const promises = estados.map(estado =>
+                supabase
+                    .from('recobros')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('estado', estado)
+            )
+
+            const results = await Promise.all(promises)
 
             const conteos: Record<string, number> = {
                 'Pendiente': 0,
@@ -254,10 +256,13 @@ export const recobrosService = {
                 'Devuelto': 0,
             }
 
-            for (const registro of data) {
-                const estado = registro.estado || 'Pendiente'
-                conteos[estado] = (conteos[estado] || 0) + 1
-            }
+            results.forEach((result, index) => {
+                const estado = estados[index]
+                if (result.error) {
+                    console.error(`Error contando estado ${estado}:`, result.error)
+                }
+                conteos[estado] = result.count || 0
+            })
 
             return { success: true, data: conteos }
         } catch (error) {

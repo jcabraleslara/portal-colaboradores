@@ -195,10 +195,41 @@ export function extraerIdentificacionesDeUrls(urls: string[]): string[] {
     return Array.from(identificaciones)
 }
 
+/**
+ * Ejecutar operación con reintentos y backoff exponencial
+ * Útil para manejar errores transitorios como HTTP 502
+ */
+async function executeWithRetry<T>(
+    operation: () => Promise<T>,
+    maxRetries = 3,
+    baseDelayMs = 1000
+): Promise<T> {
+    let lastError: Error | null = null
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            return await operation()
+        } catch (error) {
+            lastError = error instanceof Error ? error : new Error(String(error))
+
+            // Si es último intento, no esperar
+            if (attempt === maxRetries) break
+
+            // Backoff exponencial: 1s, 2s, 4s...
+            const delay = baseDelayMs * Math.pow(2, attempt)
+            console.warn(`⚠️ Intento ${attempt + 1} falló, reintentando en ${delay}ms...`, lastError.message)
+            await new Promise(resolve => setTimeout(resolve, delay))
+        }
+    }
+
+    throw lastError
+}
+
 export const soportesFacturacionService = {
     /**
      * Subir archivos al bucket de soportes-facturacion
      * Renombrado dinámico: [PREFIJO]_900842629_[ID_PACIENTE]_[CONSECUTIVO].pdf
+     * Incluye reintentos automáticos para manejar errores transitorios (502, timeout)
      * @returns Objeto con URLs firmadas y las identificaciones extraídas de los archivos
      */
     async subirArchivos(
@@ -247,17 +278,24 @@ export const soportesFacturacionService = {
 
             const ruta = `${radicado}/${nombreFinal}`
 
-            const { error } = await supabase.storage
-                .from('soportes-facturacion')
-                .upload(ruta, archivo, {
-                    cacheControl: '3600',
-                    upsert: true, // Upsert true para permitir reintentos o correcciones
-                })
+            // Subida con reintentos automáticos para manejar errores transitorios (502, timeout)
+            try {
+                await executeWithRetry(async () => {
+                    const { error } = await supabase.storage
+                        .from('soportes-facturacion')
+                        .upload(ruta, archivo, {
+                            cacheControl: '3600',
+                            upsert: true,
+                        })
 
-            if (error) {
-                console.error(`Error subiendo archivo ${nombreFinal}:`, error)
+                    if (error) {
+                        throw error
+                    }
+                }, 3, 1000)
+            } catch (error) {
+                console.error(`Error subiendo archivo ${nombreFinal} después de reintentos:`, error)
 
-                // Notificar error crítico de Storage
+                // Notificar error crítico de Storage solo si todos los reintentos fallaron
                 await criticalErrorService.reportStorageFailure(
                     'upload',
                     'Soportes de Facturación',
@@ -265,7 +303,7 @@ export const soportesFacturacionService = {
                     error as Error
                 )
 
-                throw new Error(`Error subiendo ${archivo.name}: ${error.message}`)
+                throw new Error(`Error subiendo ${archivo.name}: ${(error as Error).message}`)
             }
 
             // Generar URL firmada (válida por 1 año)
