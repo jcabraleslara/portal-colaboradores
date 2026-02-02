@@ -11,7 +11,8 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
-import { sendGmailEmail } from '../_shared/gmail-utils.ts'
+import { sendGmailEmail, type InlineImage } from '../_shared/gmail-utils.ts'
+import { GESTAR_LOGO_BASE64 } from '../_shared/email-templates.ts'
 
 interface CreateUserRequest {
     identificacion: string
@@ -33,8 +34,33 @@ const ROL_LABELS: Record<string, string> = {
     externo: 'Usuario Externo'
 }
 
+// Constantes de diseno - Paleta de colores GESTAR SALUD
+const COLORS = {
+    primary: '#0095EB',      // Azul principal
+    primaryDark: '#0077BC',  // Azul oscuro
+    primaryLight: '#E6F4FD', // Azul claro
+    accent: '#F3585D',       // Coral/Rojo (corazon del logo)
+    accentDark: '#E82D33',   // Coral oscuro
+    success: '#85C54C',      // Verde
+    successDark: '#6BA83B',  // Verde oscuro
+    successLight: '#F4FAF0', // Verde claro
+    slate50: '#F8FAFC',
+    slate100: '#F1F5F9',
+    slate500: '#64748B',
+    slate600: '#475569',
+    slate800: '#1E293B',
+    slate900: '#0F172A',
+    warning: '#F59E0B',
+    warningLight: '#FEF3C7',
+    error: '#DC2626',
+    errorLight: '#FEF2F2',
+}
+
+const PORTAL_URL = 'https://colaboradores.gestarsaludips.com.co'
+
 /**
  * Genera template de correo para usuarios INTERNOS (colaboradores)
+ * Usa cid:logo-gestar para imagen inline
  */
 function generarTemplateInterno(
     nombre: string,
@@ -43,59 +69,64 @@ function generarTemplateInterno(
     rol: string
 ): string {
     const rolLabel = ROL_LABELS[rol] || rol
-    const portalUrl = 'https://colaboradores.gestarsaludips.com.co'
 
     return `
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; background-color: #f8fafc;">
-            <div style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-                <h1 style="margin: 0; font-size: 26px; font-weight: 600;">Bienvenido a Gestar Salud IPS</h1>
-                <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 15px;">Portal de Colaboradores</p>
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; color: ${COLORS.slate800}; max-width: 600px; margin: 0 auto; background-color: ${COLORS.slate50};">
+            <!-- Header con logo -->
+            <div style="background: linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+                <img src="cid:logo-gestar" alt="Gestar Salud IPS" style="height: 50px; margin-bottom: 15px;" />
+                <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: white;">Bienvenido al equipo</h1>
+                <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 14px; color: white;">Portal de Colaboradores</p>
             </div>
 
             <div style="padding: 30px; background-color: #ffffff;">
-                <p style="font-size: 16px; margin-bottom: 20px;">Hola <strong>${nombre}</strong>,</p>
+                <p style="font-size: 16px; margin-bottom: 20px; color: ${COLORS.slate800};">Hola <strong>${nombre}</strong>,</p>
 
-                <p style="line-height: 1.6;">
-                    Te damos la bienvenida al equipo de <strong>Gestar Salud IPS</strong>.
+                <p style="line-height: 1.7; color: ${COLORS.slate600};">
+                    Te damos la bienvenida al equipo de <strong style="color: ${COLORS.primary};">Gestar Salud IPS</strong>.
                     Se ha creado tu cuenta en el Portal de Colaboradores, donde podras acceder a las
                     herramientas y recursos necesarios para tu labor.
                 </p>
 
-                <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #0284c7; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
-                    <h3 style="color: #0369a1; margin: 0 0 15px 0; font-size: 16px;">Tus credenciales de acceso</h3>
+                <!-- Credenciales -->
+                <div style="background: linear-gradient(135deg, ${COLORS.primaryLight} 0%, #CCE9FB 100%); border-left: 4px solid ${COLORS.primary}; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+                    <h3 style="color: ${COLORS.primaryDark}; margin: 0 0 15px 0; font-size: 16px;">Tus credenciales de acceso</h3>
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
-                            <td style="padding: 8px 0; color: #64748b; width: 120px;">Usuario:</td>
-                            <td style="padding: 8px 0; font-weight: 600; color: #1e40af;">${email}</td>
+                            <td style="padding: 8px 0; color: ${COLORS.slate500}; width: 130px;">Usuario:</td>
+                            <td style="padding: 8px 0; font-weight: 600; color: ${COLORS.primaryDark};">${email}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 8px 0; color: #64748b;">Contraseña:</td>
-                            <td style="padding: 8px 0; font-family: 'Consolas', monospace; background-color: #fef3c7; padding: 6px 12px; border-radius: 4px; display: inline-block; font-weight: 600; color: #92400e;">${password}</td>
+                            <td style="padding: 8px 0; color: ${COLORS.slate500};">Contrasena:</td>
+                            <td style="padding: 8px 0;"><span style="font-family: 'Consolas', monospace; background-color: ${COLORS.warningLight}; padding: 6px 12px; border-radius: 4px; font-weight: 600; color: #92400e;">${password}</span></td>
                         </tr>
                         <tr>
-                            <td style="padding: 8px 0; color: #64748b;">Rol asignado:</td>
-                            <td style="padding: 8px 0; font-weight: 500;">${rolLabel}</td>
+                            <td style="padding: 8px 0; color: ${COLORS.slate500};">Rol asignado:</td>
+                            <td style="padding: 8px 0; font-weight: 500; color: ${COLORS.slate800};">${rolLabel}</td>
                         </tr>
                     </table>
                 </div>
 
-                <div style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <p style="margin: 0; color: #991b1b; font-size: 14px;">
-                        <strong>Importante:</strong> Por seguridad, debes cambiar tu contraseña en el primer inicio de sesion.
+                <!-- Alerta de seguridad -->
+                <div style="background-color: ${COLORS.errorLight}; border: 1px solid #FECACA; border-left: 4px solid ${COLORS.accent}; padding: 15px; border-radius: 0 8px 8px 0; margin: 20px 0;">
+                    <p style="margin: 0; color: #991B1B; font-size: 14px;">
+                        <strong>&#9888; Importante:</strong> Por seguridad, debes cambiar tu contrasena en el primer inicio de sesion.
                     </p>
                 </div>
 
+                <!-- Boton CTA -->
                 <div style="text-align: center; margin: 30px 0;">
-                    <a href="${portalUrl}"
-                       style="display: inline-block; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white; text-decoration: none; padding: 14px 35px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);">
+                    <a href="${PORTAL_URL}"
+                       style="display: inline-block; background: linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%); color: white; text-decoration: none; padding: 14px 35px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 15px rgba(0, 149, 235, 0.35);">
                         Acceder al Portal
                     </a>
                 </div>
 
-                <div style="background-color: #f1f5f9; padding: 20px; border-radius: 8px; margin-top: 25px;">
-                    <h4 style="margin: 0 0 10px 0; color: #475569; font-size: 14px;">Recomendaciones de uso responsable:</h4>
-                    <ul style="margin: 0; padding-left: 20px; color: #64748b; font-size: 13px; line-height: 1.8;">
-                        <li>Mantén tus credenciales seguras y no las compartas con terceros</li>
+                <!-- Recomendaciones -->
+                <div style="background-color: ${COLORS.slate100}; padding: 20px; border-radius: 8px; margin-top: 25px;">
+                    <h4 style="margin: 0 0 12px 0; color: ${COLORS.slate600}; font-size: 14px;">Recomendaciones de uso responsable:</h4>
+                    <ul style="margin: 0; padding-left: 20px; color: ${COLORS.slate500}; font-size: 13px; line-height: 1.9;">
+                        <li>Manten tus credenciales seguras y no las compartas con terceros</li>
                         <li>Cierra sesion al terminar tu jornada laboral</li>
                         <li>Reporta cualquier anomalia al area de sistemas</li>
                         <li>Utiliza el portal solo para fines laborales autorizados</li>
@@ -103,12 +134,13 @@ function generarTemplateInterno(
                 </div>
             </div>
 
-            <div style="background-color: #1e293b; color: #94a3b8; padding: 25px; text-align: center; border-radius: 0 0 12px 12px;">
-                <p style="margin: 0 0 10px 0; font-size: 13px;">
+            <!-- Footer -->
+            <div style="background-color: ${COLORS.slate800}; color: ${COLORS.slate500}; padding: 25px; text-align: center; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 8px 0; font-size: 13px; color: #94A3B8;">
                     Este es un mensaje automatico del Portal de Colaboradores.
                 </p>
-                <p style="margin: 0; font-size: 12px; color: #64748b;">
-                    Gestar Salud IPS - Comprometidos con tu bienestar
+                <p style="margin: 0; font-size: 12px; color: ${COLORS.slate500};">
+                    <strong style="color: ${COLORS.primary};">Gestar Salud IPS</strong> - Comprometidos con tu bienestar
                 </p>
             </div>
         </div>
@@ -117,59 +149,64 @@ function generarTemplateInterno(
 
 /**
  * Genera template de correo para usuarios EXTERNOS (no colaboradores)
+ * Usa cid:logo-gestar para imagen inline
  */
 function generarTemplateExterno(
     nombre: string,
     email: string,
     password: string
 ): string {
-    const portalUrl = 'https://colaboradores.gestarsaludips.com.co'
-
     return `
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; background-color: #f8fafc;">
-            <div style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-                <h1 style="margin: 0; font-size: 26px; font-weight: 600;">Bienvenido al Portal</h1>
-                <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 15px;">Gestar Salud IPS</p>
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; color: ${COLORS.slate800}; max-width: 600px; margin: 0 auto; background-color: ${COLORS.slate50};">
+            <!-- Header con logo -->
+            <div style="background: linear-gradient(135deg, ${COLORS.success} 0%, ${COLORS.successDark} 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+                <img src="cid:logo-gestar" alt="Gestar Salud IPS" style="height: 50px; margin-bottom: 15px;" />
+                <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: white;">Bienvenido al Portal</h1>
+                <p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 14px; color: white;">Gestar Salud IPS</p>
             </div>
 
             <div style="padding: 30px; background-color: #ffffff;">
-                <p style="font-size: 16px; margin-bottom: 20px;">Estimado(a) <strong>${nombre}</strong>,</p>
+                <p style="font-size: 16px; margin-bottom: 20px; color: ${COLORS.slate800};">Estimado(a) <strong>${nombre}</strong>,</p>
 
-                <p style="line-height: 1.6;">
-                    Se ha creado una cuenta para que puedas acceder al Portal Web de <strong>Gestar Salud IPS</strong>.
+                <p style="line-height: 1.7; color: ${COLORS.slate600};">
+                    Se ha creado una cuenta para que puedas acceder al Portal Web de <strong style="color: ${COLORS.success};">Gestar Salud IPS</strong>.
                     A traves de este portal podras realizar las gestiones autorizadas segun tu perfil de usuario.
                 </p>
 
-                <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #16a34a; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
-                    <h3 style="color: #15803d; margin: 0 0 15px 0; font-size: 16px;">Datos de acceso</h3>
+                <!-- Credenciales -->
+                <div style="background: linear-gradient(135deg, ${COLORS.successLight} 0%, #DCFCE7 100%); border-left: 4px solid ${COLORS.success}; padding: 20px; margin: 25px 0; border-radius: 0 8px 8px 0;">
+                    <h3 style="color: ${COLORS.successDark}; margin: 0 0 15px 0; font-size: 16px;">Datos de acceso</h3>
                     <table style="width: 100%; border-collapse: collapse;">
                         <tr>
-                            <td style="padding: 8px 0; color: #64748b; width: 120px;">Usuario:</td>
-                            <td style="padding: 8px 0; font-weight: 600; color: #166534;">${email}</td>
+                            <td style="padding: 8px 0; color: ${COLORS.slate500}; width: 130px;">Usuario:</td>
+                            <td style="padding: 8px 0; font-weight: 600; color: ${COLORS.successDark};">${email}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 8px 0; color: #64748b;">Contraseña:</td>
-                            <td style="padding: 8px 0; font-family: 'Consolas', monospace; background-color: #fef3c7; padding: 6px 12px; border-radius: 4px; display: inline-block; font-weight: 600; color: #92400e;">${password}</td>
+                            <td style="padding: 8px 0; color: ${COLORS.slate500};">Contrasena:</td>
+                            <td style="padding: 8px 0;"><span style="font-family: 'Consolas', monospace; background-color: ${COLORS.warningLight}; padding: 6px 12px; border-radius: 4px; font-weight: 600; color: #92400e;">${password}</span></td>
                         </tr>
                     </table>
                 </div>
 
-                <div style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                    <p style="margin: 0; color: #991b1b; font-size: 14px;">
-                        <strong>Importante:</strong> Por seguridad, te recomendamos cambiar tu contraseña en el primer inicio de sesion.
+                <!-- Alerta de seguridad -->
+                <div style="background-color: ${COLORS.errorLight}; border: 1px solid #FECACA; border-left: 4px solid ${COLORS.accent}; padding: 15px; border-radius: 0 8px 8px 0; margin: 20px 0;">
+                    <p style="margin: 0; color: #991B1B; font-size: 14px;">
+                        <strong>&#9888; Importante:</strong> Por seguridad, te recomendamos cambiar tu contrasena en el primer inicio de sesion.
                     </p>
                 </div>
 
+                <!-- Boton CTA -->
                 <div style="text-align: center; margin: 30px 0;">
-                    <a href="${portalUrl}"
-                       style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; text-decoration: none; padding: 14px 35px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 6px rgba(5, 150, 105, 0.3);">
+                    <a href="${PORTAL_URL}"
+                       style="display: inline-block; background: linear-gradient(135deg, ${COLORS.success} 0%, ${COLORS.successDark} 100%); color: white; text-decoration: none; padding: 14px 35px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 15px rgba(133, 197, 76, 0.35);">
                         Ingresar al Portal
                     </a>
                 </div>
 
-                <div style="background-color: #f1f5f9; padding: 20px; border-radius: 8px; margin-top: 25px;">
-                    <h4 style="margin: 0 0 10px 0; color: #475569; font-size: 14px;">Condiciones de uso:</h4>
-                    <ul style="margin: 0; padding-left: 20px; color: #64748b; font-size: 13px; line-height: 1.8;">
+                <!-- Condiciones de uso -->
+                <div style="background-color: ${COLORS.slate100}; padding: 20px; border-radius: 8px; margin-top: 25px;">
+                    <h4 style="margin: 0 0 12px 0; color: ${COLORS.slate600}; font-size: 14px;">Condiciones de uso:</h4>
+                    <ul style="margin: 0; padding-left: 20px; color: ${COLORS.slate500}; font-size: 13px; line-height: 1.9;">
                         <li>Tus credenciales son personales e intransferibles</li>
                         <li>El acceso al portal esta limitado a las funciones autorizadas</li>
                         <li>Toda actividad queda registrada para efectos de auditoria</li>
@@ -177,11 +214,12 @@ function generarTemplateExterno(
                 </div>
             </div>
 
-            <div style="background-color: #1e293b; color: #94a3b8; padding: 25px; text-align: center; border-radius: 0 0 12px 12px;">
-                <p style="margin: 0 0 10px 0; font-size: 13px;">
+            <!-- Footer -->
+            <div style="background-color: ${COLORS.slate800}; color: ${COLORS.slate500}; padding: 25px; text-align: center; border-radius: 0 0 12px 12px;">
+                <p style="margin: 0 0 8px 0; font-size: 13px; color: #94A3B8;">
                     Este es un mensaje automatico del Portal de Gestar Salud IPS.
                 </p>
-                <p style="margin: 0; font-size: 12px; color: #64748b;">
+                <p style="margin: 0; font-size: 12px; color: ${COLORS.slate500};">
                     Si tienes dudas, contacta al administrador del sistema.
                 </p>
             </div>
@@ -191,6 +229,7 @@ function generarTemplateExterno(
 
 /**
  * Envia correo de bienvenida segun el tipo de usuario
+ * Incluye logo embebido como imagen inline (CID)
  */
 async function enviarCorreoBienvenida(
     nombre: string,
@@ -208,10 +247,18 @@ async function enviarCorreoBienvenida(
         ? generarTemplateExterno(nombre, email, password)
         : generarTemplateInterno(nombre, email, password, rol)
 
+    // Logo embebido como imagen inline
+    const inlineImages: InlineImage[] = [{
+        cid: 'logo-gestar',
+        content: GESTAR_LOGO_BASE64,
+        mimeType: 'image/png'
+    }]
+
     await sendGmailEmail({
         to: email,
         subject,
-        htmlBody
+        htmlBody,
+        inlineImages
     })
 }
 
