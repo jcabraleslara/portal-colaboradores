@@ -153,7 +153,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'FileText',
         enabled: true,
         description: 'Radicar soportes para facturación',
-        requiredRoles: ['superadmin', 'operativo', 'admin', 'gerencia'],
+        requiredRoles: ['superadmin', 'operativo', 'admin', 'gerencia', 'auditor'],
     },
     {
         id: 'anexo-8',
