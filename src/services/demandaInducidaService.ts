@@ -364,39 +364,31 @@ async function getMetrics(filters?: DemandaFilters): Promise<DemandaMetrics> {
 
 
 /**
- * Obtiene lista única de colaboradores
+ * Obtiene lista única de colaboradores usando RPC para evitar límites de paginación
  */
 async function getColaboradores(): Promise<string[]> {
-    const { data, error } = await supabase
-        .from('demanda_inducida')
-        .select('colaborador')
-        .order('colaborador')
+    const { data, error } = await supabase.rpc('get_unique_colaboradores')
 
     if (error) {
+        console.error('Error obteniendo colaboradores:', error)
         return []
     }
 
-    // Obtener valores únicos
-    const colaboradores = [...new Set(data.map((d: any) => d.colaborador))].filter(Boolean)
-    return colaboradores as string[]
+    return data.map((d: any) => d.colaborador)
 }
 
 /**
- * Obtiene lista única de programas
+ * Obtiene lista única de programas usando RPC
  */
 async function getProgramas(): Promise<string[]> {
-    const { data, error } = await supabase
-        .from('demanda_inducida')
-        .select('programa_direccionado')
-        .order('programa_direccionado')
+    const { data, error } = await supabase.rpc('get_unique_programas')
 
     if (error) {
+        console.error('Error obteniendo programas:', error)
         return []
     }
 
-    // Obtener valores únicos
-    const programas = [...new Set(data.map((d: any) => d.programa_direccionado))].filter(Boolean)
-    return programas as string[]
+    return data.map((d: any) => d.programa)
 }
 
 
