@@ -873,33 +873,53 @@ export const soportesFacturacionService = {
      * Obtener lista de radicadores únicos (para autocomplete)
      * Retorna nombre y email de radicadores que ya tienen registros en la tabla
      */
+    /**
+     * Obtener lista de radicadores únicos (para autocomplete)
+     * Retorna nombre y email de radicadores que ya tienen registros en la tabla
+     */
     async obtenerRadicadoresUnicos(): Promise<ApiResponse<RadicadorUnico[]>> {
         try {
-            // Obtener radicadores únicos con nombre no nulo
+            // Usamos una función RPC de base de datos para obtener los únicos eficientemente
+            // y evitar el límite de filas de Supabase (1000 por defecto)
+            // La función SQL es: obtener_radicadores_unicos()
             const { data, error } = await supabase
-                .from('soportes_facturacion')
-                .select('radicador_nombre, radicador_email')
-                .not('radicador_nombre', 'is', null)
-                .order('radicador_nombre', { ascending: true })
+                .rpc('obtener_radicadores_unicos')
 
             if (error) {
-                console.error('Error obteniendo radicadores únicos:', error)
-                return { success: false, error: ERROR_MESSAGES.SERVER_ERROR }
-            }
+                console.warn('Error obteniendo radicadores vía RPC, usando fallback:', error)
 
-            // Eliminar duplicados usando un Map con el nombre como clave
-            const radicadoresMap = new Map<string, RadicadorUnico>()
-            for (const item of data || []) {
-                const nombre = item.radicador_nombre as string
-                if (nombre && !radicadoresMap.has(nombre)) {
-                    radicadoresMap.set(nombre, {
-                        nombre,
-                        email: item.radicador_email as string
-                    })
+                // Fallback: intentar consulta normal con límite ampliado
+                const { data: dataFallback, error: errorFallback } = await supabase
+                    .from('soportes_facturacion')
+                    .select('radicador_nombre, radicador_email')
+                    .not('radicador_nombre', 'is', null)
+                    .order('radicador_nombre', { ascending: true })
+                    .range(0, 9999) // Traer hasta 10000 registros para asegurar cobertura
+
+                if (errorFallback) {
+                    console.error('Error fallback radicadores:', errorFallback)
+                    return { success: false, error: ERROR_MESSAGES.SERVER_ERROR }
                 }
+
+                // Eliminar duplicados manualmente en el cliente (menos eficiente pero funciona)
+                const radicadoresMap = new Map<string, RadicadorUnico>()
+                for (const item of dataFallback || []) {
+                    const nombre = item.radicador_nombre as string
+                    if (nombre && !radicadoresMap.has(nombre)) {
+                        radicadoresMap.set(nombre, {
+                            nombre,
+                            email: item.radicador_email as string
+                        })
+                    }
+                }
+                return { success: true, data: Array.from(radicadoresMap.values()) }
             }
 
-            const radicadores = Array.from(radicadoresMap.values())
+            // Si RPC funciona correctamente
+            const radicadores: RadicadorUnico[] = (data as any[]).map(item => ({
+                nombre: item.nombre,
+                email: item.email
+            }))
 
             return { success: true, data: radicadores }
         } catch (error) {
