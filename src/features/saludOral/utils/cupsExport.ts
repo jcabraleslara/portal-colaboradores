@@ -237,8 +237,12 @@ function generarFilasCups(registro: OdRegistro, colaboradoresMap?: Record<string
 
 /**
  * Exporta informe CUPS en formato CSV
+ * Por defecto, filtra solo pacientes con IPS primaria 'GESTAR SALUD DE COLOMBIA CERETE%'
  */
 export async function exportarInformeCups(filters?: OdFilters): Promise<void> {
+    // Importar supabase para hacer la consulta de filtrado
+    const { supabase } = await import('@/config/supabase.config')
+
     // Obtener mapa de colaboradores
     const colaboradoresMap = await saludOralService.getColaboradores()
 
@@ -253,9 +257,33 @@ export async function exportarInformeCups(filters?: OdFilters): Promise<void> {
         throw new Error('No hay datos para exportar')
     }
 
+    // Filtrar solo registros de pacientes con IPS primaria 'GESTAR SALUD DE COLOMBIA CERETE%'
+    const pacientesIds = [...new Set(registros.map(r => r.pacienteId))]
+
+    const { data: afiliadosCerete, error } = await supabase
+        .from('afiliados')
+        .select('numero_documento')
+        .in('numero_documento', pacientesIds)
+        .ilike('ips_primaria', 'GESTAR SALUD DE COLOMBIA CERETE%')
+
+    if (error) {
+        console.error('Error filtrando por IPS primaria:', error)
+        throw new Error('Error al filtrar pacientes por IPS primaria')
+    }
+
+    // Crear set con los documentos válidos
+    const documentosValidos = new Set(afiliadosCerete?.map(a => a.numero_documento) || [])
+
+    // Filtrar registros solo de pacientes con IPS primaria válida
+    const registrosFiltrados = registros.filter(r => documentosValidos.has(r.pacienteId))
+
+    if (registrosFiltrados.length === 0) {
+        throw new Error('No hay registros de pacientes con IPS primaria GESTAR SALUD DE COLOMBIA CERETE')
+    }
+
     // Generar filas CUPS
     const allRows: CupsExportRow[] = []
-    for (const registro of registros) {
+    for (const registro of registrosFiltrados) {
         const rows = generarFilasCups(registro, colaboradoresMap)
         allRows.push(...rows)
     }
@@ -293,8 +321,12 @@ export async function exportarInformeCups(filters?: OdFilters): Promise<void> {
 
 /**
  * Exporta informe completo en Excel
+ * Por defecto, filtra solo pacientes con IPS primaria 'GESTAR SALUD DE COLOMBIA CERETE%'
  */
 export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
+    // Importar supabase para hacer la consulta de filtrado
+    const { supabase } = await import('@/config/supabase.config')
+
     // Obtener mapa de colaboradores
     const colaboradoresMap = await saludOralService.getColaboradores()
 
@@ -309,8 +341,32 @@ export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
         throw new Error('No hay datos para exportar')
     }
 
+    // Filtrar solo registros de pacientes con IPS primaria 'GESTAR SALUD DE COLOMBIA CERETE%'
+    const pacientesIds = [...new Set(registros.map(r => r.pacienteId))]
+
+    const { data: afiliadosCerete, error } = await supabase
+        .from('afiliados')
+        .select('numero_documento')
+        .in('numero_documento', pacientesIds)
+        .ilike('ips_primaria', 'GESTAR SALUD DE COLOMBIA CERETE%')
+
+    if (error) {
+        console.error('Error filtrando por IPS primaria:', error)
+        throw new Error('Error al filtrar pacientes por IPS primaria')
+    }
+
+    // Crear set con los documentos válidos
+    const documentosValidos = new Set(afiliadosCerete?.map(a => a.numero_documento) || [])
+
+    // Filtrar registros solo de pacientes con IPS primaria válida
+    const registrosFiltrados = registros.filter(r => documentosValidos.has(r.pacienteId))
+
+    if (registrosFiltrados.length === 0) {
+        throw new Error('No hay registros de pacientes con IPS primaria GESTAR SALUD DE COLOMBIA CERETE')
+    }
+
     // Formatear datos completos
-    const exportData = registros.map((reg) => ({
+    const exportData = registrosFiltrados.map((reg) => ({
         'ID': reg.id,
         'Fecha Registro': reg.fechaRegistro,
         'Identificación Paciente': reg.pacienteId,
@@ -385,7 +441,7 @@ export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
 
     // También agregar hoja de CUPS
     const cupsRows: CupsExportRow[] = []
-    for (const registro of registros) {
+    for (const registro of registrosFiltrados) {
         cupsRows.push(...generarFilasCups(registro, colaboradoresMap))
     }
 
