@@ -224,6 +224,58 @@ async function getAll(filters?: OdFilters): Promise<PaginatedResponse<OdRegistro
         query = query.eq('tratamiento_finalizado', filters.tratamientoFinalizado)
     }
 
+    // Filtro por actividad específica
+    if (filters?.actividad) {
+        const act = filters.actividad
+        switch (act) {
+            case 'fluor':
+                query = query.eq('pym_fluor_barniz', true)
+                break
+            case 'sellantes':
+                query = query.eq('pym_sellantes', true)
+                break
+            case 'detartraje':
+                query = query.eq('pym_detartraje', true)
+                break
+            case 'control_placa':
+                query = query.eq('pym_control_placa', true)
+                break
+            case 'profilaxis':
+                query = query.eq('pym_profilaxis', true)
+                break
+            case 'educacion':
+                query = query.eq('pym_educacion', true)
+                break
+            case 'resina':
+                query = query.or('resina_1sup.gt.0,resina_2sup.gt.0,resina_3sup.gt.0')
+                break
+            case 'ionomero':
+                query = query.or('ionomero_1sup.gt.0,ionomero_2sup.gt.0,ionomero_3sup.gt.0')
+                break
+            case 'obturacion_temporal':
+                query = query.gt('obturacion_temporal', 0)
+                break
+            case 'pulpectomia':
+                query = query.gt('pulpectomia', 0)
+                break
+            case 'pulpotomia':
+                query = query.gt('pulpotomia', 0)
+                break
+            case 'terapia_conducto':
+                query = query.gt('terapia_conducto_cantidad', 0)
+                break
+            case 'exodoncia':
+                query = query.gt('exodoncia_cantidad', 0)
+                break
+            case 'control_postquirurgico':
+                query = query.eq('control_postquirurgico', true)
+                break
+            case 'rx':
+                query = query.or('rx_superiores.eq.true,rx_inferiores.eq.true,rx_molares.eq.true,rx_premolares.eq.true,rx_caninos.eq.true')
+                break
+        }
+    }
+
     // Paginación
     const page = filters?.page || 1
     const pageSize = filters?.pageSize || 20
@@ -349,7 +401,6 @@ async function getMetrics(filters?: OdFilters): Promise<OdMetrics> {
             totalRegistros: 0,
             registrosMesActual: 0,
             tratamientosFinalizados: 0,
-            terminadosST: 0,
             porcentajeFinalizados: 0,
             pymMesActual: { fluor: 0, sellantes: 0, detartraje: 0, controlPlaca: 0 },
             porSede: { 'Montería': 0, 'Cereté': 0, 'Ciénaga de Oro': 0 },
@@ -402,25 +453,7 @@ async function getMetrics(filters?: OdFilters): Promise<OdMetrics> {
         }
     })
 
-    // Terminados ST (IPS Primaria: GESTAR SALUD DE COLOMBIA CERETE)
-    let terminadosST = 0
-    if (tratamientosFinalizados > 0) {
-        const pacientesFinalizados = [...new Set(
-            datos
-                .filter((r: any) => r.tratamiento_finalizado)
-                .map((r: any) => r.paciente_id)
-        )]
 
-        if (pacientesFinalizados.length > 0) {
-            const { count: stCount } = await supabase
-                .from('afiliados')
-                .select('*', { count: 'exact', head: true })
-                .in('numero_documento', pacientesFinalizados)
-                .ilike('ips_primaria', 'GESTAR SALUD DE COLOMBIA CERETE%')
-
-            terminadosST = stCount || 0
-        }
-    }
 
     // Top colaborador
     const colaboradorStats = new Map<string, number>()
@@ -450,7 +483,6 @@ async function getMetrics(filters?: OdFilters): Promise<OdMetrics> {
         totalRegistros,
         registrosMesActual: registrosMesActual || 0,
         tratamientosFinalizados,
-        terminadosST,
         porcentajeFinalizados,
         pymMesActual,
         porSede,

@@ -3,7 +3,7 @@
  * Muestra tabla de registros con filtros, paginación y exportación
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     Search,
     Filter,
@@ -35,6 +35,25 @@ import type { OdRegistro, OdFilters, Sede } from '@/types/saludOral.types'
 
 const SEDES_OPTIONS: Sede[] = ['Montería', 'Cereté', 'Ciénaga de Oro']
 const ITEMS_PER_PAGE = 10
+
+const ACTIVITY_OPTIONS = [
+    { value: '', label: 'Todas las actividades' },
+    { value: 'fluor', label: 'Flúor Barniz' },
+    { value: 'sellantes', label: 'Sellantes' },
+    { value: 'detartraje', label: 'Detartraje' },
+    { value: 'control_placa', label: 'Control Placa' },
+    { value: 'profilaxis', label: 'Profilaxis' },
+    { value: 'educacion', label: 'Educación' },
+    { value: 'resina', label: 'Resinas' },
+    { value: 'ionomero', label: 'Ionómeros' },
+    { value: 'obturacion_temporal', label: 'Obt. Temporal' },
+    { value: 'terapia_conducto', label: 'Terapia Conducto' },
+    { value: 'pulpectomia', label: 'Pulpectomía' },
+    { value: 'pulpotomia', label: 'Pulpotomía' },
+    { value: 'exodoncia', label: 'Exodoncia' },
+    { value: 'control_postquirurgico', label: 'Ctrl Postquirúrgico' },
+    { value: 'rx', label: 'Radiografías' },
+]
 
 interface HistoricoTabProps {
     onEdit?: (registro: OdRegistro) => void
@@ -98,6 +117,21 @@ export function HistoricoTab({ onEdit }: HistoricoTabProps) {
             pageSize: ITEMS_PER_PAGE,
         })
         setSortConfig(null)
+        setSearchId('')
+    }
+
+    // Búsqueda por ID con estado local
+    const [searchId, setSearchId] = useState(filters.pacienteId || '')
+
+    // Sincronizar input si los filtros cambian externamente (ej: botón limpiar)
+    useEffect(() => {
+        setSearchId(filters.pacienteId || '')
+    }, [filters.pacienteId])
+
+    const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            handleFilterChange('pacienteId', searchId)
+        }
     }
 
     // Ordenamiento
@@ -183,7 +217,7 @@ export function HistoricoTab({ onEdit }: HistoricoTabProps) {
         <div className="space-y-6">
             {/* Métricas PyM del Mes */}
             {metrics && (
-                <MetricGrid columns={5}>
+                <MetricGrid columns={4}>
                     <MetricCard
                         titulo="Flúor Barniz"
                         valor={metrics.pymMesActual.fluor}
@@ -232,34 +266,34 @@ export function HistoricoTab({ onEdit }: HistoricoTabProps) {
                         onClick={() => handleMetricClick('finalizados')}
                         isActive={filters.tratamientoFinalizado === true}
                     />
-                    <MetricCard
-                        titulo="Terminados ST"
-                        valor={metrics.terminadosST}
-                        subtitulo="Total acumulado"
-                        icono={<Check className="text-white" size={20} />}
-                        color="green"
-                    />
                 </MetricGrid>
             )}
 
             {/* Filtros */}
             <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border border-slate-200 p-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <div className="flex items-center gap-3">
-                        <Filter size={20} className="text-slate-600" />
-                        <h3 className="font-bold text-slate-900">Filtros de Búsqueda</h3>
+                    <div className="flex items-center gap-2 text-slate-800">
+                        <Filter size={20} className="text-primary-500" />
+                        <h3 className="font-bold text-lg">Filtros de Búsqueda</h3>
                     </div>
 
-                    {/* Buscador */}
-                    <div className="relative w-full md:w-80">
+                    <div className="w-full md:w-96 relative">
                         <input
                             type="text"
-                            placeholder="Buscar por identificación..."
-                            value={filters.pacienteId || ''}
-                            onChange={(e) => handleFilterChange('pacienteId', e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-primary-500 shadow-sm"
+                            placeholder="Buscar por identificación... (Enter)"
+                            value={searchId}
+                            onChange={(e) => setSearchId(e.target.value)}
+                            onKeyDown={handleSearchKeyDown}
+                            className="w-full pl-10 pr-12 py-2.5 rounded-full border-2 border-primary-500/20 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 shadow-sm transition-all bg-white"
                         />
-                        <Search className="absolute left-3 top-2.5 text-slate-400" size={18} />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <button
+                            onClick={() => handleFilterChange('pacienteId', searchId)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-slate-100 rounded-full text-primary-600 transition-colors"
+                            title="Buscar"
+                        >
+                            <Search size={18} />
+                        </button>
                     </div>
                 </div>
 
@@ -317,18 +351,15 @@ export function HistoricoTab({ onEdit }: HistoricoTabProps) {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-slate-600 mb-1.5">Estado</label>
+                        <label className="block text-xs font-semibold text-slate-600 mb-1.5">Actividad</label>
                         <select
-                            value={filters.tratamientoFinalizado === undefined ? '' : filters.tratamientoFinalizado ? 'true' : 'false'}
-                            onChange={(e) => handleFilterChange(
-                                'tratamientoFinalizado',
-                                e.target.value === '' ? undefined : e.target.value === 'true'
-                            )}
+                            value={filters.actividad || ''}
+                            onChange={(e) => handleFilterChange('actividad', e.target.value)}
                             className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-primary-500"
                         >
-                            <option value="">Todos</option>
-                            <option value="true">Finalizados</option>
-                            <option value="false">En Proceso</option>
+                            {ACTIVITY_OPTIONS.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
                         </select>
                     </div>
                 </div>

@@ -136,6 +136,7 @@ export interface OdFilters {
     sede?: Sede
     pacienteId?: string
     tratamientoFinalizado?: boolean
+    actividad?: string // Nuevo filtro discriminado por actividad
     page?: number
     pageSize?: number
     sortBy?: string
@@ -159,7 +160,6 @@ export interface OdMetrics {
     totalRegistros: number
     registrosMesActual: number
     tratamientosFinalizados: number
-    terminadosST: number
     porcentajeFinalizados: number
     pymMesActual: OdPymMetricsMes
     porSede: Record<Sede, number>
