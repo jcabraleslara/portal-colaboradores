@@ -191,7 +191,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const queryPromise = supabase
                 .from('usuarios_portal')
                 .select('identificacion, nombre_completo, email_institucional, rol, activo, last_sign_in_at')
-                .eq('email_institucional', email)
+                .ilike('email_institucional', email)
                 .single()
                 .then(({ data, error }) => {
                     if (error) throw error
