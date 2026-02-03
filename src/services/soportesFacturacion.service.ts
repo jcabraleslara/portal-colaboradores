@@ -1144,6 +1144,72 @@ export const soportesFacturacionService = {
             }
         }
     },
+
+    /**
+     * Actualizar estado de múltiples radicados de forma masiva
+     * @param radicados Lista de números de radicado a actualizar
+     * @param estado Nuevo estado a asignar
+     * @param observaciones Observaciones opcionales (requeridas si estado es 'Devuelto')
+     * @returns Resultado con cantidad de registros actualizados
+     */
+    async actualizarEstadoMasivo(
+        radicados: string[],
+        estado: SoporteFacturacion['estado'],
+        observaciones?: string
+    ): Promise<ApiResponse<{ actualizados: number; fallidos: string[] }>> {
+        try {
+            // Validaciones
+            if (!radicados || radicados.length === 0) {
+                return {
+                    success: false,
+                    error: 'Debe seleccionar al menos un radicado',
+                }
+            }
+
+            if (estado === 'Devuelto' && (!observaciones || !observaciones.trim())) {
+                return {
+                    success: false,
+                    error: 'Debe ingresar observaciones de facturación para devolver los radicados',
+                }
+            }
+
+            const updateData: Record<string, unknown> = { estado }
+            if (observaciones !== undefined) {
+                updateData.observaciones_facturacion = observaciones.trim() || null
+            }
+
+            // Ejecutar update masivo
+            const { data, error } = await supabase
+                .from('soportes_facturacion')
+                .update(updateData)
+                .in('radicado', radicados)
+                .select('radicado')
+
+            if (error) {
+                console.error('Error en actualizarEstadoMasivo:', error)
+                return {
+                    success: false,
+                    error: `Error al actualizar: ${error.message}`,
+                }
+            }
+
+            const actualizados = data?.length || 0
+            const radicadosActualizados = data?.map(r => r.radicado) || []
+            const fallidos = radicados.filter(r => !radicadosActualizados.includes(r))
+
+            return {
+                success: true,
+                data: { actualizados, fallidos },
+                message: `${actualizados} radicado(s) actualizado(s) exitosamente`,
+            }
+        } catch (error) {
+            console.error('Error crítico en actualizarEstadoMasivo:', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR,
+            }
+        }
+    },
 }
 
 

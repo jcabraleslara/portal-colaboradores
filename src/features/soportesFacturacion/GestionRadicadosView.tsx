@@ -9,6 +9,10 @@ import {
     ArrowDown,
     X,
     ChevronDown,
+    CheckSquare,
+    Square,
+    MinusSquare,
+    Settings2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
@@ -198,6 +202,13 @@ export function GestionRadicadosView() {
     // Panel Detalle
     const [casoSeleccionado, setCasoSeleccionado] = useState<SoporteFacturacion | null>(null)
 
+    // Selección múltiple
+    const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+    const [mostrarAccionesMasivas, setMostrarAccionesMasivas] = useState(false)
+    const [nuevoEstadoMasivo, setNuevoEstadoMasivo] = useState<SoporteFacturacion['estado'] | ''>('')
+    const [observacionesMasivas, setObservacionesMasivas] = useState('')
+    const [procesandoMasivo, setProcesandoMasivo] = useState(false)
+
     // ============================================
     // CARGA DE DATOS
     // ============================================
@@ -250,6 +261,11 @@ export function GestionRadicadosView() {
         cargarRadicadores()
     }, [cargarConteos, cargarRadicadores])
 
+    // Limpiar selección cuando cambian filtros o página
+    useEffect(() => {
+        setSeleccionados(new Set())
+    }, [filtros, paginaActual])
+
     // ============================================
     // HANDLERS
     // ============================================
@@ -290,6 +306,95 @@ export function GestionRadicadosView() {
         cargarDatos()
         cargarConteos()
     }
+
+    // ============================================
+    // HANDLERS SELECCIÓN MÚLTIPLE
+    // ============================================
+    const handleSeleccionarTodos = () => {
+        if (seleccionados.size === casos.length && casos.length > 0) {
+            // Deseleccionar todos
+            setSeleccionados(new Set())
+        } else {
+            // Seleccionar todos los de la página actual
+            setSeleccionados(new Set(casos.map(c => c.radicado)))
+        }
+    }
+
+    const handleSeleccionarUno = (radicado: string, e: React.MouseEvent) => {
+        e.stopPropagation() // Evitar abrir el detalle
+        setSeleccionados(prev => {
+            const nuevo = new Set(prev)
+            if (nuevo.has(radicado)) {
+                nuevo.delete(radicado)
+            } else {
+                nuevo.add(radicado)
+            }
+            return nuevo
+        })
+    }
+
+    const handleAbrirAccionesMasivas = () => {
+        setMostrarAccionesMasivas(true)
+        setNuevoEstadoMasivo('')
+        setObservacionesMasivas('')
+    }
+
+    const handleCerrarAccionesMasivas = () => {
+        setMostrarAccionesMasivas(false)
+        setNuevoEstadoMasivo('')
+        setObservacionesMasivas('')
+    }
+
+    const handleCambiarEstadoMasivo = async () => {
+        if (!nuevoEstadoMasivo) {
+            toast.error('Seleccione un estado')
+            return
+        }
+
+        if (nuevoEstadoMasivo === 'Devuelto' && !observacionesMasivas.trim()) {
+            toast.error('Debe ingresar observaciones para devolver los radicados')
+            return
+        }
+
+        const radicadosArray = Array.from(seleccionados)
+
+        setProcesandoMasivo(true)
+        try {
+            const result = await soportesFacturacionService.actualizarEstadoMasivo(
+                radicadosArray,
+                nuevoEstadoMasivo as SoporteFacturacion['estado'],
+                observacionesMasivas || undefined
+            )
+
+            if (result.success && result.data) {
+                const { actualizados, fallidos } = result.data
+                if (fallidos.length > 0) {
+                    toast.warning(`${actualizados} actualizados, ${fallidos.length} fallaron`)
+                } else {
+                    toast.success(`${actualizados} radicado(s) actualizado(s) a "${nuevoEstadoMasivo}"`)
+                }
+                setSeleccionados(new Set())
+                handleCerrarAccionesMasivas()
+                cargarDatos()
+                cargarConteos()
+            } else {
+                toast.error(result.error || 'Error al actualizar')
+            }
+        } catch (error) {
+            console.error(error)
+            toast.error('Error procesando la solicitud')
+        } finally {
+            setProcesandoMasivo(false)
+        }
+    }
+
+    // Calcular estado del checkbox "Seleccionar todos"
+    const estadoSeleccionTodos = useMemo(() => {
+        if (casos.length === 0) return 'none'
+        if (seleccionados.size === 0) return 'none'
+        if (seleccionados.size === casos.length) return 'all'
+        return 'partial'
+    }, [seleccionados.size, casos.length])
 
     const handleEliminar = async (e: React.MouseEvent, radicado: string) => {
         e.stopPropagation() // Evitar abrir el detalle
@@ -485,12 +590,131 @@ export function GestionRadicadosView() {
                 </div>
             </Card>
 
+            {/* Barra de Acciones Masivas */}
+            {seleccionados.size > 0 && (
+                <div className="sticky top-0 z-20 bg-[var(--color-primary)] text-white rounded-lg shadow-lg p-4 flex items-center justify-between gap-4 animate-in slide-in-from-top-2">
+                    <div className="flex items-center gap-3">
+                        <CheckSquare size={20} />
+                        <span className="font-medium">
+                            {seleccionados.size} registro{seleccionados.size > 1 ? 's' : ''} seleccionado{seleccionados.size > 1 ? 's' : ''}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={handleAbrirAccionesMasivas}
+                            leftIcon={<Settings2 size={16} />}
+                            className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                        >
+                            Cambiar Estado
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSeleccionados(new Set())}
+                            className="text-white/80 hover:text-white hover:bg-white/10"
+                        >
+                            Cancelar
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Acciones Masivas */}
+            {mostrarAccionesMasivas && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-semibold text-gray-900">
+                                Cambiar Estado Masivo
+                            </h3>
+                            <button
+                                onClick={handleCerrarAccionesMasivas}
+                                className="p-1 text-gray-400 hover:text-gray-600 rounded"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <p className="text-sm text-gray-600">
+                            Se actualizarán <strong>{seleccionados.size}</strong> registro{seleccionados.size > 1 ? 's' : ''} al nuevo estado seleccionado.
+                        </p>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Nuevo Estado
+                            </label>
+                            <select
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                                value={nuevoEstadoMasivo}
+                                onChange={(e) => setNuevoEstadoMasivo(e.target.value as any)}
+                            >
+                                <option value="">Seleccione un estado...</option>
+                                {ESTADOS_SOPORTE_LISTA.filter(e => e !== 'Todos').map(estado => (
+                                    <option key={estado} value={estado}>{estado}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {nuevoEstadoMasivo === 'Devuelto' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Observaciones <span className="text-red-500">*</span>
+                                </label>
+                                <textarea
+                                    className="w-full border-gray-300 rounded-md shadow-sm focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                                    rows={3}
+                                    placeholder="Indique el motivo de la devolución..."
+                                    value={observacionesMasivas}
+                                    onChange={(e) => setObservacionesMasivas(e.target.value)}
+                                />
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 pt-2">
+                            <Button
+                                variant="ghost"
+                                onClick={handleCerrarAccionesMasivas}
+                                disabled={procesandoMasivo}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                onClick={handleCambiarEstadoMasivo}
+                                disabled={!nuevoEstadoMasivo || procesandoMasivo}
+                                leftIcon={procesandoMasivo ? <Loader2 className="animate-spin" size={16} /> : undefined}
+                            >
+                                {procesandoMasivo ? 'Procesando...' : 'Aplicar Cambio'}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Tabla de Resultados */}
             <Card>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                             <tr>
+                                {/* Checkbox seleccionar todos */}
+                                <th className="px-4 py-3 text-left w-12">
+                                    <button
+                                        onClick={handleSeleccionarTodos}
+                                        className="p-1 rounded hover:bg-gray-200 transition-colors"
+                                        title={estadoSeleccionTodos === 'all' ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                                        disabled={casos.length === 0}
+                                    >
+                                        {estadoSeleccionTodos === 'all' ? (
+                                            <CheckSquare size={18} className="text-[var(--color-primary)]" />
+                                        ) : estadoSeleccionTodos === 'partial' ? (
+                                            <MinusSquare size={18} className="text-[var(--color-primary)]" />
+                                        ) : (
+                                            <Square size={18} className="text-gray-400" />
+                                        )}
+                                    </button>
+                                </th>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors" onClick={() => handleSort('radicado')}>
                                     <div className="flex items-center">
                                         Radicado
@@ -539,7 +763,7 @@ export function GestionRadicadosView() {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {cargando ? (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center">
+                                    <td colSpan={9} className="px-6 py-12 text-center">
                                         <div className="flex flex-col items-center justify-center text-gray-500">
                                             <Loader2 className="animate-spin mb-2" size={32} />
                                             <p>Cargando radicados...</p>
@@ -548,13 +772,30 @@ export function GestionRadicadosView() {
                                 </tr>
                             ) : casos.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                                         No se encontraron radicados con los filtros seleccionados
                                     </td>
                                 </tr>
                             ) : (
                                 casos.map(caso => (
-                                    <tr key={caso.id} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => handleVerDetalle(caso)}>
+                                    <tr
+                                        key={caso.id}
+                                        className={`hover:bg-gray-50 transition-colors cursor-pointer ${seleccionados.has(caso.radicado) ? 'bg-blue-50' : ''}`}
+                                        onClick={() => handleVerDetalle(caso)}
+                                    >
+                                        {/* Checkbox de selección */}
+                                        <td className="px-4 py-4 whitespace-nowrap">
+                                            <button
+                                                onClick={(e) => handleSeleccionarUno(caso.radicado, e)}
+                                                className="p-1 rounded hover:bg-gray-200 transition-colors"
+                                            >
+                                                {seleccionados.has(caso.radicado) ? (
+                                                    <CheckSquare size={18} className="text-[var(--color-primary)]" />
+                                                ) : (
+                                                    <Square size={18} className="text-gray-400" />
+                                                )}
+                                            </button>
+                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-bold text-[var(--color-primary)]">
                                                 {caso.radicado}
