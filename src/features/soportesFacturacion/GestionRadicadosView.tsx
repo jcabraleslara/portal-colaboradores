@@ -204,6 +204,7 @@ export function GestionRadicadosView() {
 
     // Selección múltiple
     const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
+    const [seleccionarTodosFiltrados, setSeleccionarTodosFiltrados] = useState(false) // Todos los filtrados (no solo página)
     const [mostrarAccionesMasivas, setMostrarAccionesMasivas] = useState(false)
     const [nuevoEstadoMasivo, setNuevoEstadoMasivo] = useState<SoporteFacturacion['estado'] | ''>('')
     const [observacionesMasivas, setObservacionesMasivas] = useState('')
@@ -264,6 +265,7 @@ export function GestionRadicadosView() {
     // Limpiar selección cuando cambian filtros o página
     useEffect(() => {
         setSeleccionados(new Set())
+        setSeleccionarTodosFiltrados(false)
     }, [filtros, paginaActual])
 
     // ============================================
@@ -310,18 +312,33 @@ export function GestionRadicadosView() {
     // ============================================
     // HANDLERS SELECCIÓN MÚLTIPLE
     // ============================================
-    const handleSeleccionarTodos = () => {
+    const handleSeleccionarTodosPagina = () => {
         if (seleccionados.size === casos.length && casos.length > 0) {
             // Deseleccionar todos
             setSeleccionados(new Set())
+            setSeleccionarTodosFiltrados(false)
         } else {
             // Seleccionar todos los de la página actual
             setSeleccionados(new Set(casos.map(c => c.radicado)))
+            setSeleccionarTodosFiltrados(false)
         }
+    }
+
+    const handleSeleccionarTodosLosFiltrados = () => {
+        // Marcar que se seleccionaron todos los filtrados
+        setSeleccionarTodosFiltrados(true)
+        // También marcar los de la página actual visualmente
+        setSeleccionados(new Set(casos.map(c => c.radicado)))
+    }
+
+    const handleLimpiarSeleccion = () => {
+        setSeleccionados(new Set())
+        setSeleccionarTodosFiltrados(false)
     }
 
     const handleSeleccionarUno = (radicado: string, e: React.MouseEvent) => {
         e.stopPropagation() // Evitar abrir el detalle
+        setSeleccionarTodosFiltrados(false) // Cancelar "todos filtrados" si se modifica manualmente
         setSeleccionados(prev => {
             const nuevo = new Set(prev)
             if (nuevo.has(radicado)) {
@@ -356,24 +373,43 @@ export function GestionRadicadosView() {
             return
         }
 
-        const radicadosArray = Array.from(seleccionados)
-
         setProcesandoMasivo(true)
         try {
-            const result = await soportesFacturacionService.actualizarEstadoMasivo(
-                radicadosArray,
-                nuevoEstadoMasivo as SoporteFacturacion['estado'],
-                observacionesMasivas || undefined
-            )
+            let result
 
-            if (result.success && result.data) {
-                const { actualizados, fallidos } = result.data
-                if (fallidos.length > 0) {
-                    toast.warning(`${actualizados} actualizados, ${fallidos.length} fallaron`)
-                } else {
-                    toast.success(`${actualizados} radicado(s) actualizado(s) a "${nuevoEstadoMasivo}"`)
+            if (seleccionarTodosFiltrados) {
+                // Actualizar por filtros (todos los que coincidan)
+                result = await soportesFacturacionService.actualizarEstadoPorFiltros(
+                    filtros,
+                    nuevoEstadoMasivo as SoporteFacturacion['estado'],
+                    observacionesMasivas || undefined
+                )
+
+                if (result.success && result.data) {
+                    toast.success(`${result.data.actualizados} radicado(s) actualizado(s) a "${nuevoEstadoMasivo}"`)
                 }
+            } else {
+                // Actualizar solo los seleccionados manualmente
+                const radicadosArray = Array.from(seleccionados)
+                result = await soportesFacturacionService.actualizarEstadoMasivo(
+                    radicadosArray,
+                    nuevoEstadoMasivo as SoporteFacturacion['estado'],
+                    observacionesMasivas || undefined
+                )
+
+                if (result.success && result.data) {
+                    const { actualizados, fallidos } = result.data
+                    if (fallidos.length > 0) {
+                        toast.warning(`${actualizados} actualizados, ${fallidos.length} fallaron`)
+                    } else {
+                        toast.success(`${actualizados} radicado(s) actualizado(s) a "${nuevoEstadoMasivo}"`)
+                    }
+                }
+            }
+
+            if (result.success) {
                 setSeleccionados(new Set())
+                setSeleccionarTodosFiltrados(false)
                 handleCerrarAccionesMasivas()
                 cargarDatos()
                 cargarConteos()
@@ -391,10 +427,14 @@ export function GestionRadicadosView() {
     // Calcular estado del checkbox "Seleccionar todos"
     const estadoSeleccionTodos = useMemo(() => {
         if (casos.length === 0) return 'none'
+        if (seleccionarTodosFiltrados) return 'all'
         if (seleccionados.size === 0) return 'none'
         if (seleccionados.size === casos.length) return 'all'
         return 'partial'
-    }, [seleccionados.size, casos.length])
+    }, [seleccionados.size, casos.length, seleccionarTodosFiltrados])
+
+    // Cantidad a mostrar en la barra de acciones
+    const cantidadSeleccionada = seleccionarTodosFiltrados ? total : seleccionados.size
 
     const handleEliminar = async (e: React.MouseEvent, radicado: string) => {
         e.stopPropagation() // Evitar abrir el detalle
@@ -591,33 +631,53 @@ export function GestionRadicadosView() {
             </Card>
 
             {/* Barra de Acciones Masivas */}
-            {seleccionados.size > 0 && (
-                <div className="sticky top-0 z-20 bg-[var(--color-primary)] text-white rounded-lg shadow-lg p-4 flex items-center justify-between gap-4 animate-in slide-in-from-top-2">
-                    <div className="flex items-center gap-3">
-                        <CheckSquare size={20} />
-                        <span className="font-medium">
-                            {seleccionados.size} registro{seleccionados.size > 1 ? 's' : ''} seleccionado{seleccionados.size > 1 ? 's' : ''}
-                        </span>
+            {(seleccionados.size > 0 || seleccionarTodosFiltrados) && (
+                <div className="sticky top-0 z-20 bg-[var(--color-primary)] text-white rounded-lg shadow-lg p-4 space-y-2 animate-in slide-in-from-top-2">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            <CheckSquare size={20} />
+                            <span className="font-medium">
+                                {seleccionarTodosFiltrados ? (
+                                    <>Todos los <strong>{total}</strong> registros filtrados seleccionados</>
+                                ) : (
+                                    <>{seleccionados.size} registro{seleccionados.size > 1 ? 's' : ''} seleccionado{seleccionados.size > 1 ? 's' : ''}</>
+                                )}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={handleAbrirAccionesMasivas}
+                                leftIcon={<Settings2 size={16} />}
+                                className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+                            >
+                                Cambiar Estado
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleLimpiarSeleccion}
+                                className="text-white/80 hover:text-white hover:bg-white/10"
+                            >
+                                Cancelar
+                            </Button>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={handleAbrirAccionesMasivas}
-                            leftIcon={<Settings2 size={16} />}
-                            className="bg-white/20 hover:bg-white/30 text-white border-white/30"
-                        >
-                            Cambiar Estado
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSeleccionados(new Set())}
-                            className="text-white/80 hover:text-white hover:bg-white/10"
-                        >
-                            Cancelar
-                        </Button>
-                    </div>
+                    {/* Opción para seleccionar todos los filtrados */}
+                    {!seleccionarTodosFiltrados && seleccionados.size === casos.length && total > casos.length && (
+                        <div className="text-sm text-white/90 bg-white/10 rounded px-3 py-2 flex items-center justify-between">
+                            <span>
+                                Se seleccionaron los {casos.length} registros de esta página.
+                            </span>
+                            <button
+                                onClick={handleSeleccionarTodosLosFiltrados}
+                                className="font-semibold underline hover:text-white"
+                            >
+                                Seleccionar los {total} registros filtrados
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -638,7 +698,12 @@ export function GestionRadicadosView() {
                         </div>
 
                         <p className="text-sm text-gray-600">
-                            Se actualizarán <strong>{seleccionados.size}</strong> registro{seleccionados.size > 1 ? 's' : ''} al nuevo estado seleccionado.
+                            Se actualizarán <strong>{cantidadSeleccionada}</strong> registro{cantidadSeleccionada > 1 ? 's' : ''} al nuevo estado seleccionado.
+                            {seleccionarTodosFiltrados && (
+                                <span className="block mt-1 text-amber-600 font-medium">
+                                    (Todos los registros que coincidan con los filtros actuales)
+                                </span>
+                            )}
                         </p>
 
                         <div>
@@ -701,9 +766,9 @@ export function GestionRadicadosView() {
                                 {/* Checkbox seleccionar todos */}
                                 <th className="px-4 py-3 text-left w-12">
                                     <button
-                                        onClick={handleSeleccionarTodos}
+                                        onClick={handleSeleccionarTodosPagina}
                                         className="p-1 rounded hover:bg-gray-200 transition-colors"
-                                        title={estadoSeleccionTodos === 'all' ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                                        title={estadoSeleccionTodos === 'all' ? 'Deseleccionar todos' : 'Seleccionar página actual'}
                                         disabled={casos.length === 0}
                                     >
                                         {estadoSeleccionTodos === 'all' ? (
@@ -780,7 +845,7 @@ export function GestionRadicadosView() {
                                 casos.map(caso => (
                                     <tr
                                         key={caso.id}
-                                        className={`hover:bg-gray-50 transition-colors cursor-pointer ${seleccionados.has(caso.radicado) ? 'bg-blue-50' : ''}`}
+                                        className={`hover:bg-gray-50 transition-colors cursor-pointer ${seleccionados.has(caso.radicado) || seleccionarTodosFiltrados ? 'bg-blue-50' : ''}`}
                                         onClick={() => handleVerDetalle(caso)}
                                     >
                                         {/* Checkbox de selección */}
@@ -789,7 +854,7 @@ export function GestionRadicadosView() {
                                                 onClick={(e) => handleSeleccionarUno(caso.radicado, e)}
                                                 className="p-1 rounded hover:bg-gray-200 transition-colors"
                                             >
-                                                {seleccionados.has(caso.radicado) ? (
+                                                {seleccionados.has(caso.radicado) || seleccionarTodosFiltrados ? (
                                                     <CheckSquare size={18} className="text-[var(--color-primary)]" />
                                                 ) : (
                                                     <Square size={18} className="text-gray-400" />

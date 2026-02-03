@@ -1210,6 +1210,114 @@ export const soportesFacturacionService = {
             }
         }
     },
+
+    /**
+     * Actualizar estado de todos los registros que coincidan con los filtros
+     * @param filtros Filtros a aplicar para seleccionar los registros
+     * @param estado Nuevo estado a asignar
+     * @param observaciones Observaciones opcionales (requeridas si estado es 'Devuelto')
+     * @returns Resultado con cantidad de registros actualizados
+     */
+    async actualizarEstadoPorFiltros(
+        filtros: FiltrosSoportesFacturacion,
+        estado: SoporteFacturacion['estado'],
+        observaciones?: string
+    ): Promise<ApiResponse<{ actualizados: number }>> {
+        try {
+            if (estado === 'Devuelto' && (!observaciones || !observaciones.trim())) {
+                return {
+                    success: false,
+                    error: 'Debe ingresar observaciones de facturación para devolver los radicados',
+                }
+            }
+
+            // Construir query con los mismos filtros que obtenerListaFiltrada
+            let query = supabase
+                .from('soportes_facturacion')
+                .update({
+                    estado,
+                    observaciones_facturacion: observaciones?.trim() || null
+                })
+
+            // Aplicar filtros
+            if (filtros.estado && filtros.estado !== 'Todos') {
+                query = query.eq('estado', filtros.estado)
+            }
+
+            if (filtros.eps) {
+                query = query.eq('eps', filtros.eps)
+            }
+
+            if (filtros.radicadorNombre) {
+                const palabras = filtros.radicadorNombre.trim().toLowerCase().split(/\s+/).filter(p => p.length > 0)
+                for (const palabra of palabras) {
+                    query = query.ilike('radicador_nombre', `%${palabra}%`)
+                }
+            }
+
+            if (filtros.radicadorEmail) {
+                query = query.eq('radicador_email', filtros.radicadorEmail)
+            }
+
+            if (filtros.servicioPrestado) {
+                query = query.eq('servicio_prestado', filtros.servicioPrestado)
+            }
+
+            if (filtros.fechaInicio) {
+                query = query.gte('fecha_radicacion', filtros.fechaInicio)
+            }
+
+            if (filtros.fechaFin) {
+                query = query.lte('fecha_radicacion', filtros.fechaFin + 'T23:59:59')
+            }
+
+            if (filtros.fechaAtencionInicio) {
+                query = query.gte('fecha_atencion', filtros.fechaAtencionInicio)
+            }
+
+            if (filtros.fechaAtencionFin) {
+                query = query.lte('fecha_atencion', filtros.fechaAtencionFin + 'T23:59:59')
+            }
+
+            if (filtros.busqueda && filtros.busqueda.trim()) {
+                const termino = filtros.busqueda.trim()
+                const terminoUpper = termino.toUpperCase()
+
+                query = query.or(
+                    `radicado.ilike.%${termino}%,` +
+                    `identificacion.ilike.%${termino}%,` +
+                    `nombres_completos.ilike.%${termino}%,` +
+                    `identificaciones_archivos.cs.{${terminoUpper}},` +
+                    `identificaciones_archivos.cs.{${termino}}`
+                )
+            }
+
+            // Ejecutar update y obtener cantidad
+            const { data, error } = await query.select('radicado')
+
+            if (error) {
+                console.error('Error en actualizarEstadoPorFiltros:', error)
+                return {
+                    success: false,
+                    error: `Error al actualizar: ${error.message}`,
+                }
+            }
+
+            const actualizados = data?.length || 0
+
+            return {
+                success: true,
+                data: { actualizados },
+                message: `${actualizados} radicado(s) actualizado(s) exitosamente`,
+            }
+        } catch (error) {
+            console.error('Error crítico en actualizarEstadoPorFiltros:', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR,
+            }
+        }
+    },
 }
 
 
