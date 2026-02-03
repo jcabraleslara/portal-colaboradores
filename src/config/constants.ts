@@ -21,6 +21,7 @@ export const ROUTES = {
     ANEXO_8: '/anexo-8',
     TRIANGULACIONES: '/triangulaciones',
     RUTAS: '/rutas',
+    SALUD_ORAL: '/salud-oral',
     DEMANDA_INDUCIDA: '/demanda-inducida',
 } as const
 
@@ -181,6 +182,15 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         enabled: true,
         description: 'Gestionar solicitudes de rutas',
         requiredRoles: ['superadmin', 'auditor', 'administrador', 'admin'],
+    },
+    {
+        id: 'salud-oral',
+        name: 'Salud Oral',
+        path: ROUTES.SALUD_ORAL,
+        icon: 'Tooth',
+        enabled: true,
+        description: 'Registro y gestión odontológica',
+        requiredRoles: ['superadmin', 'auditor', 'operativo', 'asistencial', 'gerencia'],
     },
     {
         id: 'demanda-inducida',

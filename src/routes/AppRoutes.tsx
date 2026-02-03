@@ -49,6 +49,7 @@ const Anexo8Page = lazyWithRetry(() => import('@/features/anexo8/Anexo8Page'))
 const ConsultarCupsPage = lazyWithRetry(() => import('@/features/consultarCups/ConsultarCupsPage'))
 const SoportesFacturacionPage = lazyWithRetry(() => import('@/features/soportesFacturacion/SoportesFacturacionPage'))
 const GestionDemandaInducidaView = lazyWithRetry(() => import('@/features/demandaInducida/GestionDemandaInducidaView'))
+const SaludOralPage = lazyWithRetry(() => import('@/features/saludOral/SaludOralPage'))
 const RutasPage = lazyWithRetry(() => import('@/features/rutas/RutasPage'))
 const ImportarFuentesPage = lazyWithRetry(() => import('@/features/importarFuentes/ImportarFuentesPage'))
 const RecobrosPage = lazyWithRetry(() => import('@/features/recobros/RecobrosPage'))
@@ -277,6 +278,16 @@ export function AppRoutes() {
                                 </LazyWrapper>
                             </RoleGuard>
                         </LazyWrapper>
+                    }
+                />
+                <Route
+                    path={ROUTES.SALUD_ORAL}
+                    element={
+                        <RoleGuard moduleId="salud-oral">
+                            <LazyWrapper>
+                                <SaludOralPage />
+                            </LazyWrapper>
+                        </RoleGuard>
                     }
                 />
                 <Route

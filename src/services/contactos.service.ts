@@ -256,6 +256,45 @@ export const contactosService = {
     },
 
     /**
+     * Obtener un contacto por Identificación
+     */
+    async obtenerPorIdentificacion(identificacion: string): Promise<ApiResponse<Contacto>> {
+        try {
+            const { data, error } = await supabase
+                .from('contactos')
+                .select('*')
+                .eq('identificacion', identificacion)
+                .maybeSingle()
+
+            if (error) {
+                console.error('Error buscando contacto por identificación:', error)
+                return {
+                    success: false,
+                    error: ERROR_MESSAGES.SERVER_ERROR,
+                }
+            }
+
+            if (!data) {
+                return {
+                    success: false,
+                    error: 'Contacto no encontrado',
+                }
+            }
+
+            return {
+                success: true,
+                data: data as Contacto,
+            }
+        } catch (error) {
+            console.error('Error en obtenerPorIdentificacion:', error)
+            return {
+                success: false,
+                error: ERROR_MESSAGES.SERVER_ERROR,
+            }
+        }
+    },
+
+    /**
      * Crear un nuevo contacto
      */
     async crearContacto(datos: ContactoInput): Promise<ApiResponse<Contacto>> {
@@ -530,7 +569,7 @@ export const contactosService = {
                 // URLs típicas: .../storage/v1/object/sign/firmas/ID/archivo.img?...
                 const urlObj = new URL(urlFirma)
                 const partes = urlObj.pathname.split('/firmas/')
-                
+
                 if (partes.length >= 2) {
                     // El path es todo lo que viene después del nombre del bucket
                     pathArchivo = decodeURIComponent(partes[1])

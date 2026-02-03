@@ -10,7 +10,7 @@
 // ========================================
 
 /**
- * Lista de 28 medicamentos de control especial permitidos
+ * Lista de medicamentos de control especial permitidos
  */
 export const MEDICAMENTOS_CONTROLADOS = [
     'Alprazolam',
@@ -35,6 +35,7 @@ export const MEDICAMENTOS_CONTROLADOS = [
     'Morfina',
     'Oxicodona',
     'Primidona',
+    'Propofol',
     'Remifentanilo',
     'Tapentadol',
     'Tetrahidrocannabinol',
