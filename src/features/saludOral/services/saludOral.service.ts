@@ -459,21 +459,56 @@ async function getMetrics(filters?: OdFilters): Promise<OdMetrics> {
 }
 
 /**
- * Obtiene lista única de colaboradores
+ * Obtiene lista única de colaboradores con sus nombres completos
+ * @returns Record donde la key es el email y el value es el nombre completo
  */
-async function getColaboradores(): Promise<string[]> {
-    const { data, error } = await supabase
+async function getColaboradores(): Promise<Record<string, string>> {
+    // Primero obtener los emails únicos de los colaboradores
+    const { data: odData, error: odError } = await supabase
         .from('od')
         .select('colaborador_email')
         .order('colaborador_email')
 
-    if (error) {
-        console.error('Error obteniendo colaboradores:', error)
-        return []
+    if (odError) {
+        console.error('Error obteniendo colaboradores:', odError)
+        return {}
     }
 
-    const unique = [...new Set((data || []).map((d: any) => d.colaborador_email))]
-    return unique.filter(Boolean)
+    const uniqueEmails = [...new Set((odData || []).map((d: any) => d.colaborador_email))].filter(Boolean)
+
+    if (uniqueEmails.length === 0) {
+        return {}
+    }
+
+    // Obtener nombres completos desde usuarios_portal
+    const { data: usuariosData, error: usuariosError } = await supabase
+        .from('usuarios_portal')
+        .select('email_institucional, nombre_completo')
+        .in('email_institucional', uniqueEmails)
+
+    if (usuariosError) {
+        console.error('Error obteniendo nombres de usuarios:', usuariosError)
+        // Si falla, convertir emails a formato simple (fallback)
+        return Object.fromEntries(
+            uniqueEmails.map(email => [email, email.split('@')[0]])
+        )
+    }
+
+    // Crear mapa de email => nombre
+    const colaboradoresMap: Record<string, string> = {}
+
+    usuariosData?.forEach((usuario: any) => {
+        colaboradoresMap[usuario.email_institucional] = usuario.nombre_completo
+    })
+
+    // Agregar emails que no están en usuarios_portal con formato simple (fallback)
+    uniqueEmails.forEach(email => {
+        if (!colaboradoresMap[email]) {
+            colaboradoresMap[email] = email.split('@')[0]
+        }
+    })
+
+    return colaboradoresMap
 }
 
 /**

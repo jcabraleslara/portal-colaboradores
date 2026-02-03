@@ -20,7 +20,7 @@ import {
 import { afiliadosService } from '@/services/afiliados.service'
 import { toast } from 'sonner'
 import type { OdRegistro } from '@/types/saludOral.types'
-import { useActualizarSaludOral, useEliminarSaludOral } from '../hooks/useSaludOral'
+import { useActualizarSaludOral, useEliminarSaludOral, useSaludOralColaboradores } from '../hooks/useSaludOral'
 import { useAuth } from '@/context/AuthContext'
 import {
     TIPO_CONSULTA_LABELS,
@@ -43,6 +43,7 @@ export function OdDetallePanel({ registro, onClose, onUpdate, onEdit }: OdDetall
     const { user } = useAuth()
     const [confirmDelete, setConfirmDelete] = useState(false)
     const [nombrePaciente, setNombrePaciente] = useState<string | null>(null)
+    const { data: colaboradores } = useSaludOralColaboradores()
 
     useEffect(() => {
         const fetchNombre = async () => {
@@ -209,8 +210,8 @@ export function OdDetallePanel({ registro, onClose, onUpdate, onEdit }: OdDetall
                             </div>
                             <div>
                                 <span className="text-slate-500">Colaborador</span>
-                                <p className="font-semibold text-xs truncate" title={registro.colaboradorEmail}>
-                                    {registro.colaboradorEmail.split('@')[0]}
+                                <p className="font-semibold text-xs" title={registro.colaboradorEmail}>
+                                    {colaboradores?.[registro.colaboradorEmail] || registro.colaboradorEmail.split('@')[0]}
                                 </p>
                             </div>
                         </div>

@@ -172,7 +172,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'RefreshCw',
         enabled: true,
         description: 'Radicación y gestión de recobros',
-        requiredRoles: ['superadmin', 'admin', 'gerencia', 'auditor', 'operativo', 'asistencial', 'externo'],
+        requiredRoles: ['superadmin', 'admin', 'gerencia', 'auditor', 'operativo', 'externo'],
     },
     {
         id: 'rutas',

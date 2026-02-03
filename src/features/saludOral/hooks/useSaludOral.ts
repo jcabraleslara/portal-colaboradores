@@ -125,13 +125,13 @@ export function useSaludOralMetrics(filters?: OdFilters): UseSaludOralMetricsRet
 // ========================================
 
 interface UseSaludOralColaboradoresReturn {
-    data: string[] | null
+    data: Record<string, string> | null
     isLoading: boolean
     error: Error | null
 }
 
 export function useSaludOralColaboradores(): UseSaludOralColaboradoresReturn {
-    const [data, setData] = useState<string[] | null>(null)
+    const [data, setData] = useState<Record<string, string> | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<Error | null>(null)
 

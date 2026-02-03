@@ -7,61 +7,66 @@ import * as XLSX from 'xlsx'
 import { saludOralService } from '../services/saludOral.service'
 import type { OdRegistro, OdFilters } from '@/types/saludOral.types'
 
-// Re-importar el mapeo CUPS del archivo de tipos
+// Mapeo CUPS actualizado con códigos de 10 dígitos (formato oficial)
 const CUPS_MAP: Record<string, { cups: string; descripcion: string }> = {
     // Tipo de consulta
-    primera_vez: { cups: '890203', descripcion: 'CONSULTA DE PRIMERA VEZ POR ODONTOLOGÍA GENERAL' },
-    control: { cups: '890303', descripcion: 'CONSULTA DE CONTROL O DE SEGUIMIENTO POR ODONTOLOGÍA GENERAL' },
-    urgencias: { cups: '890703', descripcion: 'CONSULTA DE URGENCIAS POR ODONTOLOGÍA GENERAL' },
+    primera_vez: { cups: '8902030000', descripcion: 'CONSULTA DE PRIMERA VEZ POR ODONTOLOGIA GENERAL' },
+    control: { cups: '8903030000', descripcion: 'CONSULTA DE CONTROL POR ODONTOLOGIA GENERAL' },
+    urgencias: { cups: '8907030000', descripcion: 'CONSULTA DE URGENCIAS POR ODONTOLOGIA GENERAL' },
 
     // Remisión
-    remision_especialidades: { cups: '890204', descripcion: 'CONSULTA DE PRIMERA VEZ POR ESPECIALISTA EN ODONTOLOGÍA' },
+    remision_especialidades: { cups: '8902040000', descripcion: 'CONSULTA DE PRIMERA VEZ POR ESPECIALISTA EN ODONTOLOGIA' },
 
-    // PyM
-    pym_control_placa: { cups: '997101', descripcion: 'CONTROL DE PLACA DENTAL' },
-    pym_sellantes: { cups: '997300', descripcion: 'APLICACIÓN DE SELLANTES DE FOTOCURADO' },
-    pym_fluor_barniz: { cups: '997106', descripcion: 'APLICACIÓN DE FLÚOR EN BARNIZ' },
-    pym_detartraje: { cups: '997201', descripcion: 'DETARTRAJE SUPRAGINGIVAL' },
-    pym_profilaxis: { cups: '997200', descripcion: 'PROFILAXIS DENTAL' },
-    pym_educacion: { cups: '990203', descripcion: 'EDUCACIÓN INDIVIDUAL EN SALUD ORAL' },
+    // PyM (Prevención y Mantenimiento)
+    pym_control_placa: { cups: '9970020000', descripcion: 'CONTROL DE PLACA DENTAL' },
+    pym_sellantes: { cups: '9971070000', descripcion: 'APLICACION DE SELLANTES' },
+    pym_fluor_barniz: { cups: '9971060000', descripcion: 'TOPICACION DE FLUOR EN BARNIZ' },
+    pym_detartraje: { cups: '9973010100', descripcion: 'DETARTRAJE SUPRAGINGIVAL' },
+    pym_profilaxis: { cups: '9970010000', descripcion: 'PROFILAXIS DENTAL O PULIDO CORONAL' },
+    pym_educacion: { cups: '9902120000', descripcion: 'EDUCACION INDIVIDUAL EN SALUD. POR HIGIENE ORAL' },
 
     // Resinas
-    resina_1sup: { cups: '232101', descripcion: 'OBTURACIÓN DENTAL CON RESINA DE FOTOCURADO DE 1 SUPERFICIE' },
-    resina_2sup: { cups: '232102', descripcion: 'OBTURACIÓN DENTAL CON RESINA DE FOTOCURADO DE 2 SUPERFICIES' },
-    resina_3sup: { cups: '232103', descripcion: 'OBTURACIÓN DENTAL CON RESINA DE FOTOCURADO DE 3 O MÁS SUPERFICIES' },
+    resina_1sup: { cups: '2321020700', descripcion: 'OBTURACION DENTAL CON RESINA DE FOTOCURADO ( UNA SUPERFICIE)' },
+    resina_2sup: { cups: '2321020800', descripcion: 'OBTURACION DENTAL CON RESINA DE FOTOCURADO (DOS SUPERFICIES)' },
+    resina_3sup: { cups: '2321020900', descripcion: 'OBTURACION DENTAL CON RESINA DE FOTOCURADO ( 3 SUPERFICIES)' },
 
     // Ionómeros
-    ionomero_1sup: { cups: '232201', descripcion: 'OBTURACIÓN DENTAL CON IONÓMERO DE VIDRIO DE 1 SUPERFICIE' },
-    ionomero_2sup: { cups: '232202', descripcion: 'OBTURACIÓN DENTAL CON IONÓMERO DE VIDRIO DE 2 SUPERFICIES' },
-    ionomero_3sup: { cups: '232203', descripcion: 'OBTURACIÓN DENTAL CON IONÓMERO DE VIDRIO DE 3 O MÁS SUPERFICIES' },
+    ionomero_1sup: { cups: '2321030000', descripcion: 'OBTURACION DENTAL CON IONOMERO DE VIDRIO (UNA SUPERFICIE)' },
+    ionomero_2sup: { cups: '2321030100', descripcion: 'OBTURACION DENTAL CON IONOMERO DE VIDRIO (DOS SUPERFICIES )' },
+    ionomero_3sup: { cups: '2321030200', descripcion: 'OBTURACION DENTAL CON IONOMERO DE VIDRIO ( TRES SUPERFICIES)' },
 
     // Obturación temporal
-    obturacion_temporal: { cups: '232300', descripcion: 'OBTURACIÓN DENTAL CON MATERIAL TEMPORAL' },
+    obturacion_temporal: { cups: '2322010000', descripcion: 'OBTURACION TEMPORAL POR DIENTE' },
 
     // Pulpa
-    pulpectomia: { cups: '233201', descripcion: 'PULPECTOMÍA DIENTE TEMPORAL' },
-    pulpotomia: { cups: '233101', descripcion: 'PULPOTOMÍA' },
+    pulpectomia: { cups: '2371030000', descripcion: 'PULPECTOMIA' },
+    pulpotomia: { cups: '2371020000', descripcion: 'PULPOTOMIA' },
 
-    // Terapia de conducto
-    terapia_conducto_temporal_uni: { cups: '233303', descripcion: 'TRATAMIENTO DE CONDUCTO DIENTE TEMPORAL UNIRRADICULAR' },
-    terapia_conducto_temporal_bi: { cups: '233304', descripcion: 'TRATAMIENTO DE CONDUCTO DIENTE TEMPORAL BIRRADICULAR' },
-    terapia_conducto_temporal_multi: { cups: '233305', descripcion: 'TRATAMIENTO DE CONDUCTO DIENTE TEMPORAL MULTIRRADICULAR' },
-    terapia_conducto_permanente_uni: { cups: '233300', descripcion: 'TRATAMIENTO DE CONDUCTO DIENTE PERMANENTE UNIRRADICULAR' },
-    terapia_conducto_permanente_bi: { cups: '233301', descripcion: 'TRATAMIENTO DE CONDUCTO DIENTE PERMANENTE BIRRADICULAR' },
-    terapia_conducto_permanente_multi: { cups: '233302', descripcion: 'TRATAMIENTO DE CONDUCTO DIENTE PERMANENTE MULTIRRADICULAR' },
+    // Terapia de conducto (temporales: solo uni y multi)
+    terapia_conducto_temporal_uni: { cups: '2373040000', descripcion: 'TERAPIA DE CONDUCTO RADICULAR EN DIENTE TEMPORAL UNIRRADICULAR' },
+    terapia_conducto_temporal_multi: { cups: '2373050000', descripcion: 'TERAPIA DE CONDUCTO RADICULAR EN DIENTE TEMPORAL MULTIRRADICULAR' },
+
+    // Terapia de conducto (permanentes: uni, bi, multi)
+    terapia_conducto_permanente_uni: { cups: '2373010000', descripcion: 'TERAPIA DE CONDUCTO RADICULAR EN DIENTE UNIRRADICULAR' },
+    terapia_conducto_permanente_bi: { cups: '2373020000', descripcion: 'TERAPIA DE CONDUCTO RADICULAR EN DIENTE BIRRADICULAR' },
+    terapia_conducto_permanente_multi: { cups: '2373030000', descripcion: 'TERAPIA DE CONDUCTO RADICULAR EN DIENTE MULTIRRADICULAR' },
 
     // Exodoncias
-    exodoncia_temporal_uni: { cups: '234101', descripcion: 'EXODONCIA DE DIENTE TEMPORAL UNIRRADICULAR' },
-    exodoncia_temporal_multi: { cups: '234102', descripcion: 'EXODONCIA DE DIENTE TEMPORAL MULTIRRADICULAR' },
-    exodoncia_permanente_uni: { cups: '234201', descripcion: 'EXODONCIA DE DIENTE PERMANENTE UNIRRADICULAR' },
-    exodoncia_permanente_multi: { cups: '234202', descripcion: 'EXODONCIA DE DIENTE PERMANENTE MULTIRRADICULAR' },
-    exodoncia_incluido: { cups: '234301', descripcion: 'EXODONCIA DE DIENTE INCLUIDO EN POSICIÓN HORIZONTAL' },
+    exodoncia_temporal_uni: { cups: '2302010000', descripcion: 'EXODONCIA DE DIENTE TEMPORAL UNIRRADICULAR' },
+    exodoncia_temporal_multi: { cups: '2302020000', descripcion: 'EXODONCIA DE DIENTE TEMPORAL MULTIRRADICULAR' },
+    exodoncia_permanente_uni: { cups: '2301010000', descripcion: 'EXODONCIA DE DIENTE PERMANENTE UNIRRADICULAR' },
+    exodoncia_permanente_multi: { cups: '2301020000', descripcion: 'EXODONCIA DE DIENTE PERMANENTE MULTIRRADICULAR' },
+    exodoncia_incluido: { cups: '2313010000', descripcion: 'EXODONCIA DE INCLUIDO EN POSICION ECTOPICA CON ABORDAJE INTRAORAL' },
 
     // Control post-quirúrgico
-    control_postquirurgico: { cups: '890601', descripcion: 'CONTROL POST-OPERATORIO DE CIRUGÍA ORAL' },
+    control_postquirurgico: { cups: '8903040100', descripcion: 'CONSULTA CONTROL POSQUIRURGICO ODONTOLOGIA' },
 
-    // Radiografías
-    rx_periapical: { cups: '877201', descripcion: 'RADIOGRAFÍA DENTAL PERIAPICAL' },
+    // Radiografías (códigos específicos por tipo)
+    rx_superiores: { cups: '8704510000', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES DIENTES ANTERIORES SUPERIORES' },
+    rx_inferiores: { cups: '8704520100', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES DIENTES ANTERIORES INFERIORES' },
+    rx_molares: { cups: '8704550000', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES MOLARES' },
+    rx_premolares: { cups: '8704540100', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES PREMOLARES' },
+    rx_caninos: { cups: '8704530100', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES ZONA DE CANINOS' },
 }
 
 interface CupsExportRow {
@@ -77,13 +82,15 @@ interface CupsExportRow {
 /**
  * Genera filas de exportación CUPS a partir de un registro
  */
-function generarFilasCups(registro: OdRegistro): CupsExportRow[] {
+function generarFilasCups(registro: OdRegistro, colaboradoresMap?: Record<string, string>): CupsExportRow[] {
     const rows: CupsExportRow[] = []
+    const nombreColaborador = colaboradoresMap?.[registro.colaboradorEmail] || registro.colaboradorEmail.split('@')[0]
+
     const baseRow = {
         fecha: registro.fechaRegistro,
         identificacion: registro.pacienteId,
         sede: registro.sede,
-        colaborador: registro.colaboradorEmail.split('@')[0],
+        colaborador: nombreColaborador,
     }
 
     // Tipo de consulta
@@ -203,18 +210,26 @@ function generarFilasCups(registro: OdRegistro): CupsExportRow[] {
         rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
     }
 
-    // Radiografías (todas van al mismo código para simplificar)
-    const rxCount = [
-        registro.rxSuperiores,
-        registro.rxInferiores,
-        registro.rxMolares,
-        registro.rxPremolares,
-        registro.rxCaninos,
-    ].filter(Boolean).length
-
-    if (rxCount > 0) {
-        const map = CUPS_MAP.rx_periapical
-        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: rxCount })
+    // Radiografías (códigos específicos por tipo)
+    if (registro.rxSuperiores) {
+        const map = CUPS_MAP.rx_superiores
+        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
+    }
+    if (registro.rxInferiores) {
+        const map = CUPS_MAP.rx_inferiores
+        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
+    }
+    if (registro.rxMolares) {
+        const map = CUPS_MAP.rx_molares
+        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
+    }
+    if (registro.rxPremolares) {
+        const map = CUPS_MAP.rx_premolares
+        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
+    }
+    if (registro.rxCaninos) {
+        const map = CUPS_MAP.rx_caninos
+        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
     }
 
     return rows
@@ -224,6 +239,9 @@ function generarFilasCups(registro: OdRegistro): CupsExportRow[] {
  * Exporta informe CUPS en formato CSV
  */
 export async function exportarInformeCups(filters?: OdFilters): Promise<void> {
+    // Obtener mapa de colaboradores
+    const colaboradoresMap = await saludOralService.getColaboradores()
+
     // Obtener todos los registros con los filtros aplicados
     const { data: registros } = await saludOralService.getAll({
         ...filters,
@@ -238,7 +256,7 @@ export async function exportarInformeCups(filters?: OdFilters): Promise<void> {
     // Generar filas CUPS
     const allRows: CupsExportRow[] = []
     for (const registro of registros) {
-        const rows = generarFilasCups(registro)
+        const rows = generarFilasCups(registro, colaboradoresMap)
         allRows.push(...rows)
     }
 
@@ -260,8 +278,11 @@ export async function exportarInformeCups(filters?: OdFilters): Promise<void> {
     const ws = XLSX.utils.json_to_sheet(exportData)
     const csv = XLSX.utils.sheet_to_csv(ws)
 
+    // Agregar BOM UTF-8 para correcta visualización de caracteres especiales en Excel
+    const csvWithBom = '\uFEFF' + csv
+
     // Descargar
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -274,6 +295,9 @@ export async function exportarInformeCups(filters?: OdFilters): Promise<void> {
  * Exporta informe completo en Excel
  */
 export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
+    // Obtener mapa de colaboradores
+    const colaboradoresMap = await saludOralService.getColaboradores()
+
     // Obtener todos los registros
     const { data: registros } = await saludOralService.getAll({
         ...filters,
@@ -291,7 +315,7 @@ export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
         'Fecha Registro': reg.fechaRegistro,
         'Identificación Paciente': reg.pacienteId,
         'Sede': reg.sede,
-        'Colaborador': reg.colaboradorEmail,
+        'Colaborador': colaboradoresMap[reg.colaboradorEmail] || reg.colaboradorEmail,
 
         // Poblaciones
         'Gestante': reg.gestante ? 'Sí' : 'No',
@@ -362,7 +386,7 @@ export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
     // También agregar hoja de CUPS
     const cupsRows: CupsExportRow[] = []
     for (const registro of registros) {
-        cupsRows.push(...generarFilasCups(registro))
+        cupsRows.push(...generarFilasCups(registro, colaboradoresMap))
     }
 
     if (cupsRows.length > 0) {

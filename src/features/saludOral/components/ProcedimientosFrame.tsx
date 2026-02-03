@@ -72,11 +72,10 @@ export function ProcedimientosFrame({
     return (
         <div className="space-y-4">
             {/* Tipo de Consulta (OBLIGATORIO) */}
-            <div className={`rounded-xl border p-4 ${
-                tipoConsultaFaltante
-                    ? 'bg-red-50/50 border-red-300'
-                    : 'bg-slate-50 border-slate-200'
-            }`}>
+            <div className={`rounded-xl border p-4 ${tipoConsultaFaltante
+                ? 'bg-red-50/50 border-red-300'
+                : 'bg-slate-50 border-slate-200'
+                }`}>
                 <div className="flex items-center justify-between flex-wrap gap-3">
                     <div className="flex items-center gap-2">
                         <Stethoscope className={tipoConsultaFaltante ? 'text-red-500' : 'text-slate-500'} size={18} />
@@ -224,7 +223,14 @@ export function ProcedimientosFrame({
                                         <ToggleBadge
                                             label="Temporal"
                                             active={values.terapiaConductoTipo === 'temporal'}
-                                            onChange={() => onChange('terapiaConductoTipo', values.terapiaConductoTipo === 'temporal' ? null : 'temporal')}
+                                            onChange={() => {
+                                                const newValue = values.terapiaConductoTipo === 'temporal' ? null : 'temporal'
+                                                onChange('terapiaConductoTipo', newValue)
+                                                // Si cambia a temporal y raices es 'bi', resetear raices
+                                                if (newValue === 'temporal' && values.terapiaConductoRaices === 'bi') {
+                                                    onChange('terapiaConductoRaices', null)
+                                                }
+                                            }}
                                             disabled={disabled}
                                             size="md"
                                         />
@@ -246,13 +252,16 @@ export function ProcedimientosFrame({
                                             disabled={disabled}
                                             size="md"
                                         />
-                                        <ToggleBadge
-                                            label="Biradicular"
-                                            active={values.terapiaConductoRaices === 'bi'}
-                                            onChange={() => onChange('terapiaConductoRaices', values.terapiaConductoRaices === 'bi' ? null : 'bi')}
-                                            disabled={disabled}
-                                            size="md"
-                                        />
+                                        {/* Birradicular solo disponible para dientes permanentes */}
+                                        {values.terapiaConductoTipo === 'permanente' && (
+                                            <ToggleBadge
+                                                label="Birradicular"
+                                                active={values.terapiaConductoRaices === 'bi'}
+                                                onChange={() => onChange('terapiaConductoRaices', values.terapiaConductoRaices === 'bi' ? null : 'bi')}
+                                                disabled={disabled}
+                                                size="md"
+                                            />
+                                        )}
                                         <ToggleBadge
                                             label="Multiradicular"
                                             active={values.terapiaConductoRaices === 'multi'}

@@ -306,11 +306,13 @@ export function HistoricoTab({ onEdit }: HistoricoTabProps) {
                             className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-primary-500"
                         >
                             <option value="">Todos</option>
-                            {colaboradores?.map((email: string) => (
-                                <option key={email} value={email}>
-                                    {email.split('@')[0]}
-                                </option>
-                            ))}
+                            {colaboradores && Object.entries(colaboradores)
+                                .sort((a, b) => a[1].localeCompare(b[1]))
+                                .map(([email, nombre]) => (
+                                    <option key={email} value={email}>
+                                        {nombre}
+                                    </option>
+                                ))}
                         </select>
                     </div>
 
@@ -470,7 +472,7 @@ export function HistoricoTab({ onEdit }: HistoricoTabProps) {
                                                 </span>
                                             </td>
                                             <td className="px-4 py-3 text-sm text-slate-600">
-                                                {registro.colaboradorEmail.split('@')[0]}
+                                                {colaboradores?.[registro.colaboradorEmail] || registro.colaboradorEmail.split('@')[0]}
                                             </td>
                                         </tr>
                                     ))}
