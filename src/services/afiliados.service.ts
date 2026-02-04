@@ -167,7 +167,7 @@ export const afiliadosService = {
     async actualizarTelefono(tipoId: string, id: string, nuevoTelefono: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({ telefono: nuevoTelefono })
                 .eq('tipo_id', tipoId) // Asegurar correspondencia única
                 .eq('id', id)
@@ -199,7 +199,7 @@ export const afiliadosService = {
     async actualizarEmail(tipoId: string, id: string, nuevoEmail: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({ email: nuevoEmail })
                 .eq('tipo_id', tipoId)
                 .eq('id', id)
@@ -231,7 +231,7 @@ export const afiliadosService = {
     async actualizarDireccion(tipoId: string, id: string, nuevaDireccion: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({ direccion: nuevaDireccion })
                 .eq('tipo_id', tipoId)
                 .eq('id', id)
@@ -263,7 +263,7 @@ export const afiliadosService = {
     async actualizarObservaciones(tipoId: string, id: string, nuevasObservaciones: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({ observaciones: nuevasObservaciones })
                 .eq('tipo_id', tipoId)
                 .eq('id', id)
@@ -295,7 +295,7 @@ export const afiliadosService = {
     async actualizarSexo(tipoId: string, id: string, nuevoSexo: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({ sexo: nuevoSexo })
                 .eq('tipo_id', tipoId)
                 .eq('id', id)
@@ -327,7 +327,7 @@ export const afiliadosService = {
     async actualizarFechaNacimiento(tipoId: string, id: string, nuevaFecha: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({ fecha_nacimiento: nuevaFecha })
                 .eq('tipo_id', tipoId)
                 .eq('id', id)
@@ -359,7 +359,7 @@ export const afiliadosService = {
     async actualizarRegimen(tipoId: string, id: string, nuevoRegimen: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({ regimen: nuevoRegimen })
                 .eq('tipo_id', tipoId)
                 .eq('id', id)
@@ -391,7 +391,7 @@ export const afiliadosService = {
     async actualizarTipoCotizante(tipoId: string, id: string, nuevoTipoCotizante: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({ tipo_cotizante: nuevoTipoCotizante })
                 .eq('tipo_id', tipoId)
                 .eq('id', id)
@@ -423,7 +423,7 @@ export const afiliadosService = {
     async actualizarIpsPrimaria(tipoId: string, id: string, nuevaIps: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({ ips_primaria: nuevaIps })
                 .eq('tipo_id', tipoId)
                 .eq('id', id)
@@ -455,7 +455,7 @@ export const afiliadosService = {
     async actualizarMunicipio(tipoId: string, id: string, nuevoMunicipio: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({ municipio: nuevoMunicipio })
                 .eq('tipo_id', tipoId)
                 .eq('id', id)
@@ -487,7 +487,7 @@ export const afiliadosService = {
     async actualizarDepartamento(tipoId: string, id: string, nuevoDepartamento: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({ departamento: nuevoDepartamento })
                 .eq('tipo_id', tipoId)
                 .eq('id', id)
@@ -519,7 +519,7 @@ export const afiliadosService = {
     async actualizarEps(tipoId: string, id: string, nuevaEps: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({
                     eps: nuevaEps,
                     fuente: 'PORTAL_COLABORADORES'
@@ -554,7 +554,7 @@ export const afiliadosService = {
     async actualizarEstado(tipoId: string, id: string, nuevoEstado: string): Promise<ApiResponse<null>> {
         try {
             const { error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .update({ estado: nuevoEstado })
                 .eq('tipo_id', tipoId)
                 .eq('id', id)
