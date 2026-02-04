@@ -20,6 +20,7 @@ export const MEDICAMENTOS_CONTROLADOS = [
     'Clonazepam',
     'Clozapina',
     'Diazepam',
+    'Eszopiclona',
     'Fentanilo',
     'Fenobarbital',
     'Hidrato de Cloral',
@@ -41,7 +42,8 @@ export const MEDICAMENTOS_CONTROLADOS = [
     'Tetrahidrocannabinol',
     'Tiopental sódico',
     'Triazolam',
-    'Zolpidem'
+    'Zolpidem',
+    'Zopiclona'
 ] as const
 
 export type MedicamentoControlado = typeof MEDICAMENTOS_CONTROLADOS[number]
