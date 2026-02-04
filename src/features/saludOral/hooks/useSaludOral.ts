@@ -3,7 +3,7 @@
  * Manejo de estado con useState/useEffect
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { saludOralService } from '../services/saludOral.service'
 import type {
     OdRegistro,
@@ -43,10 +43,10 @@ export function useSaludOralList(filters: OdFilters = {}): UseSaludOralListRetur
         }
     }, [JSON.stringify(filters)])
 
-    // Cargar datos inicialmente
-    useState(() => {
+    // Cargar datos inicialmente y cuando cambien los filtros
+    useEffect(() => {
         refetch()
-    })
+    }, [refetch])
 
     return { data, isLoading, error, refetch }
 }
@@ -113,9 +113,9 @@ export function useSaludOralMetrics(filters?: OdFilters): UseSaludOralMetricsRet
         }
     }, [JSON.stringify(filters)])
 
-    useState(() => {
+    useEffect(() => {
         refetch()
-    })
+    }, [refetch])
 
     return { data, isLoading, error, refetch }
 }
@@ -135,7 +135,7 @@ export function useSaludOralColaboradores(): UseSaludOralColaboradoresReturn {
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<Error | null>(null)
 
-    useState(() => {
+    useEffect(() => {
         const load = async () => {
             try {
                 const result = await saludOralService.getColaboradores()
@@ -147,7 +147,7 @@ export function useSaludOralColaboradores(): UseSaludOralColaboradoresReturn {
             }
         }
         load()
-    })
+    }, [])
 
     return { data, isLoading, error }
 }
