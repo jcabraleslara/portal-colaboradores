@@ -877,7 +877,7 @@ export function RadicacionCasosPage() {
                                     {!esExterno && tipoSolicitud === 'Activación de Ruta' && (
                                         <Button
                                             type="button"
-                                            variant="secondary"
+                                            variant={ruta === 'Laboratorio' ? 'primary' : 'secondary'}
                                             size="lg"
                                             isLoading={submitState === 'loading'}
                                             leftIcon={<Route size={20} />}
@@ -886,14 +886,17 @@ export function RadicacionCasosPage() {
                                             Enrutar Caso
                                         </Button>
                                     )}
-                                    <Button
-                                        type="submit"
-                                        size="lg"
-                                        isLoading={submitState === 'loading'}
-                                        leftIcon={<Send size={20} />}
-                                    >
-                                        Radicar Caso
-                                    </Button>
+                                    {/* Radicar Caso - Oculto si es ruta Laboratorio (solo enrutamiento directo) */}
+                                    {!(tipoSolicitud === 'Activación de Ruta' && ruta === 'Laboratorio') && (
+                                        <Button
+                                            type="submit"
+                                            size="lg"
+                                            isLoading={submitState === 'loading'}
+                                            leftIcon={<Send size={20} />}
+                                        >
+                                            Radicar Caso
+                                        </Button>
+                                    )}
                                 </div>
                             </form>
                         </Card.Body>
