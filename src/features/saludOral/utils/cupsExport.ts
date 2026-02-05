@@ -69,6 +69,49 @@ const CUPS_MAP: Record<string, { cups: string; descripcion: string }> = {
     rx_caninos: { cups: '8704530100', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES ZONA DE CANINOS' },
 }
 
+/**
+ * Obtiene afiliados con IPS primaria GESTAR SALUD DE COLOMBIA CERETE
+ * Consulta por batches y filtra en cliente para evitar problemas de encoding en PostgREST
+ */
+async function obtenerAfiliadosCeretePorBatch(
+    pacientesIds: string[]
+): Promise<Set<string>> {
+    const { supabase } = await import('@/config/supabase.config')
+
+    // Dividir en batches para evitar URLs muy largas
+    const BATCH_SIZE = 50
+    const batches: string[][] = []
+    for (let i = 0; i < pacientesIds.length; i += BATCH_SIZE) {
+        batches.push(pacientesIds.slice(i, i + BATCH_SIZE))
+    }
+
+    // Consultar por batches (sin filtro like, se filtra en cliente)
+    const resultados = await Promise.all(
+        batches.map(batch =>
+            supabase
+                .from('afiliados')
+                .select('numero_documento, ips_primaria')
+                .in('numero_documento', batch)
+        )
+    )
+
+    const documentosValidos = new Set<string>()
+    for (const resultado of resultados) {
+        if (resultado.error) {
+            console.error('Error obteniendo afiliados:', resultado.error)
+            throw new Error('Error al obtener afiliados')
+        }
+        // Filtrar en cliente por IPS primaria que contenga "CERETE"
+        resultado.data?.forEach(a => {
+            if (a.ips_primaria?.toUpperCase().includes('CERETE')) {
+                documentosValidos.add(a.numero_documento)
+            }
+        })
+    }
+
+    return documentosValidos
+}
+
 interface CupsExportRow {
     fecha: string
     identificacion: string
@@ -240,9 +283,6 @@ function generarFilasCups(registro: OdRegistro, colaboradoresMap?: Record<string
  * Por defecto, filtra solo pacientes con IPS primaria 'GESTAR SALUD DE COLOMBIA CERETE%'
  */
 export async function exportarInformeCups(filters?: OdFilters): Promise<void> {
-    // Importar supabase para hacer la consulta de filtrado
-    const { supabase } = await import('@/config/supabase.config')
-
     // Obtener mapa de colaboradores
     const colaboradoresMap = await saludOralService.getColaboradores()
 
@@ -259,20 +299,7 @@ export async function exportarInformeCups(filters?: OdFilters): Promise<void> {
 
     // Filtrar solo registros de pacientes con IPS primaria 'GESTAR SALUD DE COLOMBIA CERETE%'
     const pacientesIds = [...new Set(registros.map(r => r.pacienteId))]
-
-    const { data: afiliadosCerete, error } = await supabase
-        .from('afiliados')
-        .select('numero_documento')
-        .in('numero_documento', pacientesIds)
-        .ilike('ips_primaria', 'GESTAR SALUD DE COLOMBIA CERETE%')
-
-    if (error) {
-        console.error('Error filtrando por IPS primaria:', error)
-        throw new Error('Error al filtrar pacientes por IPS primaria')
-    }
-
-    // Crear set con los documentos válidos
-    const documentosValidos = new Set(afiliadosCerete?.map(a => a.numero_documento) || [])
+    const documentosValidos = await obtenerAfiliadosCeretePorBatch(pacientesIds)
 
     // Filtrar registros solo de pacientes con IPS primaria válida
     const registrosFiltrados = registros.filter(r => documentosValidos.has(r.pacienteId))
@@ -324,9 +351,6 @@ export async function exportarInformeCups(filters?: OdFilters): Promise<void> {
  * Por defecto, filtra solo pacientes con IPS primaria 'GESTAR SALUD DE COLOMBIA CERETE%'
  */
 export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
-    // Importar supabase para hacer la consulta de filtrado
-    const { supabase } = await import('@/config/supabase.config')
-
     // Obtener mapa de colaboradores
     const colaboradoresMap = await saludOralService.getColaboradores()
 
@@ -343,20 +367,7 @@ export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
 
     // Filtrar solo registros de pacientes con IPS primaria 'GESTAR SALUD DE COLOMBIA CERETE%'
     const pacientesIds = [...new Set(registros.map(r => r.pacienteId))]
-
-    const { data: afiliadosCerete, error } = await supabase
-        .from('afiliados')
-        .select('numero_documento')
-        .in('numero_documento', pacientesIds)
-        .ilike('ips_primaria', 'GESTAR SALUD DE COLOMBIA CERETE%')
-
-    if (error) {
-        console.error('Error filtrando por IPS primaria:', error)
-        throw new Error('Error al filtrar pacientes por IPS primaria')
-    }
-
-    // Crear set con los documentos válidos
-    const documentosValidos = new Set(afiliadosCerete?.map(a => a.numero_documento) || [])
+    const documentosValidos = await obtenerAfiliadosCeretePorBatch(pacientesIds)
 
     // Filtrar registros solo de pacientes con IPS primaria válida
     const registrosFiltrados = registros.filter(r => documentosValidos.has(r.pacienteId))

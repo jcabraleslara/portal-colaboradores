@@ -24,8 +24,7 @@ import {
     type LucideIcon
 } from 'lucide-react'
 
-// Icono personalizado de muela/diente profesional
-// Icono de muela/diente limpio y moderno
+// Icono personalizado de muela con raíces (estilo odontológico)
 const ToothIcon = ({ size = 24, className, ...props }: { size?: number | string; className?: string }) => (
     <svg
         xmlns="http://www.w3.org/2000/svg"
@@ -40,8 +39,10 @@ const ToothIcon = ({ size = 24, className, ...props }: { size?: number | string;
         className={className}
         {...props}
     >
-        <path d="M4.2 10c-.6 0-1.2.5-1.2 1.1v2.7c0 4.1 2.3 8 6 9.6.9.4 2 .4 2.9 0 3.8-1.7 6.1-5.5 6.1-9.6v-2.7c0-.6-.5-1.1-1.2-1.1H16V7c0-2.9-2.4-5.3-5.3-5.3h-.4C7.4 1.7 5 4.1 5 7v3h-.8z" />
-        <path d="M10 2c0 3 1.5 5 4 5" />
+        {/* Corona de la muela */}
+        <path d="M12 2C8.5 2 5 4.5 5 8c0 2 1 3.5 1 5.5 0 1-.5 2-.5 3.5 0 2 1.5 3 2.5 3s1.5-1 2-3c.3-1.2.5-2 2-2s1.7.8 2 2c.5 2 1 3 2 3s2.5-1 2.5-3c0-1.5-.5-2.5-.5-3.5 0-2 1-3.5 1-5.5 0-3.5-3.5-6-7-6z" />
+        {/* Surcos de la corona */}
+        <path d="M9 6c0 1.5 1.5 2.5 3 2.5s3-1 3-2.5" />
     </svg>
 )
 import { PORTAL_MODULES, ModuleConfig } from '@/config/constants'

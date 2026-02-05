@@ -64,6 +64,7 @@ export type RutaBack =
     | 'Terapias Integrales'
     | 'Pre-Quejas'
     | 'Imágenes'
+    | 'Laboratorio'
 
 // Radicación transformada (camelCase) para el frontend
 export interface BackRadicacion {
@@ -116,6 +117,7 @@ export interface CrearRadicacionData {
     observaciones?: string
     archivos?: File[]
     emailRadicador?: string
+    estado?: EstadoRadicado // Para 'Enrutado' cuando se usa el botón Enrutar Caso
 }
 
 // Datos para crear un afiliado nuevo en bd
@@ -714,6 +716,15 @@ export const RUTAS_CONFIG: RutaConfig[] = [
         icono: 'Image',
         categoria: 'Otros'
     },
+    {
+        ruta: 'Laboratorio',
+        visibleExterno: false,
+        visibleInterno: true,
+        labelExterno: 'Laboratorio',
+        labelInterno: 'Laboratorio Clínico',
+        icono: 'FlaskConical',
+        categoria: 'Otros'
+    },
 ]
 
 /**
@@ -759,4 +770,5 @@ export const RUTA_COLORES: Record<string, { bg: string; text: string; border: st
     'Terapias Integrales': { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200' },
     'Pre-Quejas': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
     'Imágenes': { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
+    'Laboratorio': { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
 }

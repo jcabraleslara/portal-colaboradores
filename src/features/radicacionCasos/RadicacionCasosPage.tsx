@@ -379,6 +379,69 @@ export function RadicacionCasosPage() {
         }
     }
 
+    /**
+     * Handler para enrutar caso directamente (solo usuarios internos)
+     * Crea la radicación con estado 'Enrutado' en lugar de 'Pendiente'
+     */
+    const handleEnrutarCaso = async () => {
+        if (!afiliado?.id) {
+            setSubmitError('Primero selecciona un afiliado')
+            return
+        }
+
+        // Solo funciona para Activación de Ruta
+        if (tipoSolicitud !== 'Activación de Ruta') {
+            setSubmitError('El enrutamiento directo solo está disponible para Activación de Ruta')
+            return
+        }
+
+        if (!ruta) {
+            setSubmitError('Debes seleccionar una ruta')
+            return
+        }
+
+        // Validar FUM para Maternidad Segura
+        if (ruta === 'Maternidad Segura' && !fum) {
+            setSubmitError('La Fecha de Última Menstruación es obligatoria para Maternidad Segura')
+            return
+        }
+
+        setSubmitState('loading')
+        setSubmitError('')
+
+        const radicadorNombre = user?.nombreCompleto || 'SISTEMA'
+
+        // Preparar observaciones con info clínica si aplica
+        let observacionesFinales = observaciones
+        if (ruta === 'Maternidad Segura' && fum) {
+            const infoClinica = `[DATOS MATERNIDAD] FUM: ${fum} | Edad Gestacional: ${edadGestacional}`
+            observacionesFinales = observacionesFinales
+                ? `${infoClinica}\n\n${observacionesFinales}`
+                : infoClinica
+        }
+
+        const result = await backService.crearRadicacion({
+            radicador: radicadorNombre,
+            id: afiliado.id,
+            tipoSolicitud,
+            ruta: ruta || undefined,
+            observaciones: observacionesFinales || undefined,
+            archivos: archivos.length > 0 ? archivos : undefined,
+            emailRadicador: user?.email || undefined,
+            estado: 'Enrutado', // ← Estado directo como Enrutado
+        })
+
+        if (result.success && result.data) {
+            setSubmitState('success')
+            setRadicacionExitosa(result.data)
+            // Recargar historial
+            await cargarHistorial(afiliado.id)
+        } else {
+            setSubmitError(result.error || 'Error al enrutar el caso')
+            setSubmitState('error')
+        }
+    }
+
     // ============================================
     // HANDLERS - PASO 3
     // ============================================
@@ -808,8 +871,21 @@ export function RadicacionCasosPage() {
                                     </div>
                                 )}
 
-                                {/* Botón de envío */}
-                                <div className="flex justify-end">
+                                {/* Botones de envío */}
+                                <div className="flex justify-end gap-3">
+                                    {/* Botón Enrutar Caso - Solo para usuarios internos y Activación de Ruta */}
+                                    {!esExterno && tipoSolicitud === 'Activación de Ruta' && (
+                                        <Button
+                                            type="button"
+                                            variant="secondary"
+                                            size="lg"
+                                            isLoading={submitState === 'loading'}
+                                            leftIcon={<Route size={20} />}
+                                            onClick={handleEnrutarCaso}
+                                        >
+                                            Enrutar Caso
+                                        </Button>
+                                    )}
                                     <Button
                                         type="submit"
                                         size="lg"

@@ -12,8 +12,8 @@ export function RutasConfig() {
     const [tempConfig, setTempConfig] = useState<Partial<RutaEmailConfig>>({})
     const [provinciasOptions, setProvinciasOptions] = useState<string[]>([])
 
-    // Lista plana de rutas del sistema
-    const rutasSistema = RUTAS_CONFIG.map(r => r.ruta)
+    // Lista plana de rutas del sistema ordenada alfabéticamente
+    const rutasSistema = RUTAS_CONFIG.map(r => r.ruta).sort((a, b) => a.localeCompare(b, 'es'))
 
     const cargarDatos = async () => {
         setLoading(true)

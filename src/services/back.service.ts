@@ -115,6 +115,7 @@ export const backService = {
                     observaciones: data.observaciones || null,
                     correo_radicador: data.emailRadicador || null,
                     soportes: [], // Se actualiza después de subir archivos
+                    estado_radicado: data.estado || 'Pendiente', // Por defecto Pendiente, o 'Enrutado' si se especifica
                 })
                 .select()
                 .single()
