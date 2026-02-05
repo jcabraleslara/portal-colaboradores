@@ -772,3 +772,5 @@ export const RUTA_COLORES: Record<string, { bg: string; text: string; border: st
     'Imágenes': { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200' },
     'Laboratorio': { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' },
 }
+
+

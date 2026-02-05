@@ -90,8 +90,8 @@ async function obtenerAfiliadosCeretePorBatch(
         batches.map(batch =>
             supabase
                 .from('afiliados')
-                .select('numero_documento, ips_primaria')
-                .in('numero_documento', batch)
+                .select('id, ips_primaria')
+                .in('id', batch)
         )
     )
 
@@ -104,7 +104,7 @@ async function obtenerAfiliadosCeretePorBatch(
         // Filtrar en cliente por IPS primaria que contenga "CERETE"
         resultado.data?.forEach(a => {
             if (a.ips_primaria?.toUpperCase().includes('CERETE')) {
-                documentosValidos.add(a.numero_documento)
+                documentosValidos.add(a.id)
             }
         })
     }

@@ -1,8 +1,9 @@
 /**
  * Servicio de Afiliados
  * Portal de Colaboradores GESTAR SALUD IPS
- * 
- * Consulta la tabla public.afiliados para validación de derechos.
+ *
+ * Consulta la vista public.afiliados para validación de derechos.
+ * Las actualizaciones se realizan directamente en la tabla public.bd
  */
 
 import { supabase } from '@/config/supabase.config'
@@ -77,7 +78,7 @@ export const afiliadosService = {
             }
 
             const { data, error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .select('*')
                 .eq('id', documentoLimpio)
                 .order('updated_at', { ascending: false })
@@ -132,7 +133,7 @@ export const afiliadosService = {
             }
 
             const { data, error } = await supabase
-                .from('bd')
+                .from('afiliados')
                 .select('*')
                 .ilike('busqueda_texto', `%${textoLimpio}%`)
                 .limit(limite)
