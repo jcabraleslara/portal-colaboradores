@@ -16,6 +16,8 @@ import {
     Shield,
     Stethoscope,
     Edit,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react'
 import { afiliadosService } from '@/services/afiliados.service'
 import { toast } from 'sonner'
@@ -37,13 +39,32 @@ interface OdDetallePanelProps {
     onClose: () => void
     onUpdate?: () => void
     onEdit?: (registro: OdRegistro) => void
+    onAnterior?: () => void
+    onSiguiente?: () => void
 }
 
-export function OdDetallePanel({ registro, onClose, onUpdate, onEdit }: OdDetallePanelProps) {
+export function OdDetallePanel({
+    registro,
+    onClose,
+    onUpdate,
+    onEdit,
+    onAnterior,
+    onSiguiente
+}: OdDetallePanelProps) {
     const { user } = useAuth()
     const [confirmDelete, setConfirmDelete] = useState(false)
     const [nombrePaciente, setNombrePaciente] = useState<string | null>(null)
     const { data: colaboradores } = useSaludOralColaboradores()
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowLeft' && onAnterior) onAnterior()
+            if (e.key === 'ArrowRight' && onSiguiente) onSiguiente()
+            if (e.key === 'Escape') onClose()
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [onAnterior, onSiguiente, onClose])
 
     useEffect(() => {
         const fetchNombre = async () => {
@@ -144,12 +165,34 @@ export function OdDetallePanel({ registro, onClose, onUpdate, onEdit }: OdDetall
                             })}
                         </p>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                    >
-                        <X size={20} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                        {onAnterior && (
+                            <button
+                                onClick={onAnterior}
+                                className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
+                                title="Anterior (←)"
+                            >
+                                <ChevronLeft size={20} />
+                            </button>
+                        )}
+                        {onSiguiente && (
+                            <button
+                                onClick={onSiguiente}
+                                className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
+                                title="Siguiente (→)"
+                            >
+                                <ChevronRight size={20} />
+                            </button>
+                        )}
+                        <div className="w-px h-6 bg-slate-200 mx-1" />
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
+                            title="Cerrar (Esc)"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content */}

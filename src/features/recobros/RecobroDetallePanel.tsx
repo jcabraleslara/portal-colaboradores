@@ -5,12 +5,14 @@
  * Panel lateral para ver y gestionar un recobro específico
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     X,
     Calendar,
     FileText,
     Save,
+    ChevronLeft,
+    ChevronRight,
     ExternalLink,
     CheckCircle,
     Trash2,
@@ -20,7 +22,6 @@ import {
     Clock,
     FileSearch,
     Undo2,
-    ChevronRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
@@ -40,7 +41,8 @@ interface RecobroDetallePanelProps {
     recobro: Recobro
     onClose: () => void
     onUpdate: () => void
-    onSiguiente?: () => void // Para "Guardar y Siguiente"
+    onSiguiente?: () => void
+    onAnterior?: () => void
 }
 
 // Mapeo de iconos por estado
@@ -51,7 +53,13 @@ const ESTADO_ICONOS: Record<EstadoRecobro, React.ElementType> = {
     'Devuelto': Undo2,
 }
 
-export function RecobroDetallePanel({ recobro, onClose, onUpdate, onSiguiente }: RecobroDetallePanelProps) {
+export function RecobroDetallePanel({
+    recobro,
+    onClose,
+    onUpdate,
+    onSiguiente,
+    onAnterior
+}: RecobroDetallePanelProps) {
     const { user } = useAuth()
     const esSuperadmin = user?.rol === 'superadmin'
     const puedeEditar = ['superadmin', 'admin', 'gerencia', 'auditor'].includes(user?.rol || '')
@@ -61,6 +69,17 @@ export function RecobroDetallePanel({ recobro, onClose, onUpdate, onSiguiente }:
     const [respuestaAuditor, setRespuestaAuditor] = useState(recobro.respuestaAuditor || '')
     const [pdfModal, setPdfModal] = useState<{ url: string; title: string } | null>(null)
     const [generandoPdf, setGenerandoPdf] = useState(false)
+
+    // Keyboard navigation
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'ArrowLeft' && onAnterior) onAnterior()
+            if (e.key === 'ArrowRight' && onSiguiente) onSiguiente()
+            if (e.key === 'Escape') onClose()
+        }
+        window.addEventListener('keydown', handleKeyDown)
+        return () => window.removeEventListener('keydown', handleKeyDown)
+    }, [onAnterior, onSiguiente, onClose])
 
     // ============================================
     // HANDLERS
@@ -254,12 +273,34 @@ export function RecobroDetallePanel({ recobro, onClose, onUpdate, onSiguiente }:
                                 </span>
                             </div>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="p-2 rounded-lg hover:bg-white/80 transition-colors"
-                        >
-                            <X size={24} className="text-gray-500" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                            {onAnterior && (
+                                <button
+                                    onClick={onAnterior}
+                                    className="p-2 rounded-lg hover:bg-white/80 transition-colors text-gray-500"
+                                    title="Anterior (←)"
+                                >
+                                    <ChevronLeft size={22} />
+                                </button>
+                            )}
+                            {onSiguiente && (
+                                <button
+                                    onClick={onSiguiente}
+                                    className="p-2 rounded-lg hover:bg-white/80 transition-colors text-gray-500"
+                                    title="Siguiente (→)"
+                                >
+                                    <ChevronRight size={22} />
+                                </button>
+                            )}
+                            <div className="w-px h-6 bg-gray-200 mx-1" />
+                            <button
+                                onClick={onClose}
+                                className="p-2 rounded-lg hover:bg-white/80 transition-colors"
+                                title="Cerrar (Esc)"
+                            >
+                                <X size={24} className="text-gray-500" />
+                            </button>
+                        </div>
                     </div>
                 </div>
 

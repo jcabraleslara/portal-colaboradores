@@ -538,17 +538,25 @@ export function HistoricoTab({ onEdit }: HistoricoTabProps) {
             </div>
 
             {/* Panel de Detalle */}
-            {registroSeleccionado && (
-                <OdDetallePanel
-                    registro={registroSeleccionado}
-                    onClose={() => setRegistroSeleccionado(null)}
-                    onUpdate={() => refetch()}
-                    onEdit={(registro) => {
-                        setRegistroSeleccionado(null)
-                        onEdit?.(registro)
-                    }}
-                />
-            )}
+            {registroSeleccionado && (() => {
+                const currentIndex = registros.findIndex(r => r.id === registroSeleccionado.id)
+                const hasAnterior = currentIndex > 0
+                const hasSiguiente = currentIndex < registros.length - 1
+
+                return (
+                    <OdDetallePanel
+                        registro={registroSeleccionado}
+                        onClose={() => setRegistroSeleccionado(null)}
+                        onUpdate={() => refetch()}
+                        onEdit={(registro) => {
+                            setRegistroSeleccionado(null)
+                            onEdit?.(registro)
+                        }}
+                        onAnterior={hasAnterior ? () => setRegistroSeleccionado(registros[currentIndex - 1]) : undefined}
+                        onSiguiente={hasSiguiente ? () => setRegistroSeleccionado(registros[currentIndex + 1]) : undefined}
+                    />
+                )
+            })()}
         </div>
     )
 }

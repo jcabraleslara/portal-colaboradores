@@ -33,10 +33,13 @@ import {
     Check,
 } from 'lucide-react'
 import { Card, Button, Input, LoadingOverlay, FileUpload, OrdenadorAutocomplete, MarkdownRenderer } from '@/components/common'
+import { toast } from 'sonner'
 import { copyRichText } from '@/utils/clipboard'
 import { parseDateLocal } from '@/utils/date.utils'
 import { afiliadosService } from '@/services/afiliados.service'
 import { backService } from '@/services/back.service'
+import { emailService } from '@/services/email.service'
+import { rutasService } from '@/features/rutas/services/rutas.service'
 import { useAuth } from '@/context/AuthContext'
 import { Afiliado, LoadingState } from '@/types'
 import {
@@ -435,7 +438,74 @@ export function RadicacionCasosPage() {
             setSubmitState('success')
             setRadicacionExitosa(result.data)
             // Recargar historial
-            await cargarHistorial(afiliado.id)
+            const documentoId = afiliado.id!
+            await cargarHistorial(documentoId)
+
+            // Capturar datos para notificación antes del async
+            const radicadoCreado = result.data.radicado
+            const rutaSeleccionada = ruta!
+            const epsPaciente = afiliado.eps || ''
+            const ipsPrimariaPaciente = afiliado.ipsPrimaria || ''
+            const nombrePaciente = [afiliado.nombres, afiliado.apellido1, afiliado.apellido2].filter(Boolean).join(' ')
+            const soportesUrls = result.data.soportes || []
+
+            // Enviar notificación de enrutado en BACKGROUND (no bloquea la UI)
+            // Fire and forget - se ejecuta en background
+            void (async () => {
+                console.log(`[Enrutado-BG] Iniciando notificación en background para: ${radicadoCreado}`)
+                try {
+                    const configResult = await rutasService.buscarDestinatariosEnrutado(
+                        rutaSeleccionada,
+                        epsPaciente,
+                        ipsPrimariaPaciente
+                    )
+
+                    if (configResult.success && configResult.data) {
+                        const { destinatarios, copias } = configResult.data
+
+                        if (destinatarios.length > 0) {
+                            const datosCaso = {
+                                pacienteNombre: nombrePaciente,
+                                pacienteIdentificacion: documentoId,
+                                pacienteTipoId: afiliado.tipoId || 'CC',
+                                eps: epsPaciente,
+                                ipsPrimaria: ipsPrimariaPaciente,
+                                ruta: rutaSeleccionada,
+                                telefono: afiliado.telefono || undefined,
+                                direccion: afiliado.direccion || undefined,
+                                municipio: afiliado.municipio || undefined,
+                                fechaRadicacion: new Date().toISOString(),
+                                observaciones: observacionesFinales || undefined
+                            }
+
+                            const emailEnviado = await emailService.enviarNotificacionEnrutado(
+                                destinatarios,
+                                copias,
+                                radicadoCreado,
+                                datosCaso,
+                                soportesUrls
+                            )
+
+                            if (emailEnviado) {
+                                console.info(`[Enrutado-BG] ✅ Notificación enviada: ${radicadoCreado}`)
+                                toast.success(`Notificación de ruta enviada a ${destinatarios.length} destinatario(s)`, { duration: 4000 })
+                            } else {
+                                console.warn(`[Enrutado-BG] ❌ Falló envío: ${radicadoCreado}`)
+                                toast.error("No se pudo enviar la notificación de ruta")
+                            }
+                        } else {
+                            console.warn(`[Enrutado-BG] Sin destinatarios para: ${rutaSeleccionada}`)
+                            toast.warning("No hay destinatarios configurados para esta ruta/EPS")
+                        }
+                    } else {
+                        console.warn(`[Enrutado-BG] Sin config para: ${rutaSeleccionada}`)
+                        toast.warning("No hay configuración de notificaciones para esta ruta")
+                    }
+                } catch (e) {
+                    console.error("[Enrutado-BG] Error:", e)
+                    toast.error("Error al enviar notificación de ruta")
+                }
+            })()
         } else {
             setSubmitError(result.error || 'Error al enrutar el caso')
             setSubmitState('error')

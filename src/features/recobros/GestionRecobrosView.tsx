@@ -158,16 +158,23 @@ export function GestionRecobrosView() {
     }
 
     const handleSiguiente = () => {
-        // Encontrar el siguiente recobro en la lista
         if (!recobroSeleccionado) return
-
         const indexActual = recobros.findIndex(r => r.id === recobroSeleccionado.id)
         if (indexActual < recobros.length - 1) {
             setRecobroSeleccionado(recobros[indexActual + 1])
         } else {
-            // Si es el último, cerrar
             setRecobroSeleccionado(null)
-            toast.info('No hay más recobros en la lista')
+            toast.info('Ha llegado al final de la página actual')
+        }
+    }
+
+    const handleAnterior = () => {
+        if (!recobroSeleccionado) return
+        const indexActual = recobros.findIndex(r => r.id === recobroSeleccionado.id)
+        if (indexActual > 0) {
+            setRecobroSeleccionado(recobros[indexActual - 1])
+        } else {
+            toast.info('Ya se encuentra en el primer elemento de la página')
         }
     }
 
@@ -445,6 +452,7 @@ export function GestionRecobrosView() {
                     onClose={handleCerrarDetalle}
                     onUpdate={handleActualizacionExitosa}
                     onSiguiente={handleSiguiente}
+                    onAnterior={handleAnterior}
                 />
             )}
         </div>
