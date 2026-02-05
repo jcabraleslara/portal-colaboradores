@@ -101,7 +101,7 @@ export function PacienteFrame({
         regimen: '',
         ipsPrimaria: '',
         tipoCotizante: '',
-        eps: 'NUEVA EPS',
+        eps: '',
     })
     const [municipioNombre, setMunicipioNombre] = useState('')
 
@@ -189,13 +189,45 @@ export function PacienteFrame({
     }
 
     const handleCrearPaciente = async () => {
-        // Validaciones
+        // Validaciones de campos obligatorios
         if (!nuevoAfiliado.nombres.trim()) {
             setError('El nombre es requerido')
             return
         }
         if (!nuevoAfiliado.apellido1.trim()) {
             setError('El primer apellido es requerido')
+            return
+        }
+        if (!nuevoAfiliado.sexo) {
+            setError('El sexo es requerido')
+            return
+        }
+        if (!nuevoAfiliado.fechaNacimiento) {
+            setError('La fecha de nacimiento es requerida')
+            return
+        }
+        if (!nuevoAfiliado.telefono?.trim()) {
+            setError('El teléfono es requerido')
+            return
+        }
+        if (!nuevoAfiliado.municipio) {
+            setError('El municipio es requerido')
+            return
+        }
+        if (!nuevoAfiliado.eps) {
+            setError('La EPS es requerida')
+            return
+        }
+        if (!nuevoAfiliado.regimen) {
+            setError('El régimen es requerido')
+            return
+        }
+        if (!nuevoAfiliado.tipoCotizante) {
+            setError('El tipo de cotizante es requerido')
+            return
+        }
+        if (!nuevoAfiliado.ipsPrimaria?.trim()) {
+            setError('La IPS primaria es requerida')
             return
         }
 
@@ -239,7 +271,7 @@ export function PacienteFrame({
                     telefono: nuevoAfiliado.telefono,
                     municipio: municipioNombre || nuevoAfiliado.municipio,
                     departamento: nuevoAfiliado.departamento,
-                    eps: nuevoAfiliado.eps || 'NUEVA EPS',
+                    eps: nuevoAfiliado.eps,
                     ipsPrimaria: nuevoAfiliado.ipsPrimaria,
                 }
 
@@ -274,7 +306,7 @@ export function PacienteFrame({
             regimen: '',
             ipsPrimaria: '',
             tipoCotizante: '',
-            eps: 'NUEVA EPS',
+            eps: '',
         })
         setMunicipioNombre('')
         onPacienteIdChange('')
@@ -424,7 +456,7 @@ export function PacienteFrame({
                         {/* Sexo */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Sexo
+                                Sexo <span className="text-red-500">*</span>
                             </label>
                             <select
                                 value={nuevoAfiliado.sexo}
@@ -441,7 +473,7 @@ export function PacienteFrame({
                         {/* Fecha Nacimiento */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Fecha Nacimiento
+                                Fecha Nacimiento <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="date"
@@ -455,7 +487,7 @@ export function PacienteFrame({
                         {/* Teléfono */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Teléfono
+                                Teléfono <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="tel"
@@ -469,7 +501,7 @@ export function PacienteFrame({
                         {/* Municipio */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Municipio
+                                Municipio <span className="text-red-500">*</span>
                             </label>
                             <Autocomplete
                                 value={municipioNombre}
@@ -491,7 +523,7 @@ export function PacienteFrame({
                         {/* EPS */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                EPS
+                                EPS <span className="text-red-500">*</span>
                             </label>
                             <select
                                 value={nuevoAfiliado.eps}
@@ -508,7 +540,7 @@ export function PacienteFrame({
                         {/* Régimen */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Régimen
+                                Régimen <span className="text-red-500">*</span>
                             </label>
                             <select
                                 value={nuevoAfiliado.regimen}
@@ -525,7 +557,7 @@ export function PacienteFrame({
                         {/* Tipo Cotizante */}
                         <div>
                             <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                Tipo Cotizante
+                                Tipo Cotizante <span className="text-red-500">*</span>
                             </label>
                             <select
                                 value={nuevoAfiliado.tipoCotizante}
@@ -542,7 +574,7 @@ export function PacienteFrame({
                         {/* IPS Primaria */}
                         <div className="md:col-span-2">
                             <label className="block text-xs font-semibold text-slate-700 mb-1">
-                                IPS Primaria
+                                IPS Primaria <span className="text-red-500">*</span>
                             </label>
                             <Autocomplete
                                 value={nuevoAfiliado.ipsPrimaria || ''}
@@ -559,7 +591,19 @@ export function PacienteFrame({
                         <button
                             type="button"
                             onClick={handleCrearPaciente}
-                            disabled={creandoAfiliado || !nuevoAfiliado.nombres || !nuevoAfiliado.apellido1}
+                            disabled={
+                                creandoAfiliado ||
+                                !nuevoAfiliado.nombres ||
+                                !nuevoAfiliado.apellido1 ||
+                                !nuevoAfiliado.sexo ||
+                                !nuevoAfiliado.fechaNacimiento ||
+                                !nuevoAfiliado.telefono ||
+                                !nuevoAfiliado.municipio ||
+                                !nuevoAfiliado.eps ||
+                                !nuevoAfiliado.regimen ||
+                                !nuevoAfiliado.tipoCotizante ||
+                                !nuevoAfiliado.ipsPrimaria
+                            }
                             className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-xl hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium text-sm shadow-lg shadow-primary-500/20"
                         >
                             <Save size={16} />

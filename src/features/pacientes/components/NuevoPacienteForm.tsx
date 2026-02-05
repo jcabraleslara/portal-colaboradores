@@ -40,14 +40,14 @@ export function NuevoPacienteForm({ defaultDocumento = '', onSuccess, onCancel }
         regimen: '',
         ipsPrimaria: '',
         tipoCotizante: '',
-        eps: 'NUEVA EPS', // Por defecto según requerimiento de mayoría de casos
+        eps: '', // Sin valor predeterminado, obligar selección
     })
 
     // Estado auxiliar para el nombre del municipio en el autocomplete
     const [municipioNombre, setMunicipioNombre] = useState('')
 
     const handleCrearAfiliado = async () => {
-        // Validaciones
+        // Validaciones de campos obligatorios
         if (!nuevoAfiliado.nombres.trim()) {
             setError('El nombre es requerido')
             return
@@ -58,6 +58,38 @@ export function NuevoPacienteForm({ defaultDocumento = '', onSuccess, onCancel }
         }
         if (!nuevoAfiliado.id.trim()) {
             setError('El número de documento es requerido')
+            return
+        }
+        if (!nuevoAfiliado.sexo) {
+            setError('El sexo es requerido')
+            return
+        }
+        if (!nuevoAfiliado.fechaNacimiento) {
+            setError('La fecha de nacimiento es requerida')
+            return
+        }
+        if (!nuevoAfiliado.telefono?.trim()) {
+            setError('El teléfono es requerido')
+            return
+        }
+        if (!nuevoAfiliado.municipio) {
+            setError('El municipio es requerido')
+            return
+        }
+        if (!nuevoAfiliado.eps) {
+            setError('La EPS es requerida')
+            return
+        }
+        if (!nuevoAfiliado.regimen) {
+            setError('El régimen es requerido')
+            return
+        }
+        if (!nuevoAfiliado.tipoCotizante) {
+            setError('El tipo de cotizante es requerido')
+            return
+        }
+        if (!nuevoAfiliado.ipsPrimaria?.trim()) {
+            setError('La IPS primaria es requerida')
             return
         }
 
@@ -109,7 +141,7 @@ export function NuevoPacienteForm({ defaultDocumento = '', onSuccess, onCancel }
                     email: null,
                     regimen: nuevoAfiliado.regimen || null,
                     edad: null,
-                    eps: nuevoAfiliado.eps || 'NUEVA EPS',
+                    eps: nuevoAfiliado.eps || '',
                     fuente: 'PORTAL_COLABORADORES',
                     updatedAt: null,
                     busquedaTexto: null,
@@ -205,7 +237,7 @@ export function NuevoPacienteForm({ defaultDocumento = '', onSuccess, onCancel }
                 {/* Sexo */}
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                        Sexo
+                        Sexo <span className="text-red-500">*</span>
                     </label>
                     <select
                         value={nuevoAfiliado.sexo}
@@ -222,7 +254,7 @@ export function NuevoPacienteForm({ defaultDocumento = '', onSuccess, onCancel }
                 {/* Fecha Nacimiento */}
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                        Fecha de Nacimiento
+                        Fecha de Nacimiento <span className="text-red-500">*</span>
                     </label>
                     <input
                         type="date"
@@ -235,7 +267,7 @@ export function NuevoPacienteForm({ defaultDocumento = '', onSuccess, onCancel }
                 {/* Teléfono */}
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                        Teléfono / Celular
+                        Teléfono / Celular <span className="text-red-500">*</span>
                     </label>
                     <Input
                         value={nuevoAfiliado.telefono || ''}
@@ -260,7 +292,7 @@ export function NuevoPacienteForm({ defaultDocumento = '', onSuccess, onCancel }
                 {/* Municipio - Autocomplete */}
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                        Municipio Residencia
+                        Municipio Residencia <span className="text-red-500">*</span>
                     </label>
                     <Autocomplete
                         value={municipioNombre}
@@ -282,7 +314,7 @@ export function NuevoPacienteForm({ defaultDocumento = '', onSuccess, onCancel }
                 {/* Régimen */}
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                        Régimen
+                        Régimen <span className="text-red-500">*</span>
                     </label>
                     <select
                         value={nuevoAfiliado.regimen}
@@ -299,7 +331,7 @@ export function NuevoPacienteForm({ defaultDocumento = '', onSuccess, onCancel }
                 {/* EPS */}
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                        EPS
+                        EPS <span className="text-red-500">*</span>
                     </label>
                     <select
                         value={nuevoAfiliado.eps}
@@ -316,7 +348,7 @@ export function NuevoPacienteForm({ defaultDocumento = '', onSuccess, onCancel }
                 {/* Tipo Cotizante */}
                 <div>
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                        Tipo Cotizante
+                        Tipo Cotizante <span className="text-red-500">*</span>
                     </label>
                     <select
                         value={nuevoAfiliado.tipoCotizante}
@@ -333,7 +365,7 @@ export function NuevoPacienteForm({ defaultDocumento = '', onSuccess, onCancel }
                 {/* IPS Primaria - Autocomplete */}
                 <div className="md:col-span-2">
                     <label className="block text-sm font-bold text-slate-700 mb-1.5">
-                        IPS Primaria
+                        IPS Primaria <span className="text-red-500">*</span>
                     </label>
                     <Autocomplete
                         value={nuevoAfiliado.ipsPrimaria || ''}

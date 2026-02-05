@@ -95,7 +95,7 @@ export function NuevoAfiliadoFormSection({
                 {/* Sexo */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Sexo
+                        Sexo <span className="text-red-500">*</span>
                     </label>
                     <select
                         value={nuevoAfiliado.sexo}
@@ -112,7 +112,7 @@ export function NuevoAfiliadoFormSection({
                 {/* Fecha Nacimiento */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Fecha de Nacimiento
+                        Fecha de Nacimiento <span className="text-red-500">*</span>
                     </label>
                     <input
                         type="date"
@@ -125,7 +125,7 @@ export function NuevoAfiliadoFormSection({
                 {/* Teléfono */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Teléfono
+                        Teléfono <span className="text-red-500">*</span>
                     </label>
                     <Input
                         value={nuevoAfiliado.telefono}
@@ -149,7 +149,7 @@ export function NuevoAfiliadoFormSection({
                 {/* Municipio - Autocomplete */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Municipio
+                        Municipio <span className="text-red-500">*</span>
                     </label>
                     <Autocomplete
                         value={nuevoAfiliado.municipioNombre}
@@ -171,7 +171,7 @@ export function NuevoAfiliadoFormSection({
                 {/* Régimen */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Régimen
+                        Régimen <span className="text-red-500">*</span>
                     </label>
                     <select
                         value={nuevoAfiliado.regimen}
@@ -188,7 +188,7 @@ export function NuevoAfiliadoFormSection({
                 {/* EPS */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        EPS
+                        EPS <span className="text-red-500">*</span>
                     </label>
                     <select
                         value={nuevoAfiliado.eps}
@@ -205,7 +205,7 @@ export function NuevoAfiliadoFormSection({
                 {/* Tipo Cotizante */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Tipo Cotizante
+                        Tipo Cotizante <span className="text-red-500">*</span>
                     </label>
                     <select
                         value={nuevoAfiliado.tipoCotizante}

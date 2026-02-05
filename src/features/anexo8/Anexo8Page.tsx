@@ -214,7 +214,7 @@ export default function Anexo8Page() {
             direccion: datos.direccion,
             municipio: datos.municipio,
             regimen: datos.regimen,
-            eps: datos.eps || 'NUEVA EPS'
+            eps: datos.eps || ''
         })
 
         setCreandoPaciente(false)
@@ -241,7 +241,7 @@ export default function Anexo8Page() {
                 email: null,
                 regimen: datos.regimen || null,
                 edad: null,
-                eps: datos.eps || 'NUEVA EPS',
+                eps: datos.eps || '',
                 fuente: 'PORTAL_COLABORADORES',
                 updatedAt: null,
                 busquedaTexto: null
@@ -811,7 +811,6 @@ export default function Anexo8Page() {
                                                         id="nuevo-eps"
                                                         type="text"
                                                         placeholder="EPS *"
-                                                        defaultValue="NUEVA EPS"
                                                         className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
                                                     />
                                                 </div>

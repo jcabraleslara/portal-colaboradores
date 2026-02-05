@@ -85,7 +85,7 @@ export function RadicacionCasosPage() {
         departamento: '23', // Córdoba por defecto
         regimen: '',
         tipoCotizante: '',
-        eps: 'NUEVA EPS',
+        eps: '',
     })
     const [creandoAfiliado, setCreandoAfiliado] = useState(false)
 
@@ -227,13 +227,41 @@ export function RadicacionCasosPage() {
     }
 
     const handleCrearAfiliado = async () => {
-        // Validaciones
+        // Validaciones de campos obligatorios
         if (!nuevoAfiliado.nombres.trim()) {
             setSearchError('El nombre es requerido')
             return
         }
         if (!nuevoAfiliado.apellido1.trim()) {
             setSearchError('El primer apellido es requerido')
+            return
+        }
+        if (!nuevoAfiliado.sexo) {
+            setSearchError('El sexo es requerido')
+            return
+        }
+        if (!nuevoAfiliado.fechaNacimiento) {
+            setSearchError('La fecha de nacimiento es requerida')
+            return
+        }
+        if (!nuevoAfiliado.telefono?.trim()) {
+            setSearchError('El teléfono es requerido')
+            return
+        }
+        if (!nuevoAfiliado.municipioCodigo) {
+            setSearchError('El municipio es requerido')
+            return
+        }
+        if (!nuevoAfiliado.eps) {
+            setSearchError('La EPS es requerida')
+            return
+        }
+        if (!nuevoAfiliado.regimen) {
+            setSearchError('El régimen es requerido')
+            return
+        }
+        if (!nuevoAfiliado.tipoCotizante) {
+            setSearchError('El tipo de cotizante es requerido')
             return
         }
 
@@ -281,7 +309,7 @@ export function RadicacionCasosPage() {
                 email: null,
                 regimen: nuevoAfiliado.regimen || null,
                 edad: null,
-                eps: nuevoAfiliado.eps || 'NUEVA EPS',
+                eps: nuevoAfiliado.eps || '',
                 fuente: 'PORTAL_COLABORADORES',
                 updatedAt: null,
                 busquedaTexto: null,
