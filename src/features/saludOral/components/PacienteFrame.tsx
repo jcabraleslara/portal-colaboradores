@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { Search, User, Calendar, Phone, AlertCircle, Building2, IdCard, Plus, Save, X } from 'lucide-react'
 import { supabase } from '@/config/supabase.config'
 import { backService } from '@/services/back.service'
+import { getFechaHoyColombia } from '@/utils/date.utils'
 import {
     SEXO_LISTA,
     REGIMEN_LISTA,
@@ -446,7 +447,7 @@ export function PacienteFrame({
                                 type="date"
                                 value={nuevoAfiliado.fechaNacimiento || ''}
                                 onChange={(e) => setNuevoAfiliado(prev => ({ ...prev, fechaNacimiento: e.target.value }))}
-                                max={new Date().toISOString().split('T')[0]}
+                                max={getFechaHoyColombia()}
                                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-primary-500"
                             />
                         </div>

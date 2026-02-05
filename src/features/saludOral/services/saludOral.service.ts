@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/config/supabase.config'
+import { getPrimerDiaMesColombia } from '@/utils/date.utils'
 import type {
     OdRegistro,
     OdRegistroCreate,
@@ -83,12 +84,6 @@ function transformFromDB(data: any): OdRegistro {
 
         controlPostquirurgico: data.control_postquirurgico,
 
-        rxSuperiores: data.rx_superiores,
-        rxInferiores: data.rx_inferiores,
-        rxMolares: data.rx_molares,
-        rxPremolares: data.rx_premolares,
-        rxCaninos: data.rx_caninos,
-
         tratamientoFinalizado: data.tratamiento_finalizado,
 
         createdAt: data.created_at,
@@ -160,12 +155,6 @@ function transformToDB(data: OdRegistroCreate | OdRegistroUpdate): any {
     if (data.exodonciaCantidad !== undefined) dbData.exodoncia_cantidad = data.exodonciaCantidad
 
     if (data.controlPostquirurgico !== undefined) dbData.control_postquirurgico = data.controlPostquirurgico
-
-    if (data.rxSuperiores !== undefined) dbData.rx_superiores = data.rxSuperiores
-    if (data.rxInferiores !== undefined) dbData.rx_inferiores = data.rxInferiores
-    if (data.rxMolares !== undefined) dbData.rx_molares = data.rxMolares
-    if (data.rxPremolares !== undefined) dbData.rx_premolares = data.rxPremolares
-    if (data.rxCaninos !== undefined) dbData.rx_caninos = data.rxCaninos
 
     if (data.tratamientoFinalizado !== undefined) dbData.tratamiento_finalizado = data.tratamientoFinalizado
 
@@ -269,9 +258,6 @@ async function getAll(filters?: OdFilters): Promise<PaginatedResponse<OdRegistro
                 break
             case 'control_postquirurgico':
                 query = query.eq('control_postquirurgico', true)
-                break
-            case 'rx':
-                query = query.or('rx_superiores.eq.true,rx_inferiores.eq.true,rx_molares.eq.true,rx_premolares.eq.true,rx_caninos.eq.true')
                 break
         }
     }
@@ -410,9 +396,8 @@ async function getMetrics(filters?: OdFilters): Promise<OdMetrics> {
 
     const datos = registros || []
 
-    // Casos del mes actual
-    const hoy = new Date()
-    const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0]
+    // Casos del mes actual (usando zona horaria Colombia)
+    const primerDiaMes = getPrimerDiaMesColombia()
 
     const { count: registrosMesActual } = await supabase
         .from('od')

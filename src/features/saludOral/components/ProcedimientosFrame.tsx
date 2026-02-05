@@ -42,12 +42,6 @@ interface ProcedimientosValues {
 
     controlPostquirurgico: boolean
 
-    rxSuperiores: boolean
-    rxInferiores: boolean
-    rxMolares: boolean
-    rxPremolares: boolean
-    rxCaninos: boolean
-
     tratamientoFinalizado: boolean
 }
 
@@ -390,22 +384,6 @@ export function ProcedimientosFrame({
                                 </div>
                             </div>
                         )}
-                    </div>
-                </div>
-            )}
-
-            {/* Radiografías - Solo para IPS Cereté */}
-            {mostrarProcedimientosAvanzados && (
-                <div className="bg-cyan-50/30 rounded-xl border border-cyan-200 p-4">
-                    <div className="flex items-center justify-between flex-wrap gap-3">
-                        <span className="font-semibold text-slate-900 text-sm">Radiografías:</span>
-                        <div className="flex flex-wrap justify-end gap-2">
-                            <ToggleBadge label="Anterosuperiores" active={values.rxSuperiores} onChange={(a) => onChange('rxSuperiores', a)} disabled={disabled} size="md" />
-                            <ToggleBadge label="Anteroinferiores" active={values.rxInferiores} onChange={(a) => onChange('rxInferiores', a)} disabled={disabled} size="md" />
-                            <ToggleBadge label="Molares" active={values.rxMolares} onChange={(a) => onChange('rxMolares', a)} disabled={disabled} size="md" />
-                            <ToggleBadge label="Premolares" active={values.rxPremolares} onChange={(a) => onChange('rxPremolares', a)} disabled={disabled} size="md" />
-                            <ToggleBadge label="Caninos" active={values.rxCaninos} onChange={(a) => onChange('rxCaninos', a)} disabled={disabled} size="md" />
-                        </div>
                     </div>
                 </div>
             )}

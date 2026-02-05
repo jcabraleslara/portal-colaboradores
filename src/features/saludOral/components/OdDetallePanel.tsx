@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { afiliadosService } from '@/services/afiliados.service'
 import { toast } from 'sonner'
+import { parseDateLocal } from '@/utils/date.utils'
 import type { OdRegistro } from '@/types/saludOral.types'
 import { useActualizarSaludOral, useEliminarSaludOral, useSaludOralColaboradores } from '../hooks/useSaludOral'
 import { useAuth } from '@/context/AuthContext'
@@ -157,7 +158,7 @@ export function OdDetallePanel({
                     <div>
                         <h2 className="text-lg font-bold text-slate-900">{nombrePaciente || registro.pacienteId || 'Cargando...'}</h2>
                         <p className="text-sm text-slate-500">
-                            {new Date(registro.fechaRegistro).toLocaleDateString('es-CO', {
+                            {parseDateLocal(registro.fechaRegistro)?.toLocaleDateString('es-CO', {
                                 weekday: 'long',
                                 year: 'numeric',
                                 month: 'long',
@@ -245,10 +246,10 @@ export function OdDetallePanel({
                                 </p>
                             </div>
                             <div>
-                                <span className="text-slate-500">Fecha</span>
+                                <span className="text-slate-500">Fecha Atención</span>
                                 <p className="font-semibold flex items-center gap-1">
                                     <Calendar size={14} />
-                                    {new Date(registro.fechaRegistro).toLocaleDateString('es-CO')}
+                                    {parseDateLocal(registro.fechaRegistro)?.toLocaleDateString('es-CO')}
                                 </p>
                             </div>
                             <div>
@@ -401,20 +402,6 @@ export function OdDetallePanel({
 
                             {registro.controlPostquirurgico && (
                                 <Badge color="slate">Control Post-Quirúrgico</Badge>
-                            )}
-
-                            {/* Radiografías */}
-                            {(registro.rxSuperiores || registro.rxInferiores || registro.rxMolares || registro.rxPremolares || registro.rxCaninos) && (
-                                <div>
-                                    <span className="text-slate-500 block mb-1">Radiografías:</span>
-                                    <div className="flex flex-wrap gap-1">
-                                        {registro.rxSuperiores && <Badge color="cyan">Superiores</Badge>}
-                                        {registro.rxInferiores && <Badge color="cyan">Inferiores</Badge>}
-                                        {registro.rxMolares && <Badge color="cyan">Molares</Badge>}
-                                        {registro.rxPremolares && <Badge color="cyan">Premolares</Badge>}
-                                        {registro.rxCaninos && <Badge color="cyan">Caninos</Badge>}
-                                    </div>
-                                </div>
                             )}
                         </div>
                     </div>

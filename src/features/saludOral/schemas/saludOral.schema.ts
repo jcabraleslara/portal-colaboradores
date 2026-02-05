@@ -5,6 +5,7 @@
 
 import { z } from 'zod'
 import { SEDES, TIPOS_CONSULTA, TERAPIA_CONDUCTO_TIPOS, TERAPIA_CONDUCTO_RAICES, EXODONCIA_TIPOS, EXODONCIA_RAICES } from '@/types/saludOral.types'
+import { getFechaHoyColombia } from '@/utils/date.utils'
 
 // ========================================
 // SCHEMAS BASE
@@ -100,12 +101,6 @@ export const odRegistroSchema = z.object({
 
     controlPostquirurgico: z.boolean().default(false),
 
-    rxSuperiores: z.boolean().default(false),
-    rxInferiores: z.boolean().default(false),
-    rxMolares: z.boolean().default(false),
-    rxPremolares: z.boolean().default(false),
-    rxCaninos: z.boolean().default(false),
-
     tratamientoFinalizado: z.boolean().default(false),
 })
 
@@ -191,7 +186,7 @@ export function validarExodoncia(
 export function getDefaultOdRegistro(colaboradorEmail: string, sede: string = 'Montería'): OdRegistroFormData {
     return {
         pacienteId: '',
-        fechaRegistro: new Date().toISOString().split('T')[0],
+        fechaRegistro: getFechaHoyColombia(),
         colaboradorEmail,
         sede: sede as any,
 
@@ -242,11 +237,6 @@ export function getDefaultOdRegistro(colaboradorEmail: string, sede: string = 'M
         exodonciaIncluido: false,
         exodonciaCantidad: 0,
         controlPostquirurgico: false,
-        rxSuperiores: false,
-        rxInferiores: false,
-        rxMolares: false,
-        rxPremolares: false,
-        rxCaninos: false,
         tratamientoFinalizado: false,
     }
 }

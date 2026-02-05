@@ -49,6 +49,72 @@ export function formatDateForDB(date: Date | null): string | null {
 }
 
 /**
+ * Obtiene la fecha actual en zona horaria de Colombia (America/Bogota, GMT-5)
+ * en formato YYYY-MM-DD para inputs tipo date.
+ *
+ * Esto evita el problema de que después de las 7pm en Colombia,
+ * toISOString() retorne el día siguiente (porque convierte a UTC).
+ *
+ * @returns String en formato YYYY-MM-DD con la fecha actual en Colombia
+ *
+ * @example
+ * // Si son las 10pm del 5 de febrero en Colombia (3am UTC del 6 de febrero)
+ * getFechaHoyColombia() // "2026-02-05" ✅ CORRECTO
+ * new Date().toISOString().split('T')[0] // "2026-02-06" ❌ INCORRECTO
+ */
+export function getFechaHoyColombia(): string {
+    const formatter = new Intl.DateTimeFormat('sv-SE', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    })
+    return formatter.format(new Date())
+}
+
+/**
+ * Obtiene el primer día del mes actual en zona horaria de Colombia
+ * en formato YYYY-MM-DD.
+ *
+ * @returns String en formato YYYY-MM-DD con el primer día del mes actual
+ */
+export function getPrimerDiaMesColombia(): string {
+    const hoy = new Date()
+    // Obtener año y mes en zona horaria Colombia
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+    })
+    const parts = formatter.formatToParts(hoy)
+    const year = parts.find(p => p.type === 'year')?.value
+    const month = parts.find(p => p.type === 'month')?.value
+    return `${year}-${month}-01`
+}
+
+/**
+ * Obtiene el último día del mes actual en zona horaria de Colombia
+ * en formato YYYY-MM-DD.
+ *
+ * @returns String en formato YYYY-MM-DD con el último día del mes actual
+ */
+export function getUltimoDiaMesColombia(): string {
+    const hoy = new Date()
+    // Obtener año y mes en zona horaria Colombia
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Bogota',
+        year: 'numeric',
+        month: '2-digit',
+    })
+    const parts = formatter.formatToParts(hoy)
+    const year = parseInt(parts.find(p => p.type === 'year')?.value || '2026')
+    const month = parseInt(parts.find(p => p.type === 'month')?.value || '1')
+    // Último día del mes = día 0 del mes siguiente
+    const ultimoDia = new Date(year, month, 0).getDate()
+    return `${year}-${String(month).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`
+}
+
+/**
  * Calcular edad a partir de fecha de nacimiento
  * @param birthDate - Fecha de nacimiento
  * @returns Edad en años

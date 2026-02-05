@@ -93,12 +93,6 @@ export interface OdRegistro {
 
     controlPostquirurgico: boolean
 
-    rxSuperiores: boolean
-    rxInferiores: boolean
-    rxMolares: boolean
-    rxPremolares: boolean
-    rxCaninos: boolean
-
     tratamientoFinalizado: boolean
 
     createdAt: string
@@ -239,13 +233,6 @@ export const CUPS_MAPPING: Record<string, CupsItem> = {
 
     // Control post-quirúrgico
     control_postquirurgico: { cups: '8903040100', descripcion: 'CONSULTA CONTROL POSQUIRURGICO ODONTOLOGIA' },
-
-    // Radiografías
-    rx_superiores: { cups: '8704510000', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES DIENTES ANTERIORES SUPERIORES' },
-    rx_inferiores: { cups: '8704520100', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES DIENTES ANTERIORES INFERIORES' },
-    rx_molares: { cups: '8704550000', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES MOLARES' },
-    rx_premolares: { cups: '8704540100', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES PREMOLARES' },
-    rx_caninos: { cups: '8704530100', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES ZONA DE CANINOS' },
 }
 
 /**

@@ -31,6 +31,7 @@ import { useSaludOralList, useSaludOralMetrics, useSaludOralColaboradores } from
 import { MetricCard, MetricGrid } from './MetricCards'
 import { OdDetallePanel } from './OdDetallePanel'
 import { exportarInformeCups, exportarInformeExcel } from '../utils/cupsExport'
+import { getPrimerDiaMesColombia, getUltimoDiaMesColombia, parseDateLocal } from '@/utils/date.utils'
 import type { OdRegistro, OdFilters, Sede } from '@/types/saludOral.types'
 
 const SEDES_OPTIONS: Sede[] = ['Montería', 'Cereté', 'Ciénaga de Oro']
@@ -52,7 +53,6 @@ const ACTIVITY_OPTIONS = [
     { value: 'pulpotomia', label: 'Pulpotomía' },
     { value: 'exodoncia', label: 'Exodoncia' },
     { value: 'control_postquirurgico', label: 'Ctrl Postquirúrgico' },
-    { value: 'rx', label: 'Radiografías' },
 ]
 
 interface HistoricoTabProps {
@@ -177,9 +177,8 @@ export function HistoricoTab({ onEdit }: HistoricoTabProps) {
 
     // Filtros rápidos desde métricas
     const handleMetricClick = (type: 'total' | 'mes' | 'finalizados' | 'sede', value?: string) => {
-        const hoy = new Date()
-        const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0]
-        const ultimoDiaMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0]
+        const primerDiaMes = getPrimerDiaMesColombia()
+        const ultimoDiaMes = getUltimoDiaMesColombia()
 
         switch (type) {
             case 'mes':
@@ -226,9 +225,8 @@ export function HistoricoTab({ onEdit }: HistoricoTabProps) {
                         color="blue"
                         onClick={() => handleMetricClick('mes')}
                         isActive={(() => {
-                            const hoy = new Date()
-                            const primerDia = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0]
-                            const ultimoDia = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).toISOString().split('T')[0]
+                            const primerDia = getPrimerDiaMesColombia()
+                            const ultimoDia = getUltimoDiaMesColombia()
                             return filters.fechaInicio === primerDia && filters.fechaFin === ultimoDia
                         })()}
                     />
@@ -439,7 +437,7 @@ export function HistoricoTab({ onEdit }: HistoricoTabProps) {
                                             onClick={() => handleSort('fechaRegistro')}
                                         >
                                             <div className="flex items-center gap-2">
-                                                Fecha
+                                                Fecha Atención
                                                 {renderSortIcon('fechaRegistro')}
                                             </div>
                                         </th>
@@ -474,7 +472,7 @@ export function HistoricoTab({ onEdit }: HistoricoTabProps) {
                                             onClick={() => setRegistroSeleccionado(registro)}
                                         >
                                             <td className="px-4 py-4 text-sm text-slate-900 font-medium">
-                                                {new Date(registro.fechaRegistro).toLocaleDateString('es-CO')}
+                                                {parseDateLocal(registro.fechaRegistro)?.toLocaleDateString('es-CO')}
                                             </td>
                                             <td className="px-4 py-3 text-sm font-semibold text-slate-900">
                                                 {registro.pacienteId}

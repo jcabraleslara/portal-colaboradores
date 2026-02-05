@@ -60,13 +60,6 @@ const CUPS_MAP: Record<string, { cups: string; descripcion: string }> = {
 
     // Control post-quirúrgico
     control_postquirurgico: { cups: '8903040100', descripcion: 'CONSULTA CONTROL POSQUIRURGICO ODONTOLOGIA' },
-
-    // Radiografías (códigos específicos por tipo)
-    rx_superiores: { cups: '8704510000', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES DIENTES ANTERIORES SUPERIORES' },
-    rx_inferiores: { cups: '8704520100', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES DIENTES ANTERIORES INFERIORES' },
-    rx_molares: { cups: '8704550000', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES MOLARES' },
-    rx_premolares: { cups: '8704540100', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES PREMOLARES' },
-    rx_caninos: { cups: '8704530100', descripcion: 'RADIOGRAFIAS INTRAORALES PERIAPICALES ZONA DE CANINOS' },
 }
 
 /**
@@ -253,28 +246,6 @@ function generarFilasCups(registro: OdRegistro, colaboradoresMap?: Record<string
         rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
     }
 
-    // Radiografías (códigos específicos por tipo)
-    if (registro.rxSuperiores) {
-        const map = CUPS_MAP.rx_superiores
-        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
-    }
-    if (registro.rxInferiores) {
-        const map = CUPS_MAP.rx_inferiores
-        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
-    }
-    if (registro.rxMolares) {
-        const map = CUPS_MAP.rx_molares
-        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
-    }
-    if (registro.rxPremolares) {
-        const map = CUPS_MAP.rx_premolares
-        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
-    }
-    if (registro.rxCaninos) {
-        const map = CUPS_MAP.rx_caninos
-        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
-    }
-
     return rows
 }
 
@@ -432,13 +403,6 @@ export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
         'Exodoncia Incluido': reg.exodonciaIncluido ? 'Sí' : 'No',
         'Exodoncia Cantidad': reg.exodonciaCantidad,
         'Control Post-Quirúrgico': reg.controlPostquirurgico ? 'Sí' : 'No',
-
-        // RX
-        'RX Superiores': reg.rxSuperiores ? 'Sí' : 'No',
-        'RX Inferiores': reg.rxInferiores ? 'Sí' : 'No',
-        'RX Molares': reg.rxMolares ? 'Sí' : 'No',
-        'RX Premolares': reg.rxPremolares ? 'Sí' : 'No',
-        'RX Caninos': reg.rxCaninos ? 'Sí' : 'No',
 
         'Tratamiento Finalizado': reg.tratamientoFinalizado ? 'Sí' : 'No',
         'Fecha Creación': reg.createdAt,

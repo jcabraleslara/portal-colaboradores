@@ -11,6 +11,7 @@ import { useCrearSaludOral } from '../hooks/useSaludOral'
 import { contactosService } from '@/services/contactos.service'
 import { getDefaultOdRegistro } from '../schemas/saludOral.schema'
 import type { OdRegistroFormData } from '../schemas/saludOral.schema'
+import { getFechaHoyColombia } from '@/utils/date.utils'
 import type { OdRegistro, Sede } from '@/types/saludOral.types'
 import { useActualizarSaludOral } from '../hooks/useSaludOral'
 import { X } from 'lucide-react'
@@ -80,8 +81,8 @@ export function RegistroCasoTab({ onSuccess, initialData, onCancel }: RegistroCa
             // Extraer solo los campos del formulario
             const { id, createdAt, updatedAt, ...rest } = initialData
 
-            // Asegurar fecha correcta (YYYY-MM-DD)
-            const fechaRegistro = new Date(rest.fechaRegistro).toISOString().split('T')[0]
+            // Extraer fecha en formato YYYY-MM-DD (sin conversión a Date para evitar problemas de timezone)
+            const fechaRegistro = rest.fechaRegistro.split('T')[0]
 
             setFormData({
                 ...rest,
@@ -103,8 +104,8 @@ export function RegistroCasoTab({ onSuccess, initialData, onCancel }: RegistroCa
         }
     }, [initialData])
 
-    // Fecha máxima permitida (hoy)
-    const fechaMaxima = new Date().toISOString().split('T')[0]
+    // Fecha máxima permitida (hoy en zona horaria Colombia)
+    const fechaMaxima = getFechaHoyColombia()
 
     // Manejar cambios genéricos
     const handleChange = <K extends keyof OdRegistroFormData>(key: K, value: OdRegistroFormData[K]) => {
@@ -224,7 +225,7 @@ export function RegistroCasoTab({ onSuccess, initialData, onCancel }: RegistroCa
 
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1">
-                            Fecha de Registro
+                            Fecha de Atención
                         </label>
                         <input
                             type="date"
@@ -330,11 +331,6 @@ export function RegistroCasoTab({ onSuccess, initialData, onCancel }: RegistroCa
                             exodonciaIncluido: formData.exodonciaIncluido,
                             exodonciaCantidad: formData.exodonciaCantidad,
                             controlPostquirurgico: formData.controlPostquirurgico,
-                            rxSuperiores: formData.rxSuperiores,
-                            rxInferiores: formData.rxInferiores,
-                            rxMolares: formData.rxMolares,
-                            rxPremolares: formData.rxPremolares,
-                            rxCaninos: formData.rxCaninos,
                             tratamientoFinalizado: formData.tratamientoFinalizado,
                         }}
                         onChange={handleChange}
