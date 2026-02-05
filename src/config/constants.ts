@@ -136,7 +136,7 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         icon: 'ClipboardList',
         enabled: true,
         description: 'Radicar casos y solicitudes',
-        requiredRoles: ['gerencia', 'auditor', 'operativo', 'administrador', 'superadmin', 'externo'],
+        requiredRoles: ['gerencia', 'auditor', 'operativo', 'administrador', 'superadmin', 'externo', 'asistencial'],
     },
     {
         id: 'gestion-back',

@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import {
     Search,
     Send,
@@ -31,8 +31,9 @@ import {
     ArrowLeft,
     Copy,
     Check,
+    ClipboardList,
 } from 'lucide-react'
-import { Card, Button, Input, LoadingOverlay, FileUpload, OrdenadorAutocomplete, Autocomplete, MarkdownRenderer, EditablePhone } from '@/components/common'
+import { Card, Button, Input, LoadingOverlay, FileUpload, OrdenadorAutocomplete, MarkdownRenderer } from '@/components/common'
 import { copyRichText } from '@/utils/clipboard'
 import { parseDateLocal } from '@/utils/date.utils'
 import { afiliadosService } from '@/services/afiliados.service'
@@ -46,36 +47,19 @@ import {
     RutaBack,
     ESPECIALIDADES_LISTA,
     ESTADO_COLORES,
-    SEXO_LISTA,
-    REGIMEN_LISTA,
-    TIPO_COTIZANTE_LISTA,
-    MUNICIPIOS_CORDOBA,
-    EPS_LISTA,
+
 } from '@/types/back.types'
 import { RutaSelectionGrid } from './components/RutaSelectionGrid'
+import { NuevoAfiliadoFormSection } from './components/NuevoAfiliadoFormSection'
+import { AfiliadoInfoCard } from './components/AfiliadoInfoCard'
+import { NuevoAfiliadoForm } from './types'
 
-// Tipo para datos del nuevo afiliado
-interface NuevoAfiliadoForm {
-    tipoId: string
-    id: string
-    nombres: string
-    apellido1: string
-    apellido2: string
-    sexo: string
-    direccion: string
-    telefono: string
-    fechaNacimiento: string
-    municipioCodigo: string
-    municipioNombre: string
-    departamento: string
-    regimen: string
-    tipoCotizante: string
-    eps: string
-}
+
 
 export function RadicacionCasosPage() {
     const { user } = useAuth()
     const location = useLocation()
+    const navigate = useNavigate()
 
     // ============================================
     // ESTADO - PASO 1: Búsqueda de Afiliado
@@ -433,9 +417,7 @@ export function RadicacionCasosPage() {
     // RENDER
     // ============================================
 
-    const getNombreCompleto = (af: Afiliado) => {
-        return [af.nombres, af.apellido1, af.apellido2].filter(Boolean).join(' ')
-    }
+
 
     return (
         <div className="space-y-6">
@@ -540,258 +522,22 @@ export function RadicacionCasosPage() {
 
                         {/* Formulario de nuevo afiliado */}
                         {mostrarFormularioNuevo && !afiliado && (
-                            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                                <div className="flex items-center gap-2 mb-4">
-                                    <AlertCircle size={18} className="text-amber-600" />
-                                    <p className="text-sm font-medium text-amber-800">
-                                        Afiliado no encontrado. Complete los datos para crearlo:
-                                    </p>
-                                </div>
-
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Tipo de Documento *
-                                        </label>
-                                        <select
-                                            value={nuevoAfiliado.tipoId}
-                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNuevoAfiliado(prev => ({ ...prev, tipoId: e.target.value }))}
-                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)]"
-                                        >
-                                            <option value="CC">Cédula de Ciudadanía</option>
-                                            <option value="TI">Tarjeta de Identidad</option>
-                                            <option value="CE">Cédula de Extranjería</option>
-                                            <option value="PA">Pasaporte</option>
-                                            <option value="RC">Registro Civil</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Número de Documento *
-                                        </label>
-                                        <Input
-                                            value={nuevoAfiliado.id}
-                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNuevoAfiliado(prev => ({ ...prev, id: e.target.value.replace(/\D/g, '') }))}
-                                            disabled
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Nombres *
-                                        </label>
-                                        <Input
-                                            value={nuevoAfiliado.nombres}
-                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNuevoAfiliado(prev => ({ ...prev, nombres: e.target.value }))}
-                                            placeholder="Nombres completos"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Primer Apellido *
-                                        </label>
-                                        <Input
-                                            value={nuevoAfiliado.apellido1}
-                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNuevoAfiliado(prev => ({ ...prev, apellido1: e.target.value }))}
-                                            placeholder="Primer apellido"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Segundo Apellido
-                                        </label>
-                                        <Input
-                                            value={nuevoAfiliado.apellido2}
-                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNuevoAfiliado(prev => ({ ...prev, apellido2: e.target.value }))}
-                                            placeholder="Segundo apellido (opcional)"
-                                        />
-                                    </div>
-
-                                    {/* Sexo */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Sexo
-                                        </label>
-                                        <select
-                                            value={nuevoAfiliado.sexo}
-                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNuevoAfiliado(prev => ({ ...prev, sexo: e.target.value }))}
-                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] text-sm"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            {SEXO_LISTA.map((s: { value: string; label: string }) => (
-                                                <option key={s.value} value={s.value}>{s.label}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    {/* Fecha Nacimiento */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Fecha de Nacimiento
-                                        </label>
-                                        <input
-                                            type="date"
-                                            value={nuevoAfiliado.fechaNacimiento}
-                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNuevoAfiliado(prev => ({ ...prev, fechaNacimiento: e.target.value }))}
-                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] text-sm"
-                                        />
-                                    </div>
-
-                                    {/* Teléfono */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Teléfono
-                                        </label>
-                                        <Input
-                                            value={nuevoAfiliado.telefono}
-                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNuevoAfiliado(prev => ({ ...prev, telefono: e.target.value }))}
-                                            placeholder="Número de contacto"
-                                        />
-                                    </div>
-
-                                    {/* Dirección - campo completo */}
-                                    <div className="md:col-span-2">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Dirección
-                                        </label>
-                                        <Input
-                                            value={nuevoAfiliado.direccion}
-                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNuevoAfiliado(prev => ({ ...prev, direccion: e.target.value }))}
-                                            placeholder="Dirección de residencia"
-                                        />
-                                    </div>
-
-                                    {/* Municipio - Autocomplete */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Municipio
-                                        </label>
-                                        <Autocomplete
-                                            value={nuevoAfiliado.municipioNombre}
-                                            onChange={(val: string) => {
-                                                const municipio = MUNICIPIOS_CORDOBA.find((m: { codigo: string; nombre: string; departamento: string }) => m.nombre === val)
-                                                setNuevoAfiliado(prev => ({
-                                                    ...prev,
-                                                    municipioNombre: val,
-                                                    municipioCodigo: municipio?.codigo || '',
-                                                    departamento: municipio?.departamento || '23',
-                                                }))
-                                            }}
-                                            options={MUNICIPIOS_CORDOBA.map((m: { codigo: string; nombre: string; departamento: string }) => m.nombre)}
-                                            placeholder="Buscar municipio..."
-                                            allowFreeText={false}
-                                        />
-                                    </div>
-
-                                    {/* Régimen */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Régimen
-                                        </label>
-                                        <select
-                                            value={nuevoAfiliado.regimen}
-                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNuevoAfiliado(prev => ({ ...prev, regimen: e.target.value }))}
-                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] text-sm"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            {REGIMEN_LISTA.map((r: { value: string; label: string }) => (
-                                                <option key={r.value} value={r.value}>{r.label}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    {/* EPS */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            EPS
-                                        </label>
-                                        <select
-                                            value={nuevoAfiliado.eps}
-                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNuevoAfiliado(prev => ({ ...prev, eps: e.target.value }))}
-                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] text-sm"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            {EPS_LISTA.map((eps: string) => (
-                                                <option key={eps} value={eps}>{eps}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    {/* Tipo Cotizante */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Tipo Cotizante
-                                        </label>
-                                        <select
-                                            value={nuevoAfiliado.tipoCotizante}
-                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNuevoAfiliado(prev => ({ ...prev, tipoCotizante: e.target.value }))}
-                                            className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] text-sm"
-                                        >
-                                            <option value="">Seleccionar...</option>
-                                            {TIPO_COTIZANTE_LISTA.map((t: { value: string; label: string }) => (
-                                                <option key={t.value} value={t.value}>{t.label}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-
-                                </div>
-
-                                {searchError && (
-                                    <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
-                                        {searchError}
-                                    </div>
-                                )}
-
-                                <div className="mt-4 flex justify-end">
-                                    <Button
-                                        onClick={handleCrearAfiliado}
-                                        isLoading={creandoAfiliado}
-                                        leftIcon={<Plus size={18} />}
-                                    >
-                                        Crear y continuar
-                                    </Button>
-                                </div>
-                            </div>
+                            <NuevoAfiliadoFormSection
+                                nuevoAfiliado={nuevoAfiliado}
+                                setNuevoAfiliado={setNuevoAfiliado}
+                                searchError={searchError}
+                                handleCrearAfiliado={handleCrearAfiliado}
+                                creandoAfiliado={creandoAfiliado}
+                            />
                         )}
 
                         {/* Info del afiliado encontrado */}
                         {afiliado && (
-                            <div className={`mt-4 p-4 rounded-lg border transition-colors ${afiliado.eps?.toUpperCase().includes('SALUD TOTAL')
-                                ? 'bg-rose-50 border-rose-200'
-                                : 'bg-[var(--color-primary-50)] border-transparent'
-                                }`}>
-                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                    <div>
-                                        <p className="text-xs text-gray-500">Documento</p>
-                                        <p className={`font-semibold ${afiliado.eps?.toUpperCase().includes('SALUD TOTAL')
-                                            ? 'text-rose-600'
-                                            : 'text-[var(--color-primary)]'
-                                            }`}>{afiliado.id}</p>
-                                    </div>
-                                    <div className="col-span-2">
-                                        <p className="text-xs text-gray-500">Nombre Completo</p>
-                                        <p className="font-medium">{getNombreCompleto(afiliado)}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-gray-500">EPS</p>
-                                        <p className={`font-bold ${afiliado.eps?.toUpperCase().includes('SALUD TOTAL')
-                                            ? 'text-rose-700'
-                                            : 'font-medium'
-                                            }`}>{afiliado.eps || '—'}</p>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-gray-500">Teléfono</p>
-                                        <div className="font-medium">
-                                            <EditablePhone
-                                                initialValue={afiliado.telefono}
-                                                tipoId={afiliado.tipoId || ''}
-                                                id={afiliado.id || ''}
-                                                onUpdate={handlePhoneUpdate}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <AfiliadoInfoCard
+                                afiliado={afiliado}
+                                setAfiliado={setAfiliado}
+                                onPhoneUpdate={handlePhoneUpdate}
+                            />
                         )}
 
                         {/* ============================================ */}
@@ -802,7 +548,7 @@ export function RadicacionCasosPage() {
                                 <p className="text-sm font-medium text-gray-600 mb-4 text-center">
                                     ¿Qué deseas hacer?
                                 </p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
                                     {/* Botón Radicar Caso */}
                                     <button
                                         type="button"
@@ -841,6 +587,24 @@ export function RadicacionCasosPage() {
                                         )}
                                         <div className={`absolute top-4 right-4 ${historial.length > 0 ? 'hidden' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
                                             <ChevronRight size={20} className="text-emerald-500" />
+                                        </div>
+                                    </button>
+
+                                    {/* Botón Seguimiento de Casos */}
+                                    <button
+                                        type="button"
+                                        onClick={() => navigate('/gestion-back')}
+                                        className="group relative flex flex-col items-center p-6 rounded-2xl border-2 border-gray-100 bg-gradient-to-br from-white to-gray-50 hover:border-violet-500 hover:shadow-xl hover:shadow-violet-500/10 transition-all duration-300 hover:-translate-y-1"
+                                    >
+                                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                            <ClipboardList size={28} className="text-white" />
+                                        </div>
+                                        <h3 className="font-bold text-lg text-gray-800 mb-1">Seguimiento de Casos</h3>
+                                        <p className="text-sm text-gray-500 text-center">
+                                            Consultar y gestionar casos radicados
+                                        </p>
+                                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <ChevronRight size={20} className="text-violet-500" />
                                         </div>
                                     </button>
                                 </div>
