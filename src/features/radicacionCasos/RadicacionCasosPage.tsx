@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import {
     Search,
     Send,
@@ -31,7 +31,6 @@ import {
     ArrowLeft,
     Copy,
     Check,
-    ClipboardList,
 } from 'lucide-react'
 import { Card, Button, Input, LoadingOverlay, FileUpload, OrdenadorAutocomplete, MarkdownRenderer } from '@/components/common'
 import { copyRichText } from '@/utils/clipboard'
@@ -59,7 +58,6 @@ import { NuevoAfiliadoForm } from './types'
 export function RadicacionCasosPage() {
     const { user } = useAuth()
     const location = useLocation()
-    const navigate = useNavigate()
 
     // ============================================
     // ESTADO - PASO 1: Búsqueda de Afiliado
@@ -548,7 +546,7 @@ export function RadicacionCasosPage() {
                                 <p className="text-sm font-medium text-gray-600 mb-4 text-center">
                                     ¿Qué deseas hacer?
                                 </p>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-4xl mx-auto">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
                                     {/* Botón Radicar Caso */}
                                     <button
                                         type="button"
@@ -587,24 +585,6 @@ export function RadicacionCasosPage() {
                                         )}
                                         <div className={`absolute top-4 right-4 ${historial.length > 0 ? 'hidden' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
                                             <ChevronRight size={20} className="text-emerald-500" />
-                                        </div>
-                                    </button>
-
-                                    {/* Botón Seguimiento de Casos */}
-                                    <button
-                                        type="button"
-                                        onClick={() => navigate('/gestion-back')}
-                                        className="group relative flex flex-col items-center p-6 rounded-2xl border-2 border-gray-100 bg-gradient-to-br from-white to-gray-50 hover:border-violet-500 hover:shadow-xl hover:shadow-violet-500/10 transition-all duration-300 hover:-translate-y-1"
-                                    >
-                                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                            <ClipboardList size={28} className="text-white" />
-                                        </div>
-                                        <h3 className="font-bold text-lg text-gray-800 mb-1">Seguimiento de Casos</h3>
-                                        <p className="text-sm text-gray-500 text-center">
-                                            Consultar y gestionar casos radicados
-                                        </p>
-                                        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <ChevronRight size={20} className="text-violet-500" />
                                         </div>
                                     </button>
                                 </div>
