@@ -1174,8 +1174,8 @@ export function CasoDetallePanel({
                                         // Si es Auditoría, NO mostrar 'Gestionado'
                                         if (e === 'Gestionado') return false
                                     } else if (tipoSolicitud === 'Activación de Ruta') {
-                                        // Si es Rutas, NO mostrar 'Enrutado', 'Autorizado' ni 'Contrarreferido'
-                                        if (['Enrutado', 'Autorizado', 'Contrarreferido'].includes(e)) return false
+                                        // Si es Rutas, NO mostrar 'Autorizado' ni 'Contrarreferido', pero SÍ 'Enrutado'
+                                        if (['Autorizado', 'Contrarreferido'].includes(e)) return false
                                     } else {
                                         // Casos generales (no Auditoría)
                                         if (e === 'Autorizado') return false
@@ -1248,7 +1248,7 @@ export function CasoDetallePanel({
                                     Seleccionar Ruta para Enrutamiento <span className="text-red-500">*</span>
                                 </label>
                                 <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-lg border border-gray-200">
-                                    {RUTAS_CONFIG.filter(r => r.visibleInterno).map(config => {
+                                    {RUTAS_CONFIG.filter(r => r.visibleInterno).sort((a, b) => a.ruta.localeCompare(b.ruta)).map(config => {
                                         const colores = RUTA_COLORES[config.ruta] || { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' }
                                         const activo = rutaSeleccionada === config.ruta
 

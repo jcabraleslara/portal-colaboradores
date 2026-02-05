@@ -217,7 +217,7 @@ export function HistoricoTab({ onEdit }: HistoricoTabProps) {
         <div className="space-y-6">
             {/* Métricas PyM del Mes */}
             {metrics && (
-                <MetricGrid columns={4}>
+                <MetricGrid columns={5}>
                     <MetricCard
                         titulo="Flúor Barniz"
                         valor={metrics.pymMesActual.fluor}
