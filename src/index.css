@@ -302,6 +302,35 @@ body {
   animation: pulse-glow 2s ease-in-out infinite;
 }
 
+/* Animaciones para barras de progreso */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+}
+
+.animate-shine {
+  animation: shine 1.5s ease-in-out infinite;
+}
+
 /* Delay classes */
 .delay-100 {
   animation-delay: 100ms;

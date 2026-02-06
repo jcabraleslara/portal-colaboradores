@@ -2,15 +2,16 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { FileDropzone } from './FileDropzone'
-import { processCitasFile } from '../services/importService'
+import { processCitasFile } from '../services'
 import { CheckCircle2, AlertCircle, UploadCloud, Play, FileSpreadsheet } from 'lucide-react'
+import type { ImportResult } from '../types/import.types'
 
 export default function CitasImportForm() {
     const [file, setFile] = useState<File | null>(null)
     const [isProcessing, setIsProcessing] = useState(false)
     const [progressStatus, setProgressStatus] = useState<string>('')
     const [progressPercent, setProgressPercent] = useState<number>(0)
-    const [result, setResult] = useState<{ success: number; errors: number; duplicates: number; totalProcessed: number; duration: string; invalidCupsReport?: string } | null>(null)
+    const [result, setResult] = useState<ImportResult | null>(null)
 
     const handleProcess = async () => {
         if (!file) return
@@ -20,7 +21,7 @@ export default function CitasImportForm() {
             setProgressPercent(0)
             setResult(null)
 
-            const stats = await processCitasFile(file, (msg, pct) => {
+            const stats = await processCitasFile(file, (msg: string, pct?: number) => {
                 setProgressStatus(msg)
                 if (pct !== undefined) setProgressPercent(pct)
             })
@@ -186,14 +187,14 @@ export default function CitasImportForm() {
                                     </div>
                                 </div>
 
-                                {result.invalidCupsReport && (
+                                {result.errorReport && (
                                     <div className="bg-rose-50 border border-rose-100 p-4 rounded-xl flex items-center justify-between">
                                         <div>
                                             <h5 className="text-sm font-bold text-rose-800">Inconsistencias de CUPS detectadas</h5>
                                             <p className="text-xs text-rose-600">Algunos códigos CUPS no existen en el maestro.</p>
                                         </div>
                                         <button
-                                            onClick={() => downloadReport(result.invalidCupsReport!)}
+                                            onClick={() => downloadReport(result.errorReport!)}
                                             className="px-4 py-2 bg-white border border-rose-200 text-rose-700 text-xs font-bold rounded-lg shadow-sm hover:bg-rose-50 transition-colors"
                                         >
                                             Descargar Reporte CSV
@@ -201,7 +202,7 @@ export default function CitasImportForm() {
                                     </div>
                                 )}
 
-                                {result.errors > 0 && !result.invalidCupsReport && (
+                                {result.errors > 0 && !result.errorReport && (
                                     <p className="text-sm text-orange-700 bg-orange-100/50 p-3 rounded-lg flex items-center gap-2">
                                         <AlertCircle size={16} />
                                         <span>Algunos registros no pudieron guardarse. Revisa la consola (F12) para detalles técnicos.</span>

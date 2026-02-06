@@ -1,5 +1,10 @@
+/**
+ * Servicio de importación para Citas
+ * Procesa archivos XLS (HTML) del sistema de agenda
+ */
 
 import { supabase } from '@/config/supabase.config'
+import type { ImportResult, ImportProgressCallback } from '../types/import.types'
 
 export interface CitaRow {
     id_cita: string
@@ -27,13 +32,10 @@ export interface CitaRow {
     edad: number | null
     usuario_agenda: string | null
     usuario_confirma: string | null
-    // Temporary field for age calculation - not sent to DB
     fecha_nacimiento_temp?: string | null
 }
 
-/**
- * Maps HTML header text to database column name
- */
+/** Mapeo de encabezados HTML a columnas de BD */
 const COLUMN_MAP: Record<string, keyof CitaRow> = {
     'ID CITA': 'id_cita',
     'TIPO IDENT.': 'tipo_id',
@@ -56,40 +58,84 @@ const COLUMN_MAP: Record<string, keyof CitaRow> = {
     'D. RELACIONADO1': 'dx2',
     'D. RELACIONADO2': 'dx3',
     'D. RELACIONADO3': 'dx4',
-    'FECHA TIEMPO EN CONSULTA': 'duracion', // Best guess based on headers
+    'FECHA TIEMPO EN CONSULTA': 'duracion',
     'SEXO': 'sexo',
     'F.NACIMIENTO': 'fecha_nacimiento_temp',
     'USUARIO CONFIRMA': 'usuario_confirma'
 }
 
+/** Normaliza encabezados (elimina acentos, espacios extra) */
+const normalizeHeader = (h: string): string => {
+    return h.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase()
+}
+
+/** Parsea fechas en múltiples formatos */
+const parseDate = (val: string): string | null => {
+    if (!val || !val.trim()) return null
+    const trimmed = val.trim()
+
+    // DD/MM/YYYY
+    const legacyMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+    if (legacyMatch) {
+        return `${legacyMatch[3]}-${legacyMatch[2].padStart(2, '0')}-${legacyMatch[1].padStart(2, '0')}`
+    }
+
+    // YYYY-MM-DD
+    const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (isoMatch) {
+        return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`
+    }
+
+    return null
+}
+
+/** Calcula edad entre dos fechas */
+const calculateAge = (birthDateStr: string | null, refDateStr: string | null): number | null => {
+    if (!birthDateStr || !refDateStr) return null
+
+    const d1 = new Date(birthDateStr)
+    const d2 = new Date(refDateStr)
+
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return null
+
+    let age = d2.getFullYear() - d1.getFullYear()
+    const m = d2.getMonth() - d1.getMonth()
+    if (m < 0 || (m === 0 && d2.getDate() < d1.getDate())) {
+        age--
+    }
+    return age >= 0 ? age : 0
+}
+
+/** Limpia duración: "18 Minutos" -> "18 minutes" */
+const cleanDuration = (val: string): string | null => {
+    if (!val) return null
+    const match = val.match(/-?(\d+)/)
+    return match ? `${match[1]} minutes` : null
+}
+
 /**
- * Process the uploaded specific "Fake XLS" HTML file
+ * Procesa archivo de citas (XLS/HTML)
  */
 export async function processCitasFile(
     file: File,
-    onProgress: (status: string, percentage?: number) => void
-): Promise<{ success: number; errors: number; duplicates: number; totalProcessed: number; duration: string; invalidCupsReport?: string }> {
+    onProgress: ImportProgressCallback
+): Promise<ImportResult> {
     const startTime = performance.now()
 
-    // Helper for normalizing headers (remove accents, extra spaces)
-    const normalizeHeader = (h: string) => {
-        return h.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase()
-    }
-
-    // 1. Read file as text
+    // 1. Leer archivo
     onProgress('Leyendo archivo...', 0)
     const text = await file.text()
 
-    // 2. Parse HTML
+    // 2. Parsear HTML
     onProgress('Analizando estructura HTML...', 5)
     const parser = new DOMParser()
     const doc = parser.parseFromString(text, 'text/html')
 
-    // 3. Find the main table
+    // 3. Encontrar tabla principal
     const tables = doc.querySelectorAll('table')
     let targetTable: HTMLTableElement | null = null
     let headerRowIndex = -1
-    let columnIndices: Record<string, number> = {}
+    const columnIndices: Record<string, number> = {}
 
     for (const table of Array.from(tables)) {
         const rows = Array.from(table.rows)
@@ -101,7 +147,7 @@ export async function processCitasFile(
                 targetTable = table
                 headerRowIndex = i
 
-                // First pass: exact matches only (prevents false positives)
+                // Primera pasada: coincidencias exactas
                 cells.forEach((headerText, index) => {
                     const dbCol = COLUMN_MAP[headerText]
                     if (dbCol && columnIndices[dbCol] === undefined) {
@@ -109,14 +155,13 @@ export async function processCitasFile(
                     }
                 })
 
-                // Second pass: fuzzy matches for unmatched columns (e.g., accents)
-                // Only match if the header text is similar length (within 3 chars) to avoid false positives
+                // Segunda pasada: coincidencias fuzzy
                 cells.forEach((headerText, index) => {
                     const key = Object.keys(COLUMN_MAP).find(k => {
-                        if (columnIndices[COLUMN_MAP[k]] !== undefined) return false // Already matched
+                        if (columnIndices[COLUMN_MAP[k]] !== undefined) return false
                         const normalizedKey = normalizeHeader(k)
                         const lengthDiff = Math.abs(headerText.length - normalizedKey.length)
-                        if (lengthDiff > 3) return false // Too different in length
+                        if (lengthDiff > 3) return false
                         return headerText.includes(normalizedKey) || normalizedKey.includes(headerText)
                     })
                     if (key) {
@@ -136,7 +181,11 @@ export async function processCitasFile(
         throw new Error('No se encontró la tabla de citas válida en el archivo.')
     }
 
-    // 4. Extract Unique CUPS to Validate (Optimization)
+    if (!columnIndices['id_cita']) {
+        throw new Error('No se encontró la columna ID CITA requerida.')
+    }
+
+    // 4. Validar CUPS
     onProgress('Validando códigos CUPS...', 10)
     const fileRows = Array.from(targetTable.rows).slice(headerRowIndex + 1)
     const uniqueCupsInFile = new Set<string>()
@@ -146,13 +195,11 @@ export async function processCitasFile(
         for (const row of fileRows) {
             const val = row.cells[cupsIndex]?.textContent?.trim()
             if (val) {
-                // Tomar solo los primeros 6 caracteres para validación contra maestro
                 uniqueCupsInFile.add(val.substring(0, 6).toUpperCase())
             }
         }
     }
 
-    // 5. Query Supabase only for those CUPS
     const validCupsSet = new Set<string>()
     const uniqueCupsArray = Array.from(uniqueCupsInFile)
 
@@ -165,9 +212,7 @@ export async function processCitasFile(
                 .select('cups')
                 .in('cups', chunk)
 
-            if (error) {
-                console.error('Error validating CUPS batch:', error)
-            } else if (data) {
+            if (!error && data) {
                 data.forEach(c => c.cups && validCupsSet.add(c.cups.trim().toUpperCase()))
             }
         }
@@ -175,65 +220,15 @@ export async function processCitasFile(
 
     const invalidCupsList: { id_cita: string; cups: string; descripcion: string }[] = []
 
-
-    if (!columnIndices['id_cita']) {
-        throw new Error('No se encontró la columna ID CITA requerida.')
-    }
-
-    // 4. Extract Data
-    onProgress('Extrayendo datos...', 10)
-    // Use a Map to deduplicate by id_cita automatically (last entry wins)
+    // 5. Extraer datos
+    onProgress('Extrayendo datos...', 15)
     const rowsMap = new Map<string, CitaRow>()
     let duplicates = 0
 
     const rows = Array.from(targetTable.rows).slice(headerRowIndex + 1)
 
-    // Helper to parse dates - supports multiple formats:
-    // - DD/MM/YYYY (legacy)
-    // - YYYY-MM-DD (ISO)
-    // - YYYY-MM-DD HH:MM (ISO with time)
-    // - YYYY-MM-DD HH:MM am/pm (ISO with time and am/pm)
-    const parseDate = (val: string) => {
-        if (!val || !val.trim()) return null
-        const trimmed = val.trim()
-
-        // Try DD/MM/YYYY format first (legacy)
-        const legacyMatch = trimmed.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/)
-        if (legacyMatch) {
-            return `${legacyMatch[3]}-${legacyMatch[2].padStart(2, '0')}-${legacyMatch[1].padStart(2, '0')}`
-        }
-
-        // Try ISO format YYYY-MM-DD (with optional time)
-        const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)
-        if (isoMatch) {
-            return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`
-        }
-
-        return null
-    }
-
-    // Calculate age between two dates
-    const calculateAge = (birthDateStr: string | null, refDateStr: string | null): number | null => {
-        if (!birthDateStr || !refDateStr) return null
-
-        // Ensure format YYYY-MM-DD for constructor
-        const d1 = new Date(birthDateStr)
-        const d2 = new Date(refDateStr)
-
-        if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return null
-
-        let age = d2.getFullYear() - d1.getFullYear()
-        const m = d2.getMonth() - d1.getMonth()
-        if (m < 0 || (m === 0 && d2.getDate() < d1.getDate())) {
-            age--
-        }
-        return age >= 0 ? age : 0
-    }
-
     for (const row of rows) {
         const cells = row.cells
-
-        // Skip empty rows
         if (cells.length < 2) continue
 
         const getItem = (col: keyof CitaRow) => {
@@ -243,39 +238,25 @@ export async function processCitasFile(
         }
 
         const id_cita = getItem('id_cita')
-        if (!id_cita) continue // Skip invalid rows without ID
+        if (!id_cita) continue
 
-        // Count as duplicate if we already have it
         if (rowsMap.has(id_cita)) {
             duplicates++
         }
 
         const fecha_nacimiento_raw = parseDate(getItem('fecha_nacimiento_temp'))
         const fecha_asignacion = parseDate(getItem('fecha_asignacion'))
-
-        // Always calculate age from birth date vs assignment date
         const finalAge = calculateAge(fecha_nacimiento_raw, fecha_asignacion)
 
-        // Clean estado_cita: "ATENDIDA - (Normal)" -> "ATENDIDA"
         const rawEstado = getItem('estado_cita')
         const estado_clean = rawEstado ? rawEstado.split(' -')[0].trim() : ''
-
-        // Clean duracion: "18 Minutos" -> "18 minutes", "-18 Minutos" -> "18 minutes"
-        const cleanDuration = (val: string) => {
-            if (!val) return null
-            const match = val.match(/-?(\d+)/)
-            if (match) {
-                return `${match[1]} minutes` // Always positive integer + ' minutes' for Postgres interval
-            }
-            return null
-        }
 
         const rowData: CitaRow = {
             id_cita,
             tipo_id: getItem('tipo_id'),
             identificacion: getItem('identificacion'),
             nombres_completos: getItem('nombres_completos'),
-            fecha_asignacion: fecha_asignacion,
+            fecha_asignacion,
             fecha_cita: parseDate(getItem('fecha_cita')),
             estado_cita: estado_clean,
             asunto: getItem('asunto'),
@@ -296,33 +277,30 @@ export async function processCitasFile(
             edad: finalAge,
             usuario_agenda: getItem('usuario_agenda') || null,
             usuario_confirma: getItem('usuario_confirma') || null
-            // Not including fecha_nacimiento_temp strictly in DB object
         }
 
-        // Validate CUPS integrity (Check first 6 characters)
+        // Validar CUPS
         const rowCupsFull = rowData.cups?.trim().toUpperCase()
         const rowCupsShort = rowCupsFull ? rowCupsFull.substring(0, 6) : ''
 
         if (rowCupsShort && !validCupsSet.has(rowCupsShort)) {
             invalidCupsList.push({
                 id_cita: rowData.id_cita,
-                cups: rowCupsFull || '', // Reportamos el código largo original
+                cups: rowCupsFull || '',
                 descripcion: rowData.procedimiento || 'Sin descripción'
             })
         }
 
-        // Remove temp field if it strictly needs to match DB (Supabase usually OK with extra fields if not stripping)
         delete rowData.fecha_nacimiento_temp
-
         rowsMap.set(id_cita, rowData)
     }
 
     const dataBatch = Array.from(rowsMap.values())
 
-    // 5. Upsert to Supabase
+    // 6. Upsert a Supabase
     onProgress(`Subiendo ${dataBatch.length} registros únicos...`, 20)
 
-    const BATCH_SIZE = 100 // Incremented to speed up imports, balance between speed and reliability
+    const BATCH_SIZE = 100
     let successCount = 0
     let errorCount = 0
 
@@ -340,8 +318,9 @@ export async function processCitasFile(
             successCount += chunk.length
         }
 
-        const percentage = Math.round((Math.min(i + BATCH_SIZE, dataBatch.length) / dataBatch.length) * 100)
-        onProgress(`Procesando... ${Math.min(i + BATCH_SIZE, dataBatch.length)} / ${dataBatch.length}`, percentage)
+        const processed = Math.min(i + BATCH_SIZE, dataBatch.length)
+        const percentage = 20 + Math.round((processed / dataBatch.length) * 80)
+        onProgress(`Procesando... ${processed} / ${dataBatch.length}`, percentage)
     }
 
     const endTime = performance.now()
@@ -350,10 +329,9 @@ export async function processCitasFile(
     const seconds = durationSeconds % 60
     const durationStr = `${minutes}m ${seconds}s`
 
-    // Generate CSV Report if needed (Deduplicated)
-    let invalidCupsReport: string | undefined
+    // Generar reporte CSV de CUPS inválidos
+    let errorReport: string | undefined
     if (invalidCupsList.length > 0) {
-        // Deduplicate by CUPS code to show unique missing codes
         const uniqueCupsMap = new Map<string, string>()
         invalidCupsList.forEach(item => {
             if (!uniqueCupsMap.has(item.cups)) {
@@ -362,15 +340,18 @@ export async function processCitasFile(
         })
 
         const headers = 'CUPS_NO_ENCONTRADO,DESCRIPCION_EJEMPLO\n'
-        const rows = Array.from(uniqueCupsMap.entries()).map(([cups, desc]) => `"${cups}","${desc}"`).join('\n')
-        invalidCupsReport = headers + rows
+        const csvRows = Array.from(uniqueCupsMap.entries())
+            .map(([cups, desc]) => `"${cups}","${desc}"`)
+            .join('\n')
+        errorReport = headers + csvRows
     }
 
-    // 6. Log history
+    // 7. Registrar en historial
     try {
         const { error: logError } = await supabase.from('import_history').insert({
             usuario: (await supabase.auth.getUser()).data.user?.email || 'unknown',
             archivo_nombre: file.name,
+            tipo_fuente: 'citas',
             total_registros: rowsMap.size + duplicates,
             exitosos: successCount,
             fallidos: errorCount,
@@ -388,9 +369,10 @@ export async function processCitasFile(
     return {
         success: successCount,
         errors: errorCount,
-        duplicates: duplicates,
+        duplicates,
         totalProcessed: rowsMap.size + duplicates,
         duration: durationStr,
-        invalidCupsReport
+        errorReport,
+        errorMessage: errorReport ? 'Algunos códigos CUPS no existen en el maestro.' : undefined
     }
 }

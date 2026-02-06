@@ -12,7 +12,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { sendGmailEmail, type InlineImage } from '../_shared/gmail-utils.ts'
-import { GESTAR_LOGO_BASE64 } from '../_shared/email-templates.ts'
+import { GESTAR_LOGO_BASE64, COLORS, EMAIL_FONTS } from '../_shared/email-templates.ts'
 
 interface CreateUserRequest {
     identificacion: string
@@ -34,27 +34,7 @@ const ROL_LABELS: Record<string, string> = {
     externo: 'Usuario Externo'
 }
 
-// Constantes de diseno - Paleta de colores GESTAR SALUD
-const COLORS = {
-    primary: '#0095EB',      // Azul principal
-    primaryDark: '#0077BC',  // Azul oscuro
-    primaryLight: '#E6F4FD', // Azul claro
-    accent: '#F3585D',       // Coral/Rojo (corazon del logo)
-    accentDark: '#E82D33',   // Coral oscuro
-    success: '#85C54C',      // Verde
-    successDark: '#6BA83B',  // Verde oscuro
-    successLight: '#F4FAF0', // Verde claro
-    slate50: '#F8FAFC',
-    slate100: '#F1F5F9',
-    slate500: '#64748B',
-    slate600: '#475569',
-    slate800: '#1E293B',
-    slate900: '#0F172A',
-    warning: '#F59E0B',
-    warningLight: '#FEF3C7',
-    error: '#DC2626',
-    errorLight: '#FEF2F2',
-}
+// Colores importados de _shared/email-templates.ts (COLORS)
 
 const PORTAL_URL = 'https://colaboradores.gestarsaludips.com.co'
 
@@ -71,7 +51,7 @@ function generarTemplateInterno(
     const rolLabel = ROL_LABELS[rol] || rol
 
     return `
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; color: ${COLORS.slate800}; max-width: 600px; margin: 0 auto; background-color: ${COLORS.slate50};">
+        <div style="font-family: ${EMAIL_FONTS.primary}; color: ${COLORS.slate800}; max-width: 600px; margin: 0 auto; background-color: ${COLORS.slate50};">
             <!-- Header con logo -->
             <div style="background: linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
                 <img src="cid:logo-gestar" alt="Gestar Salud IPS" style="height: 50px; margin-bottom: 15px;" />
@@ -157,7 +137,7 @@ function generarTemplateExterno(
     password: string
 ): string {
     return `
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; color: ${COLORS.slate800}; max-width: 600px; margin: 0 auto; background-color: ${COLORS.slate50};">
+        <div style="font-family: ${EMAIL_FONTS.primary}; color: ${COLORS.slate800}; max-width: 600px; margin: 0 auto; background-color: ${COLORS.slate50};">
             <!-- Header con logo -->
             <div style="background: linear-gradient(135deg, ${COLORS.success} 0%, ${COLORS.successDark} 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
                 <img src="cid:logo-gestar" alt="Gestar Salud IPS" style="height: 50px; margin-bottom: 15px;" />

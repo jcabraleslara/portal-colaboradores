@@ -47,11 +47,28 @@ export const COLORS = {
 
     // Estados
     warning: '#F59E0B',
+    warningDark: '#D97706',
     warningLight: '#FEF3C7',
     error: '#DC2626',
+    errorDark: '#991B1B',
     errorLight: '#FEF2F2',
     info: '#0EA5E9',
     infoLight: '#E0F2FE',
+
+    // Texto
+    text: '#1E293B',
+    textSecondary: '#64748B',
+
+    // Fondos
+    background: '#F8FAFC',
+} as const
+
+// ==========================================
+// TIPOGRAFIA ESTANDAR
+// ==========================================
+export const EMAIL_FONTS = {
+    primary: "'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif",
+    monospace: "'JetBrains Mono', 'Consolas', monospace",
 } as const
 
 // ==========================================
@@ -75,7 +92,7 @@ export function generarHeaderEmail(
 ): string {
     return `
         <div style="background: linear-gradient(135deg, ${colorPrimario} 0%, ${colorSecundario} 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
-            <img src="${LOGO_URL}" alt="Gestar Salud IPS" style="max-width: 200px; height: auto; margin-bottom: 15px;" />
+            <img src="cid:logo-gestar" alt="Gestar Salud IPS" style="height: 50px; margin-bottom: 12px;" />
             <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: white;">${titulo}</h1>
             ${subtitulo ? `<p style="margin: 8px 0 0 0; opacity: 0.9; font-size: 14px; color: white;">${subtitulo}</p>` : ''}
         </div>
@@ -86,16 +103,18 @@ export function generarHeaderEmail(
  * Genera el footer estandar para correos
  */
 export function generarFooterEmail(
-    mensaje: string = 'Este es un mensaje automatico del Portal de Colaboradores.',
-    submensaje: string = 'Gestar Salud IPS - Comprometidos con tu bienestar'
+    mensaje: string = 'Este es un mensaje automatico generado por el',
+    submensaje: string = 'Portal de Colaboradores de Gestar Salud IPS'
 ): string {
     return `
-        <div style="background-color: ${COLORS.slate800}; color: ${COLORS.slate500}; padding: 25px; text-align: center; border-radius: 0 0 12px 12px;">
-            <p style="margin: 0 0 8px 0; font-size: 13px; color: #94A3B8;">
-                ${mensaje}
+        <div style="background-color: #1E293B; padding: 20px 30px; text-align: center;">
+            <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.6;">
+                ${mensaje}<br />
+                <strong style="color: #E2E8F0;">${submensaje}</strong><br />
+                No responda a este correo.
             </p>
-            <p style="margin: 0; font-size: 12px; color: ${COLORS.slate500};">
-                <strong style="color: ${COLORS.primary};">${submensaje}</strong>
+            <p style="font-size: 11px; color: #64748B; margin: 12px 0 0 0;">
+                &#169; ${new Date().getFullYear()} Gestar Salud de Colombia IPS S.A.S.
             </p>
         </div>
     `
