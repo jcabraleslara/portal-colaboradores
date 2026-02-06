@@ -182,11 +182,12 @@ export const IMPORT_SOURCES: ImportSourceConfig[] = [
         description: 'Procedimientos quirúrgicos',
         icon: Scissors,
         category: 'clinico',
-        status: 'coming-soon',
+        status: 'active',
         gradient: COLOR_PALETTES.amber,
         expectedFileName: 'Cirugias.xls',
         acceptedFileTypes: EXCEL_FILE_TYPES,
         maxFileSize: 50 * 1024 * 1024,
+        targetTable: 'cirugias',
     },
     {
         id: 'citas',

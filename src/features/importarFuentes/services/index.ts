@@ -5,10 +5,12 @@
 
 import type { ImportSourceId, ImportProcessorFn } from '../types/import.types'
 import { processCitasFile } from './citasImportService'
+import { processCirugiasFile } from './cirugiasImportService'
 import { processIncapacidadesFile } from './incapacidadesImportService'
 
 // Re-export para compatibilidad con código existente
 export { processCitasFile } from './citasImportService'
+export { processCirugiasFile } from './cirugiasImportService'
 export { processIncapacidadesFile } from './incapacidadesImportService'
 
 /**
@@ -17,10 +19,8 @@ export { processIncapacidadesFile } from './incapacidadesImportService'
  */
 const IMPORT_PROCESSORS: Partial<Record<ImportSourceId, ImportProcessorFn>> = {
     'citas': processCitasFile,
+    'cirugias': processCirugiasFile,
     'incapacidades': processIncapacidadesFile,
-    // Agregar nuevos procesadores aquí:
-    // 'cirugias': processCirugiasFile,
-    // etc.
 }
 
 /**
