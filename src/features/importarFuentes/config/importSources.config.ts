@@ -231,11 +231,12 @@ export const IMPORT_SOURCES: ImportSourceConfig[] = [
         description: 'Registro de incapacidades',
         icon: BedDouble,
         category: 'clinico',
-        status: 'coming-soon',
+        status: 'active',
         gradient: COLOR_PALETTES.amber,
         expectedFileName: 'Incapacidades.xls',
         acceptedFileTypes: EXCEL_FILE_TYPES,
         maxFileSize: 50 * 1024 * 1024,
+        targetTable: 'incapacidades',
     },
     {
         id: 'laboratorios',
