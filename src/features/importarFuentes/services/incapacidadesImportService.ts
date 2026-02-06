@@ -298,7 +298,8 @@ export async function processIncapacidadesFile(
             console.error('Error en RPC importar_incapacidades:', error)
             errorCount += chunk.length
         } else if (data) {
-            successCount += (data.insertados || 0)
+            // Tanto insertados como actualizados son importaciones exitosas
+            successCount += (data.insertados || 0) + (data.actualizados || 0)
             dbDuplicates += (data.actualizados || 0)
             cie10Invalidos += (data.cie10_invalidos || 0)
         }
@@ -368,7 +369,7 @@ export async function processIncapacidadesFile(
             total_registros: rowsMap.size + fileDuplicates + skippedRows,
             exitosos: successCount,
             fallidos: errorCount + cie10Invalidos,
-            duplicados: dbDuplicates + fileDuplicates,
+            duplicados: fileDuplicates,
             duracion: durationStr,
             detalles: {
                 cie10_invalidos: cie10Invalidos,
@@ -392,7 +393,7 @@ export async function processIncapacidadesFile(
     return {
         success: successCount,
         errors: errorCount + cie10Invalidos,
-        duplicates: dbDuplicates + fileDuplicates,
+        duplicates: fileDuplicates,
         totalProcessed: rowsMap.size + fileDuplicates + skippedRows,
         duration: durationStr,
         errorReport,
