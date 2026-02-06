@@ -257,11 +257,12 @@ export const IMPORT_SOURCES: ImportSourceConfig[] = [
         description: 'Órdenes médicas emitidas',
         icon: ClipboardList,
         category: 'clinico',
-        status: 'coming-soon',
+        status: 'active',
         gradient: COLOR_PALETTES.blue,
         expectedFileName: 'Ordenamientos.xls',
         acceptedFileTypes: EXCEL_FILE_TYPES,
         maxFileSize: 50 * 1024 * 1024,
+        targetTable: 'ordenamientos',
     },
     {
         id: 'recetas',
