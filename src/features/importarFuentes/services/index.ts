@@ -8,12 +8,14 @@ import { processCitasFile } from './citasImportService'
 import { processCirugiasFile } from './cirugiasImportService'
 import { processIncapacidadesFile } from './incapacidadesImportService'
 import { processOrdenamientosFile } from './ordenamientosImportService'
+import { processImagenesFile } from './imagenesImportService'
 
 // Re-export para compatibilidad con código existente
 export { processCitasFile } from './citasImportService'
 export { processCirugiasFile } from './cirugiasImportService'
 export { processIncapacidadesFile } from './incapacidadesImportService'
 export { processOrdenamientosFile } from './ordenamientosImportService'
+export { processImagenesFile } from './imagenesImportService'
 
 /**
  * Registro de procesadores por fuente
@@ -24,6 +26,7 @@ const IMPORT_PROCESSORS: Partial<Record<ImportSourceId, ImportProcessorFn>> = {
     'cirugias': processCirugiasFile,
     'incapacidades': processIncapacidadesFile,
     'ordenamientos': processOrdenamientosFile,
+    'imagenes': processImagenesFile,
 }
 
 /**
