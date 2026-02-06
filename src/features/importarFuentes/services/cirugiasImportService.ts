@@ -91,22 +91,22 @@ const cleanId = (val: string): string => {
 
 /**
  * Normaliza código CUPS del sistema clínico
- * Ejemplos: 5340010000 → 534001, 70101 → 070101
+ * El sistema agrega padding de ceros a la derecha (ej: 534001 → 5340010000)
+ * Ejemplos: 5340010000 → 534001, 6400000000 → 640000, 70101 → 070101
  */
 const normalizeCups = (val: string): string | null => {
     let cups = val.trim().replace(/\.0$/, '')
     if (!cups) return null
 
-    // Quitar ceros trailing excesivos (ej: 5340010000 → 534001)
-    if (cups.length > 6) cups = cups.replace(/0{4,}$/, '')
+    // Si tiene más de 6 dígitos, tomar solo los primeros 6
+    // (el sistema clínico rellena con ceros a la derecha)
+    if (cups.length > 6) cups = cups.substring(0, 6)
 
     // Pad con cero a la izquierda si tiene 5 dígitos (ej: 70101 → 070101)
     if (cups.length === 5) cups = '0' + cups
 
-    // Tomar solo los primeros 6 caracteres
-    cups = cups.substring(0, 6)
-
-    return cups || null
+    // CUPS válido debe tener exactamente 6 dígitos
+    return cups.length === 6 ? cups : null
 }
 
 /**
