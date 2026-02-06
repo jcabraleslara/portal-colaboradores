@@ -15,8 +15,9 @@ interface FileDropzoneProps {
 export function FileDropzone({
     onFileSelected,
     acceptedFileTypes = {
-        'text/html': ['.xls'], // Hack for "fake" xls that are actually HTML
+        'text/html': ['.xls'],
         'application/vnd.ms-excel': ['.xls'],
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
     },
     maxSize = 10 * 1024 * 1024, // 10MB default
     label = 'Arrastra tu archivo aquí o haz clic para buscar',

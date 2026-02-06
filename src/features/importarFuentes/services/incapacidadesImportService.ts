@@ -1,12 +1,13 @@
 /**
  * Servicio de importación para Incapacidades
- * Procesa archivos XLS (HTML) del sistema clínico
+ * Procesa archivos XLS/XLSX del sistema clínico
  * Tabla destino: public.incapacidades (PK: fecha, id)
  * FK: dx1 → cie10(cie10)
  */
 
 import { supabase } from '@/config/supabase.config'
 import type { ImportResult, ImportProgressCallback } from '../types/import.types'
+import { parseSpreadsheetFile } from '../utils/parseSpreadsheet'
 
 export interface IncapacidadRow {
     fecha: string | null
@@ -91,13 +92,9 @@ export async function processIncapacidadesFile(
 ): Promise<ImportResult> {
     const startTime = performance.now()
 
-    // ═══ Fase 1: Leer + parsear HTML (0-5%) ═══
+    // ═══ Fase 1: Leer + parsear archivo (0-5%) ═══
     onProgress('Leyendo archivo...', 0)
-    const text = await file.text()
-
-    onProgress('Analizando estructura HTML...', 3)
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(text, 'text/html')
+    const doc = await parseSpreadsheetFile(file)
 
     // ═══ Fase 2: Detectar tabla + mapear columnas (5-10%) ═══
     onProgress('Detectando tabla de datos...', 5)

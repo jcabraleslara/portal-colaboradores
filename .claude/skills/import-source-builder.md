@@ -12,6 +12,8 @@ src/features/importarFuentes/
 │   └── importSources.config.ts   # Configuración de las 15 fuentes (id, status, icon, etc.)
 ├── types/
 │   └── import.types.ts            # ImportSourceId, ImportResult, ImportProcessorFn, etc.
+├── utils/
+│   └── parseSpreadsheet.ts        # Parseo multi-formato (HTML-XLS, XLS binario, XLSX)
 ├── services/
 │   ├── index.ts                   # Registro IMPORT_PROCESSORS (mapa sourceId → función)
 │   ├── citasImportService.ts      # Patrón de referencia (379 líneas)
@@ -46,11 +48,12 @@ Para agregar una nueva fuente de importación:
 ```typescript
 /**
  * Servicio de importación para <Fuente>
- * Procesa archivos XLS (HTML) del sistema <origen>
+ * Procesa archivos XLS/XLSX del sistema <origen>
  */
 
 import { supabase } from '@/config/supabase.config'
 import type { ImportResult, ImportProgressCallback } from '../types/import.types'
+import { parseSpreadsheetFile } from '../utils/parseSpreadsheet'
 
 export interface <Fuente>Row {
     // Campos que mapean 1:1 con la tabla destino
@@ -107,10 +110,9 @@ export async function process<Fuente>File(
     const startTime = performance.now()
 
     // ═══ Fase 1: Leer archivo (0-5%) ═══
+    // parseSpreadsheetFile detecta automáticamente HTML vs Excel binario
     onProgress('Leyendo archivo...', 0)
-    const text = await file.text()
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(text, 'text/html')
+    const doc = await parseSpreadsheetFile(file)
 
     // ═══ Fase 2: Detectar tabla + mapear columnas (5-10%) ═══
     onProgress('Analizando estructura...', 5)
@@ -213,7 +215,15 @@ $$;
 
 ## 5. Formato de Archivos Fuente
 
-### Detección HTML disfrazado vs XLSX real
+### Soporte multi-formato (HTML, XLS, XLSX)
+
+La utilidad `parseSpreadsheetFile()` en `utils/parseSpreadsheet.ts` detecta automáticamente el formato:
+- **HTML disfrazado de XLS**: Detecta `<` en los primeros bytes → parsea como HTML
+- **XLS binario / XLSX**: Usa SheetJS (`xlsx`) → convierte la primera hoja a HTML → parsea como Document
+
+Todos los servicios reciben un `Document` HTML uniforme, sin importar el formato original del archivo.
+
+### HTML disfrazado (formato más común)
 
 Los archivos `.xls` del sistema clínico son **HTML disfrazados** (no binarios Excel). Patrón:
 

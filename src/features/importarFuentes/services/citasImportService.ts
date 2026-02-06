@@ -1,10 +1,11 @@
 /**
  * Servicio de importación para Citas
- * Procesa archivos XLS (HTML) del sistema de agenda
+ * Procesa archivos XLS/XLSX del sistema de agenda
  */
 
 import { supabase } from '@/config/supabase.config'
 import type { ImportResult, ImportProgressCallback } from '../types/import.types'
+import { parseSpreadsheetFile } from '../utils/parseSpreadsheet'
 
 export interface CitaRow {
     id_cita: string
@@ -122,14 +123,12 @@ export async function processCitasFile(
 ): Promise<ImportResult> {
     const startTime = performance.now()
 
-    // 1. Leer archivo
+    // 1. Leer y parsear archivo (HTML, XLS o XLSX)
     onProgress('Leyendo archivo...', 0)
-    const text = await file.text()
+    const doc = await parseSpreadsheetFile(file)
 
-    // 2. Parsear HTML
-    onProgress('Analizando estructura HTML...', 5)
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(text, 'text/html')
+    // 2. Analizar estructura
+    onProgress('Analizando estructura...', 5)
 
     // 3. Encontrar tabla principal
     const tables = doc.querySelectorAll('table')
