@@ -14,7 +14,7 @@ export interface IncapacidadRow {
     id: string
     nombres_completos: string
     contrato: string
-    dx1: string
+    dx1: string | null
     medico: string
     especialidad: string
     fecha_inicio: string | null
@@ -177,7 +177,7 @@ export async function processIncapacidadesFile(
             id: identificacion,
             nombres_completos: getItem('nombres_completos').trim(),
             contrato: getItem('contrato').trim(),
-            dx1: getItem('dx1').trim().toUpperCase(),
+            dx1: getItem('dx1').trim().toUpperCase() || null,
             medico: getItem('medico').trim(),
             especialidad: getItem('especialidad').trim(),
             fecha_inicio: parseDate(getItem('fecha_inicio')),
