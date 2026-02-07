@@ -33,8 +33,8 @@ export const SECURITY = {
     MAX_LOGIN_ATTEMPTS: Number(import.meta.env.VITE_MAX_LOGIN_ATTEMPTS) || 5,
     // Duración del bloqueo en milisegundos (15 minutos por defecto)
     LOCKOUT_DURATION_MS: Number(import.meta.env.VITE_LOCKOUT_DURATION_MS) || 900000,
-    // Timeout de sesión por inactividad (30 minutos)
-    SESSION_TIMEOUT_MS: Number(import.meta.env.VITE_SESSION_TIMEOUT_MS) || 3600000,
+    // Timeout de sesión por inactividad (10 horas = jornada laboral completa)
+    SESSION_TIMEOUT_MS: Number(import.meta.env.VITE_SESSION_TIMEOUT_MS) || 36000000,
     // Clave para localStorage (debe coincidir con supabase.config.ts storageKey)
     AUTH_STORAGE_KEY: 'gestar-auth-token',
     // Requisitos de contraseña

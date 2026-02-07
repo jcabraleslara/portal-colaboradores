@@ -14,10 +14,11 @@ import { useAuth } from '@/context/AuthContext'
 const ACTIVITY_EVENTS = [
     'mousedown',
     'mousemove',
-    'keypress',
+    'keydown',
     'scroll',
     'touchstart',
     'click',
+    'focus',
 ] as const
 
 interface UseInactivityTimeoutOptions {

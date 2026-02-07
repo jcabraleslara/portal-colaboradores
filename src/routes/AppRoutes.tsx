@@ -62,10 +62,10 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     const { isAuthenticated, isLoading } = useAuth()
 
     // Activar timeout de inactividad (configurable en constants.ts -> SESSION_TIMEOUT_MS)
-    // Muestra advertencia 1 minuto antes de cerrar sesión
+    // Muestra advertencia 5 minutos antes de cerrar sesión
     useInactivityTimeout({
         enabled: isAuthenticated,
-        warningTimeMs: 60000, // 1 minuto de advertencia
+        warningTimeMs: 300000, // 5 minutos de advertencia
     })
 
     if (isLoading) {
