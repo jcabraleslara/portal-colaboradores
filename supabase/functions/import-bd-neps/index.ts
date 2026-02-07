@@ -36,14 +36,6 @@ interface MailMessage {
     receivedDateTime: string
 }
 
-interface MailAttachment {
-    id: string
-    name: string
-    contentType: string
-    contentBytes: string
-    size: number
-}
-
 interface TipoIdRow {
     afi_tid_codigo: string
     tipo_id: string
@@ -189,18 +181,45 @@ function separarLoteMasReciente(messages: MailMessage[]): {
     return { loteReciente, correosViejos }
 }
 
-async function getMessageAttachments(token: string, messageId: string): Promise<MailAttachment[]> {
-    const url = `${GRAPH_BASE}/users/${EMAIL_USER}/messages/${messageId}/attachments?$select=id,name,contentType,contentBytes,size`
+interface AttachmentMeta {
+    id: string
+    name: string
+    size: number
+}
+
+/**
+ * Listar metadatos de adjuntos (sin contentBytes para evitar error 400 en archivos grandes)
+ */
+async function listAttachmentsMeta(token: string, messageId: string): Promise<AttachmentMeta[]> {
+    const url = `${GRAPH_BASE}/users/${EMAIL_USER}/messages/${messageId}/attachments?$select=id,name,size`
     const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
     })
 
     if (!res.ok) {
-        throw new Error(`Error obteniendo adjuntos del mensaje ${messageId}: ${res.status}`)
+        console.error(`Error listando adjuntos del mensaje ${messageId}: ${res.status}`)
+        return []
     }
 
     const data = await res.json()
-    return (data.value || []) as MailAttachment[]
+    return (data.value || []) as AttachmentMeta[]
+}
+
+/**
+ * Descargar contenido binario de un adjunto via endpoint /$value
+ */
+async function downloadAttachmentContent(token: string, messageId: string, attachmentId: string): Promise<Uint8Array> {
+    const url = `${GRAPH_BASE}/users/${EMAIL_USER}/messages/${messageId}/attachments/${attachmentId}/$value`
+    const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+    })
+
+    if (!res.ok) {
+        throw new Error(`Error descargando adjunto ${attachmentId}: ${res.status}`)
+    }
+
+    const buffer = await res.arrayBuffer()
+    return new Uint8Array(buffer)
 }
 
 async function deleteMessage(token: string, messageId: string): Promise<void> {
@@ -395,23 +414,20 @@ Deno.serve(async (req) => {
 
                 for (let i = 0; i < loteConAdjuntos.length; i++) {
                     const msg = loteConAdjuntos[i]
-                    const attachments = await getMessageAttachments(accessToken, msg.id)
+                    const metas = await listAttachmentsMeta(accessToken, msg.id)
 
-                    const zipAttachments = attachments.filter(
-                        att => att.name.toLowerCase().endsWith('.zip') && att.contentBytes
-                    )
+                    const zipMetas = metas.filter(m => m.name.toLowerCase().endsWith('.zip'))
 
-                    for (const att of zipAttachments) {
-                        // Decodificar base64 a Uint8Array
-                        const binaryStr = atob(att.contentBytes)
-                        const bytes = new Uint8Array(binaryStr.length)
-                        for (let j = 0; j < binaryStr.length; j++) {
-                            bytes[j] = binaryStr.charCodeAt(j)
+                    for (const meta of zipMetas) {
+                        try {
+                            const bytes = await downloadAttachmentContent(accessToken, msg.id, meta.id)
+                            zipBuffers.push({ data: bytes, msgId: msg.id, name: meta.name })
+                        } catch (dlErr) {
+                            console.error(`Error descargando ZIP ${meta.name} del mensaje ${msg.id}:`, dlErr)
                         }
-                        zipBuffers.push({ data: bytes, msgId: msg.id, name: att.name })
                     }
 
-                    if (zipAttachments.length > 0) {
+                    if (zipMetas.length > 0) {
                         processedMessageIds.push(msg.id)
                     }
 
