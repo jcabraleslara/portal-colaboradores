@@ -305,7 +305,7 @@ export async function processSigiresNepsFile(
 
     let totalInsertados = 0
     let totalActualizados = 0
-    let totalOmitidosNeps = 0
+    let totalComplementados = 0
     let errorCount = 0
 
     const RPC_BATCH = 5000
@@ -323,7 +323,7 @@ export async function processSigiresNepsFile(
         } else if (data) {
             totalInsertados += (data.insertados || 0)
             totalActualizados += (data.actualizados || 0)
-            totalOmitidosNeps += (data.omitidos_neps || 0)
+            totalComplementados += (data.complementados || 0)
         }
 
         const processed = Math.min(i + RPC_BATCH, validRows.length)
@@ -358,7 +358,7 @@ export async function processSigiresNepsFile(
         `Registros unicos,${rowsMap.size}`,
         `Insertados nuevos,${totalInsertados}`,
         `Actualizados,${totalActualizados}`,
-        `Omitidos (ya son BD_NEPS),${totalOmitidosNeps}`,
+        `Complementados (BD_NEPS),${totalComplementados}`,
         `Retirados a PORTAL_COLABORADORES,${retirados}`,
         `Duplicados en archivo,${fileDuplicates}`,
         `Descartados (sin tipo_id/id),${stats.skippedRows}`,
@@ -405,14 +405,14 @@ export async function processSigiresNepsFile(
             archivo_nombre: file.name,
             tipo_fuente: 'bd-sigires-neps',
             total_registros: totalLinesRead,
-            exitosos: totalInsertados + totalActualizados,
+            exitosos: totalInsertados + totalActualizados + totalComplementados,
             fallidos: errorCount,
             duplicados: fileDuplicates,
             duracion: durationStr,
             detalles: {
                 insertados: totalInsertados,
                 actualizados: totalActualizados,
-                omitidos_neps: totalOmitidosNeps,
+                complementados_neps: totalComplementados,
                 retirados,
                 cruces_ips_correctos: stats.crucesIpsCorrectos,
                 cruces_ips_fallidos: stats.crucesIpsFallidos,
@@ -429,12 +429,12 @@ export async function processSigiresNepsFile(
 
     const errorMessages: string[] = []
     if (retirados > 0) errorMessages.push(`${retirados} registros retirados a "VALIDAR EN PORTAL EPS"`)
-    if (totalOmitidosNeps > 0) errorMessages.push(`${totalOmitidosNeps} registros omitidos (ya son BD_NEPS)`)
+    if (totalComplementados > 0) errorMessages.push(`${totalComplementados} registros BD_NEPS complementados`)
     if (stats.crucesIpsFallidos > 0) errorMessages.push(`${stats.crucesIpsFallidos} códigos IPS no encontrados en tabla RED`)
     if (errorCount > 0) errorMessages.push(`${errorCount} registros con error de procesamiento`)
 
     return {
-        success: totalInsertados + totalActualizados,
+        success: totalInsertados + totalActualizados + totalComplementados,
         errors: errorCount,
         duplicates: fileDuplicates,
         totalProcessed: totalLinesRead,
