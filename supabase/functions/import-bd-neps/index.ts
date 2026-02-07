@@ -560,6 +560,10 @@ Deno.serve(async (req) => {
                         const pafCodigo = limpiarCampo(fields[18])
                         const regimen = resolverRegimen(pafCodigo)
 
+                        // Telefono: solo importar si inicia con 3 y tiene exactamente 10 digitos
+                        const telefonoRaw = limpiarCampo(fields[15]).replace(/\D/g, '')
+                        const telefono = (telefonoRaw.startsWith('3') && telefonoRaw.length === 10) ? telefonoRaw : ''
+
                         const record: BdRecord = {
                             tipo_id: tipoId,
                             id: docId,
@@ -568,7 +572,7 @@ Deno.serve(async (req) => {
                             nombres: limpiarCampo(fields[8]),
                             sexo: limpiarCampo(fields[13]).toUpperCase(),
                             direccion: limpiarCampo(fields[14]),
-                            telefono: limpiarCampo(fields[15]),
+                            telefono,
                             fecha_nacimiento: convertirFecha(limpiarCampo(fields[16])),
                             estado: limpiarCampo(fields[20]).toUpperCase(),
                             municipio,
