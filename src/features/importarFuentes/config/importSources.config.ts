@@ -81,11 +81,11 @@ const EXCEL_FILE_TYPES = {
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
 }
 
-// CSV_FILE_TYPES disponible para fuentes que usen CSV en el futuro
-// const CSV_FILE_TYPES = {
-//     'text/csv': ['.csv'],
-//     'text/plain': ['.txt', '.csv'],
-// }
+/** Tipos de archivo TXT/TSV */
+const TXT_FILE_TYPES = {
+    'text/plain': ['.txt'],
+    'text/tab-separated-values': ['.tsv', '.txt'],
+}
 
 /**
  * Lista completa de fuentes de importación
@@ -131,14 +131,15 @@ export const IMPORT_SOURCES: ImportSourceConfig[] = [
     {
         id: 'bd-salud-total',
         name: 'BD Salud Total',
-        description: 'Base de datos Salud Total',
+        description: 'Base de datos Salud Total (Cerete)',
         icon: HardDrive,
         category: 'bases-datos',
-        status: 'coming-soon',
+        status: 'active',
         gradient: COLOR_PALETTES.blue,
-        expectedFileName: 'BD_Salud_Total.xls',
-        acceptedFileTypes: EXCEL_FILE_TYPES,
+        expectedFileName: 'BD_ST_CERETE.txt',
+        acceptedFileTypes: TXT_FILE_TYPES,
         maxFileSize: 100 * 1024 * 1024,
+        targetTable: 'bd',
     },
     {
         id: 'bd-sigires-neps',
@@ -155,14 +156,15 @@ export const IMPORT_SOURCES: ImportSourceConfig[] = [
     {
         id: 'bd-sigires-st',
         name: 'BD Sigires ST',
-        description: 'Sigires de Salud Total',
+        description: 'Sigires de Salud Total (PGP)',
         icon: ServerCog,
         category: 'bases-datos',
-        status: 'coming-soon',
+        status: 'active',
         gradient: COLOR_PALETTES.slate,
-        expectedFileName: 'Sigires_ST.xls',
+        expectedFileName: 'Sigires_ST.xlsx',
         acceptedFileTypes: EXCEL_FILE_TYPES,
         maxFileSize: 100 * 1024 * 1024,
+        targetTable: 'bd',
     },
     {
         id: 'cervix',

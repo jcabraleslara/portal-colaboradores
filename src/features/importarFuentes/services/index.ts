@@ -9,6 +9,8 @@ import { processCirugiasFile } from './cirugiasImportService'
 import { processIncapacidadesFile } from './incapacidadesImportService'
 import { processOrdenamientosFile } from './ordenamientosImportService'
 import { processImagenesFile } from './imagenesImportService'
+import { processBdSaludTotalFile } from './bdSaludTotalImportService'
+import { processBdSigiresSTFile } from './bdSigiresSTimportService'
 
 // Re-export para compatibilidad con código existente
 export { processCitasFile } from './citasImportService'
@@ -16,6 +18,8 @@ export { processCirugiasFile } from './cirugiasImportService'
 export { processIncapacidadesFile } from './incapacidadesImportService'
 export { processOrdenamientosFile } from './ordenamientosImportService'
 export { processImagenesFile } from './imagenesImportService'
+export { processBdSaludTotalFile } from './bdSaludTotalImportService'
+export { processBdSigiresSTFile } from './bdSigiresSTimportService'
 
 /**
  * Registro de procesadores por fuente
@@ -27,6 +31,8 @@ const IMPORT_PROCESSORS: Partial<Record<ImportSourceId, ImportProcessorFn>> = {
     'incapacidades': processIncapacidadesFile,
     'ordenamientos': processOrdenamientosFile,
     'imagenes': processImagenesFile,
+    'bd-salud-total': processBdSaludTotalFile,
+    'bd-sigires-st': processBdSigiresSTFile,
 }
 
 /**
