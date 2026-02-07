@@ -783,12 +783,18 @@ Deno.serve(async (req) => {
 
                     try {
                         const { data: rpcResult, error: rpcError } = await supabase.rpc('upsert_bd_batch', {
-                            registros: JSON.stringify(batch),
+                            registros: batch,
                             p_fuente: 'BD_NEPS',
                         })
 
                         if (rpcError) {
                             console.error(`Error en batch ${batchIdx + 1}:`, rpcError)
+                            // Enviar error RPC via NDJSON para diagnostico en browser
+                            send({
+                                phase: 'upsert_diag',
+                                status: `ERROR batch ${batchIdx + 1}: ${rpcError.message} (code: ${rpcError.code}, hint: ${rpcError.hint || 'N/A'})`,
+                                pct: 72,
+                            })
                             totalErrores += batch.length
                         } else if (rpcResult) {
                             totalInsertados += rpcResult.insertados || 0
