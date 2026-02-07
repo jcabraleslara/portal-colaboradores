@@ -403,8 +403,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         await handleAuthSession(session, event)
                         break
 
-                    case 'SIGNED_OUT':
-                        log.warn('SIGNED_OUT recibido de Supabase - cerrando sesión')
+                    case 'SIGNED_OUT': {
+                        // Supabase emite SIGNED_OUT espurios durante refreshes e inicialización.
+                        // Verificar que la sesión realmente se perdió antes de cerrar.
+                        const { data: { session: activeSession } } = await supabase.auth.getSession()
+                        if (activeSession) {
+                            log.debug('SIGNED_OUT ignorado - sesión aún activa')
+                            break
+                        }
+                        log.warn('SIGNED_OUT confirmado - sesión realmente cerrada')
                         clearProfileCache()
                         setUser(null)
                         userRef.current = null
@@ -413,6 +420,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         processingAuth.current = false
                         backgroundFetchDone.current = false
                         break
+                    }
 
                     case 'TOKEN_REFRESHED':
                         // Extender el caché del perfil cuando el token se renueva
