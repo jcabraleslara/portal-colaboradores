@@ -125,7 +125,9 @@ export const authService = {
 
             // 3. El rol viene directamente de la tabla usuarios_portal
             const rol = usuarioPortal.rol || 'operativo'
-            const primerLogin = authData.user.user_metadata?.primer_login !== false
+            // primer_login es true SOLO si está explícitamente en true.
+            // Si es null/undefined (usuarios pre-existentes), se asume que ya cambiaron contraseña.
+            const primerLogin = authData.user.user_metadata?.primer_login === true
 
             // 4. Construir objeto de usuario (nombre ya viene concatenado de usuarios_portal)
             const user: AuthUser = {
