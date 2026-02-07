@@ -36,8 +36,9 @@ export const authService = {
         try {
             console.log(`🔐 Iniciando login para: ${identificacion}`)
 
-            // 0. Limpiar cualquier sesión previa corrupta para evitar bloqueos
-            await supabase.auth.signOut()
+            // signInWithPassword() reemplaza cualquier sesión existente automáticamente.
+            // NO llamar signOut() aquí: dispara eventos SIGNED_OUT espurios que
+            // interfieren con el flujo de login y causan cierres de sesión inesperados.
 
             // 1. Buscar el usuario en usuarios_portal por identificación
             // Usamos .then(res => res) para convertir el PostgrestBuilder en una Promise real compatible con withTimeout
