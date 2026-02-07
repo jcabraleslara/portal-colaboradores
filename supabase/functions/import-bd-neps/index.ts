@@ -444,10 +444,26 @@ Deno.serve(async (req) => {
                         try {
                             console.log(`[BD_NEPS] Fase 4: Descargando ZIP "${meta.name}" (${meta.size} bytes)...`)
                             const bytes = await downloadAttachmentContent(accessToken, msg.id, meta.id)
-                            console.log(`[BD_NEPS] Fase 4: ZIP descargado OK, ${bytes.length} bytes`)
+                            const isZipSignature = bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4B
+                            console.log(`[BD_NEPS] Fase 4: ZIP descargado OK, ${bytes.length} bytes, isZip=${isZipSignature}, first4=[${bytes.slice(0, 4)}]`)
+
+                            // Diagnostico: primer ZIP descargado
+                            if (zipBuffers.length === 0) {
+                                send({
+                                    phase: 'download_diag',
+                                    status: `Primer ZIP "${meta.name}": ${bytes.length} bytes (meta.size=${meta.size}), isZip=${isZipSignature}, first4=[${Array.from(bytes.slice(0, 4))}]`,
+                                    pct: 20,
+                                })
+                            }
+
                             zipBuffers.push({ data: bytes, msgId: msg.id, name: meta.name })
                         } catch (dlErr) {
                             console.error(`[BD_NEPS] Error descargando ZIP ${meta.name} del mensaje ${msg.id}:`, dlErr)
+                            send({
+                                phase: 'download_diag',
+                                status: `ERROR descargando "${meta.name}": ${dlErr instanceof Error ? dlErr.message : String(dlErr)}`,
+                                pct: 20,
+                            })
                         }
                     }
 
@@ -492,7 +508,21 @@ Deno.serve(async (req) => {
                 for (let i = 0; i < zipBuffers.length; i++) {
                     const { data, name } = zipBuffers[i]
                     try {
-                        console.log(`[BD_NEPS] Fase 5: ZIP "${name}" (${data.length} bytes)`)
+                        // Verificar firma ZIP (PK = 0x50 0x4B)
+                        const isValidZip = data.length >= 4 && data[0] === 0x50 && data[1] === 0x4B
+                        console.log(`[BD_NEPS] Fase 5: ZIP "${name}" (${data.length} bytes, validZip=${isValidZip}, primeros4=[${data.slice(0, 4)}])`)
+
+                        if (!isValidZip) {
+                            // Enviar diagnostico: el archivo no es un ZIP valido
+                            const previewText = new TextDecoder('utf-8', { fatal: false }).decode(data.slice(0, 500))
+                            send({
+                                phase: 'extract_diag',
+                                status: `DIAGNOSTICO: "${name}" NO es ZIP valido. Primeros bytes: [${data.slice(0, 8)}]. Preview texto: ${previewText.substring(0, 300)}`,
+                                pct: 27,
+                            })
+                            continue
+                        }
+
                         const zip = await JSZip.loadAsync(data)
                         const allFiles = Object.keys(zip.files)
                         console.log(`[BD_NEPS] Fase 5: Archivos en ZIP: ${allFiles.length}`, allFiles.slice(0, 5))
@@ -504,11 +534,29 @@ Deno.serve(async (req) => {
                         for (const csvFile of csvFiles) {
                             const csvBytes = await zip.files[csvFile].async('uint8array')
                             const csvText = decodificarTexto(csvBytes)
-                            console.log(`[BD_NEPS] Fase 5: CSV "${csvFile}" - ${csvBytes.length} bytes, ${csvText.split('\n').length} lineas, primeros 200 chars: "${csvText.substring(0, 200)}"`)
+                            const lineCount = csvText.split(/\r?\n|\r/).length
+                            const first300 = csvText.substring(0, 300)
+                            const hasLF = csvText.includes('\n')
+                            const hasCR = csvText.includes('\r')
+
+                            console.log(`[BD_NEPS] Fase 5: CSV "${csvFile}" - ${csvBytes.length} bytes, ${lineCount} lineas, hasLF=${hasLF}, hasCR=${hasCR}, primeros 300 chars: "${first300}"`)
+
+                            // Enviar diagnostico via NDJSON para ver en browser
+                            send({
+                                phase: 'extract_diag',
+                                status: `CSV "${csvFile}": ${csvBytes.length} bytes, ${lineCount} lineas, LF=${hasLF}, CR=${hasCR}. Preview: ${first300.substring(0, 200)}`,
+                                pct: 27,
+                            })
+
                             csvTexts.push(csvText)
                         }
                     } catch (err) {
                         console.error(`[BD_NEPS] Error extrayendo ZIP ${name}:`, err)
+                        send({
+                            phase: 'extract_diag',
+                            status: `ERROR extrayendo "${name}": ${err instanceof Error ? err.message : String(err)}`,
+                            pct: 27,
+                        })
                     }
 
                     const pct = 27 + Math.round((i / zipBuffers.length) * 8)
@@ -580,20 +628,40 @@ Deno.serve(async (req) => {
                 let descartadasPorTipoId = 0
 
                 for (let csvIdx = 0; csvIdx < csvTexts.length; csvIdx++) {
-                    const lines = csvTexts[csvIdx].split('\n')
+                    // Usar regex para soportar todos los tipos de fin de linea: \r\n (Windows), \n (Unix), \r (Mac clasico)
+                    const lines = csvTexts[csvIdx].split(/\r?\n|\r/)
                     console.log(`[BD_NEPS] Fase 7: CSV ${csvIdx + 1} tiene ${lines.length} lineas`)
                     if (lines.length > 0) {
-                        console.log(`[BD_NEPS] Fase 7: Header CSV: "${lines[0].substring(0, 300)}"`)
-                        // Mostrar campos del header para verificar indices
                         const headerFields = lines[0].split(';')
+                        console.log(`[BD_NEPS] Fase 7: Header CSV: "${lines[0].substring(0, 300)}"`)
                         console.log(`[BD_NEPS] Fase 7: Header tiene ${headerFields.length} campos`)
                         console.log(`[BD_NEPS] Fase 7: Campos[0-10]:`, headerFields.slice(0, 11))
                         console.log(`[BD_NEPS] Fase 7: Campos[11-22]:`, headerFields.slice(11, 23))
                         console.log(`[BD_NEPS] Fase 7: Campos[23-33]:`, headerFields.slice(23, 34))
+
+                        // Enviar diagnostico del header via NDJSON
+                        send({
+                            phase: 'parse_diag',
+                            status: `CSV ${csvIdx + 1}: ${lines.length} lineas, header ${headerFields.length} campos. Header: ${headerFields.slice(0, 8).join(' | ')}`,
+                            pct: 42,
+                        })
                     }
                     if (lines.length > 1) {
                         const sampleFields = lines[1].split(';')
                         console.log(`[BD_NEPS] Fase 7: Linea 1 tiene ${sampleFields.length} campos, ejemplo:`, sampleFields.slice(0, 11))
+
+                        // Enviar muestra de datos via NDJSON
+                        send({
+                            phase: 'parse_diag',
+                            status: `CSV ${csvIdx + 1} fila 1: ${sampleFields.length} campos. Muestra: ${sampleFields.slice(0, 8).join(' | ')}`,
+                            pct: 42,
+                        })
+                    } else {
+                        send({
+                            phase: 'parse_diag',
+                            status: `CSV ${csvIdx + 1}: SOLO TIENE HEADER (${lines.length} linea(s)), sin datos`,
+                            pct: 42,
+                        })
                     }
                     // Saltar header
                     for (let i = 1; i < lines.length; i++) {
