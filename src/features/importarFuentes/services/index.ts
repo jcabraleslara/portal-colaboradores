@@ -11,6 +11,7 @@ import { processOrdenamientosFile } from './ordenamientosImportService'
 import { processImagenesFile } from './imagenesImportService'
 import { processBdSaludTotalFile } from './bdSaludTotalImportService'
 import { processBdSigiresSTFile } from './bdSigiresSTimportService'
+import { processSigiresNepsFile } from './sigiresNepsImportService'
 
 // Re-export para compatibilidad con código existente
 export { processCitasFile } from './citasImportService'
@@ -20,6 +21,7 @@ export { processOrdenamientosFile } from './ordenamientosImportService'
 export { processImagenesFile } from './imagenesImportService'
 export { processBdSaludTotalFile } from './bdSaludTotalImportService'
 export { processBdSigiresSTFile } from './bdSigiresSTimportService'
+export { processSigiresNepsFile } from './sigiresNepsImportService'
 
 /**
  * Registro de procesadores por fuente
@@ -33,6 +35,7 @@ const IMPORT_PROCESSORS: Partial<Record<ImportSourceId, ImportProcessorFn>> = {
     'imagenes': processImagenesFile,
     'bd-salud-total': processBdSaludTotalFile,
     'bd-sigires-st': processBdSigiresSTFile,
+    'bd-sigires-neps': processSigiresNepsFile,
 }
 
 /**
