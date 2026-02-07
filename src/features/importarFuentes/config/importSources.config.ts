@@ -119,14 +119,13 @@ export const IMPORT_SOURCES: ImportSourceConfig[] = [
     {
         id: 'bd-neps',
         name: 'BD Neps',
-        description: 'Base de datos Nueva EPS',
+        description: 'Base de datos Nueva EPS (sincronización automática desde correo)',
         icon: Database,
         category: 'bases-datos',
-        status: 'coming-soon',
+        status: 'active',
         gradient: COLOR_PALETTES.cyan,
-        expectedFileName: 'BD_Neps.xls',
-        acceptedFileTypes: EXCEL_FILE_TYPES,
-        maxFileSize: 100 * 1024 * 1024,
+        importMode: 'cloud',
+        targetTable: 'bd',
     },
     {
         id: 'bd-salud-total',

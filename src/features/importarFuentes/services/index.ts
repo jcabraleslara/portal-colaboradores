@@ -3,7 +3,7 @@
  * Mapea cada fuente a su función procesadora
  */
 
-import type { ImportSourceId, ImportProcessorFn } from '../types/import.types'
+import type { ImportSourceId, ImportProcessorFn, CloudImportProcessorFn } from '../types/import.types'
 import { processCitasFile } from './citasImportService'
 import { processCirugiasFile } from './cirugiasImportService'
 import { processIncapacidadesFile } from './incapacidadesImportService'
@@ -12,6 +12,7 @@ import { processImagenesFile } from './imagenesImportService'
 import { processBdSaludTotalFile } from './bdSaludTotalImportService'
 import { processBdSigiresSTFile } from './bdSigiresSTimportService'
 import { processSigiresNepsFile } from './sigiresNepsImportService'
+import { processBdNepsCloud } from './bdNepsCloudImportService'
 
 // Re-export para compatibilidad con código existente
 export { processCitasFile } from './citasImportService'
@@ -22,9 +23,10 @@ export { processImagenesFile } from './imagenesImportService'
 export { processBdSaludTotalFile } from './bdSaludTotalImportService'
 export { processBdSigiresSTFile } from './bdSigiresSTimportService'
 export { processSigiresNepsFile } from './sigiresNepsImportService'
+export { processBdNepsCloud } from './bdNepsCloudImportService'
 
 /**
- * Registro de procesadores por fuente
+ * Registro de procesadores por fuente (modo archivo)
  * Agregar nuevos procesadores aquí conforme se implementen
  */
 const IMPORT_PROCESSORS: Partial<Record<ImportSourceId, ImportProcessorFn>> = {
@@ -39,7 +41,14 @@ const IMPORT_PROCESSORS: Partial<Record<ImportSourceId, ImportProcessorFn>> = {
 }
 
 /**
- * Obtiene el procesador para una fuente específica
+ * Registro de procesadores cloud (sin archivo, descarga desde la nube)
+ */
+const CLOUD_IMPORT_PROCESSORS: Partial<Record<ImportSourceId, CloudImportProcessorFn>> = {
+    'bd-neps': processBdNepsCloud,
+}
+
+/**
+ * Obtiene el procesador de archivos para una fuente específica
  * Retorna undefined si la fuente no está implementada
  */
 export function getImportProcessor(sourceId: ImportSourceId): ImportProcessorFn | undefined {
@@ -47,8 +56,16 @@ export function getImportProcessor(sourceId: ImportSourceId): ImportProcessorFn 
 }
 
 /**
- * Verifica si una fuente tiene procesador implementado
+ * Obtiene el procesador cloud para una fuente específica
+ * Retorna undefined si la fuente no tiene procesador cloud
+ */
+export function getCloudImportProcessor(sourceId: ImportSourceId): CloudImportProcessorFn | undefined {
+    return CLOUD_IMPORT_PROCESSORS[sourceId]
+}
+
+/**
+ * Verifica si una fuente tiene procesador implementado (archivo o cloud)
  */
 export function isSourceImplemented(sourceId: ImportSourceId): boolean {
-    return sourceId in IMPORT_PROCESSORS
+    return sourceId in IMPORT_PROCESSORS || sourceId in CLOUD_IMPORT_PROCESSORS
 }

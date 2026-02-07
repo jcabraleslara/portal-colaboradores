@@ -33,6 +33,9 @@ export type ImportSourceCategory =
 /** Estado de implementación de cada fuente */
 export type ImportSourceStatus = 'active' | 'coming-soon' | 'maintenance'
 
+/** Modo de importación */
+export type ImportMode = 'file' | 'cloud'
+
 /** Configuración de una fuente de importación */
 export interface ImportSourceConfig {
     id: ImportSourceId
@@ -48,6 +51,8 @@ export interface ImportSourceConfig {
         iconBg: string
         iconText: string
     }
+    /** Modo de importación: 'file' (upload manual) o 'cloud' (desde la nube) */
+    importMode?: ImportMode
     /** Nombre del archivo esperado (para el label del dropzone) */
     expectedFileName?: string
     /** Tipos de archivo aceptados */
@@ -95,5 +100,10 @@ export type ImportProgressCallback = (
 /** Función procesadora de archivos (cada fuente implementa la suya) */
 export type ImportProcessorFn = (
     file: File,
+    onProgress: ImportProgressCallback
+) => Promise<ImportResult>
+
+/** Función procesadora cloud (sin archivo, descarga desde la nube) */
+export type CloudImportProcessorFn = (
     onProgress: ImportProgressCallback
 ) => Promise<ImportResult>

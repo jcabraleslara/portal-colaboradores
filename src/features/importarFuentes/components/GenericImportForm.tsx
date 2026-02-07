@@ -1,15 +1,15 @@
 /**
  * Formulario genérico de importación
- * Funciona con cualquier fuente configurada
+ * Funciona con cualquier fuente configurada (archivo o cloud)
  */
 
 import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
-import { Play, ArrowLeft, AlertTriangle } from 'lucide-react'
+import { Play, ArrowLeft, AlertTriangle, Cloud, RefreshCw } from 'lucide-react'
 import { FileDropzone } from './FileDropzone'
 import { ImportProgress } from './ImportProgress'
 import { ImportResults } from './ImportResults'
-import { getImportProcessor } from '../services'
+import { getImportProcessor, getCloudImportProcessor } from '../services'
 import type { ImportSourceConfig, ImportResult } from '../types/import.types'
 
 interface GenericImportFormProps {
@@ -26,9 +26,14 @@ export function GenericImportForm({ source, onBack }: GenericImportFormProps) {
 
     const { icon: Icon, gradient, name, description, expectedFileName, status } = source
 
-    // Obtener el procesador para esta fuente
-    const processor = getImportProcessor(source.id)
-    const isImplemented = !!processor && status === 'active'
+    const isCloudMode = source.importMode === 'cloud'
+
+    // Obtener el procesador según el modo
+    const fileProcessor = getImportProcessor(source.id)
+    const cloudProcessor = getCloudImportProcessor(source.id)
+    const isImplemented = isCloudMode
+        ? !!cloudProcessor && status === 'active'
+        : !!fileProcessor && status === 'active'
 
     const handleFileSelected = useCallback((selectedFile: File) => {
         setFile(selectedFile)
@@ -37,17 +42,26 @@ export function GenericImportForm({ source, onBack }: GenericImportFormProps) {
     }, [])
 
     const handleProcess = async () => {
-        if (!file || !processor) return
-
         try {
             setIsProcessing(true)
             setProgressPercent(0)
             setResult(null)
 
-            const stats = await processor(file, (msg, pct) => {
-                setProgressStatus(msg)
-                if (pct !== undefined) setProgressPercent(pct)
-            })
+            let stats: ImportResult
+
+            if (isCloudMode && cloudProcessor) {
+                stats = await cloudProcessor((msg, pct) => {
+                    setProgressStatus(msg)
+                    if (pct !== undefined) setProgressPercent(pct)
+                })
+            } else if (file && fileProcessor) {
+                stats = await fileProcessor(file, (msg, pct) => {
+                    setProgressStatus(msg)
+                    if (pct !== undefined) setProgressPercent(pct)
+                })
+            } else {
+                return
+            }
 
             setResult(stats)
 
@@ -57,11 +71,11 @@ export function GenericImportForm({ source, onBack }: GenericImportFormProps) {
             } else if (stats.success > 0) {
                 toast.warning(`${stats.success} importados, ${stats.errors} fallidos`)
             } else {
-                toast.error('Error en importación. Verifique el archivo.')
+                toast.error(stats.errorMessage || 'Error en importación.')
             }
         } catch (error: unknown) {
-            console.error('Error importing file:', error)
-            const message = error instanceof Error ? error.message : 'Error al procesar el archivo'
+            console.error('Error importing:', error)
+            const message = error instanceof Error ? error.message : 'Error al procesar'
             toast.error(message)
         } finally {
             setIsProcessing(false)
@@ -140,8 +154,66 @@ export function GenericImportForm({ source, onBack }: GenericImportFormProps) {
                         </div>
                     )}
 
-                    {/* Dropzone */}
-                    {isImplemented && (
+                    {/* Contenido según modo */}
+                    {isImplemented && isCloudMode && (
+                        <>
+                            {/* Cloud sync panel */}
+                            {!isProcessing && !result && (
+                                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center space-y-4">
+                                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-cyan-50">
+                                        <Cloud className="w-8 h-8 text-cyan-600" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-lg font-semibold text-slate-800">
+                                            Sincronización desde correo
+                                        </h4>
+                                        <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
+                                            Se conectará automáticamente al correo de coordinación médica
+                                            para descargar y procesar los archivos ZIP de la carpeta "BD"
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={handleProcess}
+                                        className={`
+                                            group relative inline-flex items-center justify-center gap-3
+                                            px-8 py-4 font-semibold text-white
+                                            transition-all duration-300
+                                            bg-gradient-to-r ${gradient.from} ${gradient.to}
+                                            rounded-xl shadow-lg shadow-cyan-500/30
+                                            hover:shadow-cyan-500/50 hover:scale-[1.02]
+                                            active:scale-[0.98]
+                                            focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2
+                                        `}
+                                    >
+                                        <RefreshCw className="w-5 h-5 opacity-90" />
+                                        <span className="text-lg">Iniciar Sincronización</span>
+                                        <div className="absolute inset-0 rounded-xl ring-2 ring-white/20 group-hover:ring-white/30 transition-all" />
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* Progress */}
+                            {isProcessing && (
+                                <ImportProgress
+                                    status={progressStatus}
+                                    percentage={progressPercent}
+                                    isProcessing={isProcessing}
+                                />
+                            )}
+
+                            {/* Results */}
+                            {result && (
+                                <ImportResults
+                                    result={result}
+                                    sourceName={name}
+                                    onReset={handleReset}
+                                />
+                            )}
+                        </>
+                    )}
+
+                    {/* Dropzone (modo archivo) */}
+                    {isImplemented && !isCloudMode && (
                         <>
                             <FileDropzone
                                 onFileSelected={handleFileSelected}
