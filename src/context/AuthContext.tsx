@@ -404,21 +404,30 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         break
 
                     case 'SIGNED_OUT': {
-                        // Supabase emite SIGNED_OUT espurios durante refreshes e inicialización.
-                        // Verificar que la sesión realmente se perdió antes de cerrar.
-                        const { data: { session: activeSession } } = await supabase.auth.getSession()
-                        if (activeSession) {
-                            log.debug('SIGNED_OUT ignorado - sesión aún activa')
-                            break
-                        }
-                        log.warn('SIGNED_OUT confirmado - sesión realmente cerrada')
-                        clearProfileCache()
-                        setUser(null)
-                        userRef.current = null
-                        setIsLoading(false)
-                        initializationComplete.current = false
-                        processingAuth.current = false
-                        backgroundFetchDone.current = false
+                        // Supabase emite SIGNED_OUT espurios durante refreshes, inicialización
+                        // y el flujo de login (auth.service.ts llama signOut() antes de signIn()).
+                        // NO llamar getSession() aquí - causa deadlock con el lock interno de Supabase.
+                        // Diferimos la verificación para ejecutarla fuera del lock.
+                        setTimeout(async () => {
+                            if (!mounted) return
+                            try {
+                                const { data: { session: s } } = await supabase.auth.getSession()
+                                if (s) {
+                                    log.debug('SIGNED_OUT ignorado - sesión verificada como activa')
+                                    return
+                                }
+                            } catch {
+                                // Si falla la verificación, asumir sesión expirada
+                            }
+                            log.warn('SIGNED_OUT confirmado - sesión realmente cerrada')
+                            clearProfileCache()
+                            setUser(null)
+                            userRef.current = null
+                            setIsLoading(false)
+                            initializationComplete.current = false
+                            processingAuth.current = false
+                            backgroundFetchDone.current = false
+                        }, 1000)
                         break
                     }
 
