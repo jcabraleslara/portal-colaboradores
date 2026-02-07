@@ -127,10 +127,10 @@ function transformLine(
         return null
     }
 
-    // Concatenar nombres
+    // Concatenar nombres (evitar duplicar si la fuente repite el primer nombre en el segundo)
     const nombre1 = sanitize(fields[COL.PRIMER_NOMBRE])
     const nombre2 = sanitize(fields[COL.SEGUNDO_NOMBRE])
-    const nombres = [nombre1, nombre2].filter(Boolean).join(' ')
+    const nombres = [nombre1, (nombre2 && nombre2.toUpperCase() !== nombre1.toUpperCase()) ? nombre2 : ''].filter(Boolean).join(' ')
 
     // Lookup IPS
     const codigoIps = sanitize(fields[COL.CODIGO_IPS])
@@ -155,8 +155,6 @@ function transformLine(
     const obsPartes: string[] = []
     const cronicoVal = sanitize(fields[COL.CRONICO])
     if (cronicoVal && Number(cronicoVal) >= 1) obsPartes.push('CRONICO')
-    const discapacidadVal = sanitize(fields[COL.DISCAPACIDAD])
-    if (discapacidadVal && Number(discapacidadVal) >= 1) obsPartes.push('DISCAPACIDAD')
     const saludMentalVal = sanitize(fields[COL.SALUD_MENTAL])
     if (saludMentalVal && Number(saludMentalVal) >= 1) obsPartes.push('SALUD MENTAL')
     const pobCondVulnVal = sanitize(fields[COL.POBLACION_CONDICION_VULNERABLE]).toUpperCase()
