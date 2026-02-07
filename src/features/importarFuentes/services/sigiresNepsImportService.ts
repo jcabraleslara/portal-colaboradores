@@ -40,20 +40,6 @@ interface BdSigiresNepsRow {
     eps: string
 }
 
-/** Mapeo tipo documento del archivo Sigires → código BD */
-const TIPO_ID_MAP: Record<string, string> = {
-    'CC': '3',
-    'TI': '2',
-    'RC': '5',
-    'PT': '15',
-    'NV': '11',
-    'CE': '1',
-    'PA': '4',
-    'MS': '7',
-    'AS': '9',
-    'SC': '12',
-}
-
 /** Índices de columnas en el archivo TXT (0-based) */
 const COL = {
     MUNICIPIO: 6,
@@ -71,7 +57,12 @@ const COL = {
     DIRECCION: 31,
     TELEFONO: 33,
     CORREO: 35,
+    CRONICO: 43,
+    DISCAPACIDAD: 44,
+    SALUD_MENTAL: 45,
+    POBLACION_CONDICION_VULNERABLE: 48,
     VCA: 49,
+    GRUPO_PATOLOGIA: 113,
 } as const
 
 /** Sanitiza valores: NUL chars, comillas, NULL literal, trim */
@@ -118,7 +109,6 @@ function transformLine(
         skippedRows: number
         crucesIpsCorrectos: number
         crucesIpsFallidos: number
-        tiposDocNoMapeados: Set<string>
         ipsNoEncontradas: Map<string, number>
     }
 ): { row: BdSigiresNepsRow; dedupeKey: string } | null {
@@ -129,10 +119,9 @@ function transformLine(
         return null
     }
 
-    const tipoDocRaw = sanitize(fields[COL.TIPO_DOCUMENTO]).toUpperCase()
-    const tipoId = TIPO_ID_MAP[tipoDocRaw]
+    // tipo_id pasa directo del archivo (CC, TI, CE, etc.)
+    const tipoId = sanitize(fields[COL.TIPO_DOCUMENTO]).toUpperCase()
     if (!tipoId) {
-        if (tipoDocRaw) stats.tiposDocNoMapeados.add(tipoDocRaw)
         stats.skippedRows++
         return null
     }
@@ -163,9 +152,28 @@ function transformLine(
     const municipio = sanitize(fields[COL.MUNICIPIO]).toUpperCase()
     const departamento = obtenerCodigoDepartamento(municipio, municipioMap)
 
-    // VCA
-    const vca = sanitize(fields[COL.VCA]).toUpperCase()
-    const observaciones = vca === 'S' ? 'EXENTO' : ''
+    // Teléfono: solo importar si inicia con 3 y tiene exactamente 10 dígitos
+    const telefonoRaw = sanitize(fields[COL.TELEFONO]).replace(/\D/g, '')
+    const telefono = (telefonoRaw.startsWith('3') && telefonoRaw.length === 10) ? telefonoRaw : ''
+
+    // Observaciones: construir desde múltiples campos del archivo
+    const obsPartes: string[] = []
+    const cronicoVal = sanitize(fields[COL.CRONICO])
+    if (cronicoVal && Number(cronicoVal) >= 1) obsPartes.push('CRONICO')
+    const discapacidadVal = sanitize(fields[COL.DISCAPACIDAD])
+    if (discapacidadVal && Number(discapacidadVal) >= 1) obsPartes.push('DISCAPACIDAD')
+    const saludMentalVal = sanitize(fields[COL.SALUD_MENTAL])
+    if (saludMentalVal && Number(saludMentalVal) >= 1) obsPartes.push('SALUD MENTAL')
+    const pobCondVulnVal = sanitize(fields[COL.POBLACION_CONDICION_VULNERABLE]).toUpperCase()
+    if (pobCondVulnVal === 'S') obsPartes.push('POBLACION CONDICION VULNERABLE')
+    const vcaVal = sanitize(fields[COL.VCA]).toUpperCase()
+    if (vcaVal === 'S') obsPartes.push('PAPSIVI (VICTIMA DEL CONFLICTO ARMADO)')
+    // GRUPO PATOLOGÍA: índice 113, puede no existir en filas cortas
+    if (fields.length > COL.GRUPO_PATOLOGIA) {
+        const grupoPatologia = sanitize(fields[COL.GRUPO_PATOLOGIA]).toUpperCase()
+        if (grupoPatologia) obsPartes.push(grupoPatologia)
+    }
+    const observaciones = obsPartes.join(', ')
 
     return {
         dedupeKey: `${tipoId}|${id}`,
@@ -177,7 +185,7 @@ function transformLine(
             nombres,
             sexo: sanitize(fields[COL.SEXO]).toUpperCase(),
             direccion: sanitize(fields[COL.DIRECCION]),
-            telefono: sanitize(fields[COL.TELEFONO]),
+            telefono,
             fecha_nacimiento: parseDateSigires(sanitize(fields[COL.FECHA_NACIMIENTO])),
             estado: sanitize(fields[COL.ESTADO]).toUpperCase(),
             municipio,
@@ -226,7 +234,6 @@ export async function processSigiresNepsFile(
         skippedRows: 0,
         crucesIpsCorrectos: 0,
         crucesIpsFallidos: 0,
-        tiposDocNoMapeados: new Set<string>(),
         ipsNoEncontradas: new Map<string, number>(),
     }
 
@@ -375,15 +382,6 @@ export async function processSigiresNepsFile(
             ipsRows.push(`${cod},${count}`)
         }
         reportSections.push(`${ipsHeader}\n${ipsRows.join('\n')}`)
-    }
-
-    if (stats.tiposDocNoMapeados.size > 0) {
-        const tiposHeader = '\n=== SECCION: TIPOS DOCUMENTO NO MAPEADOS ==='
-        const tiposRows = ['Tipo documento original']
-        for (const tipo of stats.tiposDocNoMapeados) {
-            tiposRows.push(tipo)
-        }
-        reportSections.push(`${tiposHeader}\n${tiposRows.join('\n')}`)
     }
 
     if (reportSections.length > 0) {
