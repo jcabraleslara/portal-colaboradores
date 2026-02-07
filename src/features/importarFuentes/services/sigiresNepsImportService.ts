@@ -4,6 +4,9 @@
  * Campos accedidos por índice numérico (50+ columnas)
  * Tabla destino: public.bd (PK: tipo_id, id)
  * Prioridad: BD_NEPS > BD_SIGIRES_NEPS > PORTAL_COLABORADORES
+ *
+ * NOTA: Usa lectura por streaming (ReadableStream) para soportar archivos
+ * de hasta 2GB sin desbordar la memoria del navegador.
  */
 
 import { supabase } from '@/config/supabase.config'
@@ -74,7 +77,7 @@ const COL = {
 /** Sanitiza valores: NUL chars, comillas, NULL literal, trim */
 function sanitize(val: string): string {
     if (!val) return ''
-    let clean = val.replace(/\x00/g, '').replace(/"/g, '').trim()
+    const clean = val.replace(/\x00/g, '').replace(/"/g, '').trim()
     const upper = clean.toUpperCase()
     if (upper === 'NULL' || upper === 'NAN' || upper === 'UNDEFINED') return ''
     if (clean === ' ') return ''
@@ -104,115 +107,69 @@ function parseDateSigires(val: string): string {
 }
 
 /**
- * Procesa archivo BD Sigires NEPS (TXT delimitado por ;, encoding CP1252)
+ * Transforma una línea del archivo en un registro BD
+ * Retorna null si la línea es inválida
  */
-export async function processSigiresNepsFile(
-    file: File,
-    onProgress: ImportProgressCallback
-): Promise<ImportResult> {
-    const startTime = performance.now()
+function transformLine(
+    line: string,
+    municipioMap: Map<string, string>,
+    redMap: Map<string, string>,
+    stats: {
+        skippedRows: number
+        crucesIpsCorrectos: number
+        crucesIpsFallidos: number
+        tiposDocNoMapeados: Set<string>
+        ipsNoEncontradas: Map<string, number>
+    }
+): { row: BdSigiresNepsRow; dedupeKey: string } | null {
+    const fields = line.split(';')
 
-    // ═══ Fase 1: Leer TXT con CP1252 (0-5%) ═══
-    onProgress('Leyendo archivo TXT...', 0)
-    const buffer = await file.arrayBuffer()
-    let text: string
-    try {
-        text = new TextDecoder('windows-1252').decode(buffer)
-    } catch {
-        text = new TextDecoder('utf-8').decode(buffer)
+    if (fields.length < 50) {
+        stats.skippedRows++
+        return null
     }
 
-    const lines = text.split('\n').filter(l => l.trim() !== '')
-    if (lines.length < 2) {
-        throw new Error('El archivo está vacío o no tiene datos.')
+    const tipoDocRaw = sanitize(fields[COL.TIPO_DOCUMENTO]).toUpperCase()
+    const tipoId = TIPO_ID_MAP[tipoDocRaw]
+    if (!tipoId) {
+        if (tipoDocRaw) stats.tiposDocNoMapeados.add(tipoDocRaw)
+        stats.skippedRows++
+        return null
     }
 
-    // Primera línea = cabecera (ignorar)
-    const dataLines = lines.slice(1)
-    onProgress(`${dataLines.length} líneas de datos encontradas`, 5)
+    const id = sanitize(fields[COL.NRO_IDENTIFICACION])
+    if (!id) {
+        stats.skippedRows++
+        return null
+    }
 
-    // ═══ Fase 2: Pre-cargar tablas de referencia (5-15%) ═══
-    onProgress('Cargando tablas de referencia...', 5)
-    limpiarCacheDivipola()
+    // Concatenar nombres
+    const nombre1 = sanitize(fields[COL.PRIMER_NOMBRE])
+    const nombre2 = sanitize(fields[COL.SEGUNDO_NOMBRE])
+    const nombres = [nombre1, nombre2].filter(Boolean).join(' ')
 
-    const [municipioMap, redMap, timestampData] = await Promise.all([
-        cargarMunicipioMap(),
-        cargarRedMap(),
-        supabase.rpc('now').then(r => r.data as string),
-    ])
+    // Lookup IPS
+    const codigoIps = sanitize(fields[COL.CODIGO_IPS])
+    let ipsPrimaria = ''
+    if (codigoIps && redMap.has(codigoIps)) {
+        ipsPrimaria = redMap.get(codigoIps)!
+        stats.crucesIpsCorrectos++
+    } else if (codigoIps) {
+        stats.crucesIpsFallidos++
+        stats.ipsNoEncontradas.set(codigoIps, (stats.ipsNoEncontradas.get(codigoIps) || 0) + 1)
+    }
 
-    // Timestamp de inicio para la fase de retiro
-    const timestampInicio = timestampData || new Date().toISOString()
-    onProgress('Tablas de referencia cargadas', 15)
+    // Municipio y departamento
+    const municipio = sanitize(fields[COL.MUNICIPIO]).toUpperCase()
+    const departamento = obtenerCodigoDepartamento(municipio, municipioMap)
 
-    // ═══ Fase 3: Parsear y transformar registros (15-40%) ═══
-    onProgress('Transformando datos...', 15)
-    const rowsMap = new Map<string, BdSigiresNepsRow>()
-    let fileDuplicates = 0
-    let skippedRows = 0
-    let crucesIpsCorrectos = 0
-    let crucesIpsFallidos = 0
-    const tiposDocNoMapeados = new Set<string>()
-    const ipsNoEncontradas = new Map<string, number>()
+    // VCA
+    const vca = sanitize(fields[COL.VCA]).toUpperCase()
+    const observaciones = vca === 'S' ? 'EXENTO' : ''
 
-    const totalLines = dataLines.length
-    const progressStep = Math.max(1, Math.floor(totalLines / 10))
-
-    for (let i = 0; i < totalLines; i++) {
-        const fields = dataLines[i].split(';')
-
-        // Validar mínimo de campos
-        if (fields.length < 50) {
-            skippedRows++
-            continue
-        }
-
-        // Extraer tipo documento y mapear
-        const tipoDocRaw = sanitize(fields[COL.TIPO_DOCUMENTO]).toUpperCase()
-        const tipoId = TIPO_ID_MAP[tipoDocRaw]
-        if (!tipoId) {
-            if (tipoDocRaw) tiposDocNoMapeados.add(tipoDocRaw)
-            skippedRows++
-            continue
-        }
-
-        const id = sanitize(fields[COL.NRO_IDENTIFICACION])
-        if (!id) {
-            skippedRows++
-            continue
-        }
-
-        // Dedup por (tipo_id, id) — último gana
-        const dedupeKey = `${tipoId}|${id}`
-        if (rowsMap.has(dedupeKey)) {
-            fileDuplicates++
-        }
-
-        // Concatenar nombres
-        const nombre1 = sanitize(fields[COL.PRIMER_NOMBRE])
-        const nombre2 = sanitize(fields[COL.SEGUNDO_NOMBRE])
-        const nombres = [nombre1, nombre2].filter(Boolean).join(' ')
-
-        // Lookup IPS
-        const codigoIps = sanitize(fields[COL.CODIGO_IPS])
-        let ipsPrimaria = ''
-        if (codigoIps && redMap.has(codigoIps)) {
-            ipsPrimaria = redMap.get(codigoIps)!
-            crucesIpsCorrectos++
-        } else if (codigoIps) {
-            crucesIpsFallidos++
-            ipsNoEncontradas.set(codigoIps, (ipsNoEncontradas.get(codigoIps) || 0) + 1)
-        }
-
-        // Municipio y departamento
-        const municipio = sanitize(fields[COL.MUNICIPIO]).toUpperCase()
-        const departamento = obtenerCodigoDepartamento(municipio, municipioMap)
-
-        // VCA
-        const vca = sanitize(fields[COL.VCA]).toUpperCase()
-        const observaciones = vca === 'S' ? 'EXENTO' : ''
-
-        const row: BdSigiresNepsRow = {
+    return {
+        dedupeKey: `${tipoId}|${id}`,
+        row: {
             tipo_id: tipoId,
             id,
             apellido1: sanitize(fields[COL.PRIMER_APELLIDO]),
@@ -232,15 +189,107 @@ export async function processSigiresNepsFile(
             email: sanitize(fields[COL.CORREO]),
             regimen: sanitize(fields[COL.REGIMEN]).toUpperCase(),
             eps: 'NUEVA EPS',
+        },
+    }
+}
+
+/**
+ * Procesa archivo BD Sigires NEPS (TXT delimitado por ;, encoding CP1252)
+ * Usa ReadableStream para manejar archivos de hasta 2GB sin desbordar memoria
+ */
+export async function processSigiresNepsFile(
+    file: File,
+    onProgress: ImportProgressCallback
+): Promise<ImportResult> {
+    const startTime = performance.now()
+    const fileSize = file.size
+
+    // ═══ Fase 1: Cargar tablas de referencia (0-5%) ═══
+    onProgress('Cargando tablas de referencia...', 0)
+    limpiarCacheDivipola()
+
+    const [municipioMap, redMap, timestampData] = await Promise.all([
+        cargarMunicipioMap(),
+        cargarRedMap(),
+        supabase.rpc('now').then(r => r.data as string),
+    ])
+
+    const timestampInicio = timestampData || new Date().toISOString()
+    onProgress('Tablas de referencia cargadas', 5)
+
+    // ═══ Fase 2: Stream-read + transformar (5-40%) ═══
+    onProgress('Leyendo archivo por streaming...', 5)
+
+    const rowsMap = new Map<string, BdSigiresNepsRow>()
+    let fileDuplicates = 0
+    const stats = {
+        skippedRows: 0,
+        crucesIpsCorrectos: 0,
+        crucesIpsFallidos: 0,
+        tiposDocNoMapeados: new Set<string>(),
+        ipsNoEncontradas: new Map<string, number>(),
+    }
+
+    const reader = file.stream().getReader()
+    const decoder = new TextDecoder('windows-1252')
+    let leftover = ''
+    let isFirstLine = true
+    let totalLinesRead = 0
+    let bytesRead = 0
+
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        bytesRead += value.byteLength
+        const chunk = decoder.decode(value, { stream: true })
+        const text = leftover + chunk
+        const parts = text.split('\n')
+
+        // Último segmento puede estar incompleto
+        leftover = parts.pop() || ''
+
+        for (const line of parts) {
+            if (!line.trim()) continue
+
+            // Saltar cabecera
+            if (isFirstLine) {
+                isFirstLine = false
+                continue
+            }
+
+            totalLinesRead++
+            const result = transformLine(line, municipioMap, redMap, stats)
+            if (result) {
+                if (rowsMap.has(result.dedupeKey)) {
+                    fileDuplicates++
+                }
+                rowsMap.set(result.dedupeKey, result.row)
+            }
         }
 
-        rowsMap.set(dedupeKey, row)
-
-        // Reportar progreso cada 10%
-        if (i % progressStep === 0) {
-            const pct = 15 + Math.round((i / totalLines) * 25)
-            onProgress(`Transformando... ${i}/${totalLines}`, pct)
+        // Reportar progreso basado en bytes leídos
+        const pct = 5 + Math.round((bytesRead / fileSize) * 35)
+        if (totalLinesRead % 50000 === 0) {
+            onProgress(`Leyendo... ${totalLinesRead} registros (${Math.round(bytesRead / 1024 / 1024)}MB)`, pct)
         }
+    }
+
+    // Procesar último segmento residual
+    if (leftover.trim() && !isFirstLine) {
+        totalLinesRead++
+        const result = transformLine(leftover, municipioMap, redMap, stats)
+        if (result) {
+            if (rowsMap.has(result.dedupeKey)) {
+                fileDuplicates++
+            }
+            rowsMap.set(result.dedupeKey, result.row)
+        }
+    }
+
+    if (totalLinesRead === 0) {
+        throw new Error('El archivo está vacío o no tiene datos.')
     }
 
     const validRows = Array.from(rowsMap.values())
@@ -249,9 +298,9 @@ export async function processSigiresNepsFile(
         throw new Error('No se encontraron registros válidos para importar.')
     }
 
-    onProgress(`${validRows.length} registros únicos listos`, 40)
+    onProgress(`${validRows.length} registros únicos de ${totalLinesRead} líneas`, 40)
 
-    // ═══ Fase 4: UPSERT en chunks via RPC (40-85%) ═══
+    // ═══ Fase 3: UPSERT en chunks via RPC (40-85%) ═══
     onProgress(`Importando ${validRows.length} registros...`, 40)
 
     let totalInsertados = 0
@@ -282,7 +331,7 @@ export async function processSigiresNepsFile(
         onProgress(`Procesando... ${processed}/${validRows.length}`, pct)
     }
 
-    // ═══ Fase 5: Retirar registros antiguos (85-90%) ═══
+    // ═══ Fase 4: Retirar registros antiguos (85-90%) ═══
     onProgress('Retirando registros no incluidos...', 85)
     let retirados = 0
 
@@ -297,44 +346,41 @@ export async function processSigiresNepsFile(
         retirados = orphanData.huerfanos_marcados || 0
     }
 
-    // ═══ Fase 6: Generar reporte CSV (90-95%) ═══
+    // ═══ Fase 5: Generar reporte CSV (90-95%) ═══
     onProgress('Generando reporte...', 90)
 
     let errorReport: string | undefined
     const reportSections: string[] = []
 
-    // Resumen general
     const summaryHeader = '=== SECCION: RESUMEN DE IMPORTACION BD SIGIRES NEPS ==='
     const summaryRows = [
-        `Total registros en archivo,${totalLines}`,
+        `Total registros en archivo,${totalLinesRead}`,
         `Registros unicos,${rowsMap.size}`,
         `Insertados nuevos,${totalInsertados}`,
         `Actualizados,${totalActualizados}`,
         `Omitidos (ya son BD_NEPS),${totalOmitidosNeps}`,
         `Retirados a PORTAL_COLABORADORES,${retirados}`,
         `Duplicados en archivo,${fileDuplicates}`,
-        `Descartados (sin tipo_id/id),${skippedRows}`,
-        `Cruces IPS correctos,${crucesIpsCorrectos}`,
-        `Cruces IPS fallidos,${crucesIpsFallidos}`,
+        `Descartados (sin tipo_id/id),${stats.skippedRows}`,
+        `Cruces IPS correctos,${stats.crucesIpsCorrectos}`,
+        `Cruces IPS fallidos,${stats.crucesIpsFallidos}`,
         `Errores de procesamiento,${errorCount}`,
     ].join('\n')
     reportSections.push(`${summaryHeader}\n${summaryRows}`)
 
-    // Cruces IPS fallidos
-    if (ipsNoEncontradas.size > 0) {
+    if (stats.ipsNoEncontradas.size > 0) {
         const ipsHeader = '\n=== SECCION: CODIGOS IPS NO ENCONTRADOS EN TABLA RED ==='
         const ipsRows = ['Codigo IPS,Cantidad registros']
-        for (const [cod, count] of Array.from(ipsNoEncontradas.entries()).sort((a, b) => b[1] - a[1])) {
+        for (const [cod, count] of Array.from(stats.ipsNoEncontradas.entries()).sort((a, b) => b[1] - a[1])) {
             ipsRows.push(`${cod},${count}`)
         }
         reportSections.push(`${ipsHeader}\n${ipsRows.join('\n')}`)
     }
 
-    // Tipos documento no mapeados
-    if (tiposDocNoMapeados.size > 0) {
+    if (stats.tiposDocNoMapeados.size > 0) {
         const tiposHeader = '\n=== SECCION: TIPOS DOCUMENTO NO MAPEADOS ==='
         const tiposRows = ['Tipo documento original']
-        for (const tipo of tiposDocNoMapeados) {
+        for (const tipo of stats.tiposDocNoMapeados) {
             tiposRows.push(tipo)
         }
         reportSections.push(`${tiposHeader}\n${tiposRows.join('\n')}`)
@@ -344,7 +390,7 @@ export async function processSigiresNepsFile(
         errorReport = reportSections.join('\n\n')
     }
 
-    // ═══ Fase 7: Registrar en historial (95-100%) ═══
+    // ═══ Fase 6: Registrar en historial (95-100%) ═══
     onProgress('Registrando en historial...', 95)
 
     const endTime = performance.now()
@@ -358,7 +404,7 @@ export async function processSigiresNepsFile(
             usuario: (await supabase.auth.getUser()).data.user?.email || 'unknown',
             archivo_nombre: file.name,
             tipo_fuente: 'bd-sigires-neps',
-            total_registros: totalLines,
+            total_registros: totalLinesRead,
             exitosos: totalInsertados + totalActualizados,
             fallidos: errorCount,
             duplicados: fileDuplicates,
@@ -368,10 +414,10 @@ export async function processSigiresNepsFile(
                 actualizados: totalActualizados,
                 omitidos_neps: totalOmitidosNeps,
                 retirados,
-                cruces_ips_correctos: crucesIpsCorrectos,
-                cruces_ips_fallidos: crucesIpsFallidos,
+                cruces_ips_correctos: stats.crucesIpsCorrectos,
+                cruces_ips_fallidos: stats.crucesIpsFallidos,
                 duplicados_archivo: fileDuplicates,
-                registros_descartados: skippedRows,
+                registros_descartados: stats.skippedRows,
             },
         })
         if (logError) console.error('Error logging history:', logError)
@@ -384,14 +430,14 @@ export async function processSigiresNepsFile(
     const errorMessages: string[] = []
     if (retirados > 0) errorMessages.push(`${retirados} registros retirados a "VALIDAR EN PORTAL EPS"`)
     if (totalOmitidosNeps > 0) errorMessages.push(`${totalOmitidosNeps} registros omitidos (ya son BD_NEPS)`)
-    if (crucesIpsFallidos > 0) errorMessages.push(`${crucesIpsFallidos} códigos IPS no encontrados en tabla RED`)
+    if (stats.crucesIpsFallidos > 0) errorMessages.push(`${stats.crucesIpsFallidos} códigos IPS no encontrados en tabla RED`)
     if (errorCount > 0) errorMessages.push(`${errorCount} registros con error de procesamiento`)
 
     return {
         success: totalInsertados + totalActualizados,
         errors: errorCount,
         duplicates: fileDuplicates,
-        totalProcessed: totalLines,
+        totalProcessed: totalLinesRead,
         duration: durationStr,
         errorReport,
         errorMessage: errorMessages.length > 0 ? errorMessages.join('. ') + '.' : undefined,

@@ -151,7 +151,7 @@ export const IMPORT_SOURCES: ImportSourceConfig[] = [
         gradient: COLOR_PALETTES.emerald,
         expectedFileName: 'NominalAfiliados.txt',
         acceptedFileTypes: TXT_FILE_TYPES,
-        maxFileSize: 100 * 1024 * 1024,
+        maxFileSize: 2 * 1024 * 1024 * 1024, // 2GB - archivos nominales muy grandes
         targetTable: 'bd',
     },
     {
