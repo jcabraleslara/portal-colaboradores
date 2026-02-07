@@ -23,7 +23,6 @@ export async function processBdNepsCloud(
     }
 
     onProgress('Conectando con el servidor...', 0)
-    console.log('[BD_NEPS] Iniciando fetch a Edge Function...')
 
     const response = await fetch(`${SUPABASE_URL}/functions/v1/import-bd-neps`, {
         method: 'POST',
@@ -34,12 +33,8 @@ export async function processBdNepsCloud(
         body: JSON.stringify({}),
     })
 
-    console.log('[BD_NEPS] Response status:', response.status, response.statusText)
-    console.log('[BD_NEPS] Response headers:', Object.fromEntries(response.headers.entries()))
-
     if (!response.ok) {
         const errorText = await response.text()
-        console.error('[BD_NEPS] Error response body:', errorText)
         throw new Error(`Error del servidor (${response.status}): ${errorText}`)
     }
 
@@ -51,14 +46,10 @@ export async function processBdNepsCloud(
     const decoder = new TextDecoder()
     let lastResult: ImportResult | null = null
     let buffer = ''
-    let lineCount = 0
 
     while (true) {
         const { done, value } = await reader.read()
-        if (done) {
-            console.log('[BD_NEPS] Stream finalizado. Total lineas NDJSON:', lineCount)
-            break
-        }
+        if (done) break
 
         const chunk = decoder.decode(value, { stream: true })
         buffer += chunk
@@ -74,8 +65,6 @@ export async function processBdNepsCloud(
 
             try {
                 const data = JSON.parse(trimmed)
-                lineCount++
-                console.log(`[BD_NEPS] NDJSON #${lineCount}:`, data)
 
                 if (data.phase === 'error') {
                     throw new Error(data.error || 'Error desconocido en la importacion')
@@ -89,11 +78,7 @@ export async function processBdNepsCloud(
                     lastResult = data.result as ImportResult
                 }
             } catch (parseErr) {
-                // Si no es JSON valido, ignorar (puede ser fragmento parcial)
-                if (parseErr instanceof SyntaxError) {
-                    console.warn('[BD_NEPS] JSON parcial ignorado:', trimmed.substring(0, 100))
-                    continue
-                }
+                if (parseErr instanceof SyntaxError) continue
                 throw parseErr
             }
         }
@@ -103,19 +88,16 @@ export async function processBdNepsCloud(
     if (buffer.trim()) {
         try {
             const data = JSON.parse(buffer.trim())
-            console.log('[BD_NEPS] Buffer final:', data)
             if (data.phase === 'error') throw new Error(data.error)
             if (data.result) lastResult = data.result as ImportResult
         } catch {
-            console.warn('[BD_NEPS] Buffer final no parseable:', buffer.substring(0, 100))
+            // Buffer final no parseable, ignorar
         }
     }
 
     if (!lastResult) {
-        console.error('[BD_NEPS] No se recibio resultado. lineCount:', lineCount)
         throw new Error('No se recibio resultado de la importacion')
     }
 
-    console.log('[BD_NEPS] Resultado final:', lastResult)
     return lastResult
 }
