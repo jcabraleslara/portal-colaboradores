@@ -196,13 +196,13 @@ export function extraerIdentificacionesDeUrls(urls: string[]): string[] {
 }
 
 /**
- * Ejecutar operación con reintentos y backoff exponencial
- * Útil para manejar errores transitorios como HTTP 502
+ * Ejecutar operación con reintentos y backoff exponencial + jitter
+ * Útil para manejar errores transitorios como HTTP 502 y "Failed to fetch"
  */
 async function executeWithRetry<T>(
     operation: () => Promise<T>,
-    maxRetries = 3,
-    baseDelayMs = 1000
+    maxRetries = 5,
+    baseDelayMs = 1500
 ): Promise<T> {
     let lastError: Error | null = null
 
@@ -212,17 +212,58 @@ async function executeWithRetry<T>(
         } catch (error) {
             lastError = error instanceof Error ? error : new Error(String(error))
 
-            // Si es último intento, no esperar
             if (attempt === maxRetries) break
 
-            // Backoff exponencial: 1s, 2s, 4s...
-            const delay = baseDelayMs * Math.pow(2, attempt)
-            console.warn(`⚠️ Intento ${attempt + 1} falló, reintentando en ${delay}ms...`, lastError.message)
+            // Backoff exponencial con jitter para evitar thundering herd
+            // 1.5s, 3s, 6s, 12s, 24s + jitter aleatorio (0-30%)
+            const exponentialDelay = baseDelayMs * Math.pow(2, attempt)
+            const jitter = exponentialDelay * Math.random() * 0.3
+            const delay = Math.min(exponentialDelay + jitter, 30000) // Cap 30s
+            console.warn(`[Storage] Intento ${attempt + 1}/${maxRetries} falló, reintentando en ${Math.round(delay)}ms...`, lastError.message)
             await new Promise(resolve => setTimeout(resolve, delay))
         }
     }
 
     throw lastError
+}
+
+/** Limite de subidas concurrentes al bucket de Storage */
+const UPLOAD_CONCURRENCY_LIMIT = 3
+
+/**
+ * Subir múltiples archivos concurrentemente con límite de paralelismo
+ * Procesa archivos en lotes para no saturar la red
+ */
+async function uploadBatchConcurrent<T, R>(
+    items: T[],
+    operation: (item: T) => Promise<R>,
+    concurrencyLimit = UPLOAD_CONCURRENCY_LIMIT
+): Promise<{ results: (R | null)[]; failedIndexes: number[] }> {
+    const results: (R | null)[] = new Array(items.length).fill(null)
+    const failedIndexes: number[] = []
+
+    for (let i = 0; i < items.length; i += concurrencyLimit) {
+        const chunk = items.slice(i, i + concurrencyLimit)
+        const chunkResults = await Promise.allSettled(
+            chunk.map((item, idx) => operation(item).then(r => ({ globalIdx: i + idx, result: r })))
+        )
+
+        for (const settled of chunkResults) {
+            if (settled.status === 'fulfilled') {
+                results[settled.value.globalIdx] = settled.value.result
+            } else {
+                const failedIdx = chunkResults.indexOf(settled) + i
+                failedIndexes.push(failedIdx)
+            }
+        }
+
+        // Pausa breve entre lotes para no saturar la conexión
+        if (i + concurrencyLimit < items.length) {
+            await new Promise(resolve => setTimeout(resolve, 300))
+        }
+    }
+
+    return { results, failedIndexes }
 }
 
 export const soportesFacturacionService = {
@@ -238,87 +279,88 @@ export const soportesFacturacionService = {
         radicado: string,
         eps: EpsFacturacion,
         servicio?: ServicioPrestado
-    ): Promise<{ urls: string[]; identificacionesExtraidas: string[] }> {
-        const urls: string[] = []
+    ): Promise<{ urls: string[]; identificacionesExtraidas: string[]; archivosFallidos: string[] }> {
         const identificacionesSet = new Set<string>()
+        const archivosFallidos: string[] = []
         // NIT fijo para renombrado
         const NIT = '900842629'
-        const prefijo = getPrefijoArchivo(eps, servicio || 'Consulta Ambulatoria', categoria) // Fallback seguro de servicio
+        const prefijo = getPrefijoArchivo(eps, servicio || 'Consulta Ambulatoria', categoria)
 
-        for (let i = 0; i < archivos.length; i++) {
-            const archivo = archivos[i]
-            // Siempre forzar extensión .pdf como buena práctica si el cliente lo prefiere,
-            // pero mantenemos la original si es imagen, aunque el renombrado sugerido es .pdf
-            // El usuario no especificó conversión, así que mantenemos extensión original.
+        // Preparar metadata de cada archivo antes de subir
+        const archivosMeta = archivos.map((archivo) => {
             const extension = archivo.name.split('.').pop()?.toLowerCase() || 'pdf'
-
-            // 1. Intentar obtener identificación del nombre del archivo
             const identificacionPaciente = extraerIdentificacionArchivo(archivo.name)
 
             let nombreFinal = ''
-
             if (identificacionPaciente) {
-                // ESTRATEGIA A: Identificación encontrada
-                // Formato: PREFIJO_NIT_IDPACIENTE.ext
-                // Sin consecutivo - el nombre es estandarizado
                 nombreFinal = `${prefijo}_${NIT}_${identificacionPaciente}.${extension}`
-
-                // Acumular identificaciones extraídas para búsqueda
                 identificacionesSet.add(identificacionPaciente)
-                // También agregar solo el número para búsqueda flexible
                 const soloNumero = identificacionPaciente.replace(/^(CC|TI|CE|CN|SC|PE|PT|RC|ME|AS)/i, '')
                 if (soloNumero) identificacionesSet.add(soloNumero)
-
             } else {
-                // ESTRATEGIA B: Fallback (No se halló ID en el nombre)
-                // Usar Radicado como identificador único
-                // Formato: PREFIJO_RADICADO_CATEGORIA.ext
                 nombreFinal = `${prefijo}_${radicado}_${categoria}.${extension}`
             }
 
-            const ruta = `${radicado}/${nombreFinal}`
+            return { archivo, nombreFinal, ruta: `${radicado}/${nombreFinal}` }
+        })
 
-            // Subida con reintentos automáticos para manejar errores transitorios (502, timeout)
-            try {
-                await executeWithRetry(async () => {
-                    const { error } = await supabase.storage
-                        .from('soportes-facturacion')
-                        .upload(ruta, archivo, {
-                            cacheControl: '3600',
-                            upsert: true,
-                        })
-
-                    if (error) {
-                        throw error
-                    }
-                }, 3, 1000)
-            } catch (error) {
-                console.error(`Error subiendo archivo ${nombreFinal} después de reintentos:`, error)
-
-                // Notificar error crítico de Storage solo si todos los reintentos fallaron
-                await criticalErrorService.reportStorageFailure(
-                    'upload',
-                    'Soportes de Facturación',
-                    'soportes-facturacion',
-                    error as Error
-                )
-
-                throw new Error(`Error subiendo ${archivo.name}: ${(error as Error).message}`)
-            }
+        // Subir archivos concurrentemente en lotes
+        const uploadOneFile = async (meta: typeof archivosMeta[0]): Promise<string | null> => {
+            // Upload con reintentos (5 intentos, base 1.5s, backoff + jitter)
+            await executeWithRetry(async () => {
+                const { error } = await supabase.storage
+                    .from('soportes-facturacion')
+                    .upload(meta.ruta, meta.archivo, {
+                        cacheControl: '3600',
+                        upsert: true,
+                    })
+                if (error) throw error
+            }, 5, 1500)
 
             // Generar URL firmada (válida por 1 año)
             const { data: urlData } = await supabase.storage
                 .from('soportes-facturacion')
-                .createSignedUrl(ruta, 31536000) // 1 año
+                .createSignedUrl(meta.ruta, 31536000)
 
-            if (urlData?.signedUrl) {
-                urls.push(urlData.signedUrl)
+            return urlData?.signedUrl || null
+        }
+
+        // Subida concurrente con límite de paralelismo
+        const { results, failedIndexes } = await uploadBatchConcurrent(
+            archivosMeta,
+            uploadOneFile,
+            UPLOAD_CONCURRENCY_LIMIT
+        )
+
+        // Recolectar URLs exitosas y registrar fallos
+        const urls: string[] = []
+        for (let i = 0; i < results.length; i++) {
+            if (results[i]) {
+                urls.push(results[i] as string)
             }
+        }
+
+        // Reportar archivos fallidos individualmente
+        for (const idx of failedIndexes) {
+            const meta = archivosMeta[idx]
+            archivosFallidos.push(meta.archivo.name)
+            console.error(`[Storage] Archivo falló después de todos los reintentos: ${meta.nombreFinal}`)
+        }
+
+        // Si hubo fallos, notificar error crítico al equipo técnico (una sola vez)
+        if (archivosFallidos.length > 0) {
+            await criticalErrorService.reportStorageFailure(
+                'upload',
+                'Soportes de Facturación',
+                'soportes-facturacion',
+                new Error(`${archivosFallidos.length} archivo(s) fallaron: ${archivosFallidos.join(', ')}`)
+            )
         }
 
         return {
             urls,
-            identificacionesExtraidas: Array.from(identificacionesSet)
+            identificacionesExtraidas: Array.from(identificacionesSet),
+            archivosFallidos
         }
     },
 
@@ -358,30 +400,46 @@ export const soportesFacturacionService = {
 
             const radicado = (registro as SoporteFacturacionRaw).radicado
 
-            // Subir archivos por categoría
+            // Subir archivos por categoría (concurrente dentro de cada categoría)
             const urlsUpdate: Record<string, string[]> = {}
             const todasIdentificaciones = new Set<string>()
+            const fallosPorCategoria: { categoria: string; nombres: string[] }[] = []
 
             for (const grupo of data.archivos) {
                 if (grupo.files.length > 0) {
                     try {
-                        const { urls, identificacionesExtraidas } = await this.subirArchivos(
+                        const { urls, identificacionesExtraidas, archivosFallidos } = await this.subirArchivos(
                             grupo.files,
                             grupo.categoria,
                             radicado,
                             data.eps,
                             data.servicioPrestado
                         )
-                        const columnName = getCategoriaColumnName(grupo.categoria)
-                        urlsUpdate[columnName] = urls
 
-                        // Acumular identificaciones extraídas de todos los archivos
+                        // Guardar URLs exitosas (incluso si hubo fallos parciales)
+                        if (urls.length > 0) {
+                            const columnName = getCategoriaColumnName(grupo.categoria)
+                            urlsUpdate[columnName] = urls
+                        }
+
                         for (const id of identificacionesExtraidas) {
                             todasIdentificaciones.add(id)
                         }
+
+                        // Registrar archivos que fallaron en esta categoría
+                        if (archivosFallidos.length > 0) {
+                            fallosPorCategoria.push({
+                                categoria: grupo.categoria,
+                                nombres: archivosFallidos
+                            })
+                        }
                     } catch (uploadError) {
                         console.error(`Error subiendo archivos de ${grupo.categoria}:`, uploadError)
-                        // Continuar con otras categorías
+                        // Registrar toda la categoría como fallida
+                        fallosPorCategoria.push({
+                            categoria: grupo.categoria,
+                            nombres: grupo.files.map(f => f.name)
+                        })
                     }
                 }
             }
@@ -479,6 +537,29 @@ export const soportesFacturacionService = {
             } catch (emailError) {
                 console.error('Error enviando correo de confirmación:', emailError)
                 // No fallar la operación si el correo falla
+            }
+
+            // Si hubo archivos fallidos, notificar al radicador por correo
+            if (fallosPorCategoria.length > 0) {
+                try {
+                    const { emailService } = await import('./email.service')
+                    const totalFallidos = fallosPorCategoria.reduce((acc, f) => acc + f.nombres.length, 0)
+                    const totalArchivos = data.archivos.reduce((acc, g) => acc + g.files.length, 0)
+
+                    await emailService.enviarNotificacionFalloSubida(
+                        soporteCreado.radicadorEmail,
+                        radicado,
+                        {
+                            archivosFallidos: fallosPorCategoria,
+                            archivosExitosos: totalArchivos - totalFallidos,
+                            totalArchivos,
+                            timestamp: new Date().toLocaleString('es-CO'),
+                        }
+                    )
+                    console.warn(`[Storage] Notificación de fallo de subida enviada a ${soporteCreado.radicadorEmail} (${totalFallidos} archivos fallidos)`)
+                } catch (notifyError) {
+                    console.error('Error enviando notificación de fallo de subida:', notifyError)
+                }
             }
 
             return {

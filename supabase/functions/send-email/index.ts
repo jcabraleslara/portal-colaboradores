@@ -67,6 +67,13 @@ interface DatosAprobacionRecobro {
     fechaAprobacion: string
 }
 
+interface DatosFalloSubida {
+    archivosFallidos: { categoria: string; nombres: string[] }[]
+    archivosExitosos: number
+    totalArchivos: number
+    timestamp: string
+}
+
 interface DatosEnrutado {
     pacienteNombre: string
     pacienteIdentificacion: string
@@ -83,11 +90,11 @@ interface DatosEnrutado {
 }
 
 interface RequestBody {
-    type: 'radicacion' | 'rechazo' | 'devolucion' | 'no_contactable' | 'devolucion_recobro' | 'aprobacion_recobro' | 'enrutado'
+    type: 'radicacion' | 'rechazo' | 'devolucion' | 'no_contactable' | 'devolucion_recobro' | 'aprobacion_recobro' | 'enrutado' | 'fallo_subida'
     destinatario: string | string[]  // Soporta multiples destinatarios
     cc?: string | string[]           // Copias opcionales
     radicado: string
-    datos: DatosRadicacionExitosa | DatosRechazo | DatosDevolucion | DatosNoContactable | DatosDevolucionRecobro | DatosAprobacionRecobro | DatosEnrutado
+    datos: DatosRadicacionExitosa | DatosRechazo | DatosDevolucion | DatosNoContactable | DatosDevolucionRecobro | DatosAprobacionRecobro | DatosEnrutado | DatosFalloSubida
     adjuntos?: EmailAttachment[]     // Adjuntos opcionales para enrutado
 }
 
@@ -675,6 +682,120 @@ function generarTemplateEnrutado(radicado: string, datos: DatosEnrutado): string
     `
 }
 
+function generarTemplateFalloSubida(radicado: string, datos: DatosFalloSubida): string {
+    const categoriasMap: Record<string, string> = {
+        'validacion_derechos': 'Validacion de Derechos',
+        'autorizacion': 'Autorizacion',
+        'soporte_clinico': 'Soporte Clinico',
+        'comprobante_recibo': 'Comprobante de Recibo',
+        'orden_medica': 'Orden Medica',
+        'descripcion_quirurgica': 'Descripcion Quirurgica',
+        'registro_anestesia': 'Registro de Anestesia',
+        'hoja_medicamentos': 'Hoja de Medicamentos',
+        'notas_enfermeria': 'Notas de Enfermeria',
+    }
+
+    const totalFallidos = datos.archivosFallidos.reduce((acc, f) => acc + f.nombres.length, 0)
+
+    const fallidosHtml = datos.archivosFallidos
+        .map(grupo => {
+            const categoriaNombre = categoriasMap[grupo.categoria] || grupo.categoria
+            const archivosLista = grupo.nombres
+                .map(nombre => `<li style="margin: 4px 0; font-size: 14px; color: ${COLORS.slate700};">${nombre}</li>`)
+                .join('')
+            return `
+                <div style="margin-bottom: 12px;">
+                    <h4 style="color: ${COLORS.warningDark}; margin: 0 0 6px 0; font-size: 14px;">&#128194; ${categoriaNombre}</h4>
+                    <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">${archivosLista}</ul>
+                </div>
+            `
+        })
+        .join('')
+
+    return `
+        <div style="font-family: ${EMAIL_FONTS.primary}; color: ${COLORS.text}; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <!-- Header -->
+            <div style="background: linear-gradient(135deg, ${COLORS.warning} 0%, ${COLORS.warningDark} 100%); padding: 24px 30px; text-align: center;">
+                <img src="cid:logo-gestar" alt="Gestar Salud IPS" style="height: 50px; margin-bottom: 12px;" />
+                <h1 style="margin: 0; font-size: 22px; font-weight: 600; color: #ffffff; letter-spacing: -0.5px;">
+                    &#9888;&#65039; Archivos Pendientes de Subida
+                </h1>
+            </div>
+
+            <!-- Contenido -->
+            <div style="padding: 30px; background-color: ${COLORS.background};">
+                <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6;">Cordial saludo,</p>
+                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">
+                    Le informamos que durante la radicacion del siguiente caso, <strong>${totalFallidos} archivo(s)</strong> no pudieron ser subidos al sistema debido a problemas de conexion.
+                </p>
+
+                <!-- Radicado -->
+                <div style="background-color: ${COLORS.warningLight}; border: 2px solid ${COLORS.warning}; padding: 16px; text-align: center; margin: 20px 0; border-radius: 8px;">
+                    <h2 style="color: ${COLORS.warningDark}; margin: 0; font-size: 24px;">${radicado}</h2>
+                    <p style="color: ${COLORS.slate600}; margin: 5px 0 0 0; font-size: 13px;">Numero de Radicado</p>
+                </div>
+
+                <!-- Resumen -->
+                <div style="display: flex; gap: 12px; margin: 20px 0;">
+                    <div style="flex: 1; background-color: ${COLORS.successLight}; border-radius: 8px; padding: 14px; text-align: center;">
+                        <p style="margin: 0; font-size: 24px; font-weight: 700; color: ${COLORS.success};">${datos.archivosExitosos}</p>
+                        <p style="margin: 4px 0 0 0; font-size: 12px; color: ${COLORS.slate600};">Exitosos</p>
+                    </div>
+                    <div style="flex: 1; background-color: ${COLORS.errorLight}; border-radius: 8px; padding: 14px; text-align: center;">
+                        <p style="margin: 0; font-size: 24px; font-weight: 700; color: ${COLORS.error};">${totalFallidos}</p>
+                        <p style="margin: 4px 0 0 0; font-size: 12px; color: ${COLORS.slate600};">Fallidos</p>
+                    </div>
+                    <div style="flex: 1; background-color: ${COLORS.primaryLight}; border-radius: 8px; padding: 14px; text-align: center;">
+                        <p style="margin: 0; font-size: 24px; font-weight: 700; color: ${COLORS.primary};">${datos.totalArchivos}</p>
+                        <p style="margin: 4px 0 0 0; font-size: 12px; color: ${COLORS.slate600};">Total</p>
+                    </div>
+                </div>
+
+                <!-- Archivos Fallidos -->
+                <h3 style="color: ${COLORS.error}; border-bottom: 2px solid ${COLORS.errorLight}; padding-bottom: 8px; margin-top: 24px;">
+                    &#128196; Archivos que no se pudieron subir
+                </h3>
+                ${fallidosHtml}
+
+                <!-- Accion Requerida -->
+                <div style="background-color: ${COLORS.warningLight}; border-left: 4px solid ${COLORS.warning}; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
+                    <strong style="color: ${COLORS.warningDark};">&#9889; Accion Requerida:</strong>
+                    <p style="margin: 10px 0 0 0; font-size: 14px; line-height: 1.6; color: ${COLORS.slate700};">
+                        Por favor, ingrese al <strong>Portal de Colaboradores</strong>, busque el radicado <strong>${radicado}</strong>
+                        y vuelva a subir los archivos indicados. Le recomendamos verificar su conexion a internet antes de intentar nuevamente.
+                    </p>
+                </div>
+
+                <!-- Tips -->
+                <div style="background-color: ${COLORS.infoLight}; border-left: 4px solid ${COLORS.info}; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0;">
+                    <strong style="color: ${COLORS.primary};">&#128161; Recomendaciones:</strong>
+                    <ul style="margin: 10px 0 0 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: ${COLORS.slate700};">
+                        <li>Verifique que su conexion a internet sea estable</li>
+                        <li>Si el problema persiste, intente con una red diferente (ej: datos moviles)</li>
+                        <li>Los archivos que se subieron exitosamente ya quedaron guardados</li>
+                    </ul>
+                </div>
+
+                <p style="margin: 20px 0 0 0; font-size: 13px; color: ${COLORS.textSecondary};">
+                    Fecha del intento: ${datos.timestamp}
+                </p>
+            </div>
+
+            <!-- Footer -->
+            <div style="background-color: #1E293B; padding: 20px 30px; text-align: center;">
+                <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.6;">
+                    Este es un mensaje automatico generado por el<br />
+                    <strong style="color: #E2E8F0;">Portal de Colaboradores de Gestar Salud IPS</strong><br />
+                    No responda a este correo.
+                </p>
+                <p style="font-size: 11px; color: #64748B; margin: 12px 0 0 0;">
+                    &#169; ${new Date().getFullYear()} Gestar Salud de Colombia IPS S.A.S.
+                </p>
+            </div>
+        </div>
+    `
+}
+
 // ==========================================
 // HANDLER PRINCIPAL
 // ==========================================
@@ -749,6 +870,11 @@ Deno.serve(async (req: Request) => {
             const datosEnrutado = body.datos as DatosEnrutado
             subject = `Ruta ${datosEnrutado.ruta} - ${datosEnrutado.pacienteTipoId} ${datosEnrutado.pacienteIdentificacion} - ${datosEnrutado.pacienteNombre}`
             htmlBody = generarTemplateEnrutado(body.radicado, datosEnrutado)
+        } else if (body.type === 'fallo_subida') {
+            const datosFallo = body.datos as DatosFalloSubida
+            const totalFallidos = datosFallo.archivosFallidos.reduce((acc, f) => acc + f.nombres.length, 0)
+            subject = `Archivos Pendientes de Subida - ${body.radicado} (${totalFallidos} archivo${totalFallidos > 1 ? 's' : ''})`
+            htmlBody = generarTemplateFalloSubida(body.radicado, datosFallo)
         } else {
             return new Response(
                 JSON.stringify({ success: false, error: 'Tipo de correo no valido' }),

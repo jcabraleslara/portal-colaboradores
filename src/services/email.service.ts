@@ -387,6 +387,53 @@ export const emailService = {
      * @param datosCaso Datos del caso y paciente
      * @param archivosUrls URLs de los archivos para descargar y adjuntar
      */
+    /**
+     * Enviar notificación al radicador cuando fallan subidas de archivos
+     * Le indica qué archivos no se pudieron subir para que reintente
+     */
+    async enviarNotificacionFalloSubida(
+        destinatario: string,
+        radicado: string,
+        datosFallo: {
+            archivosFallidos: { categoria: string; nombres: string[] }[]
+            archivosExitosos: number
+            totalArchivos: number
+            timestamp: string
+        }
+    ): Promise<boolean> {
+        try {
+            const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
+                method: 'POST',
+                headers: getEdgeFunctionHeaders(),
+                body: JSON.stringify({
+                    type: 'fallo_subida',
+                    destinatario,
+                    radicado,
+                    datos: datosFallo
+                })
+            })
+
+            if (!response.ok) {
+                console.error('[EmailService] Error enviando notificación de fallo de subida:', await response.text())
+                return false
+            }
+
+            const result = await response.json()
+            return result.success
+        } catch (error) {
+            console.error('[EmailService] Error enviando correo de fallo de subida:', error)
+
+            await criticalErrorService.reportEmailFailure(
+                destinatario,
+                'Soportes de Facturación',
+                'Notificación de Fallo de Subida',
+                error instanceof Error ? error : undefined
+            )
+
+            return false
+        }
+    },
+
     async enviarNotificacionEnrutado(
         destinatarios: string[],
         copias: string[],
