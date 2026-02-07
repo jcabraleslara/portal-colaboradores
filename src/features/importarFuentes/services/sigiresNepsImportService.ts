@@ -11,11 +11,6 @@
 
 import { supabase } from '@/config/supabase.config'
 import type { ImportResult, ImportProgressCallback } from '../types/import.types'
-import {
-    cargarMunicipioMap,
-    obtenerCodigoDepartamento,
-    limpiarCacheDivipola,
-} from '../utils/divipolaLookup'
 
 /** Fila transformada lista para enviar a RPC */
 interface BdSigiresNepsRow {
@@ -42,6 +37,7 @@ interface BdSigiresNepsRow {
 
 /** Índices de columnas en el archivo TXT (0-based) */
 const COL = {
+    DEPARTAMENTO: 5,
     MUNICIPIO: 6,
     CODIGO_IPS: 8,
     TIPO_DOCUMENTO: 10,
@@ -103,7 +99,6 @@ function parseDateSigires(val: string): string {
  */
 function transformLine(
     line: string,
-    municipioMap: Map<string, string>,
     redMap: Map<string, string>,
     stats: {
         skippedRows: number
@@ -148,9 +143,9 @@ function transformLine(
         stats.ipsNoEncontradas.set(codigoIps, (stats.ipsNoEncontradas.get(codigoIps) || 0) + 1)
     }
 
-    // Municipio y departamento
+    // Municipio y departamento directos del archivo
     const municipio = sanitize(fields[COL.MUNICIPIO]).toUpperCase()
-    const departamento = obtenerCodigoDepartamento(municipio, municipioMap)
+    const departamento = sanitize(fields[COL.DEPARTAMENTO]).toUpperCase()
 
     // Teléfono: solo importar si inicia con 3 y tiene exactamente 10 dígitos
     const telefonoRaw = sanitize(fields[COL.TELEFONO]).replace(/\D/g, '')
@@ -214,10 +209,8 @@ export async function processSigiresNepsFile(
 
     // ═══ Fase 1: Cargar tablas de referencia (0-5%) ═══
     onProgress('Cargando tablas de referencia...', 0)
-    limpiarCacheDivipola()
 
-    const [municipioMap, redMap, timestampData] = await Promise.all([
-        cargarMunicipioMap(),
+    const [redMap, timestampData] = await Promise.all([
         cargarRedMap(),
         supabase.rpc('now').then(r => r.data as string),
     ])
@@ -267,7 +260,7 @@ export async function processSigiresNepsFile(
             }
 
             totalLinesRead++
-            const result = transformLine(line, municipioMap, redMap, stats)
+            const result = transformLine(line, redMap, stats)
             if (result) {
                 if (rowsMap.has(result.dedupeKey)) {
                     fileDuplicates++
@@ -286,7 +279,7 @@ export async function processSigiresNepsFile(
     // Procesar último segmento residual
     if (leftover.trim() && !isFirstLine) {
         totalLinesRead++
-        const result = transformLine(leftover, municipioMap, redMap, stats)
+        const result = transformLine(leftover, redMap, stats)
         if (result) {
             if (rowsMap.has(result.dedupeKey)) {
                 fileDuplicates++
