@@ -364,22 +364,37 @@ Deno.serve(async (req) => {
 
             try {
                 // Fase 0: Crear cliente Supabase
+                console.log('[BD_NEPS] Iniciando pipeline...')
                 const supabase = createClient(supabaseUrl, supabaseServiceKey)
                 const timestampInicio = new Date().toISOString()
 
                 // Fase 1: Autenticacion Azure
                 send({ phase: 'auth', status: 'Autenticando con Microsoft Graph...', pct: 2 })
+                console.log('[BD_NEPS] Fase 1: Solicitando token Azure...')
                 const accessToken = await getGraphAccessToken()
+                console.log('[BD_NEPS] Fase 1: Token obtenido OK, longitud:', accessToken.length)
                 send({ phase: 'auth', status: 'Autenticacion exitosa', pct: 5 })
 
                 // Fase 2: Buscar carpeta "BD" en correo
                 send({ phase: 'folder', status: 'Buscando carpeta "BD" en correo...', pct: 7 })
+                console.log('[BD_NEPS] Fase 2: Buscando carpeta BD...')
                 const folderId = await findMailFolder(accessToken, 'BD')
+                console.log('[BD_NEPS] Fase 2: Carpeta BD encontrada, folderId:', folderId)
                 send({ phase: 'folder', status: 'Carpeta "BD" encontrada', pct: 10 })
 
                 // Fase 3: Listar todos los correos y separar lote mas reciente
                 send({ phase: 'messages', status: 'Listando correos en carpeta BD...', pct: 12 })
+                console.log('[BD_NEPS] Fase 3: Listando correos...')
                 const allMessages = await listAllMessages(accessToken, folderId)
+                console.log('[BD_NEPS] Fase 3: Total correos encontrados:', allMessages.length)
+                if (allMessages.length > 0) {
+                    console.log('[BD_NEPS] Fase 3: Primer correo:', JSON.stringify({
+                        id: allMessages[0].id.substring(0, 30) + '...',
+                        subject: allMessages[0].subject,
+                        hasAttachments: allMessages[0].hasAttachments,
+                        receivedDateTime: allMessages[0].receivedDateTime,
+                    }))
+                }
 
                 if (allMessages.length === 0) {
                     send({
@@ -401,6 +416,9 @@ Deno.serve(async (req) => {
                 const fechaLote = loteReciente[0]?.receivedDateTime.substring(0, 10) || 'N/A'
                 const loteConAdjuntos = loteReciente.filter(m => m.hasAttachments)
 
+                console.log('[BD_NEPS] Fase 3: Lote reciente:', loteReciente.length, 'correos, fecha:', fechaLote)
+                console.log('[BD_NEPS] Fase 3: Con adjuntos:', loteConAdjuntos.length, '| Correos viejos:', correosViejos.length)
+
                 send({
                     phase: 'messages',
                     status: `${allMessages.length} correo(s) total — lote ${fechaLote}: ${loteConAdjuntos.length} con adjuntos, ${correosViejos.length} antiguo(s) a eliminar`,
@@ -409,21 +427,27 @@ Deno.serve(async (req) => {
 
                 // Fase 4: Descargar adjuntos ZIP solo del lote mas reciente
                 send({ phase: 'download', status: `Descargando ZIPs del lote ${fechaLote}...`, pct: 17 })
+                console.log('[BD_NEPS] Fase 4: Iniciando descarga de adjuntos...')
                 const zipBuffers: { data: Uint8Array; msgId: string; name: string }[] = []
                 const processedMessageIds: string[] = []
 
                 for (let i = 0; i < loteConAdjuntos.length; i++) {
                     const msg = loteConAdjuntos[i]
+                    console.log(`[BD_NEPS] Fase 4: Correo ${i + 1}/${loteConAdjuntos.length} - subject: "${msg.subject}", id: ${msg.id.substring(0, 30)}...`)
                     const metas = await listAttachmentsMeta(accessToken, msg.id)
+                    console.log(`[BD_NEPS] Fase 4: Adjuntos encontrados: ${metas.length}`, metas.map(m => ({ name: m.name, size: m.size })))
 
                     const zipMetas = metas.filter(m => m.name.toLowerCase().endsWith('.zip'))
+                    console.log(`[BD_NEPS] Fase 4: ZIPs filtrados: ${zipMetas.length}`)
 
                     for (const meta of zipMetas) {
                         try {
+                            console.log(`[BD_NEPS] Fase 4: Descargando ZIP "${meta.name}" (${meta.size} bytes)...`)
                             const bytes = await downloadAttachmentContent(accessToken, msg.id, meta.id)
+                            console.log(`[BD_NEPS] Fase 4: ZIP descargado OK, ${bytes.length} bytes`)
                             zipBuffers.push({ data: bytes, msgId: msg.id, name: meta.name })
                         } catch (dlErr) {
-                            console.error(`Error descargando ZIP ${meta.name} del mensaje ${msg.id}:`, dlErr)
+                            console.error(`[BD_NEPS] Error descargando ZIP ${meta.name} del mensaje ${msg.id}:`, dlErr)
                         }
                     }
 
@@ -457,32 +481,41 @@ Deno.serve(async (req) => {
                     return
                 }
 
+                console.log(`[BD_NEPS] Fase 4: Total ZIPs descargados: ${zipBuffers.length}`)
                 send({ phase: 'download', status: `${zipBuffers.length} ZIP(s) descargado(s) del lote ${fechaLote}`, pct: 25 })
 
                 // Fase 5: Extraer CSVs de ZIPs
                 send({ phase: 'extract', status: 'Extrayendo CSVs de archivos ZIP...', pct: 27 })
+                console.log('[BD_NEPS] Fase 5: Extrayendo CSVs...')
                 const csvTexts: string[] = []
 
                 for (let i = 0; i < zipBuffers.length; i++) {
                     const { data, name } = zipBuffers[i]
                     try {
+                        console.log(`[BD_NEPS] Fase 5: ZIP "${name}" (${data.length} bytes)`)
                         const zip = await JSZip.loadAsync(data)
-                        const csvFiles = Object.keys(zip.files).filter(
+                        const allFiles = Object.keys(zip.files)
+                        console.log(`[BD_NEPS] Fase 5: Archivos en ZIP: ${allFiles.length}`, allFiles.slice(0, 5))
+                        const csvFiles = allFiles.filter(
                             f => f.toLowerCase().endsWith('.csv') && !zip.files[f].dir
                         )
+                        console.log(`[BD_NEPS] Fase 5: CSVs encontrados: ${csvFiles.length}`, csvFiles)
 
                         for (const csvFile of csvFiles) {
                             const csvBytes = await zip.files[csvFile].async('uint8array')
                             const csvText = decodificarTexto(csvBytes)
+                            console.log(`[BD_NEPS] Fase 5: CSV "${csvFile}" - ${csvBytes.length} bytes, ${csvText.split('\n').length} lineas, primeros 200 chars: "${csvText.substring(0, 200)}"`)
                             csvTexts.push(csvText)
                         }
                     } catch (err) {
-                        console.error(`Error extrayendo ZIP ${name}:`, err)
+                        console.error(`[BD_NEPS] Error extrayendo ZIP ${name}:`, err)
                     }
 
                     const pct = 27 + Math.round((i / zipBuffers.length) * 8)
                     send({ phase: 'extract', status: `Extrayendo ${i + 1}/${zipBuffers.length} ZIPs...`, pct })
                 }
+
+                console.log(`[BD_NEPS] Fase 5: Total CSVs extraidos: ${csvTexts.length}`)
 
                 if (csvTexts.length === 0) {
                     send({
@@ -538,13 +571,30 @@ Deno.serve(async (req) => {
 
                 // Fase 7: Parsear CSVs + Transformar + Deduplicar
                 send({ phase: 'parse', status: 'Parseando y transformando CSVs...', pct: 42 })
+                console.log('[BD_NEPS] Fase 7: Parseando CSVs...')
 
                 const deduplicados = new Map<string, BdRecord>()
                 let totalLineas = 0
                 let lineasDescartadas = 0
+                let descartadasPorCampos = 0
+                let descartadasPorTipoId = 0
 
                 for (let csvIdx = 0; csvIdx < csvTexts.length; csvIdx++) {
                     const lines = csvTexts[csvIdx].split('\n')
+                    console.log(`[BD_NEPS] Fase 7: CSV ${csvIdx + 1} tiene ${lines.length} lineas`)
+                    if (lines.length > 0) {
+                        console.log(`[BD_NEPS] Fase 7: Header CSV: "${lines[0].substring(0, 300)}"`)
+                        // Mostrar campos del header para verificar indices
+                        const headerFields = lines[0].split(';')
+                        console.log(`[BD_NEPS] Fase 7: Header tiene ${headerFields.length} campos`)
+                        console.log(`[BD_NEPS] Fase 7: Campos[0-10]:`, headerFields.slice(0, 11))
+                        console.log(`[BD_NEPS] Fase 7: Campos[11-22]:`, headerFields.slice(11, 23))
+                        console.log(`[BD_NEPS] Fase 7: Campos[23-33]:`, headerFields.slice(23, 34))
+                    }
+                    if (lines.length > 1) {
+                        const sampleFields = lines[1].split(';')
+                        console.log(`[BD_NEPS] Fase 7: Linea 1 tiene ${sampleFields.length} campos, ejemplo:`, sampleFields.slice(0, 11))
+                    }
                     // Saltar header
                     for (let i = 1; i < lines.length; i++) {
                         const line = lines[i].trim()
@@ -553,7 +603,11 @@ Deno.serve(async (req) => {
 
                         const fields = line.split(';')
                         if (fields.length < 33) {
+                            descartadasPorCampos++
                             lineasDescartadas++
+                            if (descartadasPorCampos <= 3) {
+                                console.log(`[BD_NEPS] Fase 7: Linea ${i} descartada por pocos campos (${fields.length}): "${line.substring(0, 150)}"`)
+                            }
                             continue
                         }
 
@@ -563,7 +617,11 @@ Deno.serve(async (req) => {
                         const docId = limpiarCampo(fields[5])
 
                         if (!tipoId || !docId) {
+                            descartadasPorTipoId++
                             lineasDescartadas++
+                            if (descartadasPorTipoId <= 3) {
+                                console.log(`[BD_NEPS] Fase 7: Linea ${i} descartada - afiTidCodigo="${afiTidCodigo}" tipoId="${tipoId}" docId="${docId}"`)
+                            }
                             continue
                         }
 
@@ -616,6 +674,11 @@ Deno.serve(async (req) => {
 
                 const registros = Array.from(deduplicados.values())
                 const duplicados = totalLineas - lineasDescartadas - registros.length
+
+                console.log(`[BD_NEPS] Fase 7: Resultado parseo: ${registros.length} unicos, ${totalLineas} lineas, ${lineasDescartadas} descartadas (${descartadasPorCampos} por campos, ${descartadasPorTipoId} por tipo_id), ${duplicados} duplicados`)
+                if (registros.length > 0) {
+                    console.log('[BD_NEPS] Fase 7: Ejemplo registro:', JSON.stringify(registros[0]))
+                }
 
                 send({
                     phase: 'parse',
@@ -724,7 +787,7 @@ Deno.serve(async (req) => {
                     await supabase.from('import_history').insert({
                         usuario: 'import-bd-neps',
                         archivo_nombre: `Lote ${fechaLote}: ${zipBuffers.length} ZIP(s), ${csvTexts.length} CSV(s)`,
-                        tipo_fuente: 'bd-neps',
+                        tipo_fuente: 'bd_neps',
                         total_registros: registros.length,
                         exitosos: totalExitosos,
                         fallidos: totalErrores,
@@ -764,7 +827,10 @@ Deno.serve(async (req) => {
                 })
 
             } catch (error) {
-                console.error('Error en pipeline import-bd-neps:', error)
+                console.error('[BD_NEPS] ERROR CRITICO en pipeline:', error)
+                if (error instanceof Error) {
+                    console.error('[BD_NEPS] Stack:', error.stack)
+                }
 
                 await notifyCriticalError({
                     category: 'INTEGRATION_ERROR',
