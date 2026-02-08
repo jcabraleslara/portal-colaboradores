@@ -10,18 +10,16 @@ import type { ImportProgressCallback, ImportResult } from '../types/import.types
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 
 /**
- * Parsea todas las lineas NDJSON pendientes en el buffer.
- * Retorna el buffer restante (linea incompleta al final).
+ * Parsea texto NDJSON completo y extrae resultado + reporta progreso.
+ * Lanza error si encuentra phase='error'.
  */
-function processNdjsonBuffer(
-    buffer: string,
+function parseNdjsonText(
+    text: string,
     onProgress: ImportProgressCallback,
-    resultRef: { value: ImportResult | null },
-) {
-    const lines = buffer.split('\n')
-    const remaining = lines.pop() || ''
+): ImportResult | null {
+    let result: ImportResult | null = null
 
-    for (const line of lines) {
+    for (const line of text.split('\n')) {
         const trimmed = line.trim()
         if (!trimmed) continue
 
@@ -37,7 +35,7 @@ function processNdjsonBuffer(
             }
 
             if (data.result) {
-                resultRef.value = data.result as ImportResult
+                result = data.result as ImportResult
             }
         } catch (parseErr) {
             if (parseErr instanceof SyntaxError) continue
@@ -45,12 +43,83 @@ function processNdjsonBuffer(
         }
     }
 
-    return remaining
+    return result
+}
+
+/**
+ * Lee la respuesta como stream NDJSON para progreso en tiempo real.
+ * Retorna el resultado o null si no se encontro.
+ */
+async function readStreamingResponse(
+    response: Response,
+    onProgress: ImportProgressCallback,
+): Promise<ImportResult | null> {
+    if (!response.body) return null
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let result: ImportResult | null = null
+    let buffer = ''
+
+    while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        buffer += chunk
+
+        // Procesar lineas NDJSON completas
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+            const trimmed = line.trim()
+            if (!trimmed) continue
+
+            try {
+                const data = JSON.parse(trimmed)
+
+                if (data.phase === 'error') {
+                    throw new Error(data.error || 'Error desconocido en la importacion')
+                }
+
+                if (data.pct !== undefined && data.status) {
+                    onProgress(data.status, data.pct)
+                }
+
+                if (data.result) {
+                    result = data.result as ImportResult
+                }
+            } catch (parseErr) {
+                if (parseErr instanceof SyntaxError) continue
+                throw parseErr
+            }
+        }
+    }
+
+    // Flush TextDecoder + buffer restante
+    const finalChunk = decoder.decode()
+    if (finalChunk) buffer += finalChunk
+
+    if (buffer.trim()) {
+        try {
+            const data = JSON.parse(buffer.trim())
+            if (data.phase === 'error') {
+                throw new Error(data.error || 'Error desconocido en la importacion')
+            }
+            if (data.result) result = data.result as ImportResult
+        } catch (e) {
+            if (!(e instanceof SyntaxError)) throw e
+        }
+    }
+
+    return result
 }
 
 /**
  * Ejecuta la sincronizacion cloud de BD NEPS
- * Lee la respuesta streaming (NDJSON) para reportar progreso en tiempo real
+ * Intenta leer streaming para progreso en tiempo real.
+ * Si el streaming no produce resultado, hace fallback a lectura completa.
  */
 export async function processBdNepsCloud(
     onProgress: ImportProgressCallback
@@ -63,6 +132,7 @@ export async function processBdNepsCloud(
 
     onProgress('Conectando con el servidor...', 0)
 
+    // Clonar respuesta para fallback si streaming falla
     const response = await fetch(`${SUPABASE_URL}/functions/v1/import-bd-neps`, {
         method: 'POST',
         headers: {
@@ -77,46 +147,30 @@ export async function processBdNepsCloud(
         throw new Error(`Error del servidor (${response.status}): ${errorText}`)
     }
 
-    // Fallback: si no hay body streaming, leer como texto completo
-    if (!response.body) {
-        const text = await response.text()
-        const resultRef = { value: null as ImportResult | null }
-        processNdjsonBuffer(text + '\n', onProgress, resultRef)
+    // Clonar ANTES de consumir el body (para fallback)
+    const fallbackResponse = response.clone()
 
-        if (!resultRef.value) {
-            throw new Error('El servidor no envio resultado en la respuesta')
+    // Intentar lectura streaming (progreso en tiempo real)
+    try {
+        const streamResult = await readStreamingResponse(response, onProgress)
+        if (streamResult) return streamResult
+    } catch (streamErr) {
+        // Si es un error de negocio (phase=error), re-lanzar
+        if (streamErr instanceof Error && !streamErr.message.includes('stream')) {
+            throw streamErr
         }
-        return resultRef.value
+        console.warn('[BD_NEPS] Error en lectura streaming, intentando fallback:', streamErr)
     }
 
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    const resultRef = { value: null as ImportResult | null }
-    let buffer = ''
+    // Fallback: leer respuesta completa como texto
+    console.warn('[BD_NEPS] Streaming no produjo resultado, usando fallback text()')
+    const text = await fallbackResponse.text()
+    const fallbackResult = parseNdjsonText(text, onProgress)
 
-    while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        buffer += chunk
-        buffer = processNdjsonBuffer(buffer, onProgress, resultRef)
-    }
-
-    // Flush del TextDecoder (bytes pendientes de secuencias multi-byte)
-    const finalChunk = decoder.decode()
-    if (finalChunk) {
-        buffer += finalChunk
-    }
-
-    // Procesar ultimo fragmento del buffer
-    if (buffer.trim()) {
-        processNdjsonBuffer(buffer + '\n', onProgress, resultRef)
-    }
-
-    if (!resultRef.value) {
+    if (!fallbackResult) {
+        console.error('[BD_NEPS] Respuesta del servidor:', text.substring(0, 500))
         throw new Error('No se recibio resultado de la importacion')
     }
 
-    return resultRef.value
+    return fallbackResult
 }
