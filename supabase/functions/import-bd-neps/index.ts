@@ -15,6 +15,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import JSZip from 'npm:jszip@3.10.1'
 import { corsHeaders } from '../_shared/cors.ts'
 import { notifyAuthenticationError, notifyServiceUnavailable, notifyCriticalError } from '../_shared/critical-error-utils.ts'
+import { sendGmailEmail } from '../_shared/gmail-utils.ts'
+import { COLORS, EMAIL_FONTS, GESTAR_LOGO_BASE64, generarHeaderEmail, generarFooterEmail } from '../_shared/email-templates.ts'
 
 // --- Tipos ---
 
@@ -316,6 +318,257 @@ function decodificarTexto(bytes: Uint8Array): string {
         // Ultimo recurso
         return new TextDecoder('windows-1252').decode(bytes)
     }
+}
+
+// --- Notificacion por correo ---
+
+interface NotificacionData {
+    fechaLote: string
+    totalExitosos: number
+    totalErrores: number
+    totalInsertados: number
+    totalActualizados: number
+    totalComplementados: number
+    huerfanosMarcados: number
+    duplicados: number
+    totalLineas: number
+    lineasDescartadas: number
+    registrosUnicos: number
+    duracion: string
+    zips: number
+    csvs: number
+    correosEliminados: number
+    infoReport: string
+}
+
+/**
+ * Envía correo de notificación con estadísticas de la importación,
+ * estado general de la BD, gráfica histórica y log adjunto.
+ */
+async function enviarCorreoNotificacion(
+    supabase: ReturnType<typeof createClient>,
+    data: NotificacionData
+): Promise<void> {
+    const hasErrors = data.totalErrores > 0
+    const statusColor = hasErrors ? COLORS.error : COLORS.success
+    const statusText = hasErrors ? 'CON ERRORES' : 'EXITOSA'
+    const statusIcon = hasErrors ? '&#9888;&#65039;' : '&#9989;'
+
+    // Consultar estadisticas generales de la tabla bd por fuente
+    const fuenteConteo: Record<string, number> = {}
+    let totalBd = 0
+    const fuentesDB = ['BD_ST_CERETE', 'BD_NEPS', 'BD_ST_PGP', 'BD_SIGIRES_NEPS', 'PORTAL_COLABORADORES']
+    for (const fuente of fuentesDB) {
+        const { count } = await supabase.from('bd').select('*', { count: 'exact', head: true }).eq('fuente', fuente)
+        if (count !== null) {
+            fuenteConteo[fuente] = count
+            totalBd += count
+        }
+    }
+
+    // Consultar historial de importaciones (ultimos 15 dias)
+    const { data: historial } = await supabase
+        .from('import_history')
+        .select('tipo_fuente, fecha_importacion, exitosos, fallidos')
+        .gte('fecha_importacion', new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString())
+        .order('fecha_importacion', { ascending: true })
+
+    // Preparar datos para grafica: agrupar por fecha y fuente (ultimo resultado por dia)
+    const porDiaFuente = new Map<string, Map<string, number>>()
+    if (historial) {
+        for (const h of historial) {
+            const fecha = h.fecha_importacion.substring(0, 10)
+            const fuente = h.tipo_fuente || 'legacy'
+            if (!porDiaFuente.has(fecha)) porDiaFuente.set(fecha, new Map())
+            porDiaFuente.get(fecha)!.set(fuente, h.exitosos || 0)
+        }
+    }
+
+    // Construir config de QuickChart (bar chart agrupado por fuente)
+    const labels = Array.from(porDiaFuente.keys()).slice(-10)
+    const fuentesHistorial = ['bd_neps', 'bd-sigires-neps', 'bd-salud-total', 'bd-sigires-st']
+    const fuenteColores: Record<string, string> = {
+        'bd_neps': COLORS.primary,
+        'bd-sigires-neps': COLORS.success,
+        'bd-salud-total': COLORS.accent,
+        'bd-sigires-st': COLORS.warning,
+    }
+    const fuenteLabels: Record<string, string> = {
+        'bd_neps': 'BD NEPS',
+        'bd-sigires-neps': 'SIGIRES NEPS',
+        'bd-salud-total': 'Salud Total',
+        'bd-sigires-st': 'SIGIRES ST',
+    }
+
+    const datasets = fuentesHistorial.map(f => ({
+        label: fuenteLabels[f] || f,
+        backgroundColor: fuenteColores[f] || '#94A3B8',
+        data: labels.map(l => porDiaFuente.get(l)?.get(f) || 0),
+    }))
+
+    const chartConfig = {
+        type: 'bar',
+        data: { labels: labels.map(l => l.substring(5)), datasets },
+        options: {
+            plugins: {
+                title: { display: true, text: 'Registros importados por fuente (ultimos dias)', font: { size: 14 } },
+                legend: { position: 'bottom' },
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: (v: number) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v } },
+            },
+        },
+    }
+
+    // Generar URL de QuickChart
+    const chartUrl = `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&w=600&h=300&bkg=white`
+
+    // Descargar imagen del chart para embeber inline
+    let chartBase64 = ''
+    try {
+        const chartResp = await fetch(chartUrl)
+        if (chartResp.ok) {
+            const chartBytes = new Uint8Array(await chartResp.arrayBuffer())
+            chartBase64 = btoa(String.fromCharCode(...chartBytes))
+        }
+    } catch {
+        // Si falla, el correo se envia sin grafica
+    }
+
+    // Tabla de fuentes BD
+    const fuenteOrden = ['BD_ST_CERETE', 'BD_NEPS', 'BD_ST_PGP', 'BD_SIGIRES_NEPS', 'PORTAL_COLABORADORES']
+    const fuenteFilas = fuenteOrden
+        .filter(f => fuenteConteo[f])
+        .map(f => `
+            <tr>
+                <td style="padding: 8px 12px; border-bottom: 1px solid ${COLORS.slate200}; font-size: 13px; color: ${COLORS.text};">${f}</td>
+                <td style="padding: 8px 12px; border-bottom: 1px solid ${COLORS.slate200}; font-size: 13px; color: ${COLORS.text}; text-align: right; font-weight: 600;">${(fuenteConteo[f] || 0).toLocaleString()}</td>
+            </tr>
+        `).join('')
+
+    const fechaHoy = new Date().toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+    // HTML del correo
+    const htmlBody = `
+    <div style="font-family: ${EMAIL_FONTS.primary}; max-width: 650px; margin: 0 auto; background-color: ${COLORS.background}; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+        ${generarHeaderEmail(
+            `${statusIcon} Importacion BD NEPS ${statusText}`,
+            `Lote ${data.fechaLote} &#8226; ${fechaHoy}`,
+            hasErrors ? COLORS.error : COLORS.primary,
+            hasErrors ? COLORS.errorDark : COLORS.primaryDark
+        )}
+
+        <div style="padding: 25px 30px;">
+            <!-- Resumen rapido -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 25px;">
+                <tr>
+                    <td style="width: 25%; text-align: center; padding: 15px 8px; background: ${COLORS.successLight}; border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 700; color: ${COLORS.successDark};">${data.totalExitosos.toLocaleString()}</div>
+                        <div style="font-size: 11px; color: ${COLORS.slate500}; text-transform: uppercase; letter-spacing: 0.5px;">Exitosos</div>
+                    </td>
+                    <td style="width: 4%;"></td>
+                    <td style="width: 25%; text-align: center; padding: 15px 8px; background: ${data.totalErrores > 0 ? COLORS.errorLight : COLORS.slate100}; border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 700; color: ${data.totalErrores > 0 ? COLORS.error : COLORS.slate400};">${data.totalErrores.toLocaleString()}</div>
+                        <div style="font-size: 11px; color: ${COLORS.slate500}; text-transform: uppercase; letter-spacing: 0.5px;">Errores</div>
+                    </td>
+                    <td style="width: 4%;"></td>
+                    <td style="width: 21%; text-align: center; padding: 15px 8px; background: ${COLORS.infoLight}; border-radius: 8px;">
+                        <div style="font-size: 24px; font-weight: 700; color: ${COLORS.primary};">${data.duplicados.toLocaleString()}</div>
+                        <div style="font-size: 11px; color: ${COLORS.slate500}; text-transform: uppercase; letter-spacing: 0.5px;">Duplicados</div>
+                    </td>
+                    <td style="width: 4%;"></td>
+                    <td style="width: 21%; text-align: center; padding: 15px 8px; background: ${COLORS.slate100}; border-radius: 8px;">
+                        <div style="font-size: 18px; font-weight: 700; color: ${COLORS.slate700};">${data.duracion}</div>
+                        <div style="font-size: 11px; color: ${COLORS.slate500}; text-transform: uppercase; letter-spacing: 0.5px;">Duracion</div>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- Detalle de importacion -->
+            <h3 style="font-size: 15px; color: ${COLORS.text}; margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 2px solid ${COLORS.primary};">
+                &#128203; Detalle de la importacion
+            </h3>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 25px; font-size: 13px;">
+                <tr><td style="padding: 6px 0; color: ${COLORS.slate600};">Correos procesados</td><td style="padding: 6px 0; text-align: right; font-weight: 600; color: ${COLORS.text};">${data.correosEliminados}</td></tr>
+                <tr><td style="padding: 6px 0; color: ${COLORS.slate600};">Archivos ZIP</td><td style="padding: 6px 0; text-align: right; font-weight: 600; color: ${COLORS.text};">${data.zips}</td></tr>
+                <tr><td style="padding: 6px 0; color: ${COLORS.slate600};">Archivos CSV</td><td style="padding: 6px 0; text-align: right; font-weight: 600; color: ${COLORS.text};">${data.csvs}</td></tr>
+                <tr><td style="padding: 6px 0; color: ${COLORS.slate600};">Total lineas en CSVs</td><td style="padding: 6px 0; text-align: right; font-weight: 600; color: ${COLORS.text};">${data.totalLineas.toLocaleString()}</td></tr>
+                <tr><td style="padding: 6px 0; color: ${COLORS.slate600};">Registros unicos</td><td style="padding: 6px 0; text-align: right; font-weight: 600; color: ${COLORS.text};">${data.registrosUnicos.toLocaleString()}</td></tr>
+                <tr><td style="padding: 6px 0; color: ${COLORS.slate600};">Insertados nuevos</td><td style="padding: 6px 0; text-align: right; font-weight: 600; color: ${COLORS.successDark};">${data.totalInsertados.toLocaleString()}</td></tr>
+                <tr><td style="padding: 6px 0; color: ${COLORS.slate600};">Actualizados</td><td style="padding: 6px 0; text-align: right; font-weight: 600; color: ${COLORS.primary};">${data.totalActualizados.toLocaleString()}</td></tr>
+                <tr><td style="padding: 6px 0; color: ${COLORS.slate600};">Complementados (CERETE)</td><td style="padding: 6px 0; text-align: right; font-weight: 600; color: ${COLORS.primary};">${data.totalComplementados.toLocaleString()}</td></tr>
+                <tr><td style="padding: 6px 0; color: ${COLORS.slate600};">Huerfanos marcados</td><td style="padding: 6px 0; text-align: right; font-weight: 600; color: ${COLORS.warning};">${data.huerfanosMarcados.toLocaleString()}</td></tr>
+                <tr><td style="padding: 6px 0; color: ${COLORS.slate600};">Descartados</td><td style="padding: 6px 0; text-align: right; font-weight: 600; color: ${COLORS.slate400};">${data.lineasDescartadas.toLocaleString()}</td></tr>
+            </table>
+
+            <!-- Estado general BD -->
+            <h3 style="font-size: 15px; color: ${COLORS.text}; margin: 0 0 12px 0; padding-bottom: 8px; border-bottom: 2px solid ${COLORS.success};">
+                &#128202; Estado general de la Base de Datos
+            </h3>
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 8px;">
+                <thead>
+                    <tr style="background: ${COLORS.slate100};">
+                        <th style="padding: 10px 12px; text-align: left; font-size: 12px; color: ${COLORS.slate600}; text-transform: uppercase; letter-spacing: 0.5px;">Fuente</th>
+                        <th style="padding: 10px 12px; text-align: right; font-size: 12px; color: ${COLORS.slate600}; text-transform: uppercase; letter-spacing: 0.5px;">Registros</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${fuenteFilas}
+                </tbody>
+                <tfoot>
+                    <tr style="background: ${COLORS.slate100};">
+                        <td style="padding: 10px 12px; font-size: 13px; font-weight: 700; color: ${COLORS.text};">TOTAL</td>
+                        <td style="padding: 10px 12px; font-size: 13px; font-weight: 700; color: ${COLORS.text}; text-align: right;">${totalBd.toLocaleString()}</td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <!-- Grafica historica -->
+            ${chartBase64 ? `
+            <h3 style="font-size: 15px; color: ${COLORS.text}; margin: 25px 0 12px 0; padding-bottom: 8px; border-bottom: 2px solid ${COLORS.warning};">
+                &#128200; Comportamiento historico de fuentes
+            </h3>
+            <div style="text-align: center; margin: 15px 0;">
+                <img src="cid:chart-historico" alt="Grafica historica" style="max-width: 100%; border-radius: 8px; border: 1px solid ${COLORS.slate200};" />
+            </div>
+            ` : ''}
+
+            <!-- Nota sobre adjunto -->
+            <div style="background: ${COLORS.infoLight}; border-left: 4px solid ${COLORS.primary}; padding: 12px 15px; border-radius: 0 8px 8px 0; margin: 20px 0 0 0;">
+                <p style="margin: 0; font-size: 13px; color: ${COLORS.primaryDark};">
+                    &#128206; Se adjunta el log detallado de la importacion en formato CSV.
+                </p>
+            </div>
+        </div>
+
+        ${generarFooterEmail(
+            'Reporte automatico de sincronizacion BD NEPS generado por el',
+            'Portal de Colaboradores de Gestar Salud IPS'
+        )}
+    </div>`
+
+    // Preparar adjunto CSV
+    const csvBase64 = btoa(unescape(encodeURIComponent(data.infoReport)))
+
+    // Preparar imagenes inline
+    const inlineImages = [
+        { cid: 'logo-gestar', content: GESTAR_LOGO_BASE64, mimeType: 'image/png' },
+    ]
+    if (chartBase64) {
+        inlineImages.push({ cid: 'chart-historico', content: chartBase64, mimeType: 'image/png' })
+    }
+
+    await sendGmailEmail({
+        to: 'coordinacionmedica@gestarsaludips.com',
+        subject: `[BD NEPS] Importacion ${statusText} - Lote ${data.fechaLote} (${data.totalExitosos.toLocaleString()} registros)`,
+        htmlBody,
+        attachments: [{
+            filename: `log_importacion_bd_neps_${data.fechaLote}.csv`,
+            content: csvBase64,
+            mimeType: 'text/csv',
+        }],
+        inlineImages,
+    })
 }
 
 // --- Pipeline principal ---
@@ -859,6 +1112,30 @@ Deno.serve(async (req) => {
                         infoReport,
                     },
                 })
+
+                // Enviar correo de notificacion (solo registrar error, no bloquear)
+                try {
+                    await enviarCorreoNotificacion(supabase, {
+                        fechaLote,
+                        totalExitosos,
+                        totalErrores,
+                        totalInsertados,
+                        totalActualizados,
+                        totalComplementados,
+                        huerfanosMarcados,
+                        duplicados,
+                        totalLineas,
+                        lineasDescartadas,
+                        registrosUnicos: registros.length,
+                        duracion,
+                        zips: zipBuffers.length,
+                        csvs: csvTexts.length,
+                        correosEliminados,
+                        infoReport,
+                    })
+                } catch (emailErr) {
+                    console.error('Error enviando correo notificacion:', emailErr instanceof Error ? emailErr.message : emailErr)
+                }
 
             } catch (error) {
                 console.error('[BD_NEPS] Error critico:', error instanceof Error ? error.message : error)
