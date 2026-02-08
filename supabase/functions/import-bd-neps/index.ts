@@ -632,12 +632,14 @@ Deno.serve(async (req) => {
                     if (isForced || now - lastDbUpdate >= DB_UPDATE_THROTTLE) {
                         lastDbUpdate = now
                         const supabaseForUpdate = createClient(supabaseUrl, supabaseServiceKey)
-                        void supabaseForUpdate.from('import_jobs').update({
+                        supabaseForUpdate.from('import_jobs').update({
                             status: 'processing',
                             progress_pct: data.pct as number,
                             progress_status: data.status as string,
                             updated_at: new Date().toISOString(),
-                        }).eq('id', jobId).catch(e => console.error('[BD_NEPS] Error actualizando job:', e))
+                        }).eq('id', jobId).then(
+                            ({ error: e }) => { if (e) console.error('[BD_NEPS] Error actualizando job:', e.message) }
+                        )
                     }
                 }
             }
