@@ -660,31 +660,47 @@ Deno.serve(async (req) => {
                     pct: 15,
                 })
 
-                // Fase 4: Descargar adjuntos ZIP solo del lote mas reciente
+                // Fase 4: Descargar adjuntos ZIP solo del lote mas reciente (paralelo en batches de 5)
                 send({ phase: 'download', status: `Descargando ZIPs del lote ${fechaLote}...`, pct: 17 })
                 const zipBuffers: { data: Uint8Array; msgId: string; name: string }[] = []
                 const processedMessageIds: string[] = []
+                const DOWNLOAD_CONCURRENCY = 5
 
-                for (let i = 0; i < loteConAdjuntos.length; i++) {
-                    const msg = loteConAdjuntos[i]
-                    const metas = await listAttachmentsMeta(accessToken, msg.id)
-                    const zipMetas = metas.filter(m => m.name.toLowerCase().endsWith('.zip'))
+                for (let batchStart = 0; batchStart < loteConAdjuntos.length; batchStart += DOWNLOAD_CONCURRENCY) {
+                    const batch = loteConAdjuntos.slice(batchStart, batchStart + DOWNLOAD_CONCURRENCY)
 
-                    for (const meta of zipMetas) {
-                        try {
-                            const bytes = await downloadAttachmentContent(accessToken, msg.id, meta.id)
-                            zipBuffers.push({ data: bytes, msgId: msg.id, name: meta.name })
-                        } catch (dlErr) {
-                            console.error(`Error descargando ZIP ${meta.name}:`, dlErr)
+                    const batchResults = await Promise.allSettled(
+                        batch.map(async (msg) => {
+                            const metas = await listAttachmentsMeta(accessToken, msg.id)
+                            const zipMetas = metas.filter(m => m.name.toLowerCase().endsWith('.zip'))
+                            const downloaded: { data: Uint8Array; msgId: string; name: string }[] = []
+
+                            for (const meta of zipMetas) {
+                                try {
+                                    const bytes = await downloadAttachmentContent(accessToken, msg.id, meta.id)
+                                    downloaded.push({ data: bytes, msgId: msg.id, name: meta.name })
+                                } catch (dlErr) {
+                                    console.error(`Error descargando ZIP ${meta.name}:`, dlErr)
+                                }
+                            }
+
+                            if (zipMetas.length > 0) {
+                                processedMessageIds.push(msg.id)
+                            }
+
+                            return downloaded
+                        })
+                    )
+
+                    for (const result of batchResults) {
+                        if (result.status === 'fulfilled') {
+                            zipBuffers.push(...result.value)
                         }
                     }
 
-                    if (zipMetas.length > 0) {
-                        processedMessageIds.push(msg.id)
-                    }
-
-                    const pct = 17 + Math.round((i / loteConAdjuntos.length) * 8)
-                    send({ phase: 'download', status: `Descargando ${i + 1}/${loteConAdjuntos.length} correos...`, pct })
+                    const completed = Math.min(batchStart + DOWNLOAD_CONCURRENCY, loteConAdjuntos.length)
+                    const pct = 17 + Math.round((completed / loteConAdjuntos.length) * 8)
+                    send({ phase: 'download', status: `Descargando ${completed}/${loteConAdjuntos.length} correos...`, pct })
                 }
 
                 // IDs de correos viejos para eliminar sin procesar
