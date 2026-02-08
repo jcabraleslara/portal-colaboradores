@@ -208,12 +208,8 @@ export async function processSigiresNepsFile(
     // ═══ Fase 1: Cargar tablas de referencia (0-5%) ═══
     onProgress('Cargando tablas de referencia...', 0)
 
-    const [redMap, timestampData] = await Promise.all([
-        cargarRedMap(),
-        supabase.rpc('now').then(r => r.data as string),
-    ])
-
-    const timestampInicio = timestampData || new Date().toISOString()
+    const redMap = await cargarRedMap()
+    const timestampInicio = new Date().toISOString()
     onProgress('Tablas de referencia cargadas', 5)
 
     // ═══ Fase 2: Stream-read + transformar (5-40%) ═══
