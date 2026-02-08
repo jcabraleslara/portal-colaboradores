@@ -606,19 +606,45 @@ Deno.serve(async (req) => {
         )
     }
 
+    // Parsear body para obtener job_id (modo pg_net/polling)
+    let jobId: string | null = null
+    try {
+        const body = await req.json()
+        jobId = body?.job_id || null
+    } catch { /* body vacio es OK (CRON legacy) */ }
+
     const encoder = new TextEncoder()
     const startTime = Date.now()
 
     const stream = new ReadableStream({
         async start(controller) {
+            // Throttle: minimo 3s entre actualizaciones a BD
+            let lastDbUpdate = 0
+            const DB_UPDATE_THROTTLE = 3000
+
             const send = (data: Record<string, unknown>) => {
                 controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'))
+
+                // Actualizar progreso en import_jobs cuando hay job_id (modo polling)
+                if (jobId && data.status && data.pct !== undefined) {
+                    const now = Date.now()
+                    const isForced = data.phase === 'done' || data.phase === 'error'
+                    if (isForced || now - lastDbUpdate >= DB_UPDATE_THROTTLE) {
+                        lastDbUpdate = now
+                        const supabaseForUpdate = createClient(supabaseUrl, supabaseServiceKey)
+                        void supabaseForUpdate.from('import_jobs').update({
+                            status: 'processing',
+                            progress_pct: data.pct as number,
+                            progress_status: data.status as string,
+                            updated_at: new Date().toISOString(),
+                        }).eq('id', jobId).catch(e => console.error('[BD_NEPS] Error actualizando job:', e))
+                    }
+                }
             }
 
             // Heartbeat: mantener conexion viva enviando pulso cada 5s
-            // Evita que proxies/CDN (Cloudflare) cierren por inactividad
             const heartbeatInterval = setInterval(() => {
-                send({ phase: 'heartbeat', pct: -1 })
+                controller.enqueue(encoder.encode(JSON.stringify({ phase: 'heartbeat', pct: -1 }) + '\n'))
             }, 5000)
 
             try {
@@ -641,16 +667,20 @@ Deno.serve(async (req) => {
                 const allMessages = await listAllMessages(accessToken, folderId)
 
                 if (allMessages.length === 0) {
-                    send({
-                        phase: 'done',
-                        status: 'No hay correos en la carpeta BD',
-                        pct: 100,
-                        result: {
-                            success: 0, errors: 0, duplicates: 0, totalProcessed: 0,
-                            duration: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
-                            errorMessage: 'No se encontraron correos en la carpeta BD',
-                        },
-                    })
+                    const emptyResult = {
+                        success: 0, errors: 0, duplicates: 0, totalProcessed: 0,
+                        duration: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
+                        errorMessage: 'No se encontraron correos en la carpeta BD',
+                    }
+                    send({ phase: 'done', status: 'No hay correos en la carpeta BD', pct: 100, result: emptyResult })
+                    if (jobId) {
+                        await supabase.from('import_jobs').update({
+                            status: 'completed', progress_pct: 100,
+                            progress_status: 'No hay correos en la carpeta BD',
+                            result: emptyResult, updated_at: new Date().toISOString(),
+                        }).eq('id', jobId)
+                    }
+                    clearInterval(heartbeatInterval)
                     controller.close()
                     return
                 }
@@ -717,16 +747,20 @@ Deno.serve(async (req) => {
                     for (const msgId of oldMessageIds) {
                         try { await deleteMessage(accessToken, msgId) } catch { /* silent */ }
                     }
-                    send({
-                        phase: 'done',
-                        status: 'No se encontraron archivos ZIP en el lote mas reciente',
-                        pct: 100,
-                        result: {
-                            success: 0, errors: 0, duplicates: 0, totalProcessed: 0,
-                            duration: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
-                            errorMessage: `Lote ${fechaLote}: sin archivos ZIP. ${oldMessageIds.length} correo(s) antiguo(s) eliminados.`,
-                        },
-                    })
+                    const noZipResult = {
+                        success: 0, errors: 0, duplicates: 0, totalProcessed: 0,
+                        duration: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
+                        errorMessage: `Lote ${fechaLote}: sin archivos ZIP. ${oldMessageIds.length} correo(s) antiguo(s) eliminados.`,
+                    }
+                    send({ phase: 'done', status: 'No se encontraron archivos ZIP en el lote mas reciente', pct: 100, result: noZipResult })
+                    if (jobId) {
+                        await supabase.from('import_jobs').update({
+                            status: 'completed', progress_pct: 100,
+                            progress_status: 'Sin archivos ZIP',
+                            result: noZipResult, updated_at: new Date().toISOString(),
+                        }).eq('id', jobId)
+                    }
+                    clearInterval(heartbeatInterval)
                     controller.close()
                     return
                 }
@@ -765,16 +799,20 @@ Deno.serve(async (req) => {
                 }
 
                 if (csvTexts.length === 0) {
-                    send({
-                        phase: 'done',
-                        status: 'No se encontraron archivos CSV dentro de los ZIP',
-                        pct: 100,
-                        result: {
-                            success: 0, errors: 0, duplicates: 0, totalProcessed: 0,
-                            duration: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
-                            errorMessage: 'Los archivos ZIP no contienen CSVs validos',
-                        },
-                    })
+                    const noCsvResult = {
+                        success: 0, errors: 0, duplicates: 0, totalProcessed: 0,
+                        duration: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
+                        errorMessage: 'Los archivos ZIP no contienen CSVs validos',
+                    }
+                    send({ phase: 'done', status: 'No se encontraron archivos CSV dentro de los ZIP', pct: 100, result: noCsvResult })
+                    if (jobId) {
+                        await supabase.from('import_jobs').update({
+                            status: 'completed', progress_pct: 100,
+                            progress_status: 'Sin CSVs validos',
+                            result: noCsvResult, updated_at: new Date().toISOString(),
+                        }).eq('id', jobId)
+                    }
+                    clearInterval(heartbeatInterval)
                     controller.close()
                     return
                 }
@@ -940,16 +978,20 @@ Deno.serve(async (req) => {
                 })
 
                 if (registros.length === 0) {
-                    send({
-                        phase: 'done',
-                        status: 'No se encontraron registros validos en los CSVs',
-                        pct: 100,
-                        result: {
-                            success: 0, errors: 0, duplicates: duplicados, totalProcessed: totalLineas,
-                            duration: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
-                            errorMessage: `${totalLineas} lineas procesadas pero todas fueron descartadas o duplicadas`,
-                        },
-                    })
+                    const noRecResult = {
+                        success: 0, errors: 0, duplicates: duplicados, totalProcessed: totalLineas,
+                        duration: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
+                        errorMessage: `${totalLineas} lineas procesadas pero todas fueron descartadas o duplicadas`,
+                    }
+                    send({ phase: 'done', status: 'No se encontraron registros validos en los CSVs', pct: 100, result: noRecResult })
+                    if (jobId) {
+                        await supabase.from('import_jobs').update({
+                            status: 'completed', progress_pct: 100,
+                            progress_status: 'Sin registros validos',
+                            result: noRecResult, updated_at: new Date().toISOString(),
+                        }).eq('id', jobId)
+                    }
+                    clearInterval(heartbeatInterval)
                     controller.close()
                     return
                 }
@@ -1132,19 +1174,36 @@ Deno.serve(async (req) => {
                 const infoReport = reportSections.join('\n\n')
 
                 // Resultado final
+                const finalResult = {
+                    success: totalExitosos,
+                    errors: totalErrores,
+                    duplicates: duplicados,
+                    totalProcessed: registros.length,
+                    duration: duracion,
+                    infoReport,
+                }
+
                 send({
                     phase: 'done',
                     status: 'Importacion completada',
                     pct: 100,
-                    result: {
-                        success: totalExitosos,
-                        errors: totalErrores,
-                        duplicates: duplicados,
-                        totalProcessed: registros.length,
-                        duration: duracion,
-                        infoReport,
-                    },
+                    result: finalResult,
                 })
+
+                // Marcar job como completado en BD (modo polling)
+                if (jobId) {
+                    try {
+                        await supabase.from('import_jobs').update({
+                            status: 'completed',
+                            progress_pct: 100,
+                            progress_status: 'Importacion completada',
+                            result: finalResult,
+                            updated_at: new Date().toISOString(),
+                        }).eq('id', jobId)
+                    } catch (e) {
+                        console.error('[BD_NEPS] Error marcando job como completado:', e)
+                    }
+                }
 
                 // Enviar correo de notificacion (solo registrar error, no bloquear)
                 try {
@@ -1173,10 +1232,26 @@ Deno.serve(async (req) => {
             } catch (error) {
                 console.error('[BD_NEPS] Error critico:', error instanceof Error ? error.message : error)
 
+                const errorMsg = error instanceof Error ? error.message : 'Error desconocido en importacion BD NEPS'
+
+                // Marcar job como fallido en BD (modo polling)
+                if (jobId) {
+                    try {
+                        const supabaseErr = createClient(supabaseUrl, supabaseServiceKey)
+                        await supabaseErr.from('import_jobs').update({
+                            status: 'failed',
+                            error_message: errorMsg,
+                            updated_at: new Date().toISOString(),
+                        }).eq('id', jobId)
+                    } catch (e) {
+                        console.error('[BD_NEPS] Error marcando job como fallido:', e)
+                    }
+                }
+
                 try {
                     await notifyCriticalError({
                         category: 'INTEGRATION_ERROR',
-                        errorMessage: `Fallo importacion BD NEPS: ${error instanceof Error ? error.message : String(error)}`,
+                        errorMessage: `Fallo importacion BD NEPS: ${errorMsg}`,
                         feature: FEATURE_NAME,
                         severity: 'HIGH',
                         error: error instanceof Error ? error : undefined,
@@ -1187,7 +1262,7 @@ Deno.serve(async (req) => {
 
                 send({
                     phase: 'error',
-                    error: error instanceof Error ? error.message : 'Error desconocido en importacion BD NEPS',
+                    error: errorMsg,
                     pct: 0,
                 })
             }

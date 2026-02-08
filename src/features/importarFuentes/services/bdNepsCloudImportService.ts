@@ -1,129 +1,38 @@
 /**
  * Servicio de importacion BD NEPS desde la nube
- * Invoca el Edge Function import-bd-neps que descarga y procesa
- * los archivos ZIP desde el correo de coordinacion medica.
+ *
+ * Arquitectura: RPC trigger (pg_net interno) + polling a import_jobs.
+ * Evita streaming NDJSON que era truncado por el gateway Cloudflare/Supabase.
+ *
+ * Flujo:
+ * 1. Frontend llama RPC trigger_import_bd_neps() → crea job + dispara Edge Function via pg_net
+ * 2. Edge Function corre internamente (sin proxy) y actualiza import_jobs con progreso
+ * 3. Frontend hace polling cada 2.5s a import_jobs hasta que el job complete o falle
  */
 
 import { supabase } from '@/config/supabase.config'
 import type { ImportProgressCallback, ImportResult } from '../types/import.types'
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+/** Intervalo de polling en ms */
+const POLL_INTERVAL = 2500
 
-/**
- * Parsea texto NDJSON completo y extrae resultado + reporta progreso.
- * Lanza error si encuentra phase='error'.
- */
-function parseNdjsonText(
-    text: string,
-    onProgress: ImportProgressCallback,
-): ImportResult | null {
-    let result: ImportResult | null = null
+/** Timeout maximo para la importacion (10 minutos) */
+const MAX_WAIT_MS = 600_000
 
-    for (const line of text.split('\n')) {
-        const trimmed = line.trim()
-        if (!trimmed) continue
+/** Tiempo maximo para que el job pase de pending a processing */
+const PENDING_TIMEOUT_MS = 30_000
 
-        try {
-            const data = JSON.parse(trimmed)
-
-            if (data.phase === 'heartbeat') continue
-
-            if (data.phase === 'error') {
-                throw new Error(data.error || 'Error desconocido en la importacion')
-            }
-
-            if (data.pct !== undefined && data.status) {
-                onProgress(data.status, data.pct)
-            }
-
-            if (data.result) {
-                result = data.result as ImportResult
-            }
-        } catch (parseErr) {
-            if (parseErr instanceof SyntaxError) continue
-            throw parseErr
-        }
-    }
-
-    return result
+interface ImportJob {
+    status: string
+    progress_pct: number
+    progress_status: string
+    result: ImportResult | null
+    error_message: string | null
 }
 
 /**
- * Lee la respuesta como stream NDJSON para progreso en tiempo real.
- * Retorna el resultado o null si no se encontro.
- */
-async function readStreamingResponse(
-    response: Response,
-    onProgress: ImportProgressCallback,
-): Promise<ImportResult | null> {
-    if (!response.body) return null
-
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let result: ImportResult | null = null
-    let buffer = ''
-
-    while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value, { stream: true })
-        buffer += chunk
-
-        // Procesar lineas NDJSON completas
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-            const trimmed = line.trim()
-            if (!trimmed) continue
-
-            try {
-                const data = JSON.parse(trimmed)
-
-                if (data.phase === 'heartbeat') continue
-
-                if (data.phase === 'error') {
-                    throw new Error(data.error || 'Error desconocido en la importacion')
-                }
-
-                if (data.pct !== undefined && data.status) {
-                    onProgress(data.status, data.pct)
-                }
-
-                if (data.result) {
-                    result = data.result as ImportResult
-                }
-            } catch (parseErr) {
-                if (parseErr instanceof SyntaxError) continue
-                throw parseErr
-            }
-        }
-    }
-
-    // Flush TextDecoder + buffer restante
-    const finalChunk = decoder.decode()
-    if (finalChunk) buffer += finalChunk
-
-    if (buffer.trim()) {
-        try {
-            const data = JSON.parse(buffer.trim())
-            if (data.phase === 'error') {
-                throw new Error(data.error || 'Error desconocido en la importacion')
-            }
-            if (data.result) result = data.result as ImportResult
-        } catch (e) {
-            if (!(e instanceof SyntaxError)) throw e
-        }
-    }
-
-    return result
-}
-
-/**
- * Ejecuta la sincronizacion cloud de BD NEPS
- * Intenta leer streaming para progreso en tiempo real.
- * Si el streaming no produce resultado, hace fallback a lectura completa.
+ * Ejecuta la sincronizacion cloud de BD NEPS.
+ * Dispara el Edge Function via pg_net (interno) y hace polling a la BD.
  */
 export async function processBdNepsCloud(
     onProgress: ImportProgressCallback
@@ -134,47 +43,82 @@ export async function processBdNepsCloud(
         throw new Error('No hay sesion activa. Inicia sesion nuevamente.')
     }
 
-    onProgress('Conectando con el servidor...', 0)
+    onProgress('Iniciando importacion...', 0)
 
-    // Clonar respuesta para fallback si streaming falla
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/import-bd-neps`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-    })
+    // Paso 1: Disparar import via RPC (pg_net interno, sin Cloudflare)
+    const { data: triggerResult, error: triggerError } = await supabase.rpc('trigger_import_bd_neps')
 
-    if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`Error del servidor (${response.status}): ${errorText}`)
+    if (triggerError) {
+        throw new Error(`Error al iniciar importacion: ${triggerError.message}`)
     }
 
-    // Clonar ANTES de consumir el body (para fallback)
-    const fallbackResponse = response.clone()
+    const jobId = triggerResult?.job_id
+    if (!jobId) {
+        throw new Error('No se recibio ID de trabajo del servidor')
+    }
 
-    // Intentar lectura streaming (progreso en tiempo real)
-    try {
-        const streamResult = await readStreamingResponse(response, onProgress)
-        if (streamResult) return streamResult
-    } catch (streamErr) {
-        // Si es un error de negocio (phase=error), re-lanzar
-        if (streamErr instanceof Error && !streamErr.message.includes('stream')) {
-            throw streamErr
+    onProgress('Importacion iniciada, conectando con servidor...', 1)
+
+    // Paso 2: Polling a import_jobs hasta que complete o falle
+    const startTime = Date.now()
+    let pendingStart = Date.now()
+    let wasProcessing = false
+
+    while (Date.now() - startTime < MAX_WAIT_MS) {
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL))
+
+        const { data: job, error: jobError } = await supabase
+            .from('import_jobs')
+            .select('status, progress_pct, progress_status, result, error_message')
+            .eq('id', jobId)
+            .single()
+
+        if (jobError) {
+            console.warn('[BD_NEPS] Error polling job:', jobError.message)
+            continue
         }
-        console.warn('[BD_NEPS] Error en lectura streaming, intentando fallback:', streamErr)
+
+        if (!job) continue
+
+        const typedJob = job as ImportJob
+
+        // Actualizar progreso en la UI
+        if (typedJob.progress_status && typedJob.progress_pct !== null) {
+            onProgress(typedJob.progress_status, typedJob.progress_pct)
+        }
+
+        // Job completado exitosamente
+        if (typedJob.status === 'completed' && typedJob.result) {
+            return typedJob.result
+        }
+
+        // Job completado con resultado vacio (sin correos, etc.)
+        if (typedJob.status === 'completed' && !typedJob.result) {
+            return {
+                success: 0,
+                errors: 0,
+                duplicates: 0,
+                totalProcessed: 0,
+                duration: `${((Date.now() - startTime) / 1000).toFixed(1)}s`,
+                errorMessage: typedJob.progress_status || 'Importacion completada sin resultados',
+            }
+        }
+
+        // Job fallido
+        if (typedJob.status === 'failed') {
+            throw new Error(typedJob.error_message || 'La importacion fallo en el servidor')
+        }
+
+        // Detectar si ya paso a processing
+        if (typedJob.status === 'processing' && !wasProcessing) {
+            wasProcessing = true
+        }
+
+        // Timeout de pending: si el job no arranca en 30s, algo fallo
+        if (typedJob.status === 'pending' && Date.now() - pendingStart > PENDING_TIMEOUT_MS) {
+            throw new Error('El servidor no inicio la importacion. Intenta nuevamente.')
+        }
     }
 
-    // Fallback: leer respuesta completa como texto
-    console.warn('[BD_NEPS] Streaming no produjo resultado, usando fallback text()')
-    const text = await fallbackResponse.text()
-    const fallbackResult = parseNdjsonText(text, onProgress)
-
-    if (!fallbackResult) {
-        console.error('[BD_NEPS] Respuesta del servidor:', text.substring(0, 500))
-        throw new Error('No se recibio resultado de la importacion')
-    }
-
-    return fallbackResult
+    throw new Error('Timeout: La importacion tomo mas de 10 minutos sin completarse.')
 }
