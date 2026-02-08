@@ -91,8 +91,8 @@ export async function processBdNepsCloud(
             onProgress(typedJob.progress_status, typedJob.progress_pct)
         }
 
-        // Job completado exitosamente
-        if (typedJob.status === 'completed' && typedJob.result) {
+        // Job completado exitosamente (status='completed' O progress_pct=100 con result)
+        if ((typedJob.status === 'completed' || typedJob.progress_pct === 100) && typedJob.result) {
             return typedJob.result
         }
 

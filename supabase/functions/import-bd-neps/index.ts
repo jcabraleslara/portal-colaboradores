@@ -628,10 +628,11 @@ Deno.serve(async (req) => {
                 controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'))
 
                 // Actualizar progreso en import_jobs cuando hay job_id (modo polling)
-                if (jobId && data.status && data.pct !== undefined) {
+                // Excluir done/error: tienen su propio await dedicado (evitar race condition)
+                if (jobId && data.status && data.pct !== undefined
+                    && data.phase !== 'done' && data.phase !== 'error') {
                     const now = Date.now()
-                    const isForced = data.phase === 'done' || data.phase === 'error'
-                    if (isForced || now - lastDbUpdate >= DB_UPDATE_THROTTLE) {
+                    if (now - lastDbUpdate >= DB_UPDATE_THROTTLE) {
                         lastDbUpdate = now
                         const supabaseForUpdate = createClient(supabaseUrl, supabaseServiceKey)
                         supabaseForUpdate.from('import_jobs').update({
