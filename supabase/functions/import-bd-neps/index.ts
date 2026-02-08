@@ -615,6 +615,12 @@ Deno.serve(async (req) => {
                 controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'))
             }
 
+            // Heartbeat: mantener conexion viva enviando pulso cada 5s
+            // Evita que proxies/CDN (Cloudflare) cierren por inactividad
+            const heartbeatInterval = setInterval(() => {
+                send({ phase: 'heartbeat', pct: -1 })
+            }, 5000)
+
             try {
                 // Fase 0: Crear cliente Supabase
                 const supabase = createClient(supabaseUrl, supabaseServiceKey)
@@ -1186,6 +1192,7 @@ Deno.serve(async (req) => {
                 })
             }
 
+            clearInterval(heartbeatInterval)
             controller.close()
         },
     })

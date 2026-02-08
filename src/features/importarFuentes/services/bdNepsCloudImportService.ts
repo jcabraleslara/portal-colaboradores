@@ -26,6 +26,8 @@ function parseNdjsonText(
         try {
             const data = JSON.parse(trimmed)
 
+            if (data.phase === 'heartbeat') continue
+
             if (data.phase === 'error') {
                 throw new Error(data.error || 'Error desconocido en la importacion')
             }
@@ -78,6 +80,8 @@ async function readStreamingResponse(
 
             try {
                 const data = JSON.parse(trimmed)
+
+                if (data.phase === 'heartbeat') continue
 
                 if (data.phase === 'error') {
                     throw new Error(data.error || 'Error desconocido en la importacion')
