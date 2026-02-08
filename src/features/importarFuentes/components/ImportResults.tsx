@@ -27,15 +27,13 @@ function ImportResultsComponent({ result, sourceName, onReset }: ImportResultsPr
         ? ((result.success / result.totalProcessed) * 100).toFixed(1)
         : '0'
 
-    // Descargar reporte de errores
-    const handleDownloadReport = () => {
-        if (!result.errorReport) return
-
-        const blob = new Blob([result.errorReport], { type: 'text/csv;charset=utf-8;' })
+    // Descargar reporte (errores o informativo)
+    const handleDownloadReport = (content: string, prefix: string) => {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
         const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
-        link.setAttribute('download', `reporte_errores_${sourceName.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`)
+        link.setAttribute('download', `${prefix}_${sourceName.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`)
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
@@ -142,7 +140,7 @@ function ImportResultsComponent({ result, sourceName, onReset }: ImportResultsPr
                             </p>
                         </div>
                         <button
-                            onClick={handleDownloadReport}
+                            onClick={() => handleDownloadReport(result.errorReport!, 'reporte_errores')}
                             className="
                                 inline-flex items-center gap-2 px-4 py-2
                                 bg-white border border-rose-200 text-rose-700
@@ -153,6 +151,33 @@ function ImportResultsComponent({ result, sourceName, onReset }: ImportResultsPr
                         >
                             <Download size={14} />
                             Descargar Reporte CSV
+                        </button>
+                    </div>
+                )}
+
+                {/* Info report download */}
+                {result.infoReport && (
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div>
+                            <h5 className="text-sm font-bold text-slate-700">
+                                Log de importacion disponible
+                            </h5>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                Resumen detallado del proceso de sincronizacion
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => handleDownloadReport(result.infoReport!, 'log_importacion')}
+                            className="
+                                inline-flex items-center gap-2 px-4 py-2
+                                bg-white border border-slate-200 text-slate-700
+                                text-xs font-bold rounded-lg shadow-sm
+                                hover:bg-slate-50 active:scale-95
+                                transition-all duration-200
+                            "
+                        >
+                            <Download size={14} />
+                            Descargar Log CSV
                         </button>
                     </div>
                 )}

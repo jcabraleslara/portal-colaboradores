@@ -548,6 +548,13 @@ Deno.serve(async (req) => {
                 const deduplicados = new Map<string, BdRecord>()
                 let totalLineas = 0
                 let lineasDescartadas = 0
+                let descartadasPorCampos = 0
+                let descartadasPorTipoId = 0
+                let descartadasPorDocId = 0
+                const tipoIdNoResueltos = new Map<string, number>()
+                const estadoDistribucion = new Map<string, number>()
+                const regimenDistribucion = new Map<string, number>()
+                const tipoIdDistribucion = new Map<string, number>()
 
                 for (let csvIdx = 0; csvIdx < csvTexts.length; csvIdx++) {
                     // Soportar todos los tipos de fin de linea: \r\n (Windows), \n (Unix), \r (Mac clasico)
@@ -561,6 +568,7 @@ Deno.serve(async (req) => {
 
                         const fields = line.split(';')
                         if (fields.length < 33) {
+                            descartadasPorCampos++
                             lineasDescartadas++
                             continue
                         }
@@ -570,7 +578,16 @@ Deno.serve(async (req) => {
                         const tipoId = tipoIdMap.get(afiTidCodigo) || ''
                         const docId = limpiarCampo(fields[5])
 
-                        if (!tipoId || !docId) {
+                        if (!tipoId) {
+                            descartadasPorTipoId++
+                            lineasDescartadas++
+                            if (afiTidCodigo) {
+                                tipoIdNoResueltos.set(afiTidCodigo, (tipoIdNoResueltos.get(afiTidCodigo) || 0) + 1)
+                            }
+                            continue
+                        }
+                        if (!docId) {
+                            descartadasPorDocId++
                             lineasDescartadas++
                             continue
                         }
@@ -609,6 +626,11 @@ Deno.serve(async (req) => {
                             regimen,
                             eps: 'NUEVA EPS',
                         }
+
+                        // Tracking de distribuciones
+                        tipoIdDistribucion.set(tipoId, (tipoIdDistribucion.get(tipoId) || 0) + 1)
+                        if (record.estado) estadoDistribucion.set(record.estado, (estadoDistribucion.get(record.estado) || 0) + 1)
+                        if (regimen) regimenDistribucion.set(regimen, (regimenDistribucion.get(regimen) || 0) + 1)
 
                         // Dedup: ultimo gana
                         deduplicados.set(`${tipoId}|${docId}`, record)
@@ -757,6 +779,72 @@ Deno.serve(async (req) => {
                     console.error('Error registrando historial:', err)
                 }
 
+                // Generar log informativo CSV
+                const reportSections: string[] = []
+
+                // Seccion 1: Resumen general
+                const summaryRows = [
+                    '=== SECCION: RESUMEN DE IMPORTACION BD NEPS ===',
+                    `Fecha de lote,${fechaLote}`,
+                    `Correos procesados,${processedMessageIds.length}`,
+                    `Correos antiguos eliminados,${oldMessageIds.length}`,
+                    `Archivos ZIP descargados,${zipBuffers.length}`,
+                    `Archivos CSV extraidos,${csvTexts.length}`,
+                    `Total lineas en CSVs,${totalLineas}`,
+                    `Registros unicos (deduplicados),${registros.length}`,
+                    `Duplicados en archivo,${duplicados}`,
+                    `Insertados nuevos,${totalInsertados}`,
+                    `Actualizados,${totalActualizados}`,
+                    `Complementados (BD_ST_CERETE),${totalComplementados}`,
+                    `Huerfanos marcados,${huerfanosMarcados}`,
+                    `Descartados total,${lineasDescartadas}`,
+                    `  - Por pocos campos (<33),${descartadasPorCampos}`,
+                    `  - Por tipo_id no resuelto,${descartadasPorTipoId}`,
+                    `  - Por documento vacio,${descartadasPorDocId}`,
+                    `Errores de procesamiento,${totalErrores}`,
+                    `Correos eliminados,${correosEliminados}`,
+                    `Duracion,${duracion}`,
+                ]
+                reportSections.push(summaryRows.join('\n'))
+
+                // Seccion 2: Distribucion por tipo de documento
+                if (tipoIdDistribucion.size > 0) {
+                    const tipoIdRows = ['\n=== SECCION: DISTRIBUCION POR TIPO DE DOCUMENTO ===', 'Tipo documento,Cantidad']
+                    for (const [tid, cnt] of Array.from(tipoIdDistribucion.entries()).sort((a, b) => b[1] - a[1])) {
+                        tipoIdRows.push(`${tid},${cnt}`)
+                    }
+                    reportSections.push(tipoIdRows.join('\n'))
+                }
+
+                // Seccion 3: Distribucion por estado
+                if (estadoDistribucion.size > 0) {
+                    const estadoRows = ['\n=== SECCION: DISTRIBUCION POR ESTADO ===', 'Estado,Cantidad']
+                    for (const [est, cnt] of Array.from(estadoDistribucion.entries()).sort((a, b) => b[1] - a[1])) {
+                        estadoRows.push(`${est},${cnt}`)
+                    }
+                    reportSections.push(estadoRows.join('\n'))
+                }
+
+                // Seccion 4: Distribucion por regimen
+                if (regimenDistribucion.size > 0) {
+                    const regimenRows = ['\n=== SECCION: DISTRIBUCION POR REGIMEN ===', 'Regimen,Cantidad']
+                    for (const [reg, cnt] of Array.from(regimenDistribucion.entries()).sort((a, b) => b[1] - a[1])) {
+                        regimenRows.push(`${reg},${cnt}`)
+                    }
+                    reportSections.push(regimenRows.join('\n'))
+                }
+
+                // Seccion 5: Codigos tipo_id no resueltos
+                if (tipoIdNoResueltos.size > 0) {
+                    const noResRows = ['\n=== SECCION: CODIGOS TIPO ID NO RESUELTOS ===', 'Codigo AFI_TID,Cantidad']
+                    for (const [cod, cnt] of Array.from(tipoIdNoResueltos.entries()).sort((a, b) => b[1] - a[1])) {
+                        noResRows.push(`${cod},${cnt}`)
+                    }
+                    reportSections.push(noResRows.join('\n'))
+                }
+
+                const infoReport = reportSections.join('\n\n')
+
                 // Resultado final
                 send({
                     phase: 'done',
@@ -768,6 +856,7 @@ Deno.serve(async (req) => {
                         duplicates: duplicados,
                         totalProcessed: registros.length,
                         duration: duracion,
+                        infoReport,
                     },
                 })
 

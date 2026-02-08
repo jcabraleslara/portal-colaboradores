@@ -72,6 +72,8 @@ export interface ImportResult {
     duration: string
     /** Reporte CSV de errores específicos */
     errorReport?: string
+    /** Reporte CSV informativo (siempre disponible, no solo con errores) */
+    infoReport?: string
     /** Mensaje descriptivo del error */
     errorMessage?: string
 }
