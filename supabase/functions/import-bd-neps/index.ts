@@ -1151,13 +1151,17 @@ Deno.serve(async (req) => {
             } catch (error) {
                 console.error('[BD_NEPS] Error critico:', error instanceof Error ? error.message : error)
 
-                await notifyCriticalError({
-                    category: 'INTEGRATION_ERROR',
-                    errorMessage: `Fallo importacion BD NEPS: ${error instanceof Error ? error.message : String(error)}`,
-                    feature: FEATURE_NAME,
-                    severity: 'HIGH',
-                    error: error instanceof Error ? error : undefined,
-                })
+                try {
+                    await notifyCriticalError({
+                        category: 'INTEGRATION_ERROR',
+                        errorMessage: `Fallo importacion BD NEPS: ${error instanceof Error ? error.message : String(error)}`,
+                        feature: FEATURE_NAME,
+                        severity: 'HIGH',
+                        error: error instanceof Error ? error : undefined,
+                    })
+                } catch (notifyErr) {
+                    console.error('[BD_NEPS] Error notificando error critico:', notifyErr)
+                }
 
                 send({
                     phase: 'error',
