@@ -772,11 +772,22 @@ Deno.serve(async (req) => {
                     tipoIdMap.set(row.afi_tid_codigo.trim(), row.tipo_id.trim())
                 }
 
-                const { data: divipolaRows, error: divipolaErr } = await supabase
+                // Cargar divipola paginado (PostgREST max_rows=1000, divipola tiene ~1122)
+                const { data: divBatch1, error: divErr1 } = await supabase
                     .from('divipola')
                     .select('cod_municipio, nombre_departamento, nombre_municipio')
-                    .limit(2000)
-                if (divipolaErr) throw new Error(`Error cargando divipola: ${divipolaErr.message}`)
+                    .order('cod_municipio')
+                    .range(0, 999)
+                if (divErr1) throw new Error(`Error cargando divipola: ${divErr1.message}`)
+
+                const { data: divBatch2, error: divErr2 } = await supabase
+                    .from('divipola')
+                    .select('cod_municipio, nombre_departamento, nombre_municipio')
+                    .order('cod_municipio')
+                    .range(1000, 1999)
+                if (divErr2) throw new Error(`Error cargando divipola p2: ${divErr2.message}`)
+
+                const divipolaRows = [...(divBatch1 || []), ...(divBatch2 || [])]
 
                 const divipolaMap = new Map<string, { nombre_municipio: string; nombre_departamento: string }>()
                 const depMap = new Map<string, string>()
