@@ -77,6 +77,8 @@ const FEATURE_NAME = 'Importacion BD NEPS'
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0'
 const EMAIL_USER = 'coordinacionmedica@gestarsaludips.com'
 const BATCH_SIZE = 5000
+/** Max correos a procesar por ejecucion (Edge Functions timeout ~150s) */
+const MAX_EMAILS_PER_RUN = 25
 
 // --- Helpers Graph API ---
 
@@ -690,11 +692,19 @@ Deno.serve(async (req) => {
                 // Separar: solo procesar el lote del dia mas reciente, eliminar los viejos
                 const { loteReciente, correosViejos } = separarLoteMasReciente(allMessages)
                 const fechaLote = loteReciente[0]?.receivedDateTime.substring(0, 10) || 'N/A'
-                const loteConAdjuntos = loteReciente.filter(m => m.hasAttachments)
+                const todosConAdjuntos = loteReciente.filter(m => m.hasAttachments)
+
+                // Limitar correos por ejecucion para no exceder timeout del Edge Function (~150s)
+                const loteConAdjuntos = todosConAdjuntos.slice(0, MAX_EMAILS_PER_RUN)
+                const excedenteIds = todosConAdjuntos.slice(MAX_EMAILS_PER_RUN).map(m => m.id)
+
+                if (excedenteIds.length > 0) {
+                    console.warn(`[BD_NEPS] Limitando a ${MAX_EMAILS_PER_RUN} correos. ${excedenteIds.length} excedentes se eliminaran sin procesar.`)
+                }
 
                 send({
                     phase: 'messages',
-                    status: `${allMessages.length} correo(s) total — lote ${fechaLote}: ${loteConAdjuntos.length} con adjuntos, ${correosViejos.length} antiguo(s) a eliminar`,
+                    status: `${allMessages.length} correo(s) total — lote ${fechaLote}: ${loteConAdjuntos.length} a procesar${excedenteIds.length > 0 ? ` (${excedenteIds.length} excedentes)` : ''}, ${correosViejos.length} antiguo(s) a eliminar`,
                     pct: 15,
                 })
 
@@ -1058,9 +1068,9 @@ Deno.serve(async (req) => {
 
                 send({ phase: 'orphans', status: `${huerfanosMarcados} registros huerfanos marcados`, pct: 90 })
 
-                // Fase 10: Eliminar TODOS los correos (procesados + viejos)
-                const allIdsToDelete = [...processedMessageIds, ...oldMessageIds]
-                send({ phase: 'cleanup', status: `Eliminando ${allIdsToDelete.length} correo(s) (${processedMessageIds.length} procesados + ${oldMessageIds.length} antiguos)...`, pct: 92 })
+                // Fase 10: Eliminar TODOS los correos (procesados + viejos + excedentes)
+                const allIdsToDelete = [...processedMessageIds, ...oldMessageIds, ...excedenteIds]
+                send({ phase: 'cleanup', status: `Eliminando ${allIdsToDelete.length} correo(s) (${processedMessageIds.length} procesados + ${oldMessageIds.length} antiguos + ${excedenteIds.length} excedentes)...`, pct: 92 })
 
                 let correosEliminados = 0
                 for (const msgId of allIdsToDelete) {

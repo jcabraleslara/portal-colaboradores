@@ -22,12 +22,16 @@ const MAX_WAIT_MS = 600_000
 /** Tiempo maximo para que el job pase de pending a processing */
 const PENDING_TIMEOUT_MS = 30_000
 
+/** Si el job no se actualiza en 90s, asumir que el Edge Function fue matado por timeout */
+const STALE_JOB_TIMEOUT_MS = 90_000
+
 interface ImportJob {
     status: string
     progress_pct: number
     progress_status: string
     result: ImportResult | null
     error_message: string | null
+    updated_at: string
 }
 
 /**
@@ -69,7 +73,7 @@ export async function processBdNepsCloud(
 
         const { data: job, error: jobError } = await supabase
             .from('import_jobs')
-            .select('status, progress_pct, progress_status, result, error_message')
+            .select('status, progress_pct, progress_status, result, error_message, updated_at')
             .eq('id', jobId)
             .single()
 
@@ -117,6 +121,17 @@ export async function processBdNepsCloud(
         // Timeout de pending: si el job no arranca en 30s, algo fallo
         if (typedJob.status === 'pending' && Date.now() - pendingStart > PENDING_TIMEOUT_MS) {
             throw new Error('El servidor no inicio la importacion. Intenta nuevamente.')
+        }
+
+        // Detectar job estancado: si no se actualiza en 90s, el Edge Function fue matado por timeout
+        if (typedJob.status === 'processing' && typedJob.updated_at) {
+            const lastUpdate = new Date(typedJob.updated_at).getTime()
+            if (Date.now() - lastUpdate > STALE_JOB_TIMEOUT_MS) {
+                throw new Error(
+                    'El servidor dejo de responder (posible timeout por exceso de correos). ' +
+                    'Los correos se procesaran automaticamente con el CRON diario a las 7am.'
+                )
+            }
         }
     }
 
