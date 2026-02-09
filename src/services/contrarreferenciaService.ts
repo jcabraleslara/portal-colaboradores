@@ -1,12 +1,12 @@
 /**
- * Servicio de Generación Automática de Contrarreferencias
- * Utiliza endpoint serverless seguro (/api/generar-contrarreferencia)
- * para generar contrarreferencias médicas sin exponer API keys
- * 
- * FEATURES:
- * - Retry automático con exponential backoff
- * - Caching de respuestas generadas
- * - Manejo robusto de rate limits (429)
+ * Servicio de Generacion Automatica de Contrarreferencias
+ *
+ * Flujo optimizado:
+ * 1. Cache check + text check en paralelo
+ * 2a. Si cache → retorno inmediato (~200ms)
+ * 2b. Si texto cacheado → enviar texto al Edge Function (~3-5s)
+ * 2c. Si nada → enviar pdfUrl al Edge Function (Gemini multimodal, ~5-8s)
+ * 3. Cache save + vectorizacion en background (fire-and-forget)
  */
 
 import { supabase } from '@/config/supabase.config'
@@ -25,32 +25,19 @@ interface CachedContrarreferencia {
  * Obtiene el texto completo de un documento desde sus chunks vectorizados
  */
 async function obtenerTextoCompleto(radicado: string): Promise<string> {
-    console.log(`[Contrarreferencia] Obteniendo chunks de ${radicado}...`)
-
     const { data: chunks, error } = await supabase
         .from('pdf_embeddings')
         .select('content, chunk_index')
         .eq('radicado', radicado)
         .order('chunk_index', { ascending: true })
 
-    if (error) {
-        console.error('[Contrarreferencia] Error obteniendo chunks:', error)
-        throw new Error('Error obteniendo texto vectorizado')
-    }
+    if (error || !chunks || chunks.length === 0) return ''
 
-    if (!chunks || chunks.length === 0) {
-        return ''
-    }
-
-    // Reconstruir texto completo concatenando chunks ordenados
-    const textoCompleto = chunks.map(chunk => chunk.content).join('\n\n')
-    console.log(`[Contrarreferencia] ${chunks.length} chunks reconstruidos (${textoCompleto.length} caracteres)`)
-
-    return textoCompleto
+    return chunks.map(chunk => chunk.content).join('\n\n')
 }
 
 /**
- * Obtener contrarreferencia desde caché (metadata de pdf_embeddings)
+ * Obtener contrarreferencia desde cache (metadata de pdf_embeddings)
  */
 async function obtenerContrarreferenciaCacheada(radicado: string): Promise<CachedContrarreferencia | null> {
     try {
@@ -63,67 +50,59 @@ async function obtenerContrarreferenciaCacheada(radicado: string): Promise<Cache
 
         if (error || !data) return null
 
-        const metadata = data.metadata as any
+        const metadata = data.metadata as Record<string, unknown>
         if (metadata?.contrarreferencia) {
-            console.log('[Contrarreferencia] ✅ Encontrada en caché')
             return metadata.contrarreferencia as CachedContrarreferencia
         }
 
         return null
-    } catch (error) {
-        console.warn('[Contrarreferencia] Error leyendo caché:', error)
+    } catch {
         return null
     }
 }
 
 /**
- * Guardar contrarreferencia en caché (metadata de primer chunk)
+ * Guardar contrarreferencia en cache (metadata de primer chunk) - fire-and-forget
  */
-async function guardarContrarreferenciaCacheada(
+function guardarContrarreferenciaCacheada(
     radicado: string,
     texto: string,
     especialidad: string
-): Promise<void> {
-    try {
-        // Obtener el primer chunk
-        const { data: chunks } = await supabase
-            .from('pdf_embeddings')
-            .select('id, metadata')
-            .eq('radicado', radicado)
-            .order('chunk_index', { ascending: true })
-            .limit(1)
+): void {
+    // Fire-and-forget: no bloquea la respuesta al usuario
+    (async () => {
+        try {
+            const { data: chunks } = await supabase
+                .from('pdf_embeddings')
+                .select('id, metadata')
+                .eq('radicado', radicado)
+                .order('chunk_index', { ascending: true })
+                .limit(1)
 
-        if (!chunks || chunks.length === 0) {
-            console.warn('[Contrarreferencia] No hay chunks para guardar caché')
-            return
-        }
+            if (!chunks || chunks.length === 0) return
 
-        const primerChunk = chunks[0]
-        const metadataActual = (primerChunk.metadata as any) || {}
+            const primerChunk = chunks[0]
+            const metadataActual = (primerChunk.metadata as Record<string, unknown>) || {}
 
-        // Actualizar metadata con contrarreferencia
-        const { error } = await supabase
-            .from('pdf_embeddings')
-            .update({
-                metadata: {
-                    ...metadataActual,
-                    contrarreferencia: {
-                        texto,
-                        generadaEn: new Date().toISOString(),
-                        especialidad
+            await supabase
+                .from('pdf_embeddings')
+                .update({
+                    metadata: {
+                        ...metadataActual,
+                        contrarreferencia: {
+                            texto,
+                            generadaEn: new Date().toISOString(),
+                            especialidad
+                        }
                     }
-                }
-            })
-            .eq('id', primerChunk.id)
+                })
+                .eq('id', primerChunk.id)
 
-        if (error) {
-            console.error('[Contrarreferencia] Error guardando en caché:', error)
-        } else {
-            console.log('[Contrarreferencia] ✅ Guardada en caché')
+            console.log('[Contrarreferencia] Cache guardada en background')
+        } catch (err) {
+            console.warn('[Contrarreferencia] Error guardando cache:', err)
         }
-    } catch (error) {
-        console.warn('[Contrarreferencia] Error en guardado de caché:', error)
-    }
+    })()
 }
 
 /**
@@ -134,51 +113,37 @@ function esperar(ms: number): Promise<void> {
 }
 
 /**
- * Genera contrarreferencia usando endpoint serverless con retry automático
- * Maneja error 429 con exponential backoff
+ * Llama al Edge Function con retry automatico
+ * Acepta textoSoporte (modo texto) o pdfUrl (modo multimodal)
  */
-async function generarContrarreferenciaConIA_ConRetry(
-    textoSoporte: string,
-    especialidad: string = 'No especificada',
+async function llamarEdgeFunction(
+    payload: { textoSoporte?: string; pdfUrl?: string; especialidad: string },
     maxRetries: number = 3
 ): Promise<{ success: boolean; texto?: string; error?: string; retryAfter?: number }> {
-    console.log('[Contrarreferencia] Llamando a endpoint serverless...')
+    const mode = payload.textoSoporte ? 'texto' : 'multimodal'
+    console.log(`[Contrarreferencia] Llamando Edge Function (modo: ${mode})...`)
 
     for (let intento = 0; intento <= maxRetries; intento++) {
         try {
-            // Llamar a Edge Function de Supabase
             const response = await fetch(EDGE_FUNCTIONS.generarContrarreferencia, {
                 method: 'POST',
                 headers: getEdgeFunctionHeaders(),
-                body: JSON.stringify({
-                    textoSoporte,
-                    especialidad
-                })
+                body: JSON.stringify(payload)
             })
 
-            // CASO 1: Éxito
+            // Exito
             if (response.ok) {
                 const data = await response.json()
-
                 if (data.success && data.texto) {
-                    console.log(`[Contrarreferencia] ✅ Generación exitosa (${data.texto.length} caracteres)`)
-                    return {
-                        success: true,
-                        texto: data.texto
-                    }
+                    console.log(`[Contrarreferencia] Generada OK (${data.texto.length} chars, modelo: ${data.model}, modo: ${data.mode})`)
+                    return { success: true, texto: data.texto }
                 }
-
-                return {
-                    success: false,
-                    error: data.error || 'Respuesta del servidor sin contenido válido'
-                }
+                return { success: false, error: data.error || 'Respuesta sin contenido valido' }
             }
 
-            // CASO 2: Error 429 (Rate Limit)
+            // Rate limit
             if (response.status === 429) {
                 const errorData = await response.json().catch(() => ({}))
-
-                // Intentar extraer retryDelay del error de Gemini
                 let retryDelaySeconds = 0
 
                 if (errorData.details) {
@@ -186,31 +151,22 @@ async function generarContrarreferenciaConIA_ConRetry(
                         const geminiError = JSON.parse(errorData.details)
                         const retryDelayStr = geminiError?.error?.details?.[0]?.retryDelay
                         if (retryDelayStr) {
-                            // Parsear "39s" => 39
                             retryDelaySeconds = parseInt(retryDelayStr.replace('s', ''))
                         }
-                    } catch (e) {
-                        // Ignorar error de parseo
-                    }
+                    } catch { /* ignorar */ }
                 }
 
-                // Si no hay retryDelay, usar exponential backoff
                 if (retryDelaySeconds === 0) {
-                    retryDelaySeconds = Math.pow(2, intento) * 5 // 5s, 10s, 20s
+                    retryDelaySeconds = Math.pow(2, intento) * 5
                 }
 
-                console.warn(
-                    `[Contrarreferencia] ⚠️ Error 429 (intento ${intento + 1}/${maxRetries + 1}). ` +
-                    `Reintentando en ${retryDelaySeconds}s...`
-                )
+                console.warn(`[Contrarreferencia] 429 (intento ${intento + 1}/${maxRetries + 1}). Retry en ${retryDelaySeconds}s...`)
 
-                // Si no es el último intento, esperar y reintentar
                 if (intento < maxRetries) {
                     await esperar(retryDelaySeconds * 1000)
                     continue
                 }
 
-                // Último intento fallido
                 return {
                     success: false,
                     error: `Rate limit excedido. Espera ${retryDelaySeconds}s antes de reintentar.`,
@@ -218,68 +174,46 @@ async function generarContrarreferenciaConIA_ConRetry(
                 }
             }
 
-            // CASO 3: Otros errores HTTP
+            // Otros errores HTTP
             const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }))
-            console.error('[Contrarreferencia] Endpoint error:', response.status, errorData)
+            console.error('[Contrarreferencia] Error:', response.status, errorData)
 
-            // Si es error 401/403, probablemente sea API key inválida
             if (response.status === 401 || response.status === 403) {
-                await criticalErrorService.reportApiKeyFailure(
-                    'Gemini API',
-                    'Generación de Contrarreferencias',
-                    response.status
-                )
+                await criticalErrorService.reportApiKeyFailure('Gemini API', 'Generacion de Contrarreferencias', response.status)
             } else if (response.status === 503) {
-                await criticalErrorService.reportServiceUnavailable(
-                    'Gemini API',
-                    'Generación de Contrarreferencias',
-                    response.status
-                )
+                await criticalErrorService.reportServiceUnavailable('Gemini API', 'Generacion de Contrarreferencias', response.status)
             }
 
-            return {
-                success: false,
-                error: errorData.error || `Error del servidor: ${response.status}`
-            }
+            return { success: false, error: errorData.error || `Error del servidor: ${response.status}` }
 
         } catch (error) {
             console.error('[Contrarreferencia] Error en llamada:', error)
 
-            // Si no es el último intento, esperar y reintentar
             if (intento < maxRetries) {
-                const delayMs = Math.pow(2, intento) * 1000 // 1s, 2s, 4s
-                console.log(`[Contrarreferencia] Reintentando en ${delayMs / 1000}s...`)
+                const delayMs = Math.pow(2, intento) * 1000
                 await esperar(delayMs)
                 continue
             }
 
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Error de conexión con el servidor'
+                error: error instanceof Error ? error.message : 'Error de conexion con el servidor'
             }
         }
     }
 
-    return {
-        success: false,
-        error: 'Número máximo de reintentos alcanzado'
-    }
+    return { success: false, error: 'Numero maximo de reintentos alcanzado' }
 }
 
 /**
- * Función principal: genera contrarreferencia automática
- * 
- * Flujo:
- * 1. Verifica si existe en caché
- * 2. Intenta obtener texto desde chunks vectorizados
- * 3. Si no existe, vectoriza el PDF on-the-fly
- * 4. Genera contrarreferencia con Gemini 3 Flash (con retry automático)
- * 5. Guarda en caché para futuras consultas
- * 
- * @param radicado - Número de radicado del caso
- * @param pdfUrl - URL del PDF soporte
- * @param especialidad - Especialidad a la que se remite (opcional)
- * @param forceRegenerate - Forzar regeneración ignorando caché
+ * Funcion principal: genera contrarreferencia automatica
+ *
+ * Flujo optimizado:
+ * 1. Promise.all([cache check, text check]) - paralelo
+ * 2a. Cache hit → retorno inmediato
+ * 2b. Texto disponible → Edge Function modo texto (rapido)
+ * 2c. Sin texto → Edge Function modo multimodal (Gemini lee PDF directo)
+ * 3. Fire-and-forget: cache save + vectorizacion background
  */
 export async function generarContrarreferenciaAutomatica(
     radicado: string,
@@ -291,59 +225,56 @@ export async function generarContrarreferenciaAutomatica(
     const especialidadNormalizada = especialidad || 'No especificada'
 
     try {
-        console.log(`[Contrarreferencia] === Iniciando generación para ${radicado} ===`)
+        console.log(`[Contrarreferencia] === Inicio ${radicado} ===`)
 
-        // 0. Verificar si existe en caché (a menos que se fuerce regeneración)
-        if (!forceRegenerate) {
-            const cacheada = await obtenerContrarreferenciaCacheada(radicado)
-            if (cacheada && cacheada.texto) {
-                console.log('[Contrarreferencia] ✅ Usando respuesta cacheada')
-                return {
-                    success: true,
-                    texto: cacheada.texto,
-                    metodo: 'cache',
-                    tiempoMs: Date.now() - inicio
-                }
+        // Paso 1: Cache check + text check EN PARALELO
+        const [cacheada, textoExistente] = await Promise.all([
+            forceRegenerate ? Promise.resolve(null) : obtenerContrarreferenciaCacheada(radicado),
+            obtenerTextoCompleto(radicado)
+        ])
+
+        // Paso 2a: Cache hit → retorno inmediato
+        if (cacheada?.texto) {
+            console.log(`[Contrarreferencia] Cache hit (${Date.now() - inicio}ms)`)
+            return {
+                success: true,
+                texto: cacheada.texto,
+                metodo: 'cache',
+                tiempoMs: Date.now() - inicio
             }
         }
 
-        // 1. Intentar obtener texto desde vectorización existente
-        let textoSoporte = await obtenerTextoCompleto(radicado)
-        let metodo: 'vectorizado' | 'vectorizado-on-fly' | 'cache' = 'vectorizado'
+        // Paso 2b: Texto cacheado → enviar al EF en modo texto (mas rapido)
+        let resultado: { success: boolean; texto?: string; error?: string; retryAfter?: number }
+        let metodo: 'vectorizado' | 'multimodal'
 
-        // 2. Si no existe, vectorizar on-the-fly
-        if (!textoSoporte || textoSoporte.length < 100) {
-            console.log('[Contrarreferencia] No hay vectorización, vectorizando on-the-fly...')
+        if (textoExistente && textoExistente.length >= 100) {
+            console.log(`[Contrarreferencia] Texto disponible (${textoExistente.length} chars) → modo texto`)
+            resultado = await llamarEdgeFunction({
+                textoSoporte: textoExistente,
+                especialidad: especialidadNormalizada
+            })
+            metodo = 'vectorizado'
+        } else {
+            // Paso 2c: Sin texto → enviar pdfUrl al EF (Gemini multimodal, skip OCR)
+            console.log('[Contrarreferencia] Sin texto → modo multimodal (Gemini lee PDF directo)')
+            resultado = await llamarEdgeFunction({
+                pdfUrl,
+                especialidad: especialidadNormalizada
+            })
+            metodo = 'multimodal'
 
-            const resultadoVectorizacion = await ragService.vectorizarPdf(radicado, pdfUrl)
-
-            if (!resultadoVectorizacion.success) {
-                return {
-                    success: false,
-                    error: `Error en vectorización: ${resultadoVectorizacion.error}`,
-                    tiempoMs: Date.now() - inicio
-                }
-            }
-
-            // Obtener texto recién vectorizado
-            textoSoporte = await obtenerTextoCompleto(radicado)
-            metodo = 'vectorizado-on-fly'
-
-            if (!textoSoporte || textoSoporte.length < 100) {
-                return {
-                    success: false,
-                    error: 'No se pudo extraer texto del PDF',
-                    tiempoMs: Date.now() - inicio
-                }
+            // Fire-and-forget: vectorizar en background para futuras consultas
+            if (resultado.success) {
+                ragService.vectorizarPdf(radicado, pdfUrl).catch(err =>
+                    console.warn('[Contrarreferencia] Vectorizacion background falló:', err)
+                )
             }
         }
 
-        // 3. Generar contrarreferencia con IA (con retry automático)
-        const resultado = await generarContrarreferenciaConIA_ConRetry(textoSoporte, especialidadNormalizada)
-
-        // 4. Si fue exitoso, guardar en caché
+        // Paso 3: Fire-and-forget cache save
         if (resultado.success && resultado.texto) {
-            await guardarContrarreferenciaCacheada(radicado, resultado.texto, especialidadNormalizada)
+            guardarContrarreferenciaCacheada(radicado, resultado.texto, especialidadNormalizada)
         }
 
         const tiempoMs = Date.now() - inicio

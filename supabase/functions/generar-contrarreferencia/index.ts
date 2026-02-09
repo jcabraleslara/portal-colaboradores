@@ -4,6 +4,10 @@
  *
  * POST /functions/v1/generar-contrarreferencia
  * Body: { textoSoporte: string, especialidad?: string }
+ *    O: { pdfUrl: string, especialidad?: string }
+ *
+ * Modo texto: recibe texto plano extraido previamente (mas rapido)
+ * Modo multimodal: recibe URL de PDF, Gemini lo lee directo (sin OCR separado)
  */
 
 import { corsHeaders } from '../_shared/cors.ts'
@@ -12,9 +16,6 @@ import { corsHeaders } from '../_shared/cors.ts'
  * Prompt especializado de auditor medico senior
  */
 const PROMPT_CONTRARREFERENCIA = `Eres un auditor medico senior con mas de 15 años de experiencia en revision de pertinencia medica en el sistema de salud colombiano.
-
-HISTORIA CLINICA A EVALUAR:
-{texto_soporte}
 
 ESPECIALIDAD DE DESTINO: {especialidad}
 
@@ -44,6 +45,79 @@ Se contra remite el caso de [anota el nombre y el apellido del paciente], al pri
 - NO incluir introducciones ni citation markers [1], [2]
 - Se tecnico pero claro en tu lenguaje medico`
 
+/**
+ * Descarga un PDF desde una URL publica y retorna bytes en base64
+ */
+async function descargarPdfBase64(pdfUrl: string): Promise<string> {
+    console.log(`[API] Descargando PDF desde URL (${pdfUrl.substring(0, 80)}...)`)
+    const response = await fetch(pdfUrl)
+
+    if (!response.ok) {
+        throw new Error(`Error descargando PDF: HTTP ${response.status}`)
+    }
+
+    const arrayBuffer = await response.arrayBuffer()
+    const bytes = new Uint8Array(arrayBuffer)
+
+    // Convertir a base64 en chunks para evitar stack overflow
+    let binary = ''
+    const chunkSize = 8192
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize)
+        binary += String.fromCharCode(...chunk)
+    }
+
+    const base64 = btoa(binary)
+    console.log(`[API] PDF descargado: ${bytes.length} bytes → ${base64.length} chars base64`)
+    return base64
+}
+
+/**
+ * Construye el body para Gemini API segun el modo (texto o multimodal)
+ */
+function buildGeminiBody(
+    mode: 'text' | 'multimodal',
+    promptFinal: string,
+    pdfBase64?: string
+): Record<string, unknown> {
+    if (mode === 'multimodal' && pdfBase64) {
+        return {
+            contents: [{
+                parts: [
+                    {
+                        inline_data: {
+                            mime_type: 'application/pdf',
+                            data: pdfBase64
+                        }
+                    },
+                    {
+                        text: `Analiza la historia clinica del PDF adjunto y genera la contrarreferencia.\n\n${promptFinal}`
+                    }
+                ]
+            }],
+            generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 3000,
+                topP: 0.95,
+                topK: 40
+            }
+        }
+    }
+
+    // Modo texto puro
+    return {
+        contents: [{
+            parts: [{ text: promptFinal }]
+        }],
+        generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 3000,
+            topP: 0.95,
+            topK: 40
+        }
+    }
+}
+
 Deno.serve(async (req) => {
     // Manejar preflight CORS
     if (req.method === 'OPTIONS') {
@@ -70,29 +144,40 @@ Deno.serve(async (req) => {
     }
 
     try {
-        const { textoSoporte, especialidad = 'No especificada' } = await req.json()
+        const body = await req.json()
+        const { textoSoporte, pdfUrl, especialidad = 'No especificada' } = body
 
-        // Validar input
-        if (!textoSoporte || textoSoporte.length < 50) {
+        // Determinar modo de operacion
+        const hasText = textoSoporte && textoSoporte.length >= 50
+        const hasPdf = pdfUrl && typeof pdfUrl === 'string' && pdfUrl.startsWith('http')
+
+        if (!hasText && !hasPdf) {
             return new Response(
-                JSON.stringify({ error: 'Texto de soporte invalido o muy corto' }),
+                JSON.stringify({ error: 'Se requiere textoSoporte (min 50 chars) o pdfUrl valido' }),
                 { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             )
         }
 
-        console.log(`[API] Generando contrarreferencia para especialidad: ${especialidad}`)
-        console.log(`[API] Longitud texto soporte: ${textoSoporte.length} caracteres`)
+        const mode = hasText ? 'text' : 'multimodal'
+        console.log(`[API] Modo: ${mode} | Especialidad: ${especialidad}`)
 
-        // Reemplazar variables en el prompt
-        const promptFinal = PROMPT_CONTRARREFERENCIA
-            .replace('{texto_soporte}', textoSoporte)
-            .replace('{especialidad}', especialidad)
+        // Preparar prompt segun modo
+        let promptFinal: string
+        let pdfBase64: string | undefined
 
-        // Sistema de fallback robusto: modelos estables de produccion
+        if (mode === 'text') {
+            promptFinal = `HISTORIA CLINICA A EVALUAR:\n${textoSoporte}\n\n${PROMPT_CONTRARREFERENCIA.replace('{especialidad}', especialidad)}`
+            console.log(`[API] Texto soporte: ${textoSoporte.length} caracteres`)
+        } else {
+            // Modo multimodal: descargar PDF
+            pdfBase64 = await descargarPdfBase64(pdfUrl)
+            promptFinal = PROMPT_CONTRARREFERENCIA.replace('{especialidad}', especialidad)
+        }
+
+        // Modelos con fallback (Gemini 3 Flash como principal, mas rapido y multimodal nativo)
         const MODELS_FALLBACK = [
-            'gemini-2.5-flash',    // Modelo principal (estable, rapido)
-            'gemini-2.0-flash',    // Fallback 1 (muy estable)
-            'gemini-1.5-flash'     // Fallback 2 (legacy pero confiable)
+            'gemini-3-flash-preview',  // Modelo principal (rapido, multimodal nativo)
+            'gemini-2.5-flash',        // Fallback (estable)
         ]
 
         let lastError: unknown = null
@@ -100,24 +185,15 @@ Deno.serve(async (req) => {
         // Intentar con cada modelo hasta que uno funcione
         for (const modelName of MODELS_FALLBACK) {
             try {
-                console.log(`[API] Intentando con modelo: ${modelName}`)
+                console.log(`[API] Intentando con modelo: ${modelName} (${mode})`)
 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`
+                const geminiBody = buildGeminiBody(mode, promptFinal, pdfBase64)
 
                 const geminiResponse = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{ text: promptFinal }]
-                        }],
-                        generationConfig: {
-                            temperature: 0.3,
-                            maxOutputTokens: 3000,
-                            topP: 0.95,
-                            topK: 40
-                        }
-                    })
+                    body: JSON.stringify(geminiBody)
                 })
 
                 // Si es 503 (Service Unavailable), intentar siguiente modelo
@@ -146,13 +222,14 @@ Deno.serve(async (req) => {
 
                 if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
                     const textoGenerado = data.candidates[0].content.parts[0].text.trim()
-                    console.log(`[API] Contrarreferencia generada con ${modelName} (${textoGenerado.length} caracteres)`)
+                    console.log(`[API] Contrarreferencia generada con ${modelName} (${textoGenerado.length} chars, modo: ${mode})`)
 
                     return new Response(
                         JSON.stringify({
                             success: true,
                             texto: textoGenerado,
-                            model: modelName
+                            model: modelName,
+                            mode
                         }),
                         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
                     )

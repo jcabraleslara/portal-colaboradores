@@ -476,7 +476,7 @@ export interface ContrarreferenciaResult {
     success: boolean
     texto?: string
     error?: string
-    metodo?: 'vectorizado' | 'vectorizado-on-fly' | 'cache'
+    metodo?: 'vectorizado' | 'vectorizado-on-fly' | 'multimodal' | 'cache'
     tiempoMs?: number
     retryAfter?: number  // Segundos a esperar antes de reintentar (para error 429)
 }

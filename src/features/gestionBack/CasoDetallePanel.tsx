@@ -267,9 +267,6 @@ export function CasoDetallePanel({
                     setMensajeProgreso('✓ Contrarreferencia generada')
                 }
 
-                // Pequeña pausa para que el usuario vea el mensaje de éxito
-                await new Promise(resolve => setTimeout(resolve, 500))
-
                 // Actualizar el campo respuesta_back (esto también activará auto-cambio de estado)
                 handleRespuestaBackChange(resultado.texto)
             } else {
