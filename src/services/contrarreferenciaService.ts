@@ -10,7 +10,6 @@
  */
 
 import { supabase } from '@/config/supabase.config'
-import { ragService } from './rag.service'
 import type { ContrarreferenciaResult } from '@/types/back.types'
 import { criticalErrorService } from './criticalError.service'
 import { EDGE_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
@@ -263,13 +262,6 @@ export async function generarContrarreferenciaAutomatica(
                 especialidad: especialidadNormalizada
             })
             metodo = 'multimodal'
-
-            // Fire-and-forget: vectorizar en background para futuras consultas
-            if (resultado.success) {
-                ragService.vectorizarPdf(radicado, pdfUrl).catch(err =>
-                    console.warn('[Contrarreferencia] Vectorizacion background falló:', err)
-                )
-            }
         }
 
         // Paso 3: Fire-and-forget cache save
