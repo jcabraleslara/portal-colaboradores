@@ -77,8 +77,8 @@ const FEATURE_NAME = 'Importacion BD NEPS'
 const GRAPH_BASE = 'https://graph.microsoft.com/v1.0'
 const EMAIL_USER = 'coordinacionmedica@gestarsaludips.com'
 const BATCH_SIZE = 5000
-/** Max correos a procesar por ejecucion (Edge Functions timeout ~150s) */
-const MAX_EMAILS_PER_RUN = 25
+/** Max correos a procesar por ejecucion (CPU time ~2s, memory 256MB — CSVs grandes pueden tener 16K+ registros c/u) */
+const MAX_EMAILS_PER_RUN = 3
 
 // --- Helpers Graph API ---
 
@@ -573,6 +573,52 @@ async function enviarCorreoNotificacion(
     })
 }
 
+// --- Notificacion de fallo por correo ---
+
+async function enviarCorreoFallo(errorMsg: string): Promise<void> {
+    const fechaHoy = new Date().toLocaleDateString('es-CO', {
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+    })
+
+    const htmlBody = `
+    <div style="font-family: ${EMAIL_FONTS.primary}; max-width: 650px; margin: 0 auto; background-color: ${COLORS.background}; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+        ${generarHeaderEmail(
+            '&#9888;&#65039; Fallo en Importacion BD NEPS',
+            fechaHoy,
+            COLORS.error,
+            COLORS.errorDark
+        )}
+
+        <div style="padding: 25px 30px;">
+            <div style="background: ${COLORS.errorLight}; border-left: 4px solid ${COLORS.error}; padding: 15px 20px; border-radius: 0 8px 8px 0; margin-bottom: 20px;">
+                <p style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: ${COLORS.error};">Error en el proceso de importacion</p>
+                <p style="margin: 0; font-size: 13px; color: ${COLORS.text}; font-family: monospace; word-break: break-all;">${errorMsg.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>
+            </div>
+
+            <p style="font-size: 13px; color: ${COLORS.slate600}; margin: 15px 0 0 0;">
+                La importacion automatica de la Base de Datos de Nueva EPS ha fallado.
+                Los correos pendientes se procesaran en la siguiente ejecucion del CRON (5:00 AM diario)
+                o pueden ser procesados manualmente desde el Portal de Colaboradores.
+            </p>
+        </div>
+
+        ${generarFooterEmail(
+            'Alerta automatica generada por el',
+            'Portal de Colaboradores de Gestar Salud IPS'
+        )}
+    </div>`
+
+    await sendGmailEmail({
+        to: 'coordinacionmedica@gestarsaludips.com',
+        subject: `[BD NEPS] FALLO en importacion - ${new Date().toISOString().substring(0, 10)}`,
+        htmlBody,
+        inlineImages: [
+            { cid: 'logo-gestar', content: GESTAR_LOGO_BASE64, mimeType: 'image/png' },
+        ],
+    })
+}
+
 // --- Pipeline principal ---
 
 Deno.serve(async (req) => {
@@ -610,9 +656,13 @@ Deno.serve(async (req) => {
 
     // Parsear body para obtener job_id (modo pg_net/polling)
     let jobId: string | null = null
+    let chainDepth = 0
+    let autoChain = false
     try {
         const body = await req.json()
         jobId = body?.job_id || null
+        chainDepth = typeof body?.chain_depth === 'number' ? body.chain_depth : 0
+        autoChain = body?.auto_chain === true
     } catch { /* body vacio es OK (CRON legacy) */ }
 
     const encoder = new TextEncoder()
@@ -700,7 +750,7 @@ Deno.serve(async (req) => {
                 const excedenteIds = todosConAdjuntos.slice(MAX_EMAILS_PER_RUN).map(m => m.id)
 
                 if (excedenteIds.length > 0) {
-                    console.warn(`[BD_NEPS] Limitando a ${MAX_EMAILS_PER_RUN} correos. ${excedenteIds.length} excedentes se eliminaran sin procesar.`)
+                    console.warn(`[BD_NEPS] Limitando a ${MAX_EMAILS_PER_RUN} correos. ${excedenteIds.length} excedentes se dejaran para la siguiente ejecucion.`)
                 }
 
                 send({
@@ -894,6 +944,9 @@ Deno.serve(async (req) => {
                 const tipoIdDistribucion = new Map<string, number>()
 
                 for (let csvIdx = 0; csvIdx < csvTexts.length; csvIdx++) {
+                    // Yield CPU entre CSVs para no exceder el limite de CPU time (2s)
+                    if (csvIdx > 0) await new Promise(r => setTimeout(r, 0))
+
                     // Soportar todos los tipos de fin de linea: \r\n (Windows), \n (Unix), \r (Mac clasico)
                     const lines = csvTexts[csvIdx].split(/\r?\n|\r/)
 
@@ -973,6 +1026,9 @@ Deno.serve(async (req) => {
                         deduplicados.set(`${tipoId}|${docId}`, record)
                     }
 
+                    // Liberar memoria del CSV raw ya parseado
+                    csvTexts[csvIdx] = ''
+
                     const pct = 42 + Math.round(((csvIdx + 1) / csvTexts.length) * 28)
                     send({
                         phase: 'parse',
@@ -981,7 +1037,12 @@ Deno.serve(async (req) => {
                     })
                 }
 
+                // Yield CPU despues del parsing pesado + liberar csvTexts
+                const numCsvFiles = csvTexts.length
+                csvTexts.length = 0
+                await new Promise(r => setTimeout(r, 0))
                 const registros = Array.from(deduplicados.values())
+                deduplicados.clear() // Liberar Map, ya tenemos el array
                 const duplicados = totalLineas - lineasDescartadas - registros.length
 
                 send({
@@ -1069,9 +1130,9 @@ Deno.serve(async (req) => {
 
                 send({ phase: 'orphans', status: `${huerfanosMarcados} registros huerfanos marcados`, pct: 90 })
 
-                // Fase 10: Eliminar TODOS los correos (procesados + viejos + excedentes)
-                const allIdsToDelete = [...processedMessageIds, ...oldMessageIds, ...excedenteIds]
-                send({ phase: 'cleanup', status: `Eliminando ${allIdsToDelete.length} correo(s) (${processedMessageIds.length} procesados + ${oldMessageIds.length} antiguos + ${excedenteIds.length} excedentes)...`, pct: 92 })
+                // Fase 10: Eliminar correos procesados + viejos (excedentes se dejan para la siguiente ejecucion)
+                const allIdsToDelete = [...processedMessageIds, ...oldMessageIds]
+                send({ phase: 'cleanup', status: `Eliminando ${allIdsToDelete.length} correo(s) (${processedMessageIds.length} procesados + ${oldMessageIds.length} antiguos)${excedenteIds.length > 0 ? ` — ${excedenteIds.length} excedentes quedan para proxima ejecucion` : ''}...`, pct: 92 })
 
                 let correosEliminados = 0
                 for (const msgId of allIdsToDelete) {
@@ -1094,7 +1155,7 @@ Deno.serve(async (req) => {
                 try {
                     await supabase.from('import_history').insert({
                         usuario: 'import-bd-neps',
-                        archivo_nombre: `Lote ${fechaLote}: ${zipBuffers.length} ZIP(s), ${csvTexts.length} CSV(s)`,
+                        archivo_nombre: `Lote ${fechaLote}: ${zipBuffers.length} ZIP(s), ${numCsvFiles} CSV(s)`,
                         tipo_fuente: 'bd_neps',
                         total_registros: registros.length,
                         exitosos: totalExitosos,
@@ -1111,7 +1172,7 @@ Deno.serve(async (req) => {
                             correos_antiguos_eliminados: oldMessageIds.length,
                             correos_eliminados_total: correosEliminados,
                             zips: zipBuffers.length,
-                            csvs: csvTexts.length,
+                            csvs: numCsvFiles,
                             lineas_totales: totalLineas,
                             lineas_descartadas: lineasDescartadas,
                         },
@@ -1218,28 +1279,124 @@ Deno.serve(async (req) => {
                     }
                 }
 
-                // Enviar correo de notificacion (solo registrar error, no bloquear)
-                try {
-                    await enviarCorreoNotificacion(supabase, {
-                        fechaLote,
-                        totalExitosos,
-                        totalErrores,
-                        totalInsertados,
-                        totalActualizados,
-                        totalComplementados,
-                        huerfanosMarcados,
-                        duplicados,
-                        totalLineas,
-                        lineasDescartadas,
-                        registrosUnicos: registros.length,
-                        duracion,
-                        zips: zipBuffers.length,
-                        csvs: csvTexts.length,
-                        correosEliminados,
-                        infoReport,
-                    })
-                } catch (emailErr) {
-                    console.error('Error enviando correo notificacion:', emailErr instanceof Error ? emailErr.message : emailErr)
+                // Decidir: encadenar siguiente lote o enviar email consolidado
+                if (excedenteIds.length > 0 && chainDepth < 20 && jobId && autoChain) {
+                    // Hay correos pendientes: auto-encadenar sin enviar email
+                    console.log(`[BD_NEPS] Encadenando: ${excedenteIds.length} correos pendientes (depth=${chainDepth})`)
+                    try {
+                        const { data: nextJob } = await supabase
+                            .from('import_jobs')
+                            .insert({ tipo: 'bd_neps', status: 'pending', progress_status: `Encadenando lote ${chainDepth + 2}...` })
+                            .select('id')
+                            .single()
+                        if (nextJob?.id) {
+                            await supabase.rpc('trigger_chained_import', {
+                                p_job_id: nextJob.id,
+                                p_chain_depth: chainDepth + 1,
+                            })
+                            console.log(`[BD_NEPS] Siguiente lote disparado: job=${nextJob.id}, depth=${chainDepth + 1}`)
+                        }
+                    } catch (chainErr) {
+                        console.error('[BD_NEPS] Error encadenando siguiente lote:', chainErr)
+                        // Fallback: enviar email con stats actuales si falla el encadenamiento
+                        try {
+                            await enviarCorreoNotificacion(supabase, {
+                                fechaLote, totalExitosos, totalErrores, totalInsertados,
+                                totalActualizados, totalComplementados, huerfanosMarcados,
+                                duplicados, totalLineas, lineasDescartadas,
+                                registrosUnicos: registros.length, duracion,
+                                zips: zipBuffers.length, csvs: numCsvFiles,
+                                correosEliminados, infoReport,
+                            })
+                        } catch { /* silent */ }
+                    }
+                } else {
+                    // Ultimo lote (o sin jobId): enviar email consolidado
+                    try {
+                        // Verificar si hubo multiples ejecuciones hoy para agregar stats
+                        const todayMidnight = new Date()
+                        todayMidnight.setUTCHours(0, 0, 0, 0)
+                        const { data: todayRuns } = await supabase
+                            .from('import_history')
+                            .select('exitosos, fallidos, duplicados, total_registros, detalles, duracion')
+                            .eq('tipo_fuente', 'bd_neps')
+                            .gte('created_at', todayMidnight.toISOString())
+
+                        const runs = todayRuns || []
+
+                        if (runs.length > 1) {
+                            // Multiples ejecuciones en cadena: agregar stats
+                            const agg = {
+                                exitosos: 0, errores: 0, duplicados: 0, insertados: 0,
+                                actualizados: 0, complementados: 0, huerfanos: 0,
+                                lineas: 0, descartadas: 0, registros: 0,
+                                correos: 0, zips: 0, csvs: 0,
+                            }
+                            for (const run of runs) {
+                                agg.exitosos += run.exitosos || 0
+                                agg.errores += run.fallidos || 0
+                                agg.duplicados += run.duplicados || 0
+                                agg.registros += run.total_registros || 0
+                                const d = (run.detalles || {}) as Record<string, number>
+                                agg.insertados += d.insertados || 0
+                                agg.actualizados += d.actualizados || 0
+                                agg.complementados += d.complementados || 0
+                                agg.huerfanos += d.huerfanos_marcados || 0
+                                agg.lineas += d.lineas_totales || 0
+                                agg.descartadas += d.lineas_descartadas || 0
+                                agg.correos += d.correos_eliminados_total || 0
+                                agg.zips += d.zips || 0
+                                agg.csvs += d.csvs || 0
+                            }
+
+                            const aggReport = [
+                                `=== RESUMEN CONSOLIDADO (${runs.length} ejecuciones en cadena) ===`,
+                                `Total exitosos,${agg.exitosos}`,
+                                `Total errores,${agg.errores}`,
+                                `Total insertados,${agg.insertados}`,
+                                `Total actualizados,${agg.actualizados}`,
+                                `Total complementados,${agg.complementados}`,
+                                `Total huerfanos,${agg.huerfanos}`,
+                                `Total duplicados,${agg.duplicados}`,
+                                `Total registros unicos,${agg.registros}`,
+                                `Total correos eliminados,${agg.correos}`,
+                                '',
+                                `=== DETALLE ULTIMO LOTE ===`,
+                                infoReport,
+                            ].join('\n')
+
+                            await enviarCorreoNotificacion(supabase, {
+                                fechaLote,
+                                totalExitosos: agg.exitosos,
+                                totalErrores: agg.errores,
+                                totalInsertados: agg.insertados,
+                                totalActualizados: agg.actualizados,
+                                totalComplementados: agg.complementados,
+                                huerfanosMarcados: agg.huerfanos,
+                                duplicados: agg.duplicados,
+                                totalLineas: agg.lineas,
+                                lineasDescartadas: agg.descartadas,
+                                registrosUnicos: agg.registros,
+                                duracion: `${runs.length} lotes en cadena`,
+                                zips: agg.zips,
+                                csvs: agg.csvs,
+                                correosEliminados: agg.correos,
+                                infoReport: aggReport,
+                            })
+                        } else {
+                            // Una sola ejecucion (caso normal diario)
+                            await enviarCorreoNotificacion(supabase, {
+                                fechaLote, totalExitosos, totalErrores, totalInsertados,
+                                totalActualizados, totalComplementados, huerfanosMarcados,
+                                duplicados, totalLineas, lineasDescartadas,
+                                registrosUnicos: registros.length, duracion,
+                                zips: zipBuffers.length, csvs: numCsvFiles,
+                                correosEliminados, infoReport,
+                            })
+                        }
+                    } catch (emailErr) {
+                        console.error('Error enviando correo notificacion:', emailErr instanceof Error ? emailErr.message : emailErr)
+                    }
                 }
 
             } catch (error) {
@@ -1271,6 +1428,13 @@ Deno.serve(async (req) => {
                     })
                 } catch (notifyErr) {
                     console.error('[BD_NEPS] Error notificando error critico:', notifyErr)
+                }
+
+                // Enviar correo de fallo al equipo
+                try {
+                    await enviarCorreoFallo(errorMsg)
+                } catch (failEmailErr) {
+                    console.error('[BD_NEPS] Error enviando correo de fallo:', failEmailErr)
                 }
 
                 send({
