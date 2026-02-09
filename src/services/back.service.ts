@@ -385,13 +385,16 @@ export const backService = {
                     .in('id', idsUnicos)
             )
 
-            // B: Contactos (Cargos)
+            // B: Contactos (Cargos) - envuelto en catch para evitar que un error
+            // CORS/401 por token expirado cascade y provoque logout involuntario
             if (emailsRadicadores.length > 0) {
                 promises.push(
-                    supabase
-                        .from('contactos')
-                        .select('email_personal, puesto')
-                        .in('email_personal', emailsRadicadores)
+                    Promise.resolve(
+                        supabase
+                            .from('contactos')
+                            .select('email_personal, puesto')
+                            .in('email_personal', emailsRadicadores)
+                    ).catch(() => ({ data: [], error: null }))
                 )
             } else {
                 promises.push(Promise.resolve({ data: [] })) // Placeholder
