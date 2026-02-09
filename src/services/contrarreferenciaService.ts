@@ -59,7 +59,7 @@ async function obtenerContrarreferenciaCacheada(radicado: string): Promise<Cache
             .select('metadata')
             .eq('radicado', radicado)
             .limit(1)
-            .single()
+            .maybeSingle()
 
         if (error || !data) return null
 

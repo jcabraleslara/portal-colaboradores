@@ -7,7 +7,7 @@
  * - Gemini 3 Flash (fallback) - Supabase Edge Function
  */
 import { supabase } from '@/config/supabase.config'
-import { generateEmbedding, splitTextIntoChunks } from './embedding.service'
+import { splitTextIntoChunks } from './embedding.service'
 import type { TextItem } from 'pdfjs-dist/types/src/display/api'
 import { EDGE_FUNCTIONS, VERCEL_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
 
@@ -17,13 +17,6 @@ interface VectorizacionResult {
     chunksProcessed: number
     error?: string
     method?: 'native' | 'document-ai' | 'gemini-ocr'
-}
-
-interface BusquedaResult {
-    radicado: string
-    content: string
-    similarity: number
-    metadata?: Record<string, unknown>
 }
 
 /**
@@ -208,41 +201,26 @@ export async function vectorizarPdf(radicado: string, pdfUrl: string): Promise<V
         const chunks = splitTextIntoChunks(texto, 2000)
         console.log(`[RAG] ${chunks.length} chunks generados (método: ${method})`)
 
-        // 5. Generar embeddings y guardar
-        let chunksProcessed = 0
-
-        for (let i = 0; i < chunks.length; i++) {
-            const chunk = chunks[i]
-
-            try {
-                const { embedding } = await generateEmbedding(chunk)
-
-                const { error } = await supabase
-                    .from('pdf_embeddings')
-                    .insert({
-                        radicado,
-                        pdf_url: pdfUrl,
-                        chunk_index: i,
-                        content: chunk,
-                        embedding,
-                        metadata: {
-                            total_chunks: chunks.length,
-                            char_count: chunk.length,
-                            extraction_method: method
-                        }
-                    })
-
-                if (error) {
-                    console.error(`[RAG] Error guardando chunk ${i}:`, error)
-                } else {
-                    chunksProcessed++
-                }
-
-                await new Promise(resolve => setTimeout(resolve, 100))
-
-            } catch (embedError) {
-                console.error(`[RAG] Error generando embedding chunk ${i}:`, embedError)
+        // 5. Guardar chunks de texto (sin embeddings - solo cache de OCR)
+        const rows = chunks.map((chunk, i) => ({
+            radicado,
+            pdf_url: pdfUrl,
+            chunk_index: i,
+            content: chunk,
+            metadata: {
+                total_chunks: chunks.length,
+                char_count: chunk.length,
+                extraction_method: method
             }
+        }))
+
+        const { error: insertError } = await supabase
+            .from('pdf_embeddings')
+            .insert(rows)
+
+        const chunksProcessed = insertError ? 0 : rows.length
+        if (insertError) {
+            console.error('[RAG] Error guardando chunks:', insertError)
         }
 
         console.log(`[RAG] ✅ Vectorización completada: ${chunksProcessed}/${chunks.length} chunks (${method})`)
@@ -260,36 +238,6 @@ export async function vectorizarPdf(radicado: string, pdfUrl: string): Promise<V
 }
 
 /**
- * Busca documentos similares a una consulta
- */
-export async function buscarDocumentosSimilares(
-    query: string,
-    limit: number = 10,
-    threshold: number = 0.5
-): Promise<BusquedaResult[]> {
-    try {
-        const { embedding } = await generateEmbedding(query)
-
-        const { data, error } = await supabase.rpc('search_pdf_embeddings', {
-            query_embedding: embedding,
-            match_threshold: threshold,
-            match_count: limit
-        })
-
-        if (error) {
-            console.error('[RAG] Error en búsqueda:', error)
-            return []
-        }
-
-        return data as BusquedaResult[]
-
-    } catch (error) {
-        console.error('[RAG] Error en buscarDocumentosSimilares:', error)
-        return []
-    }
-}
-
-/**
  * Elimina los embeddings de un radicado
  */
 export async function eliminarEmbeddings(radicado: string): Promise<boolean> {
@@ -303,7 +251,6 @@ export async function eliminarEmbeddings(radicado: string): Promise<boolean> {
 
 export const ragService = {
     vectorizarPdf,
-    buscarDocumentosSimilares,
     eliminarEmbeddings,
     extractTextNative,
     extractTextWithDocumentAI,

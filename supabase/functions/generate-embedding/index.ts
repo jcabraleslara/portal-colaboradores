@@ -53,8 +53,8 @@ Deno.serve(async (req) => {
 
         console.log(`[API Embedding] Generando embedding para texto de ${text.length} caracteres`)
 
-        // Llamar a Gemini Embedding API
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${GEMINI_API_KEY}`
+        // Llamar a Gemini Embedding API (gemini-embedding-001 reemplaza a text-embedding-004 deprecado en ene 2026)
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${GEMINI_API_KEY}`
 
         const geminiResponse = await fetch(apiUrl, {
             method: 'POST',
@@ -62,7 +62,8 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
                 content: {
                     parts: [{ text }]
-                }
+                },
+                outputDimensionality: 768
             })
         })
 
