@@ -306,23 +306,44 @@ export const soportesFacturacionService = {
 
         // Subir archivos concurrentemente en lotes
         const uploadOneFile = async (meta: typeof archivosMeta[0]): Promise<string | null> => {
-            // Upload con reintentos (5 intentos, base 1.5s, backoff + jitter)
-            await executeWithRetry(async () => {
-                const { error } = await supabase.storage
+            try {
+                // Upload con reintentos (5 intentos, base 1.5s, backoff + jitter)
+                await executeWithRetry(async () => {
+                    const { error } = await supabase.storage
+                        .from('soportes-facturacion')
+                        .upload(meta.ruta, meta.archivo, {
+                            cacheControl: '3600',
+                            upsert: true,
+                        })
+                    if (error) throw error
+                }, 5, 1500)
+            } catch (uploadError) {
+                // Upload falló tras todos los reintentos.
+                // Verificar si el archivo llegó al Storage (falso negativo por timeout de red:
+                // el servidor recibe y procesa el upload, pero el cliente no recibe la respuesta)
+                console.warn(`[Storage] Upload falló para ${meta.nombreFinal}, verificando existencia en Storage...`)
+                const { data: urlData } = await supabase.storage
                     .from('soportes-facturacion')
-                    .upload(meta.ruta, meta.archivo, {
-                        cacheControl: '3600',
-                        upsert: true,
-                    })
-                if (error) throw error
-            }, 5, 1500)
+                    .createSignedUrl(meta.ruta, 31536000)
 
-            // Generar URL firmada (válida por 1 año)
-            const { data: urlData } = await supabase.storage
-                .from('soportes-facturacion')
-                .createSignedUrl(meta.ruta, 31536000)
+                if (urlData?.signedUrl) {
+                    console.info(`[Storage] Archivo ${meta.nombreFinal} encontrado en Storage (recuperado de falso negativo de red)`)
+                    return urlData.signedUrl
+                }
 
-            return urlData?.signedUrl || null
+                // El archivo realmente no existe en Storage
+                throw uploadError
+            }
+
+            // Generar URL firmada (válida por 1 año) con reintentos
+            return await executeWithRetry(async () => {
+                const { data: urlData, error: signError } = await supabase.storage
+                    .from('soportes-facturacion')
+                    .createSignedUrl(meta.ruta, 31536000)
+                if (signError) throw signError
+                if (!urlData?.signedUrl) throw new Error('No se generó URL firmada')
+                return urlData.signedUrl
+            }, 3, 1000)
         }
 
         // Subida concurrente con límite de paralelismo
