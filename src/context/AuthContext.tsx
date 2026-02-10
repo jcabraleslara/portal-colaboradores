@@ -2,7 +2,7 @@
  * Contexto de Autenticación con Supabase Auth
  * Portal de Colaboradores GESTAR SALUD IPS
  *
- * VERSIÓN 4.1 - SESIÓN PERSISTENTE (OPTIMIZADA)
+ * VERSIÓN 4.2 - SESIÓN PERSISTENTE (FIX LOOP INFINITO SIGNED_OUT)
  * - Sesión de larga duración: caché válido por 24 horas
  * - Renovación automática del token sin interrumpir al usuario
  * - Tolerancia a fallos: múltiples reintentos antes de forzar logout
@@ -28,6 +28,19 @@ const log = {
     debug: (...args: unknown[]) => import.meta.env.DEV && console.info('[Auth]', ...args),
     warn: (...args: unknown[]) => console.warn('[Auth]', ...args),
     error: (...args: unknown[]) => console.error('[Auth]', ...args),
+}
+
+/**
+ * Verifica localmente si un JWT no ha expirado (sin llamar al servidor).
+ * Requiere al menos 30s de validez restante para evitar race conditions.
+ */
+function isJwtValid(token: string): boolean {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        return typeof payload.exp === 'number' && payload.exp > Date.now() / 1000 + 30
+    } catch {
+        return false
+    }
 }
 
 // ========================================
@@ -63,6 +76,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const processingAuth = useRef(false)
     const backgroundFetchDone = useRef(false)
     const intentionalLogout = useRef(false)
+    const signedOutProcessing = useRef(false)
+    const signedOutCooldown = useRef(0)
 
     // ========================================
     // CACHÉ (Simplificada)
@@ -429,78 +444,58 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                     case 'SIGNED_OUT': {
                         // ===================================================================
-                        // ESTRATEGIA: Solo procesar SIGNED_OUT si fue INTENCIONAL
+                        // ESTRATEGIA: Guard de re-entrada + cooldown + restauración por backup
                         // ===================================================================
-                        // Supabase-js emite SIGNED_OUT espurios por múltiples razones:
-                        //  - Refresh token rotation entre tabs (navigator.locks deadlock)
-                        //  - Errores transitorios de red durante auto-refresh
-                        //  - Race conditions internas del SDK
-                        // Antes intentábamos recuperar con reintentos, pero el refresh token
-                        // ya está invalidado en el servidor → reintentos siempre fallan.
-                        // SOLUCIÓN: solo cerrar sesión si el usuario lo pidió explícitamente.
-                        // Si la sesión realmente murió, la próxima llamada API fallará con 401
-                        // y el usuario verá un error natural que lo lleva a re-loguearse.
+                        // CRÍTICO: NUNCA llamar getSession()/refreshSession() aquí.
+                        // Esos métodos disparan MÁS eventos SIGNED_OUT → loop infinito.
+                        // Solo usamos setSession() con tokens del backup, protegido por guard.
 
                         if (intentionalLogout.current) {
-                            // Logout intencional (botón "Cerrar Sesión" o timeout inactividad)
                             intentionalLogout.current = false
                             log.debug('SIGNED_OUT intencional - estado ya limpio')
                             break
                         }
 
-                        // SIGNED_OUT no intencional → restaurar sesión desde backup
-                        log.debug('SIGNED_OUT espurio detectado - restaurando sesión...')
-                        setTimeout(async () => {
-                            if (!mounted) return
+                        // Guard: ignorar si ya procesando o en periodo de cooldown
+                        if (signedOutProcessing.current) break
+                        if (Date.now() < signedOutCooldown.current) break
 
-                            // Paso 1: Verificar si aún hay sesión (otro tab pudo renovar)
-                            try {
-                                const { data: { session: s } } = await supabase.auth.getSession()
-                                if (s) {
-                                    log.debug('SIGNED_OUT espurio - sesión aún válida')
-                                    return
-                                }
-                            } catch { /* continuar */ }
+                        signedOutProcessing.current = true
+                        log.debug('SIGNED_OUT espurio detectado - intentando restaurar...')
 
-                            // Paso 2: Restaurar desde backup de tokens
-                            // supabase-js borra localStorage al emitir SIGNED_OUT, pero
-                            // nuestro backup en SESSION_BACKUP_KEY no lo toca.
-                            try {
-                                const backup = localStorage.getItem(SESSION_BACKUP_KEY)
-                                if (backup) {
-                                    const { access_token, refresh_token } = JSON.parse(backup)
-                                    if (access_token && refresh_token) {
-                                        const { data, error } = await supabase.auth.setSession({
-                                            access_token,
-                                            refresh_token
-                                        })
-                                        if (data?.session && !error) {
-                                            log.warn('SIGNED_OUT espurio - sesión restaurada desde backup')
-                                            return
-                                        }
-                                        log.debug('setSession falló:', error?.message)
+                        try {
+                            const backup = localStorage.getItem(SESSION_BACKUP_KEY)
+                            if (backup) {
+                                const { access_token, refresh_token } = JSON.parse(backup)
+                                if (access_token && refresh_token && isJwtValid(access_token)) {
+                                    // setSession puede disparar SIGNED_OUT/SIGNED_IN internamente,
+                                    // pero signedOutProcessing=true bloquea re-entrada.
+                                    const { data, error } = await supabase.auth.setSession({
+                                        access_token,
+                                        refresh_token
+                                    })
+                                    if (data?.session && !error) {
+                                        log.warn('SIGNED_OUT espurio - sesión restaurada desde backup')
+                                        // Actualizar backup con tokens frescos
+                                        try {
+                                            localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify({
+                                                access_token: data.session.access_token,
+                                                refresh_token: data.session.refresh_token,
+                                                saved_at: Date.now()
+                                            }))
+                                        } catch { /* silenciar */ }
+                                        signedOutProcessing.current = false
+                                        break
                                     }
                                 }
-                            } catch { /* continuar */ }
-
-                            // Paso 3: Intentar refresh como último recurso
-                            try {
-                                const { data } = await supabase.auth.refreshSession()
-                                if (data?.session) {
-                                    log.warn('SIGNED_OUT espurio - sesión renovada por refresh')
-                                    return
-                                }
-                            } catch { /* continuar */ }
-
-                            // Restauración falló completamente.
-                            // Si hay usuario en caché, mantener UI pero la sesión está muerta.
-                            // El usuario deberá re-loguearse cuando intente hacer algo.
-                            if (userRef.current || getCachedProfile()) {
-                                log.warn('SIGNED_OUT espurio - backup agotado, manteniendo UI con caché')
-                                return
                             }
+                        } catch { /* continuar */ }
 
-                            // Sin perfil ni caché → limpiar estado
+                        // Restauración falló o no hay backup válido.
+                        // Mantener UI con caché - las llamadas API fallarán con 401 naturalmente.
+                        if (userRef.current || getCachedProfile()) {
+                            log.warn('SIGNED_OUT espurio irrecuperable - manteniendo UI con caché')
+                        } else {
                             log.warn('SIGNED_OUT sin sesión ni caché - limpiando')
                             clearProfileCache()
                             setUser(null)
@@ -509,7 +504,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             initializationComplete.current = false
                             processingAuth.current = false
                             backgroundFetchDone.current = false
-                        }, 500)
+                        }
+
+                        signedOutProcessing.current = false
+                        signedOutCooldown.current = Date.now() + 60_000 // 60s cooldown
                         break
                     }
 
