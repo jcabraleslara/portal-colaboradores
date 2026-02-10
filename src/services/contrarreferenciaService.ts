@@ -1,12 +1,15 @@
 /**
  * Servicio de Generacion Automatica de Contrarreferencias
  *
- * Flujo optimizado:
- * 1. Cache check + text check en paralelo
- * 2a. Si cache → retorno inmediato (~200ms)
- * 2b. Si texto cacheado → enviar texto al Edge Function (~3-5s)
- * 2c. Si nada → enviar pdfUrl al Edge Function (Gemini multimodal, ~5-8s)
- * 3. Cache save + vectorizacion en background (fire-and-forget)
+ * Flujo simplificado (multimodal directo):
+ * 1. Cache check en tabla 'back' → retorno inmediato (~200ms)
+ * 2. Si no hay cache → Edge Function multimodal (Gemini lee PDF directo, ~10-15s)
+ * 3. Cache save fire-and-forget en tabla 'back'
+ *
+ * Se elimino la vectorizacion eager de PDFs porque:
+ * - Solo el 3.4% de los radicados necesitan contrarreferencia
+ * - La vectorizacion tenia 99% de tasa de fallo (rate limits, OCR fallido)
+ * - El modo multimodal de Gemini funciona bien sin pre-extraccion de texto
  */
 
 import { supabase } from '@/config/supabase.config'
@@ -21,83 +24,46 @@ interface CachedContrarreferencia {
 }
 
 /**
- * Obtiene el texto completo de un documento desde sus chunks vectorizados
- */
-async function obtenerTextoCompleto(radicado: string): Promise<string> {
-    const { data: chunks, error } = await supabase
-        .from('pdf_embeddings')
-        .select('content, chunk_index')
-        .eq('radicado', radicado)
-        .order('chunk_index', { ascending: true })
-
-    if (error || !chunks || chunks.length === 0) return ''
-
-    return chunks.map(chunk => chunk.content).join('\n\n')
-}
-
-/**
- * Obtener contrarreferencia desde cache (metadata de pdf_embeddings)
+ * Obtener contrarreferencia desde cache (columna de tabla 'back')
  */
 async function obtenerContrarreferenciaCacheada(radicado: string): Promise<CachedContrarreferencia | null> {
     try {
         const { data, error } = await supabase
-            .from('pdf_embeddings')
-            .select('metadata')
+            .from('back')
+            .select('contrarreferencia_cache')
             .eq('radicado', radicado)
-            .limit(1)
-            .maybeSingle()
+            .single()
 
-        if (error || !data) return null
+        if (error || !data?.contrarreferencia_cache) return null
 
-        const metadata = data.metadata as Record<string, unknown>
-        if (metadata?.contrarreferencia) {
-            return metadata.contrarreferencia as CachedContrarreferencia
-        }
-
-        return null
+        return data.contrarreferencia_cache as CachedContrarreferencia
     } catch {
         return null
     }
 }
 
 /**
- * Guardar contrarreferencia en cache (metadata de primer chunk) - fire-and-forget
+ * Guardar contrarreferencia en cache (columna de tabla 'back') - fire-and-forget
  */
 function guardarContrarreferenciaCacheada(
     radicado: string,
     texto: string,
     especialidad: string
 ): void {
-    // Fire-and-forget: no bloquea la respuesta al usuario
     (async () => {
         try {
-            const { data: chunks } = await supabase
-                .from('pdf_embeddings')
-                .select('id, metadata')
-                .eq('radicado', radicado)
-                .order('chunk_index', { ascending: true })
-                .limit(1)
-
-            if (!chunks || chunks.length === 0) return
-
-            const primerChunk = chunks[0]
-            const metadataActual = (primerChunk.metadata as Record<string, unknown>) || {}
-
             await supabase
-                .from('pdf_embeddings')
+                .from('back')
                 .update({
-                    metadata: {
-                        ...metadataActual,
-                        contrarreferencia: {
-                            texto,
-                            generadaEn: new Date().toISOString(),
-                            especialidad
-                        }
+                    contrarreferencia_cache: {
+                        texto,
+                        generadaEn: new Date().toISOString(),
+                        especialidad
                     }
                 })
-                .eq('id', primerChunk.id)
+                .eq('radicado', radicado)
 
-            console.log('[Contrarreferencia] Cache guardada en background')
+            console.log('[Contrarreferencia] Cache guardada')
         } catch (err) {
             console.warn('[Contrarreferencia] Error guardando cache:', err)
         }
@@ -112,15 +78,13 @@ function esperar(ms: number): Promise<void> {
 }
 
 /**
- * Llama al Edge Function con retry automatico
- * Acepta textoSoporte (modo texto) o pdfUrl (modo multimodal)
+ * Llama al Edge Function en modo multimodal con retry automatico
  */
 async function llamarEdgeFunction(
-    payload: { textoSoporte?: string; pdfUrl?: string; especialidad: string },
+    payload: { pdfUrl: string; especialidad: string },
     maxRetries: number = 3
 ): Promise<{ success: boolean; texto?: string; error?: string; retryAfter?: number }> {
-    const mode = payload.textoSoporte ? 'texto' : 'multimodal'
-    console.log(`[Contrarreferencia] Llamando Edge Function (modo: ${mode})...`)
+    console.log('[Contrarreferencia] Llamando Edge Function (modo: multimodal)...')
 
     for (let intento = 0; intento <= maxRetries; intento++) {
         try {
@@ -134,7 +98,7 @@ async function llamarEdgeFunction(
             if (response.ok) {
                 const data = await response.json()
                 if (data.success && data.texto) {
-                    console.log(`[Contrarreferencia] Generada OK (${data.texto.length} chars, modelo: ${data.model}, modo: ${data.mode})`)
+                    console.log(`[Contrarreferencia] Generada OK (${data.texto.length} chars, modelo: ${data.model})`)
                     return { success: true, texto: data.texto }
                 }
                 return { success: false, error: data.error || 'Respuesta sin contenido valido' }
@@ -207,12 +171,10 @@ async function llamarEdgeFunction(
 /**
  * Funcion principal: genera contrarreferencia automatica
  *
- * Flujo optimizado:
- * 1. Promise.all([cache check, text check]) - paralelo
- * 2a. Cache hit → retorno inmediato
- * 2b. Texto disponible → Edge Function modo texto (rapido)
- * 2c. Sin texto → Edge Function modo multimodal (Gemini lee PDF directo)
- * 3. Fire-and-forget: cache save + vectorizacion background
+ * Flujo:
+ * 1. Cache check en tabla 'back' → retorno inmediato
+ * 2. Multimodal directo → Gemini lee PDF (~10-15s)
+ * 3. Fire-and-forget: cache save
  */
 export async function generarContrarreferenciaAutomatica(
     radicado: string,
@@ -226,43 +188,25 @@ export async function generarContrarreferenciaAutomatica(
     try {
         console.log(`[Contrarreferencia] === Inicio ${radicado} ===`)
 
-        // Paso 1: Cache check + text check EN PARALELO
-        const [cacheada, textoExistente] = await Promise.all([
-            forceRegenerate ? Promise.resolve(null) : obtenerContrarreferenciaCacheada(radicado),
-            obtenerTextoCompleto(radicado)
-        ])
-
-        // Paso 2a: Cache hit → retorno inmediato
-        if (cacheada?.texto) {
-            console.log(`[Contrarreferencia] Cache hit (${Date.now() - inicio}ms)`)
-            return {
-                success: true,
-                texto: cacheada.texto,
-                metodo: 'cache',
-                tiempoMs: Date.now() - inicio
+        // Paso 1: Cache check
+        if (!forceRegenerate) {
+            const cacheada = await obtenerContrarreferenciaCacheada(radicado)
+            if (cacheada?.texto) {
+                console.log(`[Contrarreferencia] Cache hit (${Date.now() - inicio}ms)`)
+                return {
+                    success: true,
+                    texto: cacheada.texto,
+                    metodo: 'cache',
+                    tiempoMs: Date.now() - inicio
+                }
             }
         }
 
-        // Paso 2b: Texto cacheado → enviar al EF en modo texto (mas rapido)
-        let resultado: { success: boolean; texto?: string; error?: string; retryAfter?: number }
-        let metodo: 'vectorizado' | 'multimodal'
-
-        if (textoExistente && textoExistente.length >= 100) {
-            console.log(`[Contrarreferencia] Texto disponible (${textoExistente.length} chars) → modo texto`)
-            resultado = await llamarEdgeFunction({
-                textoSoporte: textoExistente,
-                especialidad: especialidadNormalizada
-            })
-            metodo = 'vectorizado'
-        } else {
-            // Paso 2c: Sin texto → enviar pdfUrl al EF (Gemini multimodal, skip OCR)
-            console.log('[Contrarreferencia] Sin texto → modo multimodal (Gemini lee PDF directo)')
-            resultado = await llamarEdgeFunction({
-                pdfUrl,
-                especialidad: especialidadNormalizada
-            })
-            metodo = 'multimodal'
-        }
+        // Paso 2: Multimodal directo (Gemini lee PDF)
+        const resultado = await llamarEdgeFunction({
+            pdfUrl,
+            especialidad: especialidadNormalizada
+        })
 
         // Paso 3: Fire-and-forget cache save
         if (resultado.success && resultado.texto) {
@@ -270,13 +214,13 @@ export async function generarContrarreferenciaAutomatica(
         }
 
         const tiempoMs = Date.now() - inicio
-        console.log(`[Contrarreferencia] === Completado en ${tiempoMs}ms (${metodo}) ===`)
+        console.log(`[Contrarreferencia] === Completado en ${tiempoMs}ms (multimodal) ===`)
 
         return {
             success: resultado.success,
             texto: resultado.texto,
             error: resultado.error,
-            metodo,
+            metodo: 'multimodal',
             tiempoMs,
             retryAfter: resultado.retryAfter
         }

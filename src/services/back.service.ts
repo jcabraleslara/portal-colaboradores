@@ -19,7 +19,6 @@ import {
     EstadoRadicado,
     ConteosCasosBack,
 } from '@/types/back.types'
-import { ragService } from './rag.service'
 import { smsService } from './sms.service'
 import { pacientesService } from './pacientes.service'
 
@@ -147,20 +146,6 @@ export const backService = {
 
                     // Actualizar el objeto local
                     (insertData as any).soportes = urls
-
-                    // Vectorizar PDFs automáticamente (solo si son PDFs)
-                    // Se ejecuta en background para no bloquear la respuesta
-                    for (const url of urls) {
-                        if (url.toLowerCase().includes('.pdf')) {
-                            ragService.vectorizarPdf(radicado, url)
-                                .then(result => {
-                                    if (result.success) {
-                                        console.log(`[RAG] Vectorización automática completada: ${radicado}`)
-                                    }
-                                })
-                                .catch(err => console.error('[RAG] Error vectorización:', err))
-                        }
-                    }
 
                 } catch (uploadError) {
                     console.error('Error subiendo soportes:', uploadError)
