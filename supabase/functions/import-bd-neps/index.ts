@@ -1320,7 +1320,7 @@ Deno.serve(async (req) => {
                             .from('import_history')
                             .select('exitosos, fallidos, duplicados, total_registros, detalles, duracion')
                             .eq('tipo_fuente', 'bd_neps')
-                            .gte('created_at', todayMidnight.toISOString())
+                            .gte('fecha_importacion', todayMidnight.toISOString())
 
                         const runs = todayRuns || []
 
