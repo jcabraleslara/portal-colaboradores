@@ -158,7 +158,7 @@ export function GestionBackPage() {
         setFiltros(prev => ({
             ...prev,
             busqueda: busquedaInput.trim() || undefined,
-            estadoRadicado: 'Todos' // Al buscar, mostrar todos los estados
+            // No cambiar estadoRadicado para evitar recarga innecesaria de conteos
         }))
     }, [busquedaInput])
 

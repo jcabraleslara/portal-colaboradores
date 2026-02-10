@@ -339,9 +339,22 @@ export const backService = {
             }
 
             // Búsqueda por radicado o id del paciente
+            // Usa eq (Index Scan ~0.2ms) en vez de ilike %...% (Seq Scan ~51ms en 17K+ filas)
             if (filtros.busqueda && filtros.busqueda.trim()) {
-                const termino = filtros.busqueda.trim()
-                query = query.or(`radicado.ilike.%${termino}%,id.ilike.%${termino}%`)
+                const termino = filtros.busqueda.trim().toUpperCase()
+                const esNumerico = /^\d+$/.test(termino)
+                const esRadicado = /^AUD\d+$/i.test(termino)
+
+                if (esNumerico) {
+                    // Identificación numérica → búsqueda exacta por id
+                    query = query.eq('id', termino)
+                } else if (esRadicado) {
+                    // Radicado (AUD12345) → búsqueda exacta por radicado
+                    query = query.eq('radicado', termino)
+                } else {
+                    // Texto libre → ilike como fallback
+                    query = query.or(`radicado.ilike.%${termino}%,id.ilike.%${termino}%`)
+                }
             }
 
             // Ordenamiento
