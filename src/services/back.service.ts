@@ -571,6 +571,12 @@ export const backService = {
 
             if (error) {
                 console.error('Error actualizando caso:', error)
+                if (error.code === 'PGRST116') {
+                    return {
+                        success: false,
+                        error: `No se encontró el radicado ${radicado} o no tienes permisos para actualizarlo.`,
+                    }
+                }
                 return {
                     success: false,
                     error: 'Error al actualizar el caso: ' + error.message,

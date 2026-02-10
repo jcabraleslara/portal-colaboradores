@@ -2,12 +2,12 @@
  * Contexto de Autenticación con Supabase Auth
  * Portal de Colaboradores GESTAR SALUD IPS
  *
- * VERSIÓN 4.2 - SESIÓN PERSISTENTE (FIX LOOP INFINITO SIGNED_OUT)
- * - Sesión de larga duración: caché válido por 24 horas
- * - Renovación automática del token sin interrumpir al usuario
- * - Tolerancia a fallos: múltiples reintentos antes de forzar logout
- * - Prioriza mantener la sesión activa sobre validaciones estrictas
- * - Logs reducidos y eventos de auth deduplicados
+ * VERSIÓN 5.0 - SESIÓN PERMANENTE (ANTI-SIGNED_OUT DEFINITIVO)
+ * - JWT de 1 semana + refresh proactivo cada 2 horas
+ * - Fetch interceptor auto-retry en 401 (supabase.config.ts)
+ * - SIGNED_OUT espurios: restauración sin validar expiración del JWT
+ * - NUNCA se cierra sesión por eventos espurios (solo logout explícito)
+ * - Visibilitychange handler para refrescar al volver a la pestaña
  */
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
@@ -22,25 +22,13 @@ const SESSION_BACKUP_KEY = 'gestar-auth-backup' // Backup de tokens que supabase
 const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000 // 24 horas de validez del caché
 const GLOBAL_TIMEOUT_MS = 15000 // 15 segundos para consultas (conexiones lentas)
 const FAILSAFE_TIMEOUT_MS = 30000 // 30 segundos timeout de seguridad
+const PROACTIVE_REFRESH_MS = 2 * 60 * 60 * 1000 // 2 horas: refrescar token proactivamente
 
 // Solo logs de advertencia/error en producción (los importantes para diagnóstico)
 const log = {
     debug: (...args: unknown[]) => import.meta.env.DEV && console.info('[Auth]', ...args),
     warn: (...args: unknown[]) => console.warn('[Auth]', ...args),
     error: (...args: unknown[]) => console.error('[Auth]', ...args),
-}
-
-/**
- * Verifica localmente si un JWT no ha expirado (sin llamar al servidor).
- * Requiere al menos 30s de validez restante para evitar race conditions.
- */
-function isJwtValid(token: string): boolean {
-    try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        return typeof payload.exp === 'number' && payload.exp > Date.now() / 1000 + 30
-    } catch {
-        return false
-    }
 }
 
 // ========================================
@@ -77,7 +65,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const backgroundFetchDone = useRef(false)
     const intentionalLogout = useRef(false)
     const signedOutProcessing = useRef(false)
-    const signedOutCooldown = useRef(0)
 
     // ========================================
     // CACHÉ (Simplificada)
@@ -444,39 +431,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                     case 'SIGNED_OUT': {
                         // ===================================================================
-                        // ESTRATEGIA: Guard de re-entrada + cooldown + restauración por backup
+                        // ESTRATEGIA: Restaurar SIEMPRE, NUNCA cerrar sesión del usuario
                         // ===================================================================
-                        // CRÍTICO: NUNCA llamar getSession()/refreshSession() aquí.
-                        // Esos métodos disparan MÁS eventos SIGNED_OUT → loop infinito.
-                        // Solo usamos setSession() con tokens del backup, protegido por guard.
+                        // El fetch interceptor en supabase.config.ts maneja auto-retry en 401.
+                        // Aquí solo restauramos la sesión interna de supabase-js desde backup.
+                        // NUNCA modificamos el estado del usuario por un SIGNED_OUT espurio.
 
                         if (intentionalLogout.current) {
                             intentionalLogout.current = false
-                            log.debug('SIGNED_OUT intencional - estado ya limpio')
+                            log.debug('SIGNED_OUT intencional - estado limpio')
                             break
                         }
 
-                        // Guard: ignorar si ya procesando o en periodo de cooldown
+                        // Guard: ignorar si ya procesando
                         if (signedOutProcessing.current) break
-                        if (Date.now() < signedOutCooldown.current) break
-
                         signedOutProcessing.current = true
-                        log.debug('SIGNED_OUT espurio detectado - intentando restaurar...')
+                        log.debug('SIGNED_OUT espurio - restaurando silenciosamente...')
 
                         try {
                             const backup = localStorage.getItem(SESSION_BACKUP_KEY)
                             if (backup) {
                                 const { access_token, refresh_token } = JSON.parse(backup)
-                                if (access_token && refresh_token && isJwtValid(access_token)) {
-                                    // setSession puede disparar SIGNED_OUT/SIGNED_IN internamente,
-                                    // pero signedOutProcessing=true bloquea re-entrada.
+                                if (access_token && refresh_token) {
+                                    // setSession usa el refresh_token internamente aunque
+                                    // el JWT esté expirado. signedOutProcessing bloquea re-entrada.
                                     const { data, error } = await supabase.auth.setSession({
                                         access_token,
                                         refresh_token
                                     })
                                     if (data?.session && !error) {
-                                        log.warn('SIGNED_OUT espurio - sesión restaurada desde backup')
-                                        // Actualizar backup con tokens frescos
                                         try {
                                             localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify({
                                                 access_token: data.session.access_token,
@@ -484,6 +467,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                                                 saved_at: Date.now()
                                             }))
                                         } catch { /* silenciar */ }
+                                        log.debug('Sesión restaurada silenciosamente')
                                         signedOutProcessing.current = false
                                         break
                                     }
@@ -491,23 +475,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             }
                         } catch { /* continuar */ }
 
-                        // Restauración falló o no hay backup válido.
-                        // Mantener UI con caché - las llamadas API fallarán con 401 naturalmente.
-                        if (userRef.current || getCachedProfile()) {
-                            log.warn('SIGNED_OUT espurio irrecuperable - manteniendo UI con caché')
-                        } else {
-                            log.warn('SIGNED_OUT sin sesión ni caché - limpiando')
-                            clearProfileCache()
-                            setUser(null)
-                            userRef.current = null
-                            setIsLoading(false)
-                            initializationComplete.current = false
-                            processingAuth.current = false
-                            backgroundFetchDone.current = false
-                        }
-
+                        // Restauración fallida: NO tocar el estado del usuario.
+                        // El fetch interceptor se encarga de reintentar API calls con 401.
+                        log.warn('Restauración SIGNED_OUT fallida - UI intacta, fetch interceptor activo')
                         signedOutProcessing.current = false
-                        signedOutCooldown.current = Date.now() + 60_000 // 60s cooldown
                         break
                     }
 
@@ -550,6 +521,54 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []) // Sin dependencias para evitar loops - las funciones usan refs
+
+    // ========================================
+    // REFRESH PROACTIVO DE TOKEN
+    // ========================================
+    // Refresca el token cada 2 horas para que NUNCA expire.
+    // También refresca al volver a la pestaña si han pasado más de 2 horas.
+
+    useEffect(() => {
+        if (!user) return
+
+        let lastRefresh = Date.now()
+
+        const doRefresh = async () => {
+            try {
+                const { data } = await supabase.auth.refreshSession()
+                if (data?.session) {
+                    try {
+                        localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify({
+                            access_token: data.session.access_token,
+                            refresh_token: data.session.refresh_token,
+                            saved_at: Date.now()
+                        }))
+                    } catch { /* silenciar */ }
+                    lastRefresh = Date.now()
+                    log.debug('Token refrescado proactivamente')
+                }
+            } catch {
+                log.debug('Refresh proactivo falló (no crítico)')
+            }
+        }
+
+        // Timer regular cada 2 horas
+        const intervalId = setInterval(doRefresh, PROACTIVE_REFRESH_MS)
+
+        // Al volver a la pestaña, refrescar si pasaron más de 2 horas
+        const handleVisibility = () => {
+            if (document.visibilityState === 'visible' && Date.now() - lastRefresh > PROACTIVE_REFRESH_MS) {
+                doRefresh()
+            }
+        }
+        document.addEventListener('visibilitychange', handleVisibility)
+
+        return () => {
+            clearInterval(intervalId)
+            document.removeEventListener('visibilitychange', handleVisibility)
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [!!user]) // Solo reaccionar a cambios autenticado/no-autenticado
 
     const value: AuthContextType = {
         user,

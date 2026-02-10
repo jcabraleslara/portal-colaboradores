@@ -149,8 +149,11 @@ site_url = "http://127.0.0.1:3000"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
 additional_redirect_urls = ["https://127.0.0.1:3000"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
-# 43200 = 12 horas - cubre jornada laboral completa sin requerir refresh
-jwt_expiry = 43200
+# 604800 = 1 semana (MÁXIMO permitido por Supabase)
+# Combinado con refresh proactivo cada 2h en el cliente, el token siempre está fresco.
+# Si un SIGNED_OUT espurio borra el estado interno de supabase-js, el JWT sigue
+# válido por días, dando amplio margen para restaurar desde backup.
+jwt_expiry = 604800
 # JWT issuer URL. If not set, defaults to the local API URL (http://127.0.0.1:<port>/auth/v1).
 # jwt_issuer = ""
 # Path to JWT signing key. DO NOT commit your signing keys file to git.
@@ -159,10 +162,11 @@ jwt_expiry = 43200
 enable_refresh_token_rotation = true
 # Allows refresh tokens to be reused after expiry, up to the specified interval in seconds.
 # Requires enable_refresh_token_rotation = true.
-# 120 segundos de gracia para reutilizar refresh tokens entre pestañas.
-# Evita que colisiones entre tabs (navigator.locks deadlock conocido en supabase-js)
-# causen "Refresh Token Not Found" y maten la sesión completa.
-refresh_token_reuse_interval = 120
+# 600 segundos (10 min) de gracia para reutilizar refresh tokens.
+# Portal corporativo interno: la seguridad del token rotation es secundaria
+# frente a la estabilidad de sesión. 10 min de ventana evita que race conditions
+# entre tabs (navigator.locks deadlock) invaliden la sesión.
+refresh_token_reuse_interval = 600
 # Allow/disallow new user signups to your project.
 enable_signup = true
 # Allow/disallow anonymous sign-ins to your project.
