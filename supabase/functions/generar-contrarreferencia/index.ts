@@ -15,7 +15,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 /**
  * Prompt especializado de auditor medico senior
  */
-const PROMPT_CONTRARREFERENCIA = `Eres un auditor medico senior con mas de 15 años de experiencia en revision de pertinencia medica en el sistema de salud colombiano.
+const PROMPT_CONTRARREFERENCIA = `Eres un auditor médico senior con más de 15 años de experiencia en revisión de pertinencia médica en el sistema de salud colombiano.
 
 ESPECIALIDAD DE DESTINO: {especialidad}
 
@@ -23,27 +23,28 @@ ESPECIALIDAD DE DESTINO: {especialidad}
 
 **CONTRA REFERENCIA**
 
-Se contra remite el caso de [anota el nombre y el apellido del paciente], al primer nivel de atencion por las siguientes razones:
+Se contra remite el caso de [anota el nombre y el apellido del paciente], al primer nivel de atención por las siguientes razones:
 
-1. **Criterios clinicos:**
-[OBLIGATORIO: Escribe 1 oracion explicando las incongruencias clinicas, falta de justificacion para la remision, o por que no se justifica el nivel de complejidad solicitado.]
+1. **Criterios clínicos:**
+[OBLIGATORIO: Escribe 1 oración explicando las incongruencias clínicas, falta de justificación para la remisión, o por qué no se justifica el nivel de complejidad solicitado.]
 
 2. **Tratamiento previo:**
-[OBLIGATORIO: Escribe 1 oracion sobre que tratamientos del primer nivel NO se han instaurado antes de remitir. Si no hay registro de tratamiento previo, indica que es motivo de contra referencia.]
+[OBLIGATORIO: Escribe 1 oración sobre qué tratamientos del primer nivel NO se han instaurado antes de remitir. Si no hay registro de tratamiento previo, indica que es motivo de contra referencia.]
 
-3. **Estudios paraclinicos:**
-[OBLIGATORIO: Escribe 1 oracion indicando que estudios basicos del primer nivel faltan (hemograma, glicemia, EKG, radiografias simples). NO recomendar ecografias, resonancias ni tomografias.]
+3. **Estudios paraclínicos:**
+[OBLIGATORIO: Escribe 1 oración indicando qué estudios básicos del primer nivel faltan (hemograma, glicemia, EKG, radiografías simples). NO recomendar ecografías, resonancias ni tomografías.]
 
 4. **Completitud documental:**
-[OBLIGATORIO: Escribe 1 oracion sobre elementos faltantes o inconsistencias en la historia clinica, anamnesis incompleta, o examen fisico deficiente.]
+[OBLIGATORIO: Escribe 1 oración sobre elementos faltantes o inconsistencias en la historia clínica, anamnesis incompleta, o examen físico deficiente.]
 
 === REGLAS ESTRICTAS ===
 - DEBES completar los 4 puntos OBLIGATORIAMENTE
-- Cada punto DEBE tener 1 oracion explicativa
+- Cada punto DEBE tener 1 oración explicativa
 - NO puedes terminar antes de completar los 4 puntos
 - La respuesta debe arrancar directamente con "CONTRA REFERENCIA"
 - NO incluir introducciones ni citation markers [1], [2]
-- Se tecnico pero claro en tu lenguaje medico`
+- Sé técnico pero claro en tu lenguaje médico
+- ORTOGRAFÍA IMPECABLE: Usa correctamente todas las tildes (atención, clínicos, paraclínicos, médico, remisión, diagnóstica, etc.), signos de puntuación y gramática del español formal. El texto es un documento médico oficial.`
 
 /**
  * Descarga un PDF desde una URL publica y retorna bytes en base64
@@ -91,7 +92,7 @@ function buildGeminiBody(
                         }
                     },
                     {
-                        text: `Analiza la historia clinica del PDF adjunto y genera la contrarreferencia.\n\n${promptFinal}`
+                        text: `Analiza la historia clínica del PDF adjunto y genera la contrarreferencia.\n\n${promptFinal}`
                     }
                 ]
             }],
