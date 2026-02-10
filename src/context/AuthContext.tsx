@@ -404,14 +404,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         break
 
                     case 'SIGNED_OUT': {
-                        // Supabase emite SIGNED_OUT espurios durante refreshes, inicialización,
-                        // el flujo de login, y cuando falla un token refresh automático.
-                        // NO llamar getSession() aquí - causa deadlock con el lock interno de Supabase.
-                        // Diferimos la verificación para ejecutarla fuera del lock.
+                        // Supabase emite SIGNED_OUT espurios por:
+                        //  1) Refresh token rotation entre tabs (navigator.locks deadlock conocido)
+                        //  2) Errores transitorios de red
+                        //  3) Flujos internos (inicialización, login)
+                        // Estrategia: verificar con delays crecientes antes de cerrar sesión,
+                        // y SIEMPRE verificar localStorage por si otra tab ya renovó la sesión.
                         setTimeout(async () => {
                             if (!mounted) return
 
-                            // Paso 1: Verificar si aún hay sesión válida (SIGNED_OUT espurio)
+                            // Paso 1: Verificar si otra tab ya renovó la sesión en localStorage
+                            // (el auto-refresh de supabase-js escribe en localStorage)
+                            try {
+                                const storageKey = 'gestar-auth-token'
+                                const stored = localStorage.getItem(storageKey)
+                                if (stored) {
+                                    const parsed = JSON.parse(stored)
+                                    const expiresAt = parsed?.expires_at || parsed?.expiresAt
+                                    if (expiresAt && expiresAt > Math.floor(Date.now() / 1000)) {
+                                        log.debug('SIGNED_OUT ignorado - otra tab renovó la sesión (localStorage válido)')
+                                        // Forzar re-lectura de sesión desde storage
+                                        const { data: { session: freshSession } } = await supabase.auth.getSession()
+                                        if (freshSession) return
+                                    }
+                                }
+                            } catch {
+                                // Error leyendo localStorage - continuar con verificación normal
+                            }
+
+                            // Paso 2: Verificar sesión via API
                             try {
                                 const { data: { session: s } } = await supabase.auth.getSession()
                                 if (s) {
@@ -419,37 +440,63 @@ export function AuthProvider({ children }: AuthProviderProps) {
                                     return
                                 }
                             } catch {
-                                // getSession() falló - puede ser error de red transitorio
+                                // getSession() falló - continuar
                             }
 
-                            // Paso 2: Intentar refresh explícito antes de rendirse
-                            // El auto-refresh puede fallar silenciosamente por timing/red,
-                            // pero el refresh token (7 días) suele seguir vigente.
+                            // Paso 3: Esperar 3s - otra tab puede estar renovando en paralelo
+                            await new Promise(r => setTimeout(r, 3000))
+                            if (!mounted) return
+
+                            // Re-verificar localStorage tras espera (otra tab pudo completar refresh)
+                            try {
+                                const stored = localStorage.getItem('gestar-auth-token')
+                                if (stored) {
+                                    const parsed = JSON.parse(stored)
+                                    const expiresAt = parsed?.expires_at || parsed?.expiresAt
+                                    if (expiresAt && expiresAt > Math.floor(Date.now() / 1000)) {
+                                        log.debug('SIGNED_OUT ignorado - sesión recuperada tras espera (localStorage)')
+                                        const { data: { session: s2 } } = await supabase.auth.getSession()
+                                        if (s2) return
+                                    }
+                                }
+                            } catch { /* continuar */ }
+
+                            // Paso 4: Intentar refresh explícito
                             try {
                                 const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
                                 if (refreshData?.session && !refreshError) {
                                     log.warn('SIGNED_OUT recuperado - token renovado manualmente')
                                     return
                                 }
-                            } catch {
-                                // Refresh falló - la sesión está realmente muerta
-                            }
+                            } catch { /* continuar */ }
 
-                            // Paso 3: Segundo intento con delay (red transitoria)
-                            await new Promise(r => setTimeout(r, 2000))
+                            // Paso 5: Último intento con delay más largo
+                            await new Promise(r => setTimeout(r, 5000))
                             if (!mounted) return
 
                             try {
                                 const { data: retryData } = await supabase.auth.refreshSession()
                                 if (retryData?.session) {
-                                    log.warn('SIGNED_OUT recuperado en reintento - token renovado')
+                                    log.warn('SIGNED_OUT recuperado en reintento final')
                                     return
                                 }
-                            } catch {
-                                // Definitivamente no hay sesión
+                            } catch { /* sesión realmente muerta */ }
+
+                            // Solo verificar perfil en caché - si existe, NO cerrar sesión
+                            // (el usuario probablemente tiene otra tab que renovó)
+                            const cachedProfile = getCachedProfile()
+                            if (cachedProfile) {
+                                // Verificar una última vez
+                                try {
+                                    const { data: { session: lastCheck } } = await supabase.auth.getSession()
+                                    if (lastCheck) {
+                                        log.warn('SIGNED_OUT ignorado - sesión encontrada en última verificación')
+                                        return
+                                    }
+                                } catch { /* continuar con logout */ }
                             }
 
-                            log.warn('SIGNED_OUT confirmado - sesión realmente cerrada tras reintentos')
+                            log.warn('SIGNED_OUT confirmado - sesión realmente cerrada tras todos los reintentos')
                             clearProfileCache()
                             setUser(null)
                             userRef.current = null
@@ -457,7 +504,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             initializationComplete.current = false
                             processingAuth.current = false
                             backgroundFetchDone.current = false
-                        }, 1500)
+                        }, 2000) // Delay inicial más largo para dar tiempo a navigator.locks
                         break
                     }
 
