@@ -9,6 +9,7 @@ import { useState, useCallback, useEffect } from 'react'
 import {
     Search,
     User,
+    UserCheck,
     AlertCircle,
     CheckCircle,
     Plus,
@@ -31,10 +32,19 @@ import { useAuth } from '@/context/AuthContext'
 import { Afiliado, LoadingState } from '@/types'
 import { AfiliadoFormModal } from '@/features/soportesFacturacion/AfiliadoFormModal'
 import { CupsSelector } from './CupsSelector'
+import { UsuarioRadicadorSelector } from './UsuarioRadicadorSelector'
 import { CupsSeleccionado, Recobro, ESTADO_RECOBRO_COLORES } from '@/types/recobros.types'
 
 export function RadicacionRecobrosView() {
     const { user } = useAuth()
+
+    // Roles que pueden asignar radicador diferente
+    const puedeAsignarRadicador = ['superadmin', 'auditor'].includes(user?.rol || '')
+
+    // ============================================
+    // ESTADO - Radicador asignado (solo superadmin/auditor)
+    // ============================================
+    const [radicadorAsignado, setRadicadorAsignado] = useState<{ nombre: string; email: string } | null>(null)
 
     // ============================================
     // ESTADO - Búsqueda de Paciente
@@ -217,6 +227,7 @@ export function RadicacionRecobrosView() {
         setRadicacionExitosa(null)
         setHistorial([])
         setMostrarHistorial(false)
+        setRadicadorAsignado(null)
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -241,6 +252,10 @@ export function RadicacionRecobrosView() {
         setSubmitState('loading')
         setSubmitError('')
 
+        // Usar radicador asignado si existe, sino el usuario actual
+        const emailRadicador = radicadorAsignado?.email || user?.email || ''
+        const nombreRadicador = radicadorAsignado?.nombre || user?.nombreCompleto
+
         const result = await recobrosService.crearRecobro({
             pacienteId: paciente.id,
             pacienteTipoId: paciente.tipoId || undefined,
@@ -248,8 +263,8 @@ export function RadicacionRecobrosView() {
             cupsData: cupsSeleccionados,
             justificacion: justificacion || undefined,
             soportes: archivos,
-            radicadorEmail: user?.email || '',
-            radicadorNombre: user?.nombreCompleto,
+            radicadorEmail: emailRadicador,
+            radicadorNombre: nombreRadicador,
         })
 
         if (result.success && result.data) {
@@ -490,6 +505,27 @@ export function RadicacionRecobrosView() {
                                         )
                                     })}
                                 </div>
+                            </Card.Body>
+                        </Card>
+                    )}
+
+                    {/* Selector de Radicador (solo superadmin/auditor) */}
+                    {puedeAsignarRadicador && (
+                        <Card>
+                            <Card.Header>
+                                <div className="flex items-center gap-2">
+                                    <UserCheck size={20} className="text-[var(--color-primary)]" />
+                                    Radicador
+                                </div>
+                            </Card.Header>
+                            <Card.Body>
+                                <p className="text-xs text-gray-500 mb-2">
+                                    Asigna esta radicación a otro usuario del portal. Si no seleccionas ninguno, quedará a tu nombre.
+                                </p>
+                                <UsuarioRadicadorSelector
+                                    onSelect={setRadicadorAsignado}
+                                    disabled={!paciente}
+                                />
                             </Card.Body>
                         </Card>
                     )}
