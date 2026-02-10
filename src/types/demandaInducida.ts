@@ -138,6 +138,7 @@ export const PROGRAMAS_DIRECCIONADOS = [
     'Precursoras',
     'Primera Infancia',
     'Programa demanda Inducida',
+    'Riesgo cardiovascular',
     'Ruta Materno perinatal',
     'Salud Oral',
     'Vacunación',
