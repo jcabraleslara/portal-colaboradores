@@ -61,6 +61,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const initializationComplete = useRef(false)
     const processingAuth = useRef(false)
     const backgroundFetchDone = useRef(false)
+    const intentionalLogout = useRef(false)
 
     // ========================================
     // CACHÉ (Simplificada)
@@ -250,10 +251,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, [cacheProfile])
 
     const logout = useCallback(async () => {
-        log.debug('Cerrando sesión...')
+        log.warn('Cerrando sesión intencionalmente')
+        intentionalLogout.current = true
         clearProfileCache()
-        await supabase.auth.signOut()
         setUser(null)
+        setIsLoading(false)
+        initializationComplete.current = false
+        processingAuth.current = false
+        backgroundFetchDone.current = false
+        try {
+            await supabase.auth.signOut()
+        } catch {
+            // Ignorar errores de signOut - el estado local ya está limpio
+        }
     }, [clearProfileCache])
 
     const updateUser = useCallback((updates: Partial<AuthUser>) => {
@@ -404,99 +414,56 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         break
 
                     case 'SIGNED_OUT': {
-                        // Supabase emite SIGNED_OUT espurios por:
-                        //  1) Refresh token rotation entre tabs (navigator.locks deadlock conocido)
-                        //  2) Errores transitorios de red
-                        //  3) Flujos internos (inicialización, login)
-                        // Estrategia: verificar con delays crecientes antes de cerrar sesión,
-                        // y SIEMPRE verificar localStorage por si otra tab ya renovó la sesión.
+                        // ===================================================================
+                        // ESTRATEGIA: Solo procesar SIGNED_OUT si fue INTENCIONAL
+                        // ===================================================================
+                        // Supabase-js emite SIGNED_OUT espurios por múltiples razones:
+                        //  - Refresh token rotation entre tabs (navigator.locks deadlock)
+                        //  - Errores transitorios de red durante auto-refresh
+                        //  - Race conditions internas del SDK
+                        // Antes intentábamos recuperar con reintentos, pero el refresh token
+                        // ya está invalidado en el servidor → reintentos siempre fallan.
+                        // SOLUCIÓN: solo cerrar sesión si el usuario lo pidió explícitamente.
+                        // Si la sesión realmente murió, la próxima llamada API fallará con 401
+                        // y el usuario verá un error natural que lo lleva a re-loguearse.
+
+                        if (intentionalLogout.current) {
+                            // Logout intencional (botón "Cerrar Sesión" o timeout inactividad)
+                            intentionalLogout.current = false
+                            log.debug('SIGNED_OUT intencional - estado ya limpio')
+                            break
+                        }
+
+                        // SIGNED_OUT no intencional → recuperar silenciosamente
+                        log.debug('SIGNED_OUT espurio detectado - recuperando...')
                         setTimeout(async () => {
                             if (!mounted) return
-
-                            // Paso 1: Verificar si otra tab ya renovó la sesión en localStorage
-                            // (el auto-refresh de supabase-js escribe en localStorage)
                             try {
-                                const storageKey = 'gestar-auth-token'
-                                const stored = localStorage.getItem(storageKey)
-                                if (stored) {
-                                    const parsed = JSON.parse(stored)
-                                    const expiresAt = parsed?.expires_at || parsed?.expiresAt
-                                    if (expiresAt && expiresAt > Math.floor(Date.now() / 1000)) {
-                                        log.debug('SIGNED_OUT ignorado - otra tab renovó la sesión (localStorage válido)')
-                                        // Forzar re-lectura de sesión desde storage
-                                        const { data: { session: freshSession } } = await supabase.auth.getSession()
-                                        if (freshSession) return
-                                    }
-                                }
-                            } catch {
-                                // Error leyendo localStorage - continuar con verificación normal
-                            }
-
-                            // Paso 2: Verificar sesión via API
-                            try {
+                                // Intento rápido: verificar si hay sesión válida
                                 const { data: { session: s } } = await supabase.auth.getSession()
                                 if (s) {
-                                    log.debug('SIGNED_OUT ignorado - sesión verificada como activa')
+                                    log.debug('SIGNED_OUT espurio - sesión válida, ignorado')
                                     return
                                 }
-                            } catch {
-                                // getSession() falló - continuar
+                                // Intentar refresh una vez
+                                const { data } = await supabase.auth.refreshSession()
+                                if (data?.session) {
+                                    log.debug('SIGNED_OUT espurio - sesión renovada')
+                                    return
+                                }
+                            } catch { /* silenciar */ }
+
+                            // Recuperación falló pero NO fue intencional:
+                            // Mantener al usuario logueado con su perfil en caché.
+                            // Las llamadas API fallarán con 401 y el usuario verá
+                            // errores puntuales, pero NO será expulsado al login.
+                            if (userRef.current || getCachedProfile()) {
+                                log.warn('SIGNED_OUT espurio irrecuperable - manteniendo sesión con caché (no expulsar)')
+                                return
                             }
 
-                            // Paso 3: Esperar 3s - otra tab puede estar renovando en paralelo
-                            await new Promise(r => setTimeout(r, 3000))
-                            if (!mounted) return
-
-                            // Re-verificar localStorage tras espera (otra tab pudo completar refresh)
-                            try {
-                                const stored = localStorage.getItem('gestar-auth-token')
-                                if (stored) {
-                                    const parsed = JSON.parse(stored)
-                                    const expiresAt = parsed?.expires_at || parsed?.expiresAt
-                                    if (expiresAt && expiresAt > Math.floor(Date.now() / 1000)) {
-                                        log.debug('SIGNED_OUT ignorado - sesión recuperada tras espera (localStorage)')
-                                        const { data: { session: s2 } } = await supabase.auth.getSession()
-                                        if (s2) return
-                                    }
-                                }
-                            } catch { /* continuar */ }
-
-                            // Paso 4: Intentar refresh explícito
-                            try {
-                                const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
-                                if (refreshData?.session && !refreshError) {
-                                    log.warn('SIGNED_OUT recuperado - token renovado manualmente')
-                                    return
-                                }
-                            } catch { /* continuar */ }
-
-                            // Paso 5: Último intento con delay más largo
-                            await new Promise(r => setTimeout(r, 5000))
-                            if (!mounted) return
-
-                            try {
-                                const { data: retryData } = await supabase.auth.refreshSession()
-                                if (retryData?.session) {
-                                    log.warn('SIGNED_OUT recuperado en reintento final')
-                                    return
-                                }
-                            } catch { /* sesión realmente muerta */ }
-
-                            // Solo verificar perfil en caché - si existe, NO cerrar sesión
-                            // (el usuario probablemente tiene otra tab que renovó)
-                            const cachedProfile = getCachedProfile()
-                            if (cachedProfile) {
-                                // Verificar una última vez
-                                try {
-                                    const { data: { session: lastCheck } } = await supabase.auth.getSession()
-                                    if (lastCheck) {
-                                        log.warn('SIGNED_OUT ignorado - sesión encontrada en última verificación')
-                                        return
-                                    }
-                                } catch { /* continuar con logout */ }
-                            }
-
-                            log.warn('SIGNED_OUT confirmado - sesión realmente cerrada tras todos los reintentos')
+                            // Sin perfil ni caché → usuario realmente no está logueado
+                            log.warn('SIGNED_OUT sin sesión ni caché - limpiando estado')
                             clearProfileCache()
                             setUser(null)
                             userRef.current = null
@@ -504,7 +471,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             initializationComplete.current = false
                             processingAuth.current = false
                             backgroundFetchDone.current = false
-                        }, 2000) // Delay inicial más largo para dar tiempo a navigator.locks
+                        }, 500)
                         break
                     }
 
