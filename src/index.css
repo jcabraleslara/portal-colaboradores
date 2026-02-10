@@ -501,7 +501,8 @@ body {
    ======================================== */
 .ProseMirror {
   outline: none;
-  min-height: 150px;
+  min-height: 100px;
+  height: 100%;
 }
 
 .ProseMirror p {
@@ -639,6 +640,13 @@ body {
   color: #94A3B8;
   pointer-events: none;
   height: 0;
+}
+
+/* Permitir que el editor crezca en contenedores flex */
+.tiptap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .ProseMirror:focus {

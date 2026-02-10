@@ -15,6 +15,7 @@ interface RichTextEditorProps {
     onChange: (value: string) => void
     placeholder?: string
     disabled?: boolean
+    className?: string
 }
 
 // Configurar markdown-it para convertir markdown a HTML (Input)
@@ -58,7 +59,7 @@ function htmlToMarkdown(html: string): string {
     }
 }
 
-export function RichTextEditor({ value, onChange, placeholder, disabled }: RichTextEditorProps) {
+export function RichTextEditor({ value, onChange, placeholder, disabled, className }: RichTextEditorProps) {
     // Rastrear si el cambio vino del propio editor para evitar re-setear contenido
     // y perder la posición del cursor
     const isInternalChange = useRef(false)
@@ -123,7 +124,7 @@ export function RichTextEditor({ value, onChange, placeholder, disabled }: RichT
     }
 
     return (
-        <div className="border border-gray-200 rounded-lg bg-white">
+        <div className={`border border-gray-200 rounded-lg bg-white flex flex-col ${className || ''}`}>
             {/* Toolbar */}
             <div className="border-b border-gray-200 p-2 flex gap-1 flex-wrap bg-gray-50">
                 <button
@@ -191,7 +192,7 @@ export function RichTextEditor({ value, onChange, placeholder, disabled }: RichT
             {/* Editor Content */}
             <EditorContent
                 editor={editor}
-                className="prose prose-sm max-w-none p-3 min-h-[150px] focus:outline-none"
+                className="prose prose-sm max-w-none p-3 min-h-[100px] flex-1 focus:outline-none"
                 placeholder={placeholder}
             />
 

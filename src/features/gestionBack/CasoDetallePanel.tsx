@@ -789,7 +789,7 @@ export function CasoDetallePanel({
 
                 {/* Contenido scrolleable */}
                 <div className="flex-1 overflow-y-auto p-5">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4 min-h-full">
                     {/* ====== COLUMNA IZQUIERDA: Info del caso ====== */}
                     <div className="space-y-4 min-w-0">
                     {/* SOPORTES PDF */}
@@ -1046,7 +1046,7 @@ export function CasoDetallePanel({
                     </div>
 
                     {/* ====== COLUMNA DERECHA: Gestión del caso ====== */}
-                    <div className="space-y-4 min-w-0">
+                    <div className="flex flex-col gap-4 min-w-0">
                         <div className="flex items-center justify-between">
                             <h3 className="text-sm font-semibold text-[var(--color-primary)] flex items-center gap-2">
                                 <MessageSquare size={16} />
@@ -1086,7 +1086,7 @@ export function CasoDetallePanel({
                         )}
 
                         {/* Respuesta Auditoría */}
-                        <div>
+                        <div className="flex-1 flex flex-col min-h-0">
                             <div className="flex items-center justify-between mb-1">
                                 <label className="block text-sm font-medium text-gray-700">
                                     Respuesta Auditoría / Back
@@ -1152,6 +1152,7 @@ export function CasoDetallePanel({
                                 onChange={handleRespuestaBackChange}
                                 placeholder="Escribir la respuesta o comentarios del caso..."
                                 disabled={generandoContrarreferencia || guardando}
+                                className="flex-1"
                             />
                         </div>
 
