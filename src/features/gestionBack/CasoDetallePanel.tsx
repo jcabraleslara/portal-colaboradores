@@ -738,7 +738,7 @@ export function CasoDetallePanel({
             />
 
             {/* Panel lateral */}
-            <div className="fixed right-0 top-0 z-50 h-full w-full max-w-2xl bg-white shadow-2xl animate-slide-in-right overflow-hidden flex flex-col">
+            <div className="fixed right-0 top-0 z-50 h-full w-full max-w-5xl bg-white shadow-2xl animate-slide-in-right overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
                     <div className="flex items-start justify-between">
@@ -788,24 +788,25 @@ export function CasoDetallePanel({
                 </div>
 
                 {/* Contenido scrolleable */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                    {/* ============================================ */}
+                <div className="flex-1 overflow-y-auto p-5">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4">
+                    {/* ====== COLUMNA IZQUIERDA: Info del caso ====== */}
+                    <div className="space-y-4 min-w-0">
                     {/* SOPORTES PDF */}
-                    {/* ============================================ */}
                     {caso.soportes && caso.soportes.length > 0 && (
                         <div>
-                            <h3 className="text-sm font-semibold text-gray-600 mb-3 flex items-center gap-2">
+                            <h3 className="text-sm font-semibold text-gray-600 mb-2 flex items-center gap-2">
                                 <FileText size={16} />
                                 Soportes Adjuntos ({caso.soportes.length})
                             </h3>
-                            <div className="flex gap-3 overflow-x-auto pb-2">
+                            <div className="flex gap-2 flex-wrap">
                                 {caso.soportes.map((url, index) => (
                                     <button
                                         key={index}
                                         onClick={() => handleAbrirPdf(url, index)}
-                                        className="flex-shrink-0 w-24 h-32 bg-gradient-to-br from-red-50 to-red-100 border-2 border-red-200 rounded-xl flex flex-col items-center justify-center hover:shadow-lg hover:-translate-y-1 transition-all duration-200"
+                                        className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-2 bg-gradient-to-br from-red-50 to-red-100 border border-red-200 rounded-lg hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
                                     >
-                                        <FileText size={32} className="text-red-500 mb-2" />
+                                        <FileText size={18} className="text-red-500" />
                                         <span className="text-xs text-red-700 font-medium">
                                             PDF {index + 1}
                                         </span>
@@ -818,7 +819,7 @@ export function CasoDetallePanel({
                     {/* ============================================ */}
                     {/* INFORMACIÓN DEL CASO */}
                     {/* ============================================ */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                         {/* Fecha */}
                         <div className="flex items-start gap-3">
                             <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
@@ -1042,11 +1043,10 @@ export function CasoDetallePanel({
                                 : caso.observaciones}
                         </div>
                     </div>
+                    </div>
 
-                    {/* ============================================ */}
-                    {/* CAMPOS EDITABLES */}
-                    {/* ============================================ */}
-                    <div className="space-y-4 pt-4 border-t border-gray-100">
+                    {/* ====== COLUMNA DERECHA: Gestión del caso ====== */}
+                    <div className="space-y-4 min-w-0">
                         <div className="flex items-center justify-between">
                             <h3 className="text-sm font-semibold text-[var(--color-primary)] flex items-center gap-2">
                                 <MessageSquare size={16} />
@@ -1298,46 +1298,47 @@ export function CasoDetallePanel({
                             </div>
                         )}
                     </div>
+                  </div>
+                </div>
 
-                    {/* Footer con botones de acción */}
-                    <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
-                        <div className="flex gap-2">
-                            <Button
-                                variant="ghost"
-                                onClick={onClose}
-                            >
-                                Cancelar
-                            </Button>
+                {/* Footer fijo - FUERA del scroll */}
+                <div className="px-6 py-3 border-t border-gray-200 bg-gray-50/90 backdrop-blur-sm flex items-center justify-between flex-shrink-0">
+                    <div className="flex gap-2">
+                        <Button
+                            variant="ghost"
+                            onClick={onClose}
+                        >
+                            Cancelar
+                        </Button>
 
-                            <Button
-                                variant="ghost"
-                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                onClick={() => setMostandoConfirmacionEliminar(true)}
-                                leftIcon={<Trash2 size={18} />}
-                            >
-                                Eliminar
-                            </Button>
-                        </div>
+                        <Button
+                            variant="ghost"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => setMostandoConfirmacionEliminar(true)}
+                            leftIcon={<Trash2 size={18} />}
+                        >
+                            Eliminar
+                        </Button>
+                    </div>
 
-                        <div className="flex gap-3">
+                    <div className="flex gap-3">
+                        <Button
+                            variant="secondary"
+                            onClick={() => handleGuardar(true)}
+                            isLoading={guardando}
+                            leftIcon={<Save size={18} />}
+                        >
+                            Guardar y Cerrar
+                        </Button>
+                        {haySiguiente && (
                             <Button
-                                variant="secondary"
-                                onClick={() => handleGuardar(true)}
+                                onClick={() => handleGuardar(false)}
                                 isLoading={guardando}
-                                leftIcon={<Save size={18} />}
+                                rightIcon={<ArrowRight size={18} />}
                             >
-                                Guardar y Cerrar
+                                Guardar y Siguiente
                             </Button>
-                            {haySiguiente && (
-                                <Button
-                                    onClick={() => handleGuardar(false)}
-                                    isLoading={guardando}
-                                    rightIcon={<ArrowRight size={18} />}
-                                >
-                                    Guardar y Siguiente
-                                </Button>
-                            )}
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
