@@ -896,7 +896,7 @@ export const soportesFacturacionService = {
         try {
             const response = await fetch(EDGE_FUNCTIONS.uploadOnedrive, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(),
+                headers: await getEdgeFunctionHeaders(),
                 body: JSON.stringify({ radicado }),
             })
 
@@ -1179,7 +1179,7 @@ export const soportesFacturacionService = {
                     console.log(`Eliminando carpeta de OneDrive (${folderId})...`)
                     await fetch(EDGE_FUNCTIONS.deleteOnedrive, {
                         method: 'POST',
-                        headers: getEdgeFunctionHeaders(),
+                        headers: await getEdgeFunctionHeaders(),
                         body: JSON.stringify({ folderId, radicado }),
                     })
                 } catch (odError) {

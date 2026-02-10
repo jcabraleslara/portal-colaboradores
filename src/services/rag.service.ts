@@ -116,7 +116,7 @@ async function extractTextWithGemini(pdfUrl: string): Promise<string> {
         // Llamar a Edge Function de Supabase
         const ocrResponse = await fetch(EDGE_FUNCTIONS.geminiOcr, {
             method: 'POST',
-            headers: getEdgeFunctionHeaders(),
+            headers: await getEdgeFunctionHeaders(),
             body: JSON.stringify({ pdfBase64: base64Pdf })
         })
 

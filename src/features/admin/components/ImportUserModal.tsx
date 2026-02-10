@@ -156,7 +156,7 @@ export default function ImportUserModal({ onClose, onCreated }: ImportUserModalP
             try {
                 const response = await fetch(EDGE_FUNCTIONS.createUser, {
                     method: 'POST',
-                    headers: getEdgeFunctionHeaders(token),
+                    headers: await getEdgeFunctionHeaders(token),
                     body: JSON.stringify(userData)
                 })
 

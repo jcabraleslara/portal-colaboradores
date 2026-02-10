@@ -23,7 +23,7 @@ export async function generateEmbedding(text: string): Promise<EmbeddingResult> 
     try {
         const response = await fetch(EDGE_FUNCTIONS.generateEmbedding, {
             method: 'POST',
-            headers: getEdgeFunctionHeaders(),
+            headers: await getEdgeFunctionHeaders(),
             body: JSON.stringify({ text })
         })
 

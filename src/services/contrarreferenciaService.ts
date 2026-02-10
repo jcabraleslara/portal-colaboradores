@@ -126,7 +126,7 @@ async function llamarEdgeFunction(
         try {
             const response = await fetch(EDGE_FUNCTIONS.generarContrarreferencia, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(),
+                headers: await getEdgeFunctionHeaders(),
                 body: JSON.stringify(payload)
             })
 

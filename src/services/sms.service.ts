@@ -69,7 +69,7 @@ export const smsService = {
 
             const response = await fetch(EDGE_FUNCTIONS.sms, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(),
+                headers: await getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     phone: paciente.telefono,
                     message: mensaje

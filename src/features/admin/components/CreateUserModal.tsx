@@ -142,7 +142,7 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
             // Llamar a Edge Function de Supabase
             const response = await fetch(EDGE_FUNCTIONS.createUser, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(session.access_token),
+                headers: await getEdgeFunctionHeaders(session.access_token),
                 body: JSON.stringify(formData)
             })
 

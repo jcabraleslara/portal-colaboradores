@@ -37,7 +37,7 @@ export const emailService = {
 
             const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(),
+                headers: await getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'devolucion',
                     destinatario,
@@ -95,7 +95,7 @@ export const emailService = {
 
             const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(),
+                headers: await getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'rechazo',
                     destinatario,
@@ -146,7 +146,7 @@ export const emailService = {
         try {
             const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(),
+                headers: await getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'radicacion',
                     destinatario,
@@ -196,7 +196,7 @@ export const emailService = {
 
             const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(),
+                headers: await getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'no_contactable',
                     destinatario,
@@ -251,7 +251,7 @@ export const emailService = {
 
             const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(),
+                headers: await getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'devolucion_recobro',
                     destinatario,
@@ -342,7 +342,7 @@ export const emailService = {
 
             const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(),
+                headers: await getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'aprobacion_recobro',
                     destinatario,
@@ -404,7 +404,7 @@ export const emailService = {
         try {
             const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(),
+                headers: await getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'fallo_subida',
                     destinatario,
@@ -506,7 +506,7 @@ export const emailService = {
 
             const response = await fetch(EDGE_FUNCTIONS.sendEmail, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(),
+                headers: await getEdgeFunctionHeaders(),
                 body: JSON.stringify({
                     type: 'enrutado',
                     destinatario: destinatarios,

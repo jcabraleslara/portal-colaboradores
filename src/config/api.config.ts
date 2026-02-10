@@ -7,6 +7,8 @@
  * Las funciones que permanecen en Vercel usan rutas relativas.
  */
 
+import { supabase } from '@/config/supabase.config'
+
 // URL base de Supabase (desde variables de entorno de Vite)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
@@ -39,9 +41,11 @@ export const VERCEL_FUNCTIONS = {
 } as const
 
 /**
- * Headers comunes para llamadas a Edge Functions
+ * Headers comunes para llamadas a Edge Functions.
+ * Inyecta automaticamente el JWT del usuario autenticado si hay sesion activa.
+ * Si no hay sesion, usa la ANON KEY como fallback (funciones publicas).
  */
-export function getEdgeFunctionHeaders(authToken?: string): HeadersInit {
+export async function getEdgeFunctionHeaders(authToken?: string): Promise<HeadersInit> {
     const headers: HeadersInit = {
         'Content-Type': 'application/json',
         'apikey': SUPABASE_ANON_KEY,
@@ -50,9 +54,13 @@ export function getEdgeFunctionHeaders(authToken?: string): HeadersInit {
     if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`
     } else {
-        // Si no se proporciona token de usuario, usar la Anon Key como Authorization
-        // Esto evita el error 401 "Missing authorization header" en funciones publicas/anonimas
-        headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`
+        // Intentar obtener el JWT del usuario autenticado
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.access_token) {
+            headers['Authorization'] = `Bearer ${session.access_token}`
+        } else {
+            headers['Authorization'] = `Bearer ${SUPABASE_ANON_KEY}`
+        }
     }
 
     return headers
@@ -72,7 +80,7 @@ export async function fetchEdgeFunction<T = unknown>(
     try {
         const response = await fetch(url, {
             method: options.method || 'POST',
-            headers: getEdgeFunctionHeaders(options.authToken),
+            headers: await getEdgeFunctionHeaders(options.authToken),
             body: options.body ? JSON.stringify(options.body) : undefined,
         })
 

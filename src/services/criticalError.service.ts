@@ -117,7 +117,7 @@ export const criticalErrorService = {
             // Enviar notificacion a Edge Function
             const response = await fetch(EDGE_FUNCTIONS.notifyCriticalError, {
                 method: 'POST',
-                headers: getEdgeFunctionHeaders(),
+                headers: await getEdgeFunctionHeaders(),
                 body: JSON.stringify(payload)
             })
 
