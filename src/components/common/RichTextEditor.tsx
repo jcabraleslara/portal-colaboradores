@@ -6,7 +6,7 @@
 
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import MarkdownIt from 'markdown-it'
 import TurndownService from 'turndown'
 
@@ -59,6 +59,10 @@ function htmlToMarkdown(html: string): string {
 }
 
 export function RichTextEditor({ value, onChange, placeholder, disabled }: RichTextEditorProps) {
+    // Rastrear si el cambio vino del propio editor para evitar re-setear contenido
+    // y perder la posición del cursor
+    const isInternalChange = useRef(false)
+
     const editor = useEditor({
         extensions: [
             StarterKit.configure({
@@ -70,35 +74,38 @@ export function RichTextEditor({ value, onChange, placeholder, disabled }: RichT
         content: value ? markdownToHtml(value) : '',
         editable: !disabled,
         onUpdate: ({ editor }: { editor: Editor }) => {
-            // Obtener HTML y convertir a Markdown estándar
             const html = editor.getHTML()
             const markdown = htmlToMarkdown(html)
+            isInternalChange.current = true
             onChange(markdown)
+            // Resetear flag después del ciclo de React para que el useEffect lo vea
+            requestAnimationFrame(() => {
+                isInternalChange.current = false
+            })
         },
     })
 
-    // Actualizar contenido cuando cambia externamente (ej: generación con IA o reinicio)
+    // Actualizar contenido solo cuando cambia desde fuente externa
+    // (ej: generación con IA, navegación entre casos, limpieza)
     useEffect(() => {
         if (!editor) return
 
-        // Normalizar valores
+        // Si el cambio vino del propio editor, NO re-setear (preservar cursor)
+        if (isInternalChange.current) return
+
         const currentHtml = editor.getHTML()
         const newHtml = markdownToHtml(value || '')
 
-        // Si el valor nuevo está vacío, forzar limpieza si el editor no lo está
+        // Valor vacío: limpiar editor si tiene contenido
         if (!value || value.trim() === '') {
-            // Comprobamos si el editor tiene contenido visual real
-            // getHTML() suele devolver '<p></p>' cuando está vacío
             const isVisuallyEmpty = currentHtml === '<p></p>' || editor.isEmpty
-
             if (!isVisuallyEmpty) {
                 editor.commands.setContent('')
             }
             return
         }
 
-        // Para contenido no vacío, usar heurística para evitar re-render loops
-        // debidos a diferencias sutiles entre Markdown <-> HTML
+        // Cambio externo: actualizar contenido del editor
         if (currentHtml !== newHtml && Math.abs(currentHtml.length - newHtml.length) > 5) {
             editor.commands.setContent(newHtml)
         }
