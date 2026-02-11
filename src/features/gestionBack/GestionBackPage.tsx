@@ -104,6 +104,7 @@ export function GestionBackPage() {
     // Panel de detalle
     const [casoSeleccionado, setCasoSeleccionado] = useState<BackRadicacionExtendido | null>(null)
     const [indiceSeleccionado, setIndiceSeleccionado] = useState<number>(-1)
+    const [autoAbrirPdf, setAutoAbrirPdf] = useState(false)
 
     // ============================================
     // FUNCIONES DE CARGA
@@ -300,6 +301,30 @@ export function GestionBackPage() {
         if (nuevoIndice < casos.length) {
             setCasoSeleccionado(casos[nuevoIndice])
             setIndiceSeleccionado(nuevoIndice)
+        } else {
+            handleCerrarDetalle()
+        }
+    }, [cargarCasos, cargarConteos, paginaActual, indiceSeleccionado, casos, casoSeleccionado, handleCerrarDetalle])
+
+    const handleGuardarYSiguientePdf = useCallback(async (datosActualizados?: Partial<BackRadicacionExtendido>) => {
+        if (datosActualizados && casoSeleccionado) {
+            setCasos(prevCasos => prevCasos.map(c =>
+                c.radicado === casoSeleccionado.radicado
+                    ? { ...c, ...datosActualizados }
+                    : c
+            ))
+        }
+
+        cargarCasos(paginaActual).catch(console.error)
+        cargarConteos().catch(console.error)
+
+        const nuevoIndice = indiceSeleccionado + 1
+        if (nuevoIndice < casos.length) {
+            setAutoAbrirPdf(true)
+            setCasoSeleccionado(casos[nuevoIndice])
+            setIndiceSeleccionado(nuevoIndice)
+            // Reset flag después de que el hijo lo consuma
+            setTimeout(() => setAutoAbrirPdf(false), 600)
         } else {
             handleCerrarDetalle()
         }
@@ -886,6 +911,8 @@ export function GestionBackPage() {
                         onClose={handleCerrarDetalle}
                         onGuardarYCerrar={handleGuardarYCerrar}
                         onGuardarYSiguiente={handleGuardarYSiguiente}
+                        onGuardarYSiguientePdf={handleGuardarYSiguientePdf}
+                        autoAbrirPdf={autoAbrirPdf}
                         onCasoEliminado={() => {
                             cargarCasos(paginaActual)
                             cargarConteos()

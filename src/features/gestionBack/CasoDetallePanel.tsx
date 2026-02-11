@@ -74,11 +74,13 @@ interface CasoDetallePanelProps {
     onClose: () => void
     onGuardarYCerrar: () => void
     onGuardarYSiguiente: (datosActualizados?: Partial<BackRadicacionExtendido>) => void
+    onGuardarYSiguientePdf?: (datosActualizados?: Partial<BackRadicacionExtendido>) => void
     onCasoEliminado: () => void
     haySiguiente: boolean
     onAnterior: () => void
     onSiguiente: () => void
     hayAnterior: boolean
+    autoAbrirPdf?: boolean
 }
 
 // Configuración visual para Direccionamiento
@@ -123,11 +125,13 @@ export function CasoDetallePanel({
     onClose,
     onGuardarYCerrar,
     onGuardarYSiguiente,
+    onGuardarYSiguientePdf,
     onCasoEliminado,
     haySiguiente,
     onAnterior,
     onSiguiente,
     hayAnterior,
+    autoAbrirPdf,
 }: CasoDetallePanelProps) {
     // ============================================
     // ESTADO
@@ -311,6 +315,19 @@ export function CasoDetallePanel({
 
     // Referencia para gestión de foco en PDF modal
     const pdfContainerRef = useRef<HTMLDivElement>(null)
+
+    // Ref para saber si al guardar y siguiente se debe abrir el PDF
+    const abrirPdfAlSiguiente = useRef(false)
+
+    // Auto-abrir PDF cuando se navega con "Guardar y Siguiente PDF"
+    useEffect(() => {
+        if (autoAbrirPdf && caso.soportes?.length) {
+            const timer = setTimeout(() => {
+                handleAbrirPdf(caso.soportes![0], 0)
+            }, 200)
+            return () => clearTimeout(timer)
+        }
+    }, [caso.radicado, autoAbrirPdf])
 
     // Efecto para enfocar el contenedor del PDF al abrir (para que funcione ESC)
     useEffect(() => {
@@ -533,23 +550,27 @@ export function CasoDetallePanel({
             }
 
             setTimeout(() => {
+                const datos = {
+                    direccionamiento: direccionamiento || null,
+                    respuestaBack: respuestaBack || null,
+                    estadoRadicado: estadoRadicado,
+                    tipoSolicitud: tipoSolicitud as any,
+                    ruta: rutaSeleccionada,
+                    usuarioRespuesta: user?.nombreCompleto || 'Usuario del Sistema'
+                }
                 if (cerrar) {
                     onGuardarYCerrar()
+                } else if (abrirPdfAlSiguiente.current) {
+                    abrirPdfAlSiguiente.current = false
+                    ;(onGuardarYSiguientePdf || onGuardarYSiguiente)(datos)
                 } else {
-                    onGuardarYSiguiente({
-                        direccionamiento: direccionamiento || null,
-                        respuestaBack: respuestaBack || null,
-                        estadoRadicado: estadoRadicado,
-                        tipoSolicitud: tipoSolicitud as any, // Cast necesario si el tipo difiere
-                        ruta: rutaSeleccionada,
-                        usuarioRespuesta: user?.nombreCompleto || 'Usuario del Sistema'
-                    })
+                    onGuardarYSiguiente(datos)
                 }
             }, 300)
         } else {
             setErrorGuardado(result.error || 'Error al guardar')
         }
-    }, [caso, direccionamiento, respuestaBack, estadoRadicado, tipoSolicitud, rutaSeleccionada, user, onGuardarYCerrar, onGuardarYSiguiente])
+    }, [caso, direccionamiento, respuestaBack, estadoRadicado, tipoSolicitud, rutaSeleccionada, user, onGuardarYCerrar, onGuardarYSiguiente, onGuardarYSiguientePdf])
 
     const handleEliminar = useCallback(async () => {
         setEliminando(true)
@@ -1331,6 +1352,21 @@ export function CasoDetallePanel({
                         >
                             Guardar y Cerrar
                         </Button>
+                        {haySiguiente && (
+                            <Button
+                                variant="secondary"
+                                className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300"
+                                onClick={() => {
+                                    abrirPdfAlSiguiente.current = true
+                                    handleGuardar(false)
+                                }}
+                                isLoading={guardando}
+                                leftIcon={<FileText size={18} className="text-red-500" />}
+                                rightIcon={<ArrowRight size={18} />}
+                            >
+                                Siguiente PDF
+                            </Button>
+                        )}
                         {haySiguiente && (
                             <Button
                                 onClick={() => handleGuardar(false)}
