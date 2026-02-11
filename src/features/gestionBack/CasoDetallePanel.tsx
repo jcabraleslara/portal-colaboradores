@@ -331,14 +331,24 @@ export function CasoDetallePanel({
         }
     }, [caso.radicado, autoAbrirPdf])
 
-    // Efecto para enfocar el contenedor del PDF al abrir (para que funcione ESC)
+    // Focus trap para el visor PDF: cuando el iframe roba el foco (cross-origin),
+    // los eventos de teclado no llegan al contenedor padre. Este intervalo refoca
+    // el contenedor para que ESC siempre funcione. El scroll del PDF sigue funcionando
+    // porque no requiere foco en el iframe.
     useEffect(() => {
-        if (pdfActivo && pdfContainerRef.current) {
-            // Pequeño timeout para permitir que el portal se monte y renderice
-            setTimeout(() => {
-                pdfContainerRef.current?.focus()
-            }, 50)
-        }
+        if (!pdfActivo || !pdfContainerRef.current) return
+
+        // Foco inicial
+        setTimeout(() => pdfContainerRef.current?.focus(), 50)
+
+        const interval = setInterval(() => {
+            const active = document.activeElement
+            if (active?.tagName === 'IFRAME' && pdfContainerRef.current) {
+                pdfContainerRef.current.focus()
+            }
+        }, 200)
+
+        return () => clearInterval(interval)
     }, [pdfActivo])
 
     // ============================================

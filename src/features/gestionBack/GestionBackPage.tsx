@@ -282,8 +282,45 @@ export function GestionBackPage() {
         await cargarConteos()
     }, [handleCerrarDetalle, cargarCasos, paginaActual, cargarConteos])
 
+    /**
+     * Avanza al siguiente caso. Si es el ultimo de la pagina actual,
+     * carga la siguiente pagina y selecciona el primer caso.
+     */
+    const avanzarAlSiguiente = useCallback(async (abrirPdf: boolean) => {
+        const nuevoIndice = indiceSeleccionado + 1
+
+        if (nuevoIndice < casos.length) {
+            // Hay mas casos en la pagina actual
+            if (abrirPdf) setAutoAbrirPdf(true)
+            setCasoSeleccionado(casos[nuevoIndice])
+            setIndiceSeleccionado(nuevoIndice)
+            if (abrirPdf) setTimeout(() => setAutoAbrirPdf(false), 600)
+        } else if (paginaActual < Math.ceil(total / ITEMS_POR_PAGINA) - 1) {
+            // Ultimo de la pagina pero hay mas paginas: cargar siguiente
+            const siguientePagina = paginaActual + 1
+            const result = await backService.obtenerCasosFiltrados(
+                filtros,
+                siguientePagina * ITEMS_POR_PAGINA,
+                ITEMS_POR_PAGINA
+            )
+            if (result.success && result.data && result.data.casos.length > 0) {
+                setCasos(result.data.casos)
+                setTotal(result.data.total)
+                setPaginaActual(siguientePagina)
+                if (abrirPdf) setAutoAbrirPdf(true)
+                setCasoSeleccionado(result.data.casos[0])
+                setIndiceSeleccionado(0)
+                if (abrirPdf) setTimeout(() => setAutoAbrirPdf(false), 600)
+            } else {
+                handleCerrarDetalle()
+            }
+        } else {
+            // No hay mas casos
+            handleCerrarDetalle()
+        }
+    }, [indiceSeleccionado, casos, paginaActual, total, filtros, handleCerrarDetalle])
+
     const handleGuardarYSiguiente = useCallback(async (datosActualizados?: Partial<BackRadicacionExtendido>) => {
-        // 1. Actualización optimista local (si recibimos datos)
         if (datosActualizados && casoSeleccionado) {
             setCasos(prevCasos => prevCasos.map(c =>
                 c.radicado === casoSeleccionado.radicado
@@ -292,20 +329,9 @@ export function GestionBackPage() {
             ))
         }
 
-        // 2. Refetch en segundo plano (Fire & Forget)
-        // No esperamos a que terminen para avanzar
-        cargarCasos(paginaActual).catch(console.error)
         cargarConteos().catch(console.error)
-
-        // 3. Transición inmediata
-        const nuevoIndice = indiceSeleccionado + 1
-        if (nuevoIndice < casos.length) {
-            setCasoSeleccionado(casos[nuevoIndice])
-            setIndiceSeleccionado(nuevoIndice)
-        } else {
-            handleCerrarDetalle()
-        }
-    }, [cargarCasos, cargarConteos, paginaActual, indiceSeleccionado, casos, casoSeleccionado, handleCerrarDetalle])
+        await avanzarAlSiguiente(false)
+    }, [cargarConteos, casoSeleccionado, avanzarAlSiguiente])
 
     const handleGuardarYSiguientePdf = useCallback(async (datosActualizados?: Partial<BackRadicacionExtendido>) => {
         if (datosActualizados && casoSeleccionado) {
@@ -316,20 +342,9 @@ export function GestionBackPage() {
             ))
         }
 
-        cargarCasos(paginaActual).catch(console.error)
         cargarConteos().catch(console.error)
-
-        const nuevoIndice = indiceSeleccionado + 1
-        if (nuevoIndice < casos.length) {
-            setAutoAbrirPdf(true)
-            setCasoSeleccionado(casos[nuevoIndice])
-            setIndiceSeleccionado(nuevoIndice)
-            // Reset flag después de que el hijo lo consuma
-            setTimeout(() => setAutoAbrirPdf(false), 600)
-        } else {
-            handleCerrarDetalle()
-        }
-    }, [cargarCasos, cargarConteos, paginaActual, indiceSeleccionado, casos, casoSeleccionado, handleCerrarDetalle])
+        await avanzarAlSiguiente(true)
+    }, [cargarConteos, casoSeleccionado, avanzarAlSiguiente])
 
     const handleNavegarAnterior = useCallback(() => {
         const nuevoIndice = indiceSeleccionado - 1
@@ -926,7 +941,7 @@ export function GestionBackPage() {
                             cargarCasos(paginaActual)
                             cargarConteos()
                         }}
-                        haySiguiente={indiceSeleccionado < casos.length - 1}
+                        haySiguiente={indiceSeleccionado < casos.length - 1 || paginaActual < Math.ceil(total / ITEMS_POR_PAGINA) - 1}
                         onAnterior={handleNavegarAnterior}
                         onSiguiente={handleNavegarSiguiente}
                         hayAnterior={indiceSeleccionado > 0}
