@@ -11,6 +11,10 @@
  */
 
 import { corsHeaders } from '../_shared/cors.ts'
+import { encodeBase64 } from 'jsr:@std/encoding@1/base64'
+
+/** Timeout por modelo en ms - corta esperas largas y salta a fallback */
+const MODEL_TIMEOUT_MS = 12_000
 
 /**
  * Prompt especializado de auditor medico senior
@@ -48,6 +52,7 @@ Se contra remite el caso de [anota el nombre y el apellido del paciente], al pri
 
 /**
  * Descarga un PDF desde una URL publica y retorna bytes en base64
+ * Usa encodeBase64 nativo de Deno (mucho mas rapido que btoa + chunking manual)
  */
 async function descargarPdfBase64(pdfUrl: string): Promise<string> {
     console.log(`[API] Descargando PDF desde URL (${pdfUrl.substring(0, 80)}...)`)
@@ -59,16 +64,7 @@ async function descargarPdfBase64(pdfUrl: string): Promise<string> {
 
     const arrayBuffer = await response.arrayBuffer()
     const bytes = new Uint8Array(arrayBuffer)
-
-    // Convertir a base64 en chunks para evitar stack overflow
-    let binary = ''
-    const chunkSize = 8192
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-        const chunk = bytes.subarray(i, i + chunkSize)
-        binary += String.fromCharCode(...chunk)
-    }
-
-    const base64 = btoa(binary)
+    const base64 = encodeBase64(bytes)
     console.log(`[API] PDF descargado: ${bytes.length} bytes → ${base64.length} chars base64`)
     return base64
 }
@@ -98,7 +94,7 @@ function buildGeminiBody(
             }],
             generationConfig: {
                 temperature: 0.3,
-                maxOutputTokens: 3000,
+                maxOutputTokens: 1000,
                 topP: 0.95,
                 topK: 40
             }
@@ -112,7 +108,7 @@ function buildGeminiBody(
         }],
         generationConfig: {
             temperature: 0.3,
-            maxOutputTokens: 3000,
+            maxOutputTokens: 1000,
             topP: 0.95,
             topK: 40
         }
@@ -175,10 +171,11 @@ Deno.serve(async (req) => {
             promptFinal = PROMPT_CONTRARREFERENCIA.replace('{especialidad}', especialidad)
         }
 
-        // Modelos con fallback (Gemini 3 Flash como principal, mas rapido y multimodal nativo)
+        // Cadena de modelos: lite (rapido) → flash (estable) → 2.5 (potente)
         const MODELS_FALLBACK = [
-            'gemini-3-flash-preview',  // Modelo principal (rapido, multimodal nativo)
-            'gemini-2.5-flash',        // Fallback (estable)
+            'gemini-2.0-flash-lite',   // Modelo principal: el mas rapido para tareas estructuradas
+            'gemini-2.0-flash',        // Fallback 1: buen balance velocidad/calidad
+            'gemini-2.5-flash',        // Fallback 2: mas potente si los anteriores fallan
         ]
 
         let lastError: unknown = null
@@ -194,7 +191,8 @@ Deno.serve(async (req) => {
                 const geminiResponse = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(geminiBody)
+                    body: JSON.stringify(geminiBody),
+                    signal: AbortSignal.timeout(MODEL_TIMEOUT_MS)
                 })
 
                 // Si es 503 (Service Unavailable), intentar siguiente modelo
@@ -241,8 +239,10 @@ Deno.serve(async (req) => {
                 continue
 
             } catch (error) {
-                console.error(`[API] Excepcion con modelo ${modelName}:`, error)
-                lastError = { error, model: modelName }
+                // Timeout o error de red → saltar a siguiente modelo
+                const isTimeout = error instanceof DOMException && error.name === 'TimeoutError'
+                console.warn(`[API] ${isTimeout ? 'Timeout' : 'Excepcion'} con ${modelName} (${MODEL_TIMEOUT_MS}ms):`, isTimeout ? '' : error)
+                lastError = { error: isTimeout ? 'timeout' : error, model: modelName }
                 continue
             }
         }
