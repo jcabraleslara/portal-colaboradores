@@ -43,6 +43,7 @@ import {
     CheckCircle,
     Hourglass,
     PhoneOff,
+    RefreshCw,
 
     ExternalLink as LinkIcon,
     Image as ImageIcon
@@ -228,7 +229,7 @@ export function CasoDetallePanel({
     }
 
     // Handler para generar contrarreferencia con IA
-    const handleGenerarContrarreferencia = async () => {
+    const handleGenerarContrarreferencia = async (forceRegenerate = false) => {
         setGenerandoContrarreferencia(true)
         setErrorGuardado(null)
         setMensajeProgreso('Analizando documento...')
@@ -255,7 +256,8 @@ export function CasoDetallePanel({
             const resultado = await generarContrarreferenciaAutomatica(
                 caso.radicado,
                 pdfUrl,
-                caso.especialidad || undefined
+                caso.especialidad || undefined,
+                forceRegenerate
             )
 
             // Limpiar timeouts
@@ -1144,13 +1146,13 @@ export function CasoDetallePanel({
 
                             {/* Botón Generar Contrarreferencia (solo superadmin y en Auditoría Médica) */}
                             {user?.rol === 'superadmin' && tipoSolicitud === 'Auditoría Médica' && (
-                                <div className="mb-3">
+                                <div className="mb-3 flex items-center gap-2">
                                     <button
                                         type="button"
-                                        onClick={handleGenerarContrarreferencia}
+                                        onClick={() => handleGenerarContrarreferencia(false)}
                                         disabled={generandoContrarreferencia || guardando}
-                                        className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 
-                                                   text-white text-sm font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700 
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600
+                                                   text-white text-sm font-medium rounded-lg hover:from-purple-700 hover:to-indigo-700
                                                    disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg"
                                     >
                                         {generandoContrarreferencia ? (
@@ -1161,10 +1163,24 @@ export function CasoDetallePanel({
                                         ) : (
                                             <>
                                                 <Sparkles className="w-4 h-4" />
-                                                🤖 Generar Contrarreferencia con IA
+                                                Generar Contrarreferencia con IA
                                             </>
                                         )}
                                     </button>
+                                    {respuestaBack && !generandoContrarreferencia && (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleGenerarContrarreferencia(true)}
+                                            disabled={guardando}
+                                            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-purple-700
+                                                       bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100
+                                                       disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            title="Regenerar ignorando caché"
+                                        >
+                                            <RefreshCw className="w-3.5 h-3.5" />
+                                            Regenerar
+                                        </button>
+                                    )}
                                 </div>
                             )}
 

@@ -23,6 +23,9 @@ interface CachedContrarreferencia {
     especialidad: string
 }
 
+/** Minimo de caracteres para cachear una contrarreferencia */
+const MIN_CACHE_CHARS = 400
+
 /**
  * Obtener contrarreferencia desde cache (columna de tabla 'back')
  */
@@ -188,10 +191,10 @@ export async function generarContrarreferenciaAutomatica(
     try {
         console.log(`[Contrarreferencia] === Inicio ${radicado} ===`)
 
-        // Paso 1: Cache check
+        // Paso 1: Cache check (solo si es suficientemente larga)
         if (!forceRegenerate) {
             const cacheada = await obtenerContrarreferenciaCacheada(radicado)
-            if (cacheada?.texto) {
+            if (cacheada?.texto && cacheada.texto.length >= MIN_CACHE_CHARS) {
                 console.log(`[Contrarreferencia] Cache hit (${Date.now() - inicio}ms)`)
                 return {
                     success: true,
@@ -199,6 +202,8 @@ export async function generarContrarreferenciaAutomatica(
                     metodo: 'cache',
                     tiempoMs: Date.now() - inicio
                 }
+            } else if (cacheada?.texto) {
+                console.warn(`[Contrarreferencia] Cache descartado (${cacheada.texto.length} chars < ${MIN_CACHE_CHARS})`)
             }
         }
 
@@ -208,9 +213,11 @@ export async function generarContrarreferenciaAutomatica(
             especialidad: especialidadNormalizada
         })
 
-        // Paso 3: Fire-and-forget cache save
-        if (resultado.success && resultado.texto) {
+        // Paso 3: Fire-and-forget cache save (solo si respuesta es suficientemente larga)
+        if (resultado.success && resultado.texto && resultado.texto.length >= MIN_CACHE_CHARS) {
             guardarContrarreferenciaCacheada(radicado, resultado.texto, especialidadNormalizada)
+        } else if (resultado.success && resultado.texto) {
+            console.warn(`[Contrarreferencia] Respuesta corta (${resultado.texto.length} chars), NO se cachea`)
         }
 
         const tiempoMs = Date.now() - inicio

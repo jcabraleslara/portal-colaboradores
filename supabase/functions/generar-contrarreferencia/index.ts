@@ -16,6 +16,26 @@ import { encodeBase64 } from 'jsr:@std/encoding@1/base64'
 /** Timeout por modelo en ms - corta esperas largas y salta a fallback */
 const MODEL_TIMEOUT_MS = 12_000
 
+/** Minimo de caracteres para considerar una contrarreferencia completa */
+const MIN_RESPONSE_CHARS = 400
+
+/** Marcadores obligatorios que deben estar en la respuesta */
+const REQUIRED_MARKERS = [
+    'Criterios cl',       // "Criterios clínicos"
+    'Tratamiento previo',
+    'Estudios paracl',    // "Estudios paraclínicos"
+    'Completitud documental'
+]
+
+/**
+ * Valida que la respuesta contenga los 4 puntos obligatorios y longitud minima
+ */
+function esRespuestaCompleta(texto: string): boolean {
+    if (texto.length < MIN_RESPONSE_CHARS) return false
+    const textoLower = texto.toLowerCase()
+    return REQUIRED_MARKERS.every(marker => textoLower.includes(marker.toLowerCase()))
+}
+
 /**
  * Prompt especializado de auditor medico senior
  */
@@ -222,8 +242,16 @@ Deno.serve(async (req) => {
 
                 if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
                     const textoGenerado = data.candidates[0].content.parts[0].text.trim()
-                    console.log(`[API] Contrarreferencia generada con ${modelName} (${textoGenerado.length} chars, modo: ${mode})`)
+                    console.log(`[API] Respuesta de ${modelName}: ${textoGenerado.length} chars`)
 
+                    // Validar que la respuesta este completa (4 puntos + longitud minima)
+                    if (!esRespuestaCompleta(textoGenerado)) {
+                        console.warn(`[API] Respuesta de ${modelName} INCOMPLETA (${textoGenerado.length} chars), intentando siguiente modelo...`)
+                        lastError = { status: 'incomplete', model: modelName, chars: textoGenerado.length }
+                        continue
+                    }
+
+                    console.log(`[API] Contrarreferencia COMPLETA con ${modelName} (${textoGenerado.length} chars, modo: ${mode})`)
                     return new Response(
                         JSON.stringify({
                             success: true,
@@ -235,7 +263,7 @@ Deno.serve(async (req) => {
                     )
                 }
 
-                console.error(`[API] Respuesta de ${modelName} sin contenido valido`)
+                console.error(`[API] Respuesta de ${modelName} sin contenido`)
                 lastError = { status: 'no_content', model: modelName }
                 continue
 
