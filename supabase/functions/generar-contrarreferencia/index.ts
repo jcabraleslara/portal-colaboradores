@@ -56,7 +56,7 @@ Se contra remite el caso de [anota el nombre y el apellido del paciente], al pri
 [OBLIGATORIO: Escribe 1 oración sobre qué tratamientos del primer nivel NO se han instaurado antes de remitir. Si no hay registro de tratamiento previo, indica que es motivo de contra referencia.]
 
 3. **Estudios paraclínicos:**
-[OBLIGATORIO: Escribe 1 oración indicando qué estudios básicos del primer nivel faltan que sean PERTINENTES al motivo de consulta y la especialidad solicitada. NO recomendar ecografías, resonancias, tomografías, ni laboratorios genéricos sin relación con el cuadro clínico.]
+[OBLIGATORIO: Escribe 1 oración indicando qué estudios básicos del primer nivel faltan que sean PERTINENTES al motivo de consulta y la especialidad solicitada. Solo recomendar estudios que un médico general del primer nivel pueda ordenar directamente (ej: radiografías simples, hemograma, parcial de orina, EKG cuando aplique).]
 
 4. **Completitud documental:**
 [OBLIGATORIO: Escribe 1 oración sobre elementos faltantes o inconsistencias en la historia clínica, anamnesis incompleta, o examen físico deficiente.]
@@ -68,8 +68,14 @@ Se contra remite el caso de [anota el nombre y el apellido del paciente], al pri
 - La respuesta debe arrancar directamente con "CONTRA REFERENCIA"
 - NO incluir introducciones ni citation markers [1], [2]
 - Sé técnico pero claro en tu lenguaje médico
-- NUNCA recomendar terapias físicas, rehabilitación física ni fisioterapia. Estas NO son del nivel de pertinencia del médico general del primer nivel de atención
-- NUNCA recomendar laboratorios genéricos o de rutina (hemograma, glicemia, perfil lipídico, etc.) que NO tengan relación directa con el motivo de consulta y la especialidad solicitada en la remisión. Los paraclínicos sugeridos deben ser pertinentes al cuadro clínico específico del paciente
+
+=== PERTINENCIA PRIMER NIVEL DE ATENCIÓN ===
+Recuerda que el paciente se contra remite al PRIMER NIVEL. Solo puedes recomendar estudios y conductas que estén al alcance del médico general. Esto significa:
+- NUNCA recomendar estudios de mayor complejidad: resonancias magnéticas, tomografías, ecografías, biopsias, electromiografías, endoscopias, gammagrafías ni ningún estudio que requiera especialista para su solicitud o interpretación
+- NUNCA recomendar terapias físicas, rehabilitación física ni fisioterapia (requieren orden de especialista)
+- NUNCA recomendar laboratorios genéricos o de rutina (hemograma, glicemia, perfil lipídico, etc.) que NO tengan relación directa con el motivo de consulta y la especialidad solicitada en la remisión
+- Los paraclínicos sugeridos deben ser pertinentes al cuadro clínico específico del paciente y ordenables por médico general
+
 - ORTOGRAFÍA IMPECABLE: Usa correctamente todas las tildes (atención, clínicos, paraclínicos, médico, remisión, diagnóstica, etc.), signos de puntuación y gramática del español formal. El texto es un documento médico oficial.`
 
 /**
