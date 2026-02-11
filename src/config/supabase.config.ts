@@ -2,11 +2,12 @@
  * Configuración del cliente Supabase
  * Portal de Colaboradores GESTAR SALUD IPS
  *
- * VERSIÓN 3.0 - FETCH INTERCEPTOR PASIVO
- * - El interceptor NUNCA llama métodos de supabase.auth (refreshSession/setSession)
- *   porque esos métodos disparan eventos SIGNED_OUT que cascadean con AuthContext.
- * - En 401: solo reintenta con el access_token del backup de localStorage.
- * - AuthContext es el ÚNICO responsable de restaurar sesiones (vía SIGNED_OUT handler).
+ * VERSIÓN 4.0 - FETCH INTERCEPTOR PROACTIVO + REACTIVO
+ * - PROACTIVO: Antes de cada request, si supabase-js perdió la sesión (usa anon key
+ *   como bearer), inyecta el JWT del backup de localStorage. Esto evita que PostgREST
+ *   devuelva datos vacíos por RLS (200 + array vacío, no 401).
+ * - REACTIVO: Si aún así llega un 401, reintenta con el token del backup.
+ * - NUNCA llama refreshSession()/setSession()/getSession() para evitar cascadas SIGNED_OUT.
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
@@ -42,39 +43,71 @@ export function isJwtValid(token: string): boolean {
 }
 
 /**
- * Fetch interceptor PASIVO: reintenta 401 usando el token del backup.
- *
- * IMPORTANTE: NO llama refreshSession()/setSession()/getSession().
- * Esos métodos modifican el estado interno de supabase-js y disparan
- * eventos SIGNED_OUT que cascadean con el handler de AuthContext,
- * causando loops infinitos y cierre de sesión involuntario.
- *
- * Solo lee el backup de localStorage y usa el access_token directamente
- * como header HTTP. Si el token del backup es válido, el retry funciona.
- * Si no, devuelve el 401 original y deja que el flujo normal lo maneje.
+ * Obtiene el access_token del backup si es válido.
  */
-const authRetryFetch: typeof fetch = async (input, init) => {
-    const response = await fetch(input, init)
-
-    // Solo interceptar 401 en endpoints que NO sean auth
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
-    if (response.status !== 401 || url.includes('/auth/v1/')) {
-        return response
-    }
-
-    // Reintento pasivo: usar token del backup sin tocar supabase.auth
+function getBackupAccessToken(): string | null {
     try {
         const backup = localStorage.getItem(SESSION_BACKUP_KEY)
-        if (backup) {
-            const { access_token } = JSON.parse(backup)
-            if (access_token && isJwtValid(access_token)) {
+        if (!backup) return null
+        const { access_token } = JSON.parse(backup)
+        if (access_token && isJwtValid(access_token)) return access_token
+    } catch { /* silenciar */ }
+    return null
+}
+
+/**
+ * Fetch interceptor PROACTIVO + REACTIVO.
+ *
+ * CAPA 1 - PROACTIVA (antes del request):
+ *   Cuando supabase-js pierde la sesión (SIGNED_OUT espurio), usa la anon key
+ *   como Authorization bearer. PostgREST la acepta (es JWT válido) pero aplica
+ *   RLS para rol `anon` → devuelve 200 + arrays vacíos (NO 401).
+ *   El interceptor detecta esto (Authorization === Bearer <anonKey>) y reemplaza
+ *   con el JWT del backup ANTES de enviar el request. Así los datos fluyen.
+ *
+ * CAPA 2 - REACTIVA (después del request):
+ *   Si aún así llega un 401 (token expirado entre check y request), reintenta
+ *   con el token del backup.
+ *
+ * NUNCA llama refreshSession()/setSession()/getSession() para evitar cascadas.
+ */
+const authRetryFetch: typeof fetch = async (input, init) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    const isAuthEndpoint = url.includes('/auth/v1/')
+
+    // ── CAPA 1: PROACTIVA ──
+    // Si supabase-js cayó a anon key (perdió sesión), inyectar JWT del backup
+    if (!isAuthEndpoint) {
+        try {
+            const headers = new Headers(init?.headers)
+            const currentAuth = headers.get('Authorization')
+
+            // Detectar si supabase-js está usando la anon key como bearer
+            if (currentAuth === `Bearer ${supabaseAnonKey}`) {
+                const backupToken = getBackupAccessToken()
+                if (backupToken) {
+                    headers.set('Authorization', `Bearer ${backupToken}`)
+                    init = { ...init, headers }
+                }
+            }
+        } catch { /* silenciar - continuar con headers originales */ }
+    }
+
+    const response = await fetch(input, init)
+
+    // ── CAPA 2: REACTIVA ──
+    // Si llega 401 en endpoints no-auth, reintentar con backup
+    if (response.status === 401 && !isAuthEndpoint) {
+        try {
+            const backupToken = getBackupAccessToken()
+            if (backupToken) {
                 const retryHeaders = new Headers(init?.headers)
-                retryHeaders.set('Authorization', `Bearer ${access_token}`)
+                retryHeaders.set('Authorization', `Bearer ${backupToken}`)
                 retryHeaders.set('apikey', supabaseAnonKey)
                 return fetch(input, { ...init, headers: retryHeaders })
             }
-        }
-    } catch { /* silenciar - devolver 401 original */ }
+        } catch { /* silenciar - devolver 401 original */ }
+    }
 
     return response
 }
