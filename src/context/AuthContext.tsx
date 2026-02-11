@@ -2,18 +2,20 @@
  * Contexto de Autenticación con Supabase Auth
  * Portal de Colaboradores GESTAR SALUD IPS
  *
- * VERSIÓN 5.2 - SESIÓN PERMANENTE (FIX BACKUP + ANTI-CASCADA)
+ * VERSIÓN 6.0 - SESIÓN PERMANENTE (ESTRATEGIA "NO TOCAR, NO RECARGAR")
  * - JWT de 1 semana + refresh proactivo cada 2 horas
- * - Fetch interceptor PASIVO: solo reintenta con token backup, NO llama auth methods
- * - SIGNED_OUT espurios: guard re-entrada + cooldown + restauración backup + safeReload
- * - Backup se guarda SIEMPRE en SIGNED_IN (incluso si initializationComplete=true)
+ * - Fetch interceptor PASIVO: reintenta 401 con token backup (supabase.config.ts)
+ * - SIGNED_OUT espurios: se IGNORAN si el backup tiene JWT válido (check local)
+ *   → NO se llama setSession() (causa MÁS SIGNED_OUT con tokens rotados)
+ *   → NO se hace reload (causa pérdida de estado React)
+ *   → El fetch interceptor ya mantiene los datos fluyendo con el token backup
+ * - Backup se guarda SIEMPRE en SIGNED_IN y TOKEN_REFRESHED
  * - INITIAL_SESSION sin sesión: intenta backup antes de dar null
- * - Guard anti-loops: máximo 1 reload cada 60 segundos
  * - Visibilitychange handler para refrescar al volver a la pestaña
  */
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
-import { supabase } from '@/config/supabase.config'
+import { supabase, isJwtValid } from '@/config/supabase.config'
 import { AuthUser } from '@/types'
 
 // ========================================
@@ -21,12 +23,10 @@ import { AuthUser } from '@/types'
 // ========================================
 const PROFILE_CACHE_KEY = 'gestar-user-profile'
 const SESSION_BACKUP_KEY = 'gestar-auth-backup' // Backup de tokens que supabase-js no toca
-const RELOAD_GUARD_KEY = 'gestar-auth-reload-guard' // Anti-loop: timestamp del último reload
 const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000 // 24 horas de validez del caché
 const GLOBAL_TIMEOUT_MS = 15000 // 15 segundos para consultas (conexiones lentas)
 const FAILSAFE_TIMEOUT_MS = 30000 // 30 segundos timeout de seguridad
 const PROACTIVE_REFRESH_MS = 2 * 60 * 60 * 1000 // 2 horas: refrescar token proactivamente
-const RELOAD_COOLDOWN_MS = 60000 // 60 segundos entre reloads (anti-loop)
 const BACKUP_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000 // 6 días (refresh_token dura 1 semana)
 
 // Solo logs de advertencia/error en producción (los importantes para diagnóstico)
@@ -70,7 +70,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const backgroundFetchDone = useRef(false)
     const intentionalLogout = useRef(false)
     const signedOutProcessing = useRef(false)
-    const signedOutCooldown = useRef(0)
 
     // ========================================
     // CACHÉ (Simplificada)
@@ -158,29 +157,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, [clearProfileCache])
 
     // ========================================
-    // RELOAD SEGURO (con guard anti-loop)
+    // VERIFICACIÓN LOCAL DE BACKUP JWT
     // ========================================
 
-    const safeReload = useCallback((reason: string) => {
+    /**
+     * Verifica localmente si el backup de localStorage tiene un JWT no-expirado.
+     * NO hace ninguna llamada al servidor. NO llama setSession().
+     * Usado por el handler SIGNED_OUT para decidir si ignorar el evento.
+     */
+    const isBackupJwtValid = useCallback((): boolean => {
         try {
-            const lastReload = parseInt(localStorage.getItem(RELOAD_GUARD_KEY) || '0')
-            if (Date.now() - lastReload > RELOAD_COOLDOWN_MS) {
-                log.warn(`Recargando página: ${reason}`)
-                localStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()))
-                window.location.reload()
-            } else {
-                log.warn(`Recarga omitida (cooldown activo) - forzando limpieza: ${reason}`)
-                forceCleanSession('Restauración fallida + cooldown de recarga activo')
+            const backup = localStorage.getItem(SESSION_BACKUP_KEY)
+            if (!backup) return false
+
+            const { access_token, saved_at } = JSON.parse(backup)
+            if (!access_token) return false
+
+            // Backup demasiado viejo → descartar
+            if (saved_at && Date.now() - saved_at > BACKUP_MAX_AGE_MS) {
+                log.warn('Backup de tokens expirado (>6 días), descartando')
+                localStorage.removeItem(SESSION_BACKUP_KEY)
+                return false
             }
+
+            return isJwtValid(access_token)
         } catch {
-            window.location.reload()
+            return false
         }
-    }, [forceCleanSession])
+    }, [])
 
-    // ========================================
-    // RESTAURACIÓN DESDE BACKUP
-    // ========================================
-
+    /**
+     * Restaura sesión desde backup llamando setSession().
+     * SOLO se usa en INITIAL_SESSION (carga inicial), NUNCA en SIGNED_OUT.
+     */
     const tryRestoreFromBackup = useCallback(async (): Promise<{ access_token: string; refresh_token: string; user: { email?: string } } | null> => {
         try {
             const backup = localStorage.getItem(SESSION_BACKUP_KEY)
@@ -189,7 +198,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             const { access_token, refresh_token, saved_at } = JSON.parse(backup)
             if (!access_token || !refresh_token) return null
 
-            // Tokens de más de 6 días probablemente expirados (refresh_token dura 1 semana)
             if (saved_at && Date.now() - saved_at > BACKUP_MAX_AGE_MS) {
                 log.warn('Backup de tokens expirado (>6 días), descartando')
                 localStorage.removeItem(SESSION_BACKUP_KEY)
@@ -510,15 +518,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                     case 'SIGNED_OUT': {
                         // ===================================================================
-                        // ESTRATEGIA v5.2: Restaurar + Reload (SIN getSession)
+                        // ESTRATEGIA v6.0: "NO TOCAR, NO RECARGAR"
                         // ===================================================================
-                        // Problema: RLS retorna 0 filas (no 401) cuando no hay token válido.
-                        // El fetch interceptor NO detecta esto. Sin reload, la UI queda vacía.
-                        // Solución: restaurar sesión desde backup + reload.
+                        // Causa raíz: setSession() con tokens rotados dispara MÁS SIGNED_OUT,
+                        // creando un ciclo fatal: SIGNED_OUT → restore → SIGNED_OUT → cooldown
+                        // → forceCleanSession → usuario sacado.
                         //
-                        // IMPORTANTE: NO llamar getSession()/refreshSession() aquí.
-                        // Esos métodos pueden disparar MÁS eventos SIGNED_OUT y crear
-                        // un loop infinito de cascading events.
+                        // Solución: NO llamar setSession/getSession/refreshSession/reload.
+                        // Solo verificar localmente si el backup tiene JWT válido:
+                        //   - Si sí: IGNORAR completamente. El fetch interceptor pasivo
+                        //     ya usa el token del backup para requests HTTP → datos fluyen.
+                        //     El estado React (user, perfil) queda INTACTO.
+                        //   - Si no: forceCleanSession (sesión genuinamente muerta).
 
                         if (intentionalLogout.current) {
                             intentionalLogout.current = false
@@ -526,39 +537,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             break
                         }
 
-                        // Guard 1: ignorar si ya procesando
+                        // Guard: ignorar si ya procesando
                         if (signedOutProcessing.current) break
 
-                        // Guard 2: cooldown de 60s para evitar cascading events
-                        if (Date.now() < signedOutCooldown.current) {
-                            log.debug('SIGNED_OUT ignorado (cooldown activo)')
-                            break
-                        }
-
                         signedOutProcessing.current = true
-                        signedOutCooldown.current = Date.now() + 60_000
-                        log.debug('SIGNED_OUT espurio detectado')
 
-                        // Intentar restaurar desde backup (2 intentos con delay)
-                        let restored = await tryRestoreFromBackup()
-
-                        if (!restored) {
-                            log.debug('Intento 1 fallido, reintentando en 2s...')
-                            await new Promise(r => setTimeout(r, 2000))
-                            restored = await tryRestoreFromBackup()
+                        if (isBackupJwtValid()) {
+                            // Backup tiene JWT válido → el fetch interceptor lo usará
+                            // para requests HTTP. Estado React intacto. NO hacer nada.
+                            log.warn('SIGNED_OUT ignorado - backup JWT válido (fetch interceptor activo)')
+                        } else {
+                            // JWT del backup expirado o inexistente → sesión realmente muerta
+                            log.warn('SIGNED_OUT con backup inválido - sesión expirada')
+                            await forceCleanSession('SIGNED_OUT con backup JWT inválido/expirado')
                         }
 
                         signedOutProcessing.current = false
-
-                        if (restored) {
-                            // Sesión restaurada en supabase-js, pero la UI ya tiene datos vacíos
-                            // de queries que corrieron sin token. Reload para refrescar todo.
-                            safeReload('Sesión restaurada tras SIGNED_OUT espurio')
-                        } else {
-                            // No se pudo restaurar. Reload para que INITIAL_SESSION intente
-                            // backup o, si tokens son inválidos, envíe al login correctamente.
-                            safeReload('Restauración SIGNED_OUT fallida - intentando via reload')
-                        }
                         break
                     }
 
@@ -615,7 +609,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         const doRefresh = async () => {
             try {
-                const { data } = await supabase.auth.refreshSession()
+                const { data, error } = await supabase.auth.refreshSession()
+                if (error) {
+                    // El refresh falló pero NO es crítico: el JWT dura 1 semana
+                    // y el fetch interceptor usa el backup. No hacer nada drástico.
+                    log.debug('Refresh proactivo falló (no crítico):', error.message)
+                    return
+                }
                 if (data?.session) {
                     try {
                         localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify({
@@ -628,7 +628,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     log.debug('Token refrescado proactivamente')
                 }
             } catch {
-                log.debug('Refresh proactivo falló (no crítico)')
+                // Error de red u otro - no crítico
+                log.debug('Refresh proactivo: error de red (no crítico)')
             }
         }
 

@@ -32,7 +32,7 @@ let supabaseInstance: SupabaseClient | null = null
  * Verifica localmente si un JWT no ha expirado.
  * Requiere al menos 30s de validez restante.
  */
-function isJwtValid(token: string): boolean {
+export function isJwtValid(token: string): boolean {
     try {
         const payload = JSON.parse(atob(token.split('.')[1]))
         return typeof payload.exp === 'number' && payload.exp > Date.now() / 1000 + 30
