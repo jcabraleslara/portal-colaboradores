@@ -31,6 +31,7 @@ import {
     Droplets,
     Ear,
     Accessibility,
+    FilterX,
 } from 'lucide-react'
 import { Card, Button, Input, LoadingOverlay } from '@/components/common'
 import { backService } from '@/services/back.service'
@@ -580,6 +581,14 @@ export function GestionBackPage() {
                                 className={mostrarFiltros ? 'bg-gray-100' : ''}
                             >
                                 Filtros
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                onClick={handleLimpiarFiltros}
+                                leftIcon={<FilterX size={18} />}
+                                title="Limpiar filtros"
+                            >
+                                Limpiar
                             </Button>
                             <Button
                                 variant="ghost"
