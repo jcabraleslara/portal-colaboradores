@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
         const MODELS_FALLBACK = [
             'gemini-2.5-flash-lite',   // Modelo principal: rapido, bajo costo
             'gemini-2.5-flash',        // Fallback 1: buen balance velocidad/calidad
-            'gemini-3-flash',          // Fallback 2: mas potente si los anteriores fallan
+            'gemini-3-flash-preview',  // Fallback 2: mas potente si los anteriores fallan
         ]
 
         let lastError: unknown = null
@@ -215,9 +215,9 @@ Deno.serve(async (req) => {
                     signal: AbortSignal.timeout(MODEL_TIMEOUT_MS)
                 })
 
-                // 429 (rate limit) o 503 (no disponible) → saltar a siguiente modelo
-                if (geminiResponse.status === 429 || geminiResponse.status === 503) {
-                    const reason = geminiResponse.status === 429 ? 'rate limit' : 'no disponible'
+                // 404 (modelo no existe), 429 (rate limit) o 503 (no disponible) → saltar a siguiente modelo
+                if (geminiResponse.status === 404 || geminiResponse.status === 429 || geminiResponse.status === 503) {
+                    const reason = geminiResponse.status === 429 ? 'rate limit' : geminiResponse.status === 404 ? 'no encontrado' : 'no disponible'
                     console.warn(`[API] Modelo ${modelName} ${reason} (${geminiResponse.status}), intentando siguiente...`)
                     lastError = { status: geminiResponse.status, model: modelName }
                     continue
