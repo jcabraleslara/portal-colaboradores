@@ -68,6 +68,7 @@ Se contra remite el caso de [anota el nombre y el apellido del paciente], al pri
 - La respuesta debe arrancar directamente con "CONTRA REFERENCIA"
 - NO incluir introducciones ni citation markers [1], [2]
 - Sé técnico pero claro en tu lenguaje médico
+- NUNCA recomendar terapias físicas, rehabilitación física ni fisioterapia. Estas NO son del nivel de pertinencia del médico general del primer nivel de atención
 - ORTOGRAFÍA IMPECABLE: Usa correctamente todas las tildes (atención, clínicos, paraclínicos, médico, remisión, diagnóstica, etc.), signos de puntuación y gramática del español formal. El texto es un documento médico oficial.`
 
 /**
