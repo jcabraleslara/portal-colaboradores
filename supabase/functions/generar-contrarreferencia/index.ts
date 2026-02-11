@@ -56,7 +56,7 @@ Se contra remite el caso de [anota el nombre y el apellido del paciente], al pri
 [OBLIGATORIO: Escribe 1 oración sobre qué tratamientos del primer nivel NO se han instaurado antes de remitir. Si no hay registro de tratamiento previo, indica que es motivo de contra referencia.]
 
 3. **Estudios paraclínicos:**
-[OBLIGATORIO: Escribe 1 oración indicando qué estudios básicos del primer nivel faltan que sean PERTINENTES al motivo de consulta y la especialidad solicitada. Solo recomendar estudios que un médico general del primer nivel pueda ordenar directamente (ej: radiografías simples, hemograma, parcial de orina, EKG cuando aplique).]
+[OBLIGATORIO: Escribe 1 oración indicando qué estudios básicos del primer nivel faltan que sean PERTINENTES al motivo de consulta. PROHIBIDO recomendar ecografías, resonancias, tomografías, biopsias, electromiografías, endoscopias o gammagrafías. Solo puedes sugerir: radiografías simples, EKG, parcial de orina, o laboratorios clínicos básicos que tengan relación directa con el cuadro clínico.]
 
 4. **Completitud documental:**
 [OBLIGATORIO: Escribe 1 oración sobre elementos faltantes o inconsistencias en la historia clínica, anamnesis incompleta, o examen físico deficiente.]
