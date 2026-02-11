@@ -2,11 +2,13 @@
  * Contexto de Autenticación con Supabase Auth
  * Portal de Colaboradores GESTAR SALUD IPS
  *
- * VERSIÓN 5.0 - SESIÓN PERMANENTE (ANTI-SIGNED_OUT DEFINITIVO)
+ * VERSIÓN 5.1 - SESIÓN PERMANENTE (ANTI-SIGNED_OUT + ANTI-DATOS-VACÍOS)
  * - JWT de 1 semana + refresh proactivo cada 2 horas
  * - Fetch interceptor auto-retry en 401 (supabase.config.ts)
- * - SIGNED_OUT espurios: restauración sin validar expiración del JWT
- * - NUNCA se cierra sesión por eventos espurios (solo logout explícito)
+ * - SIGNED_OUT espurios: verificación getSession + restauración con retry
+ * - Tras restauración: reload seguro para refrescar datos (RLS retorna vacío sin token)
+ * - INITIAL_SESSION sin sesión: intenta backup antes de dar null
+ * - Guard anti-loops: máximo 1 reload cada 60 segundos
  * - Visibilitychange handler para refrescar al volver a la pestaña
  */
 
@@ -19,10 +21,13 @@ import { AuthUser } from '@/types'
 // ========================================
 const PROFILE_CACHE_KEY = 'gestar-user-profile'
 const SESSION_BACKUP_KEY = 'gestar-auth-backup' // Backup de tokens que supabase-js no toca
+const RELOAD_GUARD_KEY = 'gestar-auth-reload-guard' // Anti-loop: timestamp del último reload
 const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000 // 24 horas de validez del caché
 const GLOBAL_TIMEOUT_MS = 15000 // 15 segundos para consultas (conexiones lentas)
 const FAILSAFE_TIMEOUT_MS = 30000 // 30 segundos timeout de seguridad
 const PROACTIVE_REFRESH_MS = 2 * 60 * 60 * 1000 // 2 horas: refrescar token proactivamente
+const RELOAD_COOLDOWN_MS = 60000 // 60 segundos entre reloads (anti-loop)
+const BACKUP_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000 // 6 días (refresh_token dura 1 semana)
 
 // Solo logs de advertencia/error en producción (los importantes para diagnóstico)
 const log = {
@@ -150,6 +155,60 @@ export function AuthProvider({ children }: AuthProviderProps) {
         processingAuth.current = false
         initializationComplete.current = true
     }, [clearProfileCache])
+
+    // ========================================
+    // RELOAD SEGURO (con guard anti-loop)
+    // ========================================
+
+    const safeReload = useCallback((reason: string) => {
+        try {
+            const lastReload = parseInt(localStorage.getItem(RELOAD_GUARD_KEY) || '0')
+            if (Date.now() - lastReload > RELOAD_COOLDOWN_MS) {
+                log.warn(`Recargando página: ${reason}`)
+                localStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()))
+                window.location.reload()
+            } else {
+                log.warn(`Recarga omitida (cooldown activo) - forzando limpieza: ${reason}`)
+                forceCleanSession('Restauración fallida + cooldown de recarga activo')
+            }
+        } catch {
+            window.location.reload()
+        }
+    }, [forceCleanSession])
+
+    // ========================================
+    // RESTAURACIÓN DESDE BACKUP
+    // ========================================
+
+    const tryRestoreFromBackup = useCallback(async (): Promise<{ access_token: string; refresh_token: string; user: { email?: string } } | null> => {
+        try {
+            const backup = localStorage.getItem(SESSION_BACKUP_KEY)
+            if (!backup) return null
+
+            const { access_token, refresh_token, saved_at } = JSON.parse(backup)
+            if (!access_token || !refresh_token) return null
+
+            // Tokens de más de 6 días probablemente expirados (refresh_token dura 1 semana)
+            if (saved_at && Date.now() - saved_at > BACKUP_MAX_AGE_MS) {
+                log.warn('Backup de tokens expirado (>6 días), descartando')
+                localStorage.removeItem(SESSION_BACKUP_KEY)
+                return null
+            }
+
+            const { data, error } = await supabase.auth.setSession({ access_token, refresh_token })
+            if (data?.session && !error) {
+                try {
+                    localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify({
+                        access_token: data.session.access_token,
+                        refresh_token: data.session.refresh_token,
+                        saved_at: Date.now()
+                    }))
+                } catch { /* silenciar */ }
+                return data.session
+            }
+        } catch { /* continuar */ }
+        return null
+    }, [])
 
     // ========================================
     // OBTENCIÓN DE PERFIL (FAIL-FAST)
@@ -416,6 +475,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             log.debug(`${event} ignorado - ya inicializado`)
                             return
                         }
+
+                        // Si no hay sesión en INITIAL_SESSION, intentar restaurar desde backup
+                        // (puede pasar tras reload post-SIGNED_OUT si supabase-js perdió el storage)
+                        if (!session && event === 'INITIAL_SESSION') {
+                            log.debug('INITIAL_SESSION sin sesión - intentando backup...')
+                            const restoredSession = await tryRestoreFromBackup()
+                            if (restoredSession) {
+                                log.debug('Sesión restaurada desde backup en INITIAL_SESSION')
+                                await handleAuthSession(restoredSession, 'INITIAL_SESSION_RESTORED')
+                                break
+                            }
+                            log.debug('Sin backup válido - continuando sin sesión')
+                        }
+
                         // Guardar backup de tokens (supabase-js lo borra en SIGNED_OUT espurios)
                         if (session?.access_token && session?.refresh_token) {
                             try {
@@ -431,11 +504,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
                     case 'SIGNED_OUT': {
                         // ===================================================================
-                        // ESTRATEGIA: Restaurar SIEMPRE, NUNCA cerrar sesión del usuario
+                        // ESTRATEGIA v5.1: Restaurar + Reload para refrescar datos
                         // ===================================================================
-                        // El fetch interceptor en supabase.config.ts maneja auto-retry en 401.
-                        // Aquí solo restauramos la sesión interna de supabase-js desde backup.
-                        // NUNCA modificamos el estado del usuario por un SIGNED_OUT espurio.
+                        // Problema: RLS retorna 0 filas (no 401) cuando no hay token válido.
+                        // El fetch interceptor NO detecta esto. Sin reload, la UI queda vacía.
+                        // Solución: restaurar sesión + reload para que componentes refetchen.
 
                         if (intentionalLogout.current) {
                             intentionalLogout.current = false
@@ -446,39 +519,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         // Guard: ignorar si ya procesando
                         if (signedOutProcessing.current) break
                         signedOutProcessing.current = true
-                        log.debug('SIGNED_OUT espurio - restaurando silenciosamente...')
+                        log.debug('SIGNED_OUT espurio detectado')
 
+                        // Check 1: ¿supabase-js aún tiene sesión válida internamente?
+                        // A veces el evento es falso positivo y la sesión sigue ahí
                         try {
-                            const backup = localStorage.getItem(SESSION_BACKUP_KEY)
-                            if (backup) {
-                                const { access_token, refresh_token } = JSON.parse(backup)
-                                if (access_token && refresh_token) {
-                                    // setSession usa el refresh_token internamente aunque
-                                    // el JWT esté expirado. signedOutProcessing bloquea re-entrada.
-                                    const { data, error } = await supabase.auth.setSession({
-                                        access_token,
-                                        refresh_token
-                                    })
-                                    if (data?.session && !error) {
-                                        try {
-                                            localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify({
-                                                access_token: data.session.access_token,
-                                                refresh_token: data.session.refresh_token,
-                                                saved_at: Date.now()
-                                            }))
-                                        } catch { /* silenciar */ }
-                                        log.debug('Sesión restaurada silenciosamente')
-                                        signedOutProcessing.current = false
-                                        break
-                                    }
-                                }
+                            const { data: { session: currentSession } } = await supabase.auth.getSession()
+                            if (currentSession?.access_token) {
+                                log.debug('Sesión interna aún válida - ignorando SIGNED_OUT espurio')
+                                signedOutProcessing.current = false
+                                break
                             }
-                        } catch { /* continuar */ }
+                        } catch { /* continuar con restauración */ }
 
-                        // Restauración fallida: NO tocar el estado del usuario.
-                        // El fetch interceptor se encarga de reintentar API calls con 401.
-                        log.warn('Restauración SIGNED_OUT fallida - UI intacta, fetch interceptor activo')
+                        // Check 2: Intentar restaurar desde backup (2 intentos con delay)
+                        let restored = await tryRestoreFromBackup()
+
+                        if (!restored) {
+                            log.debug('Intento 1 fallido, reintentando en 2s...')
+                            await new Promise(r => setTimeout(r, 2000))
+                            restored = await tryRestoreFromBackup()
+                        }
+
                         signedOutProcessing.current = false
+
+                        if (restored) {
+                            // Sesión restaurada en supabase-js, pero la UI ya tiene datos vacíos
+                            // de queries que corrieron sin token. Reload para refrescar todo.
+                            safeReload('Sesión restaurada tras SIGNED_OUT espurio')
+                        } else {
+                            // No se pudo restaurar. Reload para que INITIAL_SESSION intente
+                            // backup o, si tokens son inválidos, envíe al login correctamente.
+                            safeReload('Restauración SIGNED_OUT fallida - intentando via reload')
+                        }
                         break
                     }
 
