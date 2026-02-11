@@ -2,11 +2,11 @@
  * Configuración del cliente Supabase
  * Portal de Colaboradores GESTAR SALUD IPS
  *
- * VERSIÓN 2.0 - SESIÓN BLINDADA
- * - Fetch interceptor: auto-retry transparente en 401 para TODAS las API calls
- * - Restaura sesión desde backup de tokens cuando supabase-js pierde el estado
- * - Promise compartida para evitar refreshes concurrentes
- * - Los endpoints /auth/v1/ están excluidos para evitar loops
+ * VERSIÓN 3.0 - FETCH INTERCEPTOR PASIVO
+ * - El interceptor NUNCA llama métodos de supabase.auth (refreshSession/setSession)
+ *   porque esos métodos disparan eventos SIGNED_OUT que cascadean con AuthContext.
+ * - En 401: solo reintenta con el access_token del backup de localStorage.
+ * - AuthContext es el ÚNICO responsable de restaurar sesiones (vía SIGNED_OUT handler).
  */
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
@@ -28,87 +28,53 @@ const SESSION_BACKUP_KEY = 'gestar-auth-backup'
 // Singleton
 let supabaseInstance: SupabaseClient | null = null
 
-// Promise compartida para evitar refreshes concurrentes
-let refreshPromise: Promise<string | null> | null = null
-
 /**
- * Guarda tokens de sesión como backup en localStorage
+ * Verifica localmente si un JWT no ha expirado.
+ * Requiere al menos 30s de validez restante.
  */
-function updateBackup(session: { access_token: string; refresh_token: string }) {
+function isJwtValid(token: string): boolean {
     try {
-        localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify({
-            access_token: session.access_token,
-            refresh_token: session.refresh_token,
-            saved_at: Date.now()
-        }))
-    } catch { /* silenciar */ }
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        return typeof payload.exp === 'number' && payload.exp > Date.now() / 1000 + 30
+    } catch {
+        return false
+    }
 }
 
 /**
- * Intenta refrescar la sesión. Si hay un refresh en curso, espera ese resultado.
- * Retorna el access_token fresco o null si no se pudo refrescar.
- */
-async function ensureFreshSession(): Promise<string | null> {
-    if (refreshPromise) return refreshPromise
-
-    refreshPromise = (async () => {
-        // Intento 1: refreshSession estándar (usa estado interno de supabase-js)
-        try {
-            const { data } = await supabaseInstance!.auth.refreshSession()
-            if (data?.session) {
-                updateBackup(data.session)
-                return data.session.access_token
-            }
-        } catch { /* continuar */ }
-
-        // Intento 2: restaurar desde backup (tokens guardados por AuthContext)
-        try {
-            const backup = localStorage.getItem(SESSION_BACKUP_KEY)
-            if (backup) {
-                const { access_token, refresh_token } = JSON.parse(backup)
-                if (access_token && refresh_token) {
-                    const { data } = await supabaseInstance!.auth.setSession({
-                        access_token,
-                        refresh_token
-                    })
-                    if (data?.session) {
-                        updateBackup(data.session)
-                        return data.session.access_token
-                    }
-                }
-            }
-        } catch { /* continuar */ }
-
-        return null
-    })()
-
-    const token = await refreshPromise
-    // Limpiar después de 1s para que requests cercanos compartan el resultado
-    setTimeout(() => { refreshPromise = null }, 1000)
-    return token
-}
-
-/**
- * Fetch interceptor: auto-retry transparente en 401.
- * Cuando cualquier API call falla por token expirado, refresca la sesión
- * y reintenta automáticamente. Endpoints de auth excluidos para evitar loops.
+ * Fetch interceptor PASIVO: reintenta 401 usando el token del backup.
+ *
+ * IMPORTANTE: NO llama refreshSession()/setSession()/getSession().
+ * Esos métodos modifican el estado interno de supabase-js y disparan
+ * eventos SIGNED_OUT que cascadean con el handler de AuthContext,
+ * causando loops infinitos y cierre de sesión involuntario.
+ *
+ * Solo lee el backup de localStorage y usa el access_token directamente
+ * como header HTTP. Si el token del backup es válido, el retry funciona.
+ * Si no, devuelve el 401 original y deja que el flujo normal lo maneje.
  */
 const authRetryFetch: typeof fetch = async (input, init) => {
     const response = await fetch(input, init)
 
-    // Solo interceptar 401 en endpoints no-auth
+    // Solo interceptar 401 en endpoints que NO sean auth
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
     if (response.status !== 401 || url.includes('/auth/v1/')) {
         return response
     }
 
-    // Intentar refrescar sesión y reintentar el request original
-    const freshToken = await ensureFreshSession()
-    if (freshToken) {
-        const retryHeaders = new Headers(init?.headers)
-        retryHeaders.set('Authorization', `Bearer ${freshToken}`)
-        return fetch(input, { ...init, headers: retryHeaders })
-    }
+    // Reintento pasivo: usar token del backup sin tocar supabase.auth
+    try {
+        const backup = localStorage.getItem(SESSION_BACKUP_KEY)
+        if (backup) {
+            const { access_token } = JSON.parse(backup)
+            if (access_token && isJwtValid(access_token)) {
+                const retryHeaders = new Headers(init?.headers)
+                retryHeaders.set('Authorization', `Bearer ${access_token}`)
+                retryHeaders.set('apikey', supabaseAnonKey)
+                return fetch(input, { ...init, headers: retryHeaders })
+            }
+        }
+    } catch { /* silenciar - devolver 401 original */ }
 
     return response
 }

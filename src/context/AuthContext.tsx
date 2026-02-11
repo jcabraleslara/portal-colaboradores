@@ -2,11 +2,11 @@
  * Contexto de Autenticación con Supabase Auth
  * Portal de Colaboradores GESTAR SALUD IPS
  *
- * VERSIÓN 5.1 - SESIÓN PERMANENTE (ANTI-SIGNED_OUT + ANTI-DATOS-VACÍOS)
+ * VERSIÓN 5.2 - SESIÓN PERMANENTE (FIX BACKUP + ANTI-CASCADA)
  * - JWT de 1 semana + refresh proactivo cada 2 horas
- * - Fetch interceptor auto-retry en 401 (supabase.config.ts)
- * - SIGNED_OUT espurios: verificación getSession + restauración con retry
- * - Tras restauración: reload seguro para refrescar datos (RLS retorna vacío sin token)
+ * - Fetch interceptor PASIVO: solo reintenta con token backup, NO llama auth methods
+ * - SIGNED_OUT espurios: guard re-entrada + cooldown + restauración backup + safeReload
+ * - Backup se guarda SIEMPRE en SIGNED_IN (incluso si initializationComplete=true)
  * - INITIAL_SESSION sin sesión: intenta backup antes de dar null
  * - Guard anti-loops: máximo 1 reload cada 60 segundos
  * - Visibilitychange handler para refrescar al volver a la pestaña
@@ -70,6 +70,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const backgroundFetchDone = useRef(false)
     const intentionalLogout = useRef(false)
     const signedOutProcessing = useRef(false)
+    const signedOutCooldown = useRef(0)
 
     // ========================================
     // CACHÉ (Simplificada)
@@ -470,9 +471,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 switch (event) {
                     case 'INITIAL_SESSION':
                     case 'SIGNED_IN':
-                        // Solo procesar UNA VEZ - el primero que llegue gana
+                        // SIEMPRE guardar backup de tokens cuando disponibles.
+                        // IMPORTANTE: esto va ANTES del check initializationComplete porque
+                        // SIGNED_IN del login ocurre DESPUÉS de INITIAL_SESSION (que ya puso
+                        // initializationComplete=true). Sin este fix, el backup nunca se guardaba
+                        // y la primera sesión post-login no tenía respaldo.
+                        if (session?.access_token && session?.refresh_token) {
+                            try {
+                                localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify({
+                                    access_token: session.access_token,
+                                    refresh_token: session.refresh_token,
+                                    saved_at: Date.now()
+                                }))
+                            } catch { /* silenciar */ }
+                        }
+
+                        // Solo procesar perfil UNA VEZ - el primero que llegue gana
                         if (initializationComplete.current) {
-                            log.debug(`${event} ignorado - ya inicializado`)
+                            log.debug(`${event} ignorado - ya inicializado (backup actualizado)`)
                             return
                         }
 
@@ -489,26 +505,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             log.debug('Sin backup válido - continuando sin sesión')
                         }
 
-                        // Guardar backup de tokens (supabase-js lo borra en SIGNED_OUT espurios)
-                        if (session?.access_token && session?.refresh_token) {
-                            try {
-                                localStorage.setItem(SESSION_BACKUP_KEY, JSON.stringify({
-                                    access_token: session.access_token,
-                                    refresh_token: session.refresh_token,
-                                    saved_at: Date.now()
-                                }))
-                            } catch { /* silenciar */ }
-                        }
                         await handleAuthSession(session, event)
                         break
 
                     case 'SIGNED_OUT': {
                         // ===================================================================
-                        // ESTRATEGIA v5.1: Restaurar + Reload para refrescar datos
+                        // ESTRATEGIA v5.2: Restaurar + Reload (SIN getSession)
                         // ===================================================================
                         // Problema: RLS retorna 0 filas (no 401) cuando no hay token válido.
                         // El fetch interceptor NO detecta esto. Sin reload, la UI queda vacía.
-                        // Solución: restaurar sesión + reload para que componentes refetchen.
+                        // Solución: restaurar sesión desde backup + reload.
+                        //
+                        // IMPORTANTE: NO llamar getSession()/refreshSession() aquí.
+                        // Esos métodos pueden disparar MÁS eventos SIGNED_OUT y crear
+                        // un loop infinito de cascading events.
 
                         if (intentionalLogout.current) {
                             intentionalLogout.current = false
@@ -516,23 +526,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
                             break
                         }
 
-                        // Guard: ignorar si ya procesando
+                        // Guard 1: ignorar si ya procesando
                         if (signedOutProcessing.current) break
+
+                        // Guard 2: cooldown de 60s para evitar cascading events
+                        if (Date.now() < signedOutCooldown.current) {
+                            log.debug('SIGNED_OUT ignorado (cooldown activo)')
+                            break
+                        }
+
                         signedOutProcessing.current = true
+                        signedOutCooldown.current = Date.now() + 60_000
                         log.debug('SIGNED_OUT espurio detectado')
 
-                        // Check 1: ¿supabase-js aún tiene sesión válida internamente?
-                        // A veces el evento es falso positivo y la sesión sigue ahí
-                        try {
-                            const { data: { session: currentSession } } = await supabase.auth.getSession()
-                            if (currentSession?.access_token) {
-                                log.debug('Sesión interna aún válida - ignorando SIGNED_OUT espurio')
-                                signedOutProcessing.current = false
-                                break
-                            }
-                        } catch { /* continuar con restauración */ }
-
-                        // Check 2: Intentar restaurar desde backup (2 intentos con delay)
+                        // Intentar restaurar desde backup (2 intentos con delay)
                         let restored = await tryRestoreFromBackup()
 
                         if (!restored) {
