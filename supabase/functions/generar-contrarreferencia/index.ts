@@ -173,9 +173,9 @@ Deno.serve(async (req) => {
 
         // Cadena de modelos: lite (rapido) → flash (estable) → 2.5 (potente)
         const MODELS_FALLBACK = [
-            'gemini-2.0-flash-lite',   // Modelo principal: el mas rapido para tareas estructuradas
-            'gemini-2.0-flash',        // Fallback 1: buen balance velocidad/calidad
-            'gemini-2.5-flash',        // Fallback 2: mas potente si los anteriores fallan
+            'gemini-2.5-flash-lite',   // Modelo principal: rapido, bajo costo
+            'gemini-2.5-flash',        // Fallback 1: buen balance velocidad/calidad
+            'gemini-3-flash',          // Fallback 2: mas potente si los anteriores fallan
         ]
 
         let lastError: unknown = null
@@ -195,10 +195,11 @@ Deno.serve(async (req) => {
                     signal: AbortSignal.timeout(MODEL_TIMEOUT_MS)
                 })
 
-                // Si es 503 (Service Unavailable), intentar siguiente modelo
-                if (geminiResponse.status === 503) {
-                    console.log(`[API] Modelo ${modelName} no disponible (503), intentando siguiente...`)
-                    lastError = { status: 503, model: modelName }
+                // 429 (rate limit) o 503 (no disponible) → saltar a siguiente modelo
+                if (geminiResponse.status === 429 || geminiResponse.status === 503) {
+                    const reason = geminiResponse.status === 429 ? 'rate limit' : 'no disponible'
+                    console.warn(`[API] Modelo ${modelName} ${reason} (${geminiResponse.status}), intentando siguiente...`)
+                    lastError = { status: geminiResponse.status, model: modelName }
                     continue
                 }
 
