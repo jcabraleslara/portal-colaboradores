@@ -25,7 +25,7 @@ const PROFILE_CACHE_KEY = 'gestar-user-profile'
 const SESSION_BACKUP_KEY = 'gestar-auth-backup' // Backup de tokens que supabase-js no toca
 const MAX_CACHE_AGE_MS = 24 * 60 * 60 * 1000 // 24 horas de validez del caché
 const GLOBAL_TIMEOUT_MS = 15000 // 15 segundos para consultas (conexiones lentas)
-const FAILSAFE_TIMEOUT_MS = 30000 // 30 segundos timeout de seguridad
+const FAILSAFE_TIMEOUT_MS = 10000 // 10 segundos timeout de seguridad
 const PROACTIVE_REFRESH_MS = 2 * 60 * 60 * 1000 // 2 horas: refrescar token proactivamente
 const BACKUP_MAX_AGE_MS = 6 * 24 * 60 * 60 * 1000 // 6 días (refresh_token dura 1 semana)
 
