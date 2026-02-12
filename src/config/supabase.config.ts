@@ -27,36 +27,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const SESSION_BACKUP_KEY = 'gestar-auth-backup'
 
 /**
- * Lock resiliente: usa navigator.locks con fallback automático.
- * Evita deadlock de navigator.locks (AbortError: signal is aborted without reason)
- * que bloquea initialize() de supabase-js → INITIAL_SESSION nunca se emite.
+ * Lock no-op: bypassa navigator.locks completamente.
+ * navigator.locks causa deadlock (AbortError) que bloquea initialize() de supabase-js.
+ * La coordinación cross-tab de tokens no es necesaria para este portal de uso individual.
  */
-async function resilientLock<R>(
-    name: string,
-    acquireTimeout: number,
+async function noOpLock<R>(
+    _name: string,
+    _acquireTimeout: number,
     fn: () => Promise<R>
 ): Promise<R> {
-    if (typeof navigator === 'undefined' || !navigator.locks) {
-        return await fn()
-    }
-
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), acquireTimeout)
-
-    try {
-        return await navigator.locks.request(
-            name,
-            { signal: controller.signal },
-            async () => {
-                clearTimeout(timeout)
-                return await fn()
-            }
-        )
-    } catch {
-        // Fallback: ejecutar sin lock si navigator.locks falla (deadlock, AbortError, etc.)
-        clearTimeout(timeout)
-        return await fn()
-    }
+    return await fn()
 }
 
 // Singleton
@@ -156,7 +136,7 @@ export function getSupabaseClient(): SupabaseClient {
                 storageKey: 'gestar-auth-token',
                 autoRefreshToken: true,
                 detectSessionInUrl: true,
-                lock: resilientLock,
+                lock: noOpLock,
             },
             global: {
                 headers: { 'x-application-name': 'portal-colaboradores' },
