@@ -14,6 +14,7 @@ import { Button } from '@/components/common'
 import { Anexo8Record } from '@/types/anexo8.types'
 import { generarAnexo8Pdf, descargarPdf } from '../pdfGenerator'
 import { anexo8Service } from '@/services/anexo8.service'
+import { isMobileOrTablet } from '@/utils/device.utils'
 import { toast } from 'sonner'
 
 interface Anexo8DetallePanelProps {
@@ -33,6 +34,13 @@ export function Anexo8DetallePanel({ registro, onClose }: Anexo8DetallePanelProp
         try {
             // Refrescar URL firmada
             const urlFresca = await anexo8Service.refrescarUrlPdf(registro.pdf_url)
+
+            // En móvil/tablet abrir directamente en nueva pestaña (visor nativo)
+            if (isMobileOrTablet()) {
+                window.open(urlFresca, '_blank', 'noopener,noreferrer')
+                return
+            }
+
             setPdfActivo(urlFresca)
         } catch (error) {
             console.error(error)

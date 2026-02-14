@@ -50,6 +50,7 @@ import {
 } from 'lucide-react'
 import { Button, RichTextEditor } from '@/components/common'
 import { copyRichText } from '@/utils/clipboard'
+import { isMobileOrTablet } from '@/utils/device.utils'
 import { backService } from '@/services/back.service'
 import { emailService } from '@/services/email.service'
 import { teamsService } from '@/services/teams.service'
@@ -603,6 +604,15 @@ export function CasoDetallePanel({
         // Intentar refrescar la URL por si está expirada
         // Pasamos radicado e índice para intentar recuperación de respaldos
         const urlFresca = await backService.refrescarUrlSoporte(url, caso.radicado, index)
+
+        // En móvil/tablet los navegadores no renderizan PDFs completos dentro de iframes,
+        // solo muestran una vista previa de la primera página.
+        // Abrimos directamente en nueva pestaña para usar el visor nativo del dispositivo.
+        if (isMobileOrTablet()) {
+            window.open(urlFresca, '_blank', 'noopener,noreferrer')
+            return
+        }
+
         setPdfActivo(urlFresca)
     }, [caso.radicado])
 

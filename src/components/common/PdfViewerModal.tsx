@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { X, ExternalLink, Download } from 'lucide-react'
+import { isMobileOrTablet } from '@/utils/device.utils'
 
 interface PdfViewerModalProps {
     url: string
@@ -8,6 +9,14 @@ interface PdfViewerModalProps {
 }
 
 export function PdfViewerModal({ url, title, onClose }: PdfViewerModalProps) {
+    // En móvil/tablet abrir directamente en nueva pestaña y cerrar el modal
+    useEffect(() => {
+        if (isMobileOrTablet()) {
+            window.open(url, '_blank', 'noopener,noreferrer')
+            onClose()
+        }
+    }, [url, onClose])
+
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose()
