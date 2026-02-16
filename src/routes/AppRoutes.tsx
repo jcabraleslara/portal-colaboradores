@@ -236,11 +236,11 @@ export function AppRoutes() {
                         </RoleGuard>
                     }
                 />
-                {/* Consultar CUPS */}
+                {/* Consultar Tablas (CUPS, Medicamentos, CIE-10) */}
                 <Route
-                    path={ROUTES.CONSULTAR_CUPS}
+                    path={ROUTES.CONSULTAR_TABLAS}
                     element={
-                        <RoleGuard moduleId="consultar-cups">
+                        <RoleGuard moduleId="consultar-tablas">
                             <LazyWrapper>
                                 <ConsultarCupsPage />
                             </LazyWrapper>

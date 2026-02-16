@@ -20,6 +20,7 @@ import {
     Contact,
     Users,
     Route,
+    Table,
     ChevronsLeft,
     ChevronsRight,
     type LucideIcon
@@ -61,6 +62,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
     RefreshCw,
     Car,
     Route,
+    Table,
     BarChart3,
     Contact,
     Users,

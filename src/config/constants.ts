@@ -15,7 +15,7 @@ export const ROUTES = {
     DIRECTORIO_INSTITUCIONAL: '/directorio-institucional',
     ADMIN_USUARIOS: '/admin/usuarios',
     IMPORTAR_FUENTES: '/importar-fuentes',
-    CONSULTAR_CUPS: '/consultar-cups',
+    CONSULTAR_TABLAS: '/consultar-tablas',
     // Módulos futuros (placeholders)
     SOPORTES_FACTURACION: '/soportes-facturacion',
     ANEXO_8: '/anexo-8',
@@ -121,12 +121,12 @@ export const PORTAL_MODULES: ModuleConfig[] = [
         requiredRoles: ['superadmin', 'gerencia', 'auditor', 'operativo', 'administrador', 'admin', 'asistencial'],
     },
     {
-        id: 'consultar-cups',
-        name: 'Consultar CUPS',
-        path: ROUTES.CONSULTAR_CUPS,
-        icon: 'FileSearch',
+        id: 'consultar-tablas',
+        name: 'Consultar Tablas',
+        path: ROUTES.CONSULTAR_TABLAS,
+        icon: 'Table',
         enabled: true,
-        description: 'Buscar procedimientos CUPS',
+        description: 'Buscar CUPS, medicamentos y diagnósticos CIE-10',
         requiredRoles: ['superadmin', 'gerencia', 'auditor', 'operativo', 'administrador', 'admin', 'asistencial'],
     },
     {

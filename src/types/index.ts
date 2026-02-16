@@ -202,6 +202,15 @@ export interface Cups {
     pertinencia: string[] | null
 }
 
+/**
+ * Medicamento de la tabla MAPIISS
+ */
+export interface Medicamento {
+    mapiiss: string
+    map_descripcion: string | null
+    capitulo: string | null
+}
+
 // Re-export tipos del módulo Back
 export * from './back.types'
 
