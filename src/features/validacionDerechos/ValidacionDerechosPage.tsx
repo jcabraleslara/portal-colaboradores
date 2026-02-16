@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
-import { Search, User, MapPin, Phone, Mail, Calendar, Building, FileText, Eraser } from 'lucide-react'
+import { Search, User, MapPin, Phone, Mail, Calendar, Building, FileText, Eraser, Hash } from 'lucide-react'
 import { Card, Button, Input, LoadingOverlay, EditablePhone, EditableField } from '@/components/common'
 import { afiliadosService } from '@/services/afiliados.service'
 import { Afiliado, LoadingState } from '@/types'
@@ -28,6 +28,13 @@ export function ValidacionDerechosPage() {
     // Estados para búsqueda por nombre
     const [suggestions, setSuggestions] = useState<Afiliado[]>([])
     const [showSuggestions, setShowSuggestions] = useState(false)
+
+    // Modo de búsqueda derivado del contenido del input
+    const searchMode = !documento.trim()
+        ? 'idle'
+        : /^\d+$/.test(documento.trim())
+            ? 'documento'
+            : 'nombre'
 
     // Efecto para búsqueda predictiva (Búsqueda por nombre)
     useEffect(() => {
@@ -61,7 +68,7 @@ export function ValidacionDerechosPage() {
             } catch (err) {
                 console.error(err)
             }
-        }, 500) // 500ms debounce
+        }, 700) // 700ms debounce para búsqueda por nombre
 
         return () => clearTimeout(timer)
     }, [documento, afiliado])
@@ -367,17 +374,37 @@ export function ValidacionDerechosPage() {
                 <div className="flex flex-col sm:flex-row gap-4">
                     <div className="flex-1 relative" onClick={(e) => e.stopPropagation()}>
                         <Input
-                            placeholder="Ingresa número de documento o también nombres y apellidos"
+                            placeholder={
+                                searchMode === 'documento'
+                                    ? 'Buscando por documento...'
+                                    : searchMode === 'nombre'
+                                        ? 'Buscando por nombre...'
+                                        : 'Ingresa documento o nombres y apellidos'
+                            }
                             value={documento}
                             onChange={(e) => {
-                                // Permitir cualquier caracter para búsqueda por nombre
                                 setDocumento(e.target.value)
                                 setError('')
                             }}
                             onKeyDown={handleKeyDown}
-                            leftIcon={<Search size={20} />}
+                            leftIcon={
+                                searchMode === 'documento'
+                                    ? <Hash size={20} className="text-blue-500 transition-colors duration-200" />
+                                    : searchMode === 'nombre'
+                                        ? <User size={20} className="text-emerald-500 transition-colors duration-200" />
+                                        : <Search size={20} />
+                            }
                             size="lg"
                             className={suggestions.length > 0 && showSuggestions ? 'rounded-b-none' : ''}
+                            helperText={
+                                showSuggestions && suggestions.length > 0
+                                    ? undefined
+                                    : searchMode === 'documento'
+                                        ? 'Consulta exacta por identificacion'
+                                        : searchMode === 'nombre'
+                                            ? 'Busqueda predictiva por nombres y apellidos'
+                                            : undefined
+                            }
                         />
 
                         {/* Dropdown de Sugerencias */}
