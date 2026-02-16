@@ -19,6 +19,7 @@ import {
     Circle,
     Contact,
     Users,
+    Route,
     ChevronsLeft,
     ChevronsRight,
     type LucideIcon
@@ -59,6 +60,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
     FileSearch,
     RefreshCw,
     Car,
+    Route,
     BarChart3,
     Contact,
     Users,
