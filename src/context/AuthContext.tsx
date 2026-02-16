@@ -338,6 +338,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } catch {
             // Ignorar errores de signOut - el estado local ya está limpio
         }
+        // Forzar navegación completa (no SPA) para que el navegador descargue
+        // el index.html más reciente desde el servidor, con los chunks actualizados.
+        // Esto resuelve el problema de caché en móvil tras nuevos deployments.
+        window.location.href = '/login'
     }, [clearProfileCache])
 
     const updateUser = useCallback((updates: Partial<AuthUser>) => {
