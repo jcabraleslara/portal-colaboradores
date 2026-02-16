@@ -80,55 +80,15 @@ export const contactosService = {
         limit = 30
     ): Promise<ApiResponse<{ contactos: Contacto[]; total: number }>> {
         try {
-            let query = supabase
-                .from('contactos')
-                .select('*', { count: 'exact' })
-
-            // Filtro por empresa
-            if (filtros.empresa) {
-                query = query.eq('empresa', filtros.empresa)
-            }
-
-            // Filtro por área
-            if (filtros.area) {
-                query = query.eq('area', filtros.area)
-            }
-
-            // Filtro por ciudad
-            if (filtros.ciudad) {
-                query = query.eq('ciudad', filtros.ciudad)
-            }
-
-            // Búsqueda general optimizada (múltiples términos)
-            if (filtros.busqueda && filtros.busqueda.trim()) {
-                const terminos = filtros.busqueda.trim().toLowerCase().split(/\s+/)
-
-                // Para cada palabra, agregamos una condición OR que debe cumplirse (AND implícito entre grupos OR)
-                terminos.forEach(termino => {
-                    if (termino.length > 0) {
-                        query = query.or(
-                            `primer_nombre.ilike.%${termino}%,` +
-                            `segundo_nombre.ilike.%${termino}%,` +
-                            `apellidos.ilike.%${termino}%,` +
-                            `identificacion.ilike.%${termino}%,` +
-                            `puesto.ilike.%${termino}%,` +
-                            `area.ilike.%${termino}%,` +
-                            `empresa.ilike.%${termino}%,` +
-                            `ciudad.ilike.%${termino}%,` +
-                            `email_personal.ilike.%${termino}%,` +
-                            `email_institucional.ilike.%${termino}%`
-                        )
-                    }
-                })
-            }
-
-            // Ordenar por apellidos, luego nombre
-            query = query
-                .order('apellidos', { ascending: true })
-                .order('primer_nombre', { ascending: true })
-                .range(offset, offset + limit - 1)
-
-            const { data, error, count } = await query
+            // RPC con unaccent() para búsqueda sin discriminar tildes
+            const { data, error } = await supabase.rpc('buscar_contactos', {
+                p_busqueda: filtros.busqueda || null,
+                p_empresa: filtros.empresa || null,
+                p_area: filtros.area || null,
+                p_ciudad: filtros.ciudad || null,
+                p_limit: limit,
+                p_offset: offset,
+            })
 
             if (error) {
                 console.error('Error obteniendo contactos:', error)
@@ -138,11 +98,13 @@ export const contactosService = {
                 }
             }
 
+            const resultado = data as { contactos: Contacto[]; total: number }
+
             return {
                 success: true,
                 data: {
-                    contactos: (data || []) as Contacto[],
-                    total: count || 0,
+                    contactos: resultado?.contactos || [],
+                    total: resultado?.total || 0,
                 },
             }
         } catch (error) {
