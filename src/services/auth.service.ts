@@ -186,6 +186,11 @@ export const authService = {
                 return { success: false, error: validation.error }
             }
 
+            // Validar que la nueva contraseña sea diferente a la actual
+            if (data.newPassword === data.currentPassword) {
+                return { success: false, error: 'La nueva contraseña debe ser diferente a la actual' }
+            }
+
             // Cambiar contraseña via Supabase Auth
             const { error } = await supabase.auth.updateUser({
                 password: data.newPassword,
@@ -193,6 +198,12 @@ export const authService = {
 
             if (error) {
                 console.error('Error cambiando contraseña:', error)
+
+                // Traducir errores comunes de Supabase
+                if (error.message.includes('should be different from the old password')) {
+                    return { success: false, error: 'La nueva contraseña debe ser diferente a la actual' }
+                }
+
                 return { success: false, error: error.message }
             }
 
