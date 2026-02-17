@@ -319,13 +319,13 @@ export async function exportarInformeCups(filters?: OdFilters): Promise<void> {
 
 /**
  * Exporta informe completo en Excel
- * Por defecto, filtra solo pacientes con IPS primaria 'GESTAR SALUD DE COLOMBIA CERETE%'
+ * Respeta los filtros aplicados en la tabla sin filtros adicionales
  */
 export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
     // Obtener mapa de colaboradores
     const colaboradoresMap = await saludOralService.getColaboradores()
 
-    // Obtener todos los registros
+    // Obtener todos los registros con los filtros aplicados
     const { data: registros } = await saludOralService.getAll({
         ...filters,
         page: 1,
@@ -336,19 +336,8 @@ export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
         throw new Error('No hay datos para exportar')
     }
 
-    // Filtrar solo registros de pacientes con IPS primaria 'GESTAR SALUD DE COLOMBIA CERETE%'
-    const pacientesIds = [...new Set(registros.map(r => r.pacienteId))]
-    const documentosValidos = await obtenerAfiliadosCeretePorBatch(pacientesIds)
-
-    // Filtrar registros solo de pacientes con IPS primaria válida
-    const registrosFiltrados = registros.filter(r => documentosValidos.has(r.pacienteId))
-
-    if (registrosFiltrados.length === 0) {
-        throw new Error('No hay registros de pacientes con IPS primaria GESTAR SALUD DE COLOMBIA CERETE')
-    }
-
     // Formatear datos completos
-    const exportData = registrosFiltrados.map((reg) => ({
+    const exportData = registros.map((reg) => ({
         'ID': reg.id,
         'Fecha Registro': reg.fechaRegistro,
         'Identificación Paciente': reg.pacienteId,
@@ -416,7 +405,7 @@ export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
 
     // También agregar hoja de CUPS
     const cupsRows: CupsExportRow[] = []
-    for (const registro of registrosFiltrados) {
+    for (const registro of registros) {
         cupsRows.push(...generarFilasCups(registro, colaboradoresMap))
     }
 
