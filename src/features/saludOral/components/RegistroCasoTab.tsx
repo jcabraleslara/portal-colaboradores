@@ -302,6 +302,7 @@ export function RegistroCasoTab({ onSuccess, initialData, onCancel }: RegistroCa
                             pymSellantesCantidad: formData.pymSellantesCantidad,
                             pymFluorBarniz: formData.pymFluorBarniz,
                             pymDetartraje: formData.pymDetartraje,
+                            pymDetartrajeCantidad: formData.pymDetartrajeCantidad,
                             pymProfilaxis: formData.pymProfilaxis,
                             pymEducacion: formData.pymEducacion,
                         }}

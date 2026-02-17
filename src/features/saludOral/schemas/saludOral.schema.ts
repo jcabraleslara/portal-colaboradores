@@ -71,6 +71,7 @@ export const odRegistroSchema = z.object({
     pymSellantesCantidad: z.number().min(2).max(4).default(2),
     pymFluorBarniz: z.boolean().default(false),
     pymDetartraje: z.boolean().default(false),
+    pymDetartrajeCantidad: z.number().min(1).max(4).default(1),
     pymProfilaxis: z.boolean().default(false),
     pymEducacion: z.boolean().default(false),
 
@@ -214,6 +215,7 @@ export function getDefaultOdRegistro(colaboradorEmail: string, sede: string = 'M
         pymSellantesCantidad: 2,
         pymFluorBarniz: false,
         pymDetartraje: false,
+        pymDetartrajeCantidad: 1,
         pymProfilaxis: false,
         pymEducacion: false,
 

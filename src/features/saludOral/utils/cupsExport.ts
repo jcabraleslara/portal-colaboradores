@@ -162,7 +162,10 @@ function generarFilasCups(registro: OdRegistro, colaboradoresMap?: Record<string
     }
     if (registro.pymDetartraje) {
         const map = CUPS_MAP.pym_detartraje
-        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad: 1 })
+        const cantidad = (registro.pymDetartrajeCantidad && registro.pymDetartrajeCantidad > 0)
+            ? registro.pymDetartrajeCantidad
+            : 1
+        rows.push({ ...baseRow, cups: map.cups, descripcion: map.descripcion, cantidad })
     }
     if (registro.pymProfilaxis) {
         const map = CUPS_MAP.pym_profilaxis
@@ -369,6 +372,7 @@ export async function exportarInformeExcel(filters?: OdFilters): Promise<void> {
         'Sellantes Cantidad': reg.pymSellantes ? reg.pymSellantesCantidad : 0,
         'Flúor Barniz': reg.pymFluorBarniz ? 'Sí' : 'No',
         'Detartraje': reg.pymDetartraje ? 'Sí' : 'No',
+        'Detartraje Cantidad': reg.pymDetartraje ? reg.pymDetartrajeCantidad : 0,
         'Profilaxis': reg.pymProfilaxis ? 'Sí' : 'No',
         'Educación': reg.pymEducacion ? 'Sí' : 'No',
 

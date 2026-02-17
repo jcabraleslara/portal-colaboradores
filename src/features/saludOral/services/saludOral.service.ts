@@ -54,6 +54,7 @@ function transformFromDB(data: any): OdRegistro {
         pymSellantesCantidad: data.pym_sellantes_cantidad || 2,
         pymFluorBarniz: data.pym_fluor_barniz,
         pymDetartraje: data.pym_detartraje,
+        pymDetartrajeCantidad: data.pym_detartraje_cantidad || 1,
         pymProfilaxis: data.pym_profilaxis,
         pymEducacion: data.pym_educacion,
 
@@ -126,6 +127,7 @@ function transformToDB(data: OdRegistroCreate | OdRegistroUpdate): any {
     if (data.pymSellantesCantidad !== undefined) dbData.pym_sellantes_cantidad = data.pymSellantesCantidad
     if (data.pymFluorBarniz !== undefined) dbData.pym_fluor_barniz = data.pymFluorBarniz
     if (data.pymDetartraje !== undefined) dbData.pym_detartraje = data.pymDetartraje
+    if (data.pymDetartrajeCantidad !== undefined) dbData.pym_detartraje_cantidad = data.pymDetartrajeCantidad
     if (data.pymProfilaxis !== undefined) dbData.pym_profilaxis = data.pymProfilaxis
     if (data.pymEducacion !== undefined) dbData.pym_educacion = data.pymEducacion
 

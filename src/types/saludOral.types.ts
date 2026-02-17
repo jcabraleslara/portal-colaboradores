@@ -63,6 +63,7 @@ export interface OdRegistro {
     pymSellantesCantidad: number
     pymFluorBarniz: boolean
     pymDetartraje: boolean
+    pymDetartrajeCantidad: number
     pymProfilaxis: boolean
     pymEducacion: boolean
 

@@ -313,7 +313,7 @@ export function OdDetallePanel({
                                 {registro.pymControlPlaca && <Badge color="green">Control Placa</Badge>}
                                 {registro.pymSellantes && <Badge color="green">Sellantes</Badge>}
                                 {registro.pymFluorBarniz && <Badge color="green">Flúor Barniz</Badge>}
-                                {registro.pymDetartraje && <Badge color="green">Detartraje</Badge>}
+                                {registro.pymDetartraje && <Badge color="green">Detartraje ({registro.pymDetartrajeCantidad || 1})</Badge>}
                                 {registro.pymProfilaxis && <Badge color="green">Profilaxis</Badge>}
                                 {registro.pymEducacion && <Badge color="green">Educación</Badge>}
                             </div>

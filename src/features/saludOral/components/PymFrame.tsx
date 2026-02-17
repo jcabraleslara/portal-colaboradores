@@ -13,6 +13,7 @@ interface PymValues {
     pymSellantesCantidad: number
     pymFluorBarniz: boolean
     pymDetartraje: boolean
+    pymDetartrajeCantidad: number
     pymProfilaxis: boolean
     pymEducacion: boolean
 }
@@ -64,6 +65,11 @@ export function PymFrame({
         // Si se desmarca Sellantes, resetear contador
         if (key === 'pymSellantes' && value === false) {
             onChange('pymSellantesCantidad', 2)
+        }
+
+        // Si se desmarca Detartraje, resetear contador
+        if (key === 'pymDetartraje' && value === false) {
+            onChange('pymDetartrajeCantidad', 1)
         }
 
         onChange(key, value)
@@ -138,15 +144,27 @@ export function PymFrame({
                     />
                 )}
 
-                {/* Detartraje - Solo edad >= 12 años */}
+                {/* Detartraje con contador - Solo edad >= 12 años */}
                 {mostrarDetartraje && (
-                    <ToggleBadge
-                        label="Detartraje"
-                        active={values.pymDetartraje}
-                        onChange={(active) => handleChange('pymDetartraje', active)}
-                        disabled={disabled}
-                        size="md"
-                    />
+                    <div className="flex items-center gap-1">
+                        <ToggleBadge
+                            label="Detartraje"
+                            active={values.pymDetartraje}
+                            onChange={(active) => handleChange('pymDetartraje', active)}
+                            disabled={disabled}
+                            size="md"
+                        />
+                        {values.pymDetartraje && (
+                            <NumberSelector
+                                value={values.pymDetartrajeCantidad}
+                                onChange={(v) => handleChange('pymDetartrajeCantidad', v)}
+                                min={1}
+                                max={4}
+                                disabled={disabled}
+                                size="sm"
+                            />
+                        )}
+                    </div>
                 )}
 
                 {/* Profilaxis - No aplica para edad < 1 año */}
