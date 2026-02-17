@@ -141,6 +141,8 @@ export const emailService = {
             pacienteIdentificacion: string
             archivos: { categoria: string; urls: string[] }[]
             onedriveFolderUrl?: string
+            fechaRadicacion?: string
+            radicadorEmail?: string
         }
     ): Promise<boolean> {
         try {

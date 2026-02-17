@@ -541,7 +541,9 @@ export const soportesFacturacionService = {
                     pacienteNombre: soporteCreado.nombresCompletos || 'No especificado',
                     pacienteIdentificacion: soporteCreado.identificacion || 'No especificado',
                     archivos,
-                    onedriveFolderUrl
+                    onedriveFolderUrl,
+                    fechaRadicacion: soporteCreado.fechaRadicacion.toISOString(),
+                    radicadorEmail: soporteCreado.radicadorEmail
                 }
 
                 const emailEnviado = await emailService.enviarNotificacionRadicacionExitosa(

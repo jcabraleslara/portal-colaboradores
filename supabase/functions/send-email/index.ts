@@ -26,6 +26,8 @@ interface BaseDatosRadicacion {
 
 interface DatosRadicacionExitosa extends BaseDatosRadicacion {
     onedriveFolderUrl?: string
+    fechaRadicacion?: string
+    radicadorEmail?: string
 }
 
 interface DatosRechazo extends BaseDatosRadicacion {
@@ -116,16 +118,40 @@ function formatDateTime(dateStr: string): string {
     })
 }
 
+/**
+ * Extraer nombre del archivo desde una URL firmada de Supabase Storage
+ * URL típica: https://xxx.supabase.co/storage/v1/object/sign/bucket/FACT1234/archivo.pdf?token=...
+ */
+function extractFilenameFromUrl(url: string): string {
+    try {
+        const urlObj = new URL(url)
+        const pathName = decodeURIComponent(urlObj.pathname)
+        const fileName = pathName.split('/').pop() || ''
+        return fileName || 'Archivo'
+    } catch {
+        return 'Archivo'
+    }
+}
+
 function generarTemplateConfirmacion(radicado: string, datos: DatosRadicacionExitosa): string {
     const archivosHtml = datos.archivos
         .filter(grupo => grupo.urls.length > 0)
         .map(grupo => {
             const listaArchivos = grupo.urls
-                .map((url, idx) => `<li><a href="${url}" target="_blank" style="color: ${COLORS.success}; text-decoration: none;">Archivo ${idx + 1}</a></li>`)
+                .map(url => {
+                    const nombre = extractFilenameFromUrl(url)
+                    return `<li style="margin: 3px 0;"><a href="${url}" target="_blank" style="color: ${COLORS.primary}; text-decoration: none; font-size: 14px;">${nombre}</a></li>`
+                })
                 .join('')
             return `
-                <h4 style="color: ${COLORS.success}; margin-top: 15px; margin-bottom: 5px;">${grupo.categoria}</h4>
-                <ul style="margin: 0; padding-left: 20px;">${listaArchivos}</ul>
+                <tr>
+                    <td style="padding: 12px 15px; vertical-align: top; border-bottom: 1px solid #E2E8F0; width: 180px;">
+                        <strong style="color: ${COLORS.text}; font-size: 14px;">${grupo.categoria}</strong>
+                    </td>
+                    <td style="padding: 12px 15px; vertical-align: top; border-bottom: 1px solid #E2E8F0;">
+                        <ul style="margin: 0; padding-left: 0; list-style: none;">${listaArchivos}</ul>
+                    </td>
+                </tr>
             `
         })
         .join('')
@@ -139,8 +165,24 @@ function generarTemplateConfirmacion(radicado: string, datos: DatosRadicacionExi
         </div>`
         : ''
 
+    const fechaRadicacionHtml = datos.fechaRadicacion
+        ? `<tr>
+            <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Fecha Radicacion</td>
+            <td style="padding: 10px 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${formatDateTime(datos.fechaRadicacion)}</td>
+        </tr>`
+        : ''
+
+    const correoFacturadorHtml = datos.radicadorEmail
+        ? `<tr>
+            <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Correo Facturador</td>
+            <td style="padding: 10px 15px; font-size: 14px; border-bottom: 1px solid #E2E8F0;">
+                <a href="mailto:${datos.radicadorEmail}" style="color: ${COLORS.primary}; text-decoration: none;">${datos.radicadorEmail}</a>
+            </td>
+        </tr>`
+        : ''
+
     return `
-        <div style="font-family: ${EMAIL_FONTS.primary}; color: ${COLORS.text}; max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+        <div style="font-family: ${EMAIL_FONTS.primary}; color: ${COLORS.text}; max-width: 650px; margin: 0 auto; background-color: #ffffff;">
             <!-- Header con Logo -->
             <div style="background: linear-gradient(135deg, ${COLORS.success} 0%, ${COLORS.successDark} 100%); padding: 24px 30px; text-align: center;">
                 <img src="cid:logo-gestar" alt="Gestar Salud IPS" style="height: 50px; margin-bottom: 12px;" />
@@ -157,20 +199,52 @@ function generarTemplateConfirmacion(radicado: string, datos: DatosRadicacionExi
                     <h2 style="color: ${COLORS.success}; margin: 0; font-size: 28px;">${radicado}</h2>
                     <p style="color: ${COLORS.successDark}; margin: 5px 0 0 0; font-size: 14px;">Numero de Radicado</p>
                 </div>
-                <h3 style="color: ${COLORS.success}; border-bottom: 2px solid ${COLORS.successLight}; padding-bottom: 8px;">&#128203; Informacion del Paciente</h3>
-                <ul style="line-height: 1.8;">
-                    <li><strong>Nombre:</strong> ${datos.pacienteNombre}</li>
-                    <li><strong>Identificacion:</strong> ${datos.pacienteIdentificacion}</li>
-                </ul>
-                <h3 style="color: ${COLORS.success}; border-bottom: 2px solid ${COLORS.successLight}; padding-bottom: 8px;">&#127973; Informacion del Servicio</h3>
-                <ul style="line-height: 1.8;">
-                    <li><strong>EPS:</strong> ${datos.eps}</li>
-                    <li><strong>Regimen:</strong> ${datos.regimen}</li>
-                    <li><strong>Servicio Prestado:</strong> ${datos.servicioPrestado}</li>
-                    <li><strong>Fecha de Atencion:</strong> ${formatDate(datos.fechaAtencion)}</li>
-                </ul>
+
+                <!-- Datos de la Radicacion -->
+                <h3 style="color: ${COLORS.success}; border-bottom: 2px solid ${COLORS.successLight}; padding-bottom: 8px;">&#128203; Datos de la Radicacion</h3>
+                <table style="width: 100%; border-collapse: collapse; margin: 12px 0;">
+                    ${fechaRadicacionHtml}
+                    ${correoFacturadorHtml}
+                    <tr>
+                        <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Regimen</td>
+                        <td style="padding: 10px 15px; border-bottom: 1px solid #E2E8F0;">
+                            <span style="display: inline-block; background-color: #1E293B; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-size: 13px; font-weight: 600;">${datos.regimen}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">EPS</td>
+                        <td style="padding: 10px 15px; border-bottom: 1px solid #E2E8F0;">
+                            <span style="display: inline-block; background-color: ${COLORS.primary}; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-size: 13px; font-weight: 600;">${datos.eps}</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Servicio Prestado</td>
+                        <td style="padding: 10px 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.servicioPrestado}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Fecha de Atencion</td>
+                        <td style="padding: 10px 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${formatDate(datos.fechaAtencion)}</td>
+                    </tr>
+                </table>
+
+                <!-- Informacion del Paciente -->
+                <h3 style="color: ${COLORS.success}; border-bottom: 2px solid ${COLORS.successLight}; padding-bottom: 8px;">&#128100; Informacion del Paciente</h3>
+                <table style="width: 100%; border-collapse: collapse; margin: 12px 0;">
+                    <tr>
+                        <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Nombre</td>
+                        <td style="padding: 10px 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.pacienteNombre}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Identificacion</td>
+                        <td style="padding: 10px 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.pacienteIdentificacion}</td>
+                    </tr>
+                </table>
+
+                <!-- Archivos por Categoria -->
                 <h3 style="color: ${COLORS.success}; border-bottom: 2px solid ${COLORS.successLight}; padding-bottom: 8px;">&#128206; Archivos Adjuntos</h3>
-                ${archivosHtml}
+                <table style="width: 100%; border-collapse: collapse; margin: 12px 0;">
+                    ${archivosHtml}
+                </table>
                 ${oneDriveSection}
                 <div style="background-color: ${COLORS.warningLight}; border-left: 4px solid ${COLORS.warning}; padding: 15px; margin: 20px 0;">
                     <strong>&#9203; Proximos Pasos:</strong>
