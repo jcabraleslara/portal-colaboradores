@@ -43,15 +43,34 @@ function transformDemandaFromDB(data: any): DemandaInducida {
 }
 
 /**
- * Busca pacientes en la base de datos por identificación o nombre
+ * Busca pacientes en la base de datos por identificación o nombre.
+ * Primero intenta match exacto por ID (índice B-tree, instantáneo),
+ * luego busca por texto (índice GIN trigram en busqueda_texto).
+ * Se evita el OR entre ambos campos porque fuerza Seq Scan en ~2M filas.
  */
 async function buscarPacientes(
     criterio: string
 ): Promise<any[]> {
+    // 1. Match exacto por ID (usa índice B-tree, costo ~3)
+    const { data: exactMatch, error: exactError } = await supabase
+        .from('afiliados')
+        .select('*')
+        .eq('id', criterio.trim())
+        .limit(1)
+
+    if (exactError) {
+        throw new Error(`Error buscando pacientes: ${exactError.message}`)
+    }
+
+    if (exactMatch && exactMatch.length > 0) {
+        return exactMatch
+    }
+
+    // 2. Búsqueda por texto (usa índice GIN trigram, costo ~750)
     const { data, error } = await supabase
         .from('afiliados')
         .select('*')
-        .or(`id.ilike.%${criterio}%,busqueda_texto.ilike.%${criterio}%`)
+        .ilike('busqueda_texto', `%${criterio.trim()}%`)
         .limit(10)
 
     if (error) {
