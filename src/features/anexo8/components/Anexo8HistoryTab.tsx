@@ -4,13 +4,15 @@ import {
     Loader2,
     Calendar,
     Download,
-    Trash2
+    Trash2,
+    FileSpreadsheet
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
-import { Card, Button, Input } from '@/components/common'
+import { Card, Button, Input, Autocomplete } from '@/components/common'
 import { anexo8Service } from '@/services/anexo8.service'
-import { Anexo8Record, Anexo8Filtros } from '@/types/anexo8.types'
+import { Anexo8Record, Anexo8Filtros, MEDICAMENTOS_CONTROLADOS } from '@/types/anexo8.types'
 import { generarAnexo8Pdf, descargarPdf } from '../pdfGenerator'
 import { Anexo8DetallePanel } from './Anexo8DetallePanel'
 
@@ -30,6 +32,9 @@ export function Anexo8HistoryTab() {
     // Filtros
     const [filtros, setFiltros] = useState<Anexo8Filtros>({})
     const [busquedaInput, setBusquedaInput] = useState('')
+    const [medicamentoFiltro, setMedicamentoFiltro] = useState('')
+    const [medicoFiltro, setMedicoFiltro] = useState('')
+    const [exportando, setExportando] = useState(false)
 
     // Paginación
     const [paginaActual, setPaginaActual] = useState(0)
@@ -44,10 +49,16 @@ export function Anexo8HistoryTab() {
         try {
             const offset = paginaActual * ITEMS_POR_PAGINA
 
-            // Si hay búsqueda por documento, añadir al filtro
-            const filtrosActuales = { ...filtros }
+            // Construir filtros incluyendo inputs de búsqueda
+            const filtrosActuales: Anexo8Filtros = { ...filtros }
             if (busquedaInput) {
                 filtrosActuales.pacienteDocumento = busquedaInput
+            }
+            if (medicamentoFiltro) {
+                filtrosActuales.medicamento = medicamentoFiltro
+            }
+            if (medicoFiltro) {
+                filtrosActuales.medicoNombres = medicoFiltro
             }
 
             const result = await anexo8Service.obtenerHistorialPaginado(
@@ -70,7 +81,7 @@ export function Anexo8HistoryTab() {
         } finally {
             setCargando(false)
         }
-    }, [filtros, paginaActual, busquedaInput]) // busquedaInput se incluye aquí para búsquedas instantáneas o al presionar enter
+    }, [filtros, paginaActual, busquedaInput, medicamentoFiltro, medicoFiltro])
 
     // Cargar al montar y cuando cambien dependencias
     useEffect(() => {
@@ -92,6 +103,8 @@ export function Anexo8HistoryTab() {
 
     const handleLimpiarBusqueda = () => {
         setBusquedaInput('')
+        setMedicamentoFiltro('')
+        setMedicoFiltro('')
         setFiltros({})
         setPaginaActual(0)
     }
@@ -155,6 +168,69 @@ export function Anexo8HistoryTab() {
         }
     }
 
+    const handleExportarExcel = async () => {
+        try {
+            setExportando(true)
+
+            const filtrosActuales: Anexo8Filtros = { ...filtros }
+            if (busquedaInput) filtrosActuales.pacienteDocumento = busquedaInput
+            if (medicamentoFiltro) filtrosActuales.medicamento = medicamentoFiltro
+            if (medicoFiltro) filtrosActuales.medicoNombres = medicoFiltro
+
+            const result = await anexo8Service.obtenerTodosParaExportar(filtrosActuales)
+
+            if (!result.success || !result.data || result.data.length === 0) {
+                toast.error('No hay datos para exportar')
+                return
+            }
+
+            const exportData = result.data.map(r => ({
+                'Nro. Recetario': r.numero_recetario,
+                'Fecha Prescripción': r.fecha_prescripcion,
+                'Fecha Generación': r.fecha_generacion,
+                'Paciente Tipo ID': r.paciente_tipo_id,
+                'Paciente Documento': r.paciente_documento,
+                'Paciente Nombres': r.paciente_nombres,
+                'Paciente Apellido 1': r.paciente_apellido1,
+                'Paciente Apellido 2': r.paciente_apellido2 || '',
+                'Paciente Edad': r.paciente_edad ?? '',
+                'Paciente Género': r.paciente_genero || '',
+                'Paciente Teléfono': r.paciente_telefono || '',
+                'Paciente Dirección': r.paciente_direccion || '',
+                'Paciente Municipio': r.paciente_municipio || '',
+                'Paciente Departamento': r.paciente_departamento || '',
+                'Paciente Régimen': r.paciente_regimen || '',
+                'Paciente EPS': r.paciente_eps || '',
+                'Medicamento': r.medicamento_nombre,
+                'Concentración': r.medicamento_concentracion || '',
+                'Forma Farmacéutica': r.medicamento_forma_farmaceutica,
+                'Dosis/Vía': r.medicamento_dosis_via || '',
+                'Cantidad': r.cantidad_numero,
+                'Cantidad en Letras': r.cantidad_letras,
+                'Diagnóstico CIE-10': r.diagnostico_cie10 || '',
+                'Diagnóstico Descripción': r.diagnostico_descripcion || '',
+                'Médico Nombre': r.medico_nombres,
+                'Médico Especialidad': r.medico_especialidad || '',
+                'Médico Documento': r.medico_documento,
+                'Médico Ciudad': r.medico_ciudad || '',
+                'Generado Por': r.generado_por,
+                'Fecha Creación': new Date(r.created_at).toLocaleString('es-CO'),
+            }))
+
+            const ws = XLSX.utils.json_to_sheet(exportData)
+            const wb = XLSX.utils.book_new()
+            XLSX.utils.book_append_sheet(wb, ws, 'Anexo 8')
+            XLSX.writeFile(wb, `Anexo8_Informe_${new Date().toISOString().split('T')[0]}.xlsx`)
+
+            toast.success(`${result.data.length} registros exportados correctamente`)
+        } catch (err) {
+            console.error(err)
+            toast.error('Error al exportar los datos')
+        } finally {
+            setExportando(false)
+        }
+    }
+
     // ============================================
     // RENDER
     // ============================================
@@ -171,52 +247,96 @@ export function Anexo8HistoryTab() {
             {/* Filtros */}
             <Card>
                 <div className="p-4 space-y-4">
-                    <form onSubmit={handleBuscar} className="flex flex-col md:flex-row gap-4">
-                        <div className="flex-1 relative">
-                            <Input
-                                placeholder="Buscar por documento del paciente..."
-                                value={busquedaInput}
-                                onChange={(e) => setBusquedaInput(e.target.value)}
-                                className="pl-10"
-                            />
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <form onSubmit={handleBuscar} className="space-y-3">
+                        {/* Fila 1: Documento + Fechas */}
+                        <div className="flex flex-col md:flex-row gap-4">
+                            <div className="flex-1 relative">
+                                <Input
+                                    placeholder="Buscar por documento del paciente..."
+                                    value={busquedaInput}
+                                    onChange={(e) => setBusquedaInput(e.target.value)}
+                                    className="pl-10"
+                                />
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            </div>
+
+                            <div className="w-full md:w-48">
+                                <Input
+                                    type="date"
+                                    className="w-full text-sm"
+                                    placeholder="Fecha Desde"
+                                    value={filtros.fechaDesde || ''}
+                                    onChange={(e) => {
+                                        setFiltros(prev => ({ ...prev, fechaDesde: e.target.value || undefined }))
+                                        setPaginaActual(0)
+                                    }}
+                                />
+                            </div>
+
+                            <div className="w-full md:w-48">
+                                <Input
+                                    type="date"
+                                    className="w-full text-sm"
+                                    placeholder="Fecha Hasta"
+                                    value={filtros.fechaHasta || ''}
+                                    onChange={(e) => {
+                                        setFiltros(prev => ({ ...prev, fechaHasta: e.target.value || undefined }))
+                                        setPaginaActual(0)
+                                    }}
+                                />
+                            </div>
                         </div>
 
-                        <div className="w-full md:w-48">
-                            <Input
-                                type="date"
-                                className="w-full text-sm"
-                                placeholder="Fecha Desde"
-                                value={filtros.fechaDesde || ''}
-                                onChange={(e) => {
-                                    setFiltros(prev => ({ ...prev, fechaDesde: e.target.value || undefined }))
-                                    setPaginaActual(0)
-                                }}
-                            />
+                        {/* Fila 2: Medicamento + Médico + Acciones */}
+                        <div className="flex flex-col md:flex-row gap-4 items-end">
+                            <div className="flex-1">
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Medicamento</label>
+                                <Autocomplete
+                                    value={medicamentoFiltro}
+                                    onChange={(val) => {
+                                        setMedicamentoFiltro(val)
+                                        setPaginaActual(0)
+                                    }}
+                                    options={MEDICAMENTOS_CONTROLADOS}
+                                    placeholder="Filtrar por medicamento..."
+                                    allowFreeText
+                                />
+                            </div>
+
+                            <div className="flex-1 relative">
+                                <label className="block text-xs font-medium text-gray-500 mb-1">Médico</label>
+                                <Input
+                                    placeholder="Filtrar por nombre del médico..."
+                                    value={medicoFiltro}
+                                    onChange={(e) => {
+                                        setMedicoFiltro(e.target.value)
+                                        setPaginaActual(0)
+                                    }}
+                                />
+                            </div>
+
+                            <div className="flex gap-2 shrink-0">
+                                <Button type="submit" leftIcon={<Search size={18} />}>
+                                    Buscar
+                                </Button>
+
+                                {(busquedaInput || filtros.fechaDesde || filtros.fechaHasta || medicamentoFiltro || medicoFiltro) && (
+                                    <Button variant="ghost" onClick={handleLimpiarBusqueda} type="button">
+                                        Limpiar
+                                    </Button>
+                                )}
+
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    leftIcon={exportando ? <Loader2 className="animate-spin" size={18} /> : <FileSpreadsheet size={18} />}
+                                    onClick={handleExportarExcel}
+                                    disabled={total === 0 || exportando}
+                                >
+                                    {exportando ? 'Exportando...' : 'Exportar Excel'}
+                                </Button>
+                            </div>
                         </div>
-
-                        <div className="w-full md:w-48">
-                            <Input
-                                type="date"
-                                className="w-full text-sm"
-                                placeholder="Fecha Hasta"
-                                value={filtros.fechaHasta || ''}
-                                onChange={(e) => {
-                                    setFiltros(prev => ({ ...prev, fechaHasta: e.target.value || undefined }))
-                                    setPaginaActual(0)
-                                }}
-                            />
-                        </div>
-
-                        <Button type="submit" leftIcon={<Search size={18} />}>
-                            Buscar
-                        </Button>
-
-                        {(busquedaInput || filtros.fechaDesde || filtros.fechaHasta) && (
-                            <Button variant="ghost" onClick={handleLimpiarBusqueda} type="button">
-                                Limpiar
-                            </Button>
-                        )}
                     </form>
                 </div>
             </Card>

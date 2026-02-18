@@ -154,8 +154,12 @@ export const anexo8Service = {
                 query = query.eq('medico_id', filtros.medicoId)
             }
 
+            if (filtros?.medicoNombres) {
+                query = query.ilike('medico_nombres', `%${filtros.medicoNombres}%`)
+            }
+
             if (filtros?.medicamento) {
-                query = query.eq('medicamento_nombre', filtros.medicamento)
+                query = query.ilike('medicamento_nombre', `%${filtros.medicamento}%`)
             }
 
             if (filtros?.fechaDesde) {
@@ -253,8 +257,12 @@ export const anexo8Service = {
                 query = query.eq('medico_id', filtros.medicoId)
             }
 
+            if (filtros?.medicoNombres) {
+                query = query.ilike('medico_nombres', `%${filtros.medicoNombres}%`)
+            }
+
             if (filtros?.medicamento) {
-                query = query.eq('medicamento_nombre', filtros.medicamento)
+                query = query.ilike('medicamento_nombre', `%${filtros.medicamento}%`)
             }
 
             if (filtros?.fechaDesde) {
@@ -279,6 +287,55 @@ export const anexo8Service = {
                     total: count || 0
                 }
             }
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Error desconocido'
+            return { success: false, error: message }
+        }
+    },
+
+    /**
+     * Obtener todos los registros filtrados para exportación (sin paginación)
+     */
+    async obtenerTodosParaExportar(filtros?: Anexo8Filtros): Promise<ApiResponse<Anexo8Record[]>> {
+        try {
+            let query = supabase
+                .from('anexo_8')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(10000)
+
+            if (filtros?.pacienteDocumento) {
+                query = query.ilike('paciente_documento', `%${filtros.pacienteDocumento}%`)
+            }
+
+            if (filtros?.medicoId) {
+                query = query.eq('medico_id', filtros.medicoId)
+            }
+
+            if (filtros?.medicoNombres) {
+                query = query.ilike('medico_nombres', `%${filtros.medicoNombres}%`)
+            }
+
+            if (filtros?.medicamento) {
+                query = query.ilike('medicamento_nombre', `%${filtros.medicamento}%`)
+            }
+
+            if (filtros?.fechaDesde) {
+                query = query.gte('fecha_prescripcion', filtros.fechaDesde)
+            }
+
+            if (filtros?.fechaHasta) {
+                query = query.lte('fecha_prescripcion', filtros.fechaHasta)
+            }
+
+            const { data, error } = await query
+
+            if (error) {
+                console.error('Error obteniendo registros para exportar:', error)
+                return { success: false, error: error.message }
+            }
+
+            return { success: true, data: (data as Anexo8Record[]) || [] }
         } catch (err: unknown) {
             const message = err instanceof Error ? err.message : 'Error desconocido'
             return { success: false, error: message }

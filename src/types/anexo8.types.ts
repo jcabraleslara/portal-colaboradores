@@ -276,7 +276,8 @@ export interface Anexo8OcrResult {
 export interface Anexo8Filtros {
     pacienteDocumento?: string
     medicoId?: string
+    medicoNombres?: string
     fechaDesde?: string
     fechaHasta?: string
-    medicamento?: MedicamentoControlado
+    medicamento?: MedicamentoControlado | string
 }
