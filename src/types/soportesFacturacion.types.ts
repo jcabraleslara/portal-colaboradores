@@ -32,14 +32,6 @@ export type EstadoSoporteFacturacion =
     | 'Devuelto'
     | 'Facturado'
 
-// Estado de sincronización OneDrive
-export type OneDriveSyncStatus =
-    | 'pending'
-    | 'syncing'
-    | 'synced'
-    | 'error'
-    | 'failed'
-
 // Categorías de archivos
 export type CategoriaArchivo =
     | 'validacion_derechos'
@@ -90,12 +82,6 @@ export interface SoporteFacturacion {
     // Identificaciones extraídas de archivos
     identificacionesArchivos: string[]
 
-    // OneDrive
-    onedriveFolderId: string | null
-    onedriveFolderUrl: string | null
-    onedriveSyncStatus: OneDriveSyncStatus
-    onedriveSyncAt: Date | null
-
     // Auditoría
     createdAt: Date
     updatedAt: Date
@@ -128,10 +114,6 @@ export interface SoporteFacturacionRaw {
     urls_hoja_medicamentos: string[]
     urls_notas_enfermeria: string[]
     identificaciones_archivos: string[]
-    onedrive_folder_id: string | null
-    onedrive_folder_url: string | null
-    onedrive_sync_status: string
-    onedrive_sync_at: string | null
     created_at: string
     updated_at: string
 }

@@ -9,7 +9,6 @@
 import { supabase } from '@/config/supabase.config'
 import { ERROR_MESSAGES } from '@/config/constants'
 import { ApiResponse } from '@/types'
-import { EDGE_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
 import {
     SoporteFacturacion,
     SoporteFacturacionRaw,
@@ -53,10 +52,6 @@ function transformSoporte(raw: SoporteFacturacionRaw): SoporteFacturacion {
         urlsHojaMedicamentos: raw.urls_hoja_medicamentos || [],
         urlsNotasEnfermeria: raw.urls_notas_enfermeria || [],
         identificacionesArchivos: raw.identificaciones_archivos || [],
-        onedriveFolderId: raw.onedrive_folder_id,
-        onedriveFolderUrl: raw.onedrive_folder_url,
-        onedriveSyncStatus: raw.onedrive_sync_status as SoporteFacturacion['onedriveSyncStatus'],
-        onedriveSyncAt: raw.onedrive_sync_at ? new Date(raw.onedrive_sync_at) : null,
         createdAt: new Date(raw.created_at),
         updatedAt: new Date(raw.updated_at),
     }
@@ -492,30 +487,6 @@ export const soportesFacturacionService = {
 
             const soporteCreado = transformSoporte(registroFinal as SoporteFacturacionRaw)
 
-            // Sincronizar automáticamente con OneDrive (no bloqueante)
-            let onedriveFolderUrl: string | undefined
-            try {
-                console.log(`🔄 Sincronizando ${radicado} con OneDrive...`)
-                const syncResult = await this.sincronizarOneDrive(radicado)
-                if (syncResult.success && syncResult.data) {
-                    onedriveFolderUrl = syncResult.data.folderUrl
-                }
-                console.log(`✅ ${radicado} sincronizado con OneDrive`)
-            } catch (oneDriveError) {
-                console.warn(`⚠️ Error sincronizando ${radicado} con OneDrive:`, oneDriveError)
-
-                // Notificar error de integración con OneDrive
-                await criticalErrorService.reportIntegrationError(
-                    'OneDrive',
-                    'Soportes de Facturación',
-                    'Sincronización automática',
-                    oneDriveError instanceof Error ? oneDriveError : undefined
-                )
-
-                // NO fallar la radicación si OneDrive falla
-                // El usuario puede re-sincronizar manualmente después
-            }
-
             // Enviar correo de confirmación de radicación
             try {
                 const { emailService } = await import('./email.service')
@@ -541,7 +512,6 @@ export const soportesFacturacionService = {
                     pacienteNombre: soporteCreado.nombresCompletos || 'No especificado',
                     pacienteIdentificacion: soporteCreado.identificacion || 'No especificado',
                     archivos,
-                    onedriveFolderUrl,
                     fechaRadicacion: soporteCreado.fechaRadicacion.toISOString(),
                     radicadorEmail: soporteCreado.radicadorEmail
                 }
@@ -892,52 +862,6 @@ export const soportesFacturacionService = {
 
 
     /**
-     * Sincronizar archivos con OneDrive (llamar API serverless)
-     */
-    async sincronizarOneDrive(radicado: string): Promise<ApiResponse<{ folderUrl: string }>> {
-        try {
-            const response = await fetch(EDGE_FUNCTIONS.uploadOnedrive, {
-                method: 'POST',
-                headers: await getEdgeFunctionHeaders(),
-                body: JSON.stringify({ radicado }),
-            })
-
-            if (!response.ok) {
-                const errorData = await response.json()
-                return {
-                    success: false,
-                    error: errorData.error || 'Error sincronizando con OneDrive',
-                }
-            }
-
-            const result = await response.json()
-
-            // Actualizar estado de sincronización en BD
-            await supabase
-                .from('soportes_facturacion')
-                .update({
-                    onedrive_folder_id: result.folderId,
-                    onedrive_folder_url: result.folderUrl,
-                    onedrive_sync_status: 'synced',
-                    onedrive_sync_at: new Date().toISOString(),
-                })
-                .eq('radicado', radicado)
-
-            return {
-                success: true,
-                data: { folderUrl: result.folderUrl },
-                message: 'Archivos sincronizados con OneDrive exitosamente',
-            }
-        } catch (error) {
-            console.error('Error en sincronizarOneDrive:', error)
-            return {
-                success: false,
-                error: 'Error de conexión con el servicio de OneDrive',
-            }
-        }
-    },
-
-    /**
      * Obtener conteos por estado para dashboard
      */
     async obtenerConteosPorEstado(): Promise<ApiResponse<Record<string, number>>> {
@@ -1149,47 +1073,13 @@ export const soportesFacturacionService = {
     },
     /**
      * Eliminar una radicación (Solo admin/superadmin)
-     */
-    /**
-     * Eliminar una radicación (Solo admin/superadmin)
-     * Elimina:
-     * 1. Carpeta en OneDrive (si existe)
-     * 2. Archivos en Supabase Storage
-     * 3. Registro en base de datos
+     * Elimina archivos en Supabase Storage y registro en base de datos
      */
     async eliminarRadicado(radicado: string): Promise<ApiResponse<null>> {
         try {
             console.log(`🗑️ Iniciando proceso de eliminación para ${radicado}...`)
 
-            // 1. Obtener información del radicado para saber ID de OneDrive y confirmar existencia
-            const { data: registro, error: fetchError } = await supabase
-                .from('soportes_facturacion')
-                .select('*')
-                .eq('radicado', radicado)
-                .single()
-
-            if (fetchError || !registro) {
-                console.error('Error buscando radicado para eliminar:', fetchError)
-                return { success: false, error: 'No se encontró el radicado o no tiene permisos' }
-            }
-
-            const folderId = (registro as any).onedrive_folder_id
-
-            // 2. Eliminar de OneDrive (Serverless Function)
-            if (folderId) {
-                try {
-                    console.log(`Eliminando carpeta de OneDrive (${folderId})...`)
-                    await fetch(EDGE_FUNCTIONS.deleteOnedrive, {
-                        method: 'POST',
-                        headers: await getEdgeFunctionHeaders(),
-                        body: JSON.stringify({ folderId, radicado }),
-                    })
-                } catch (odError) {
-                    console.warn('⚠️ Error eliminando de OneDrive (no bloqueante):', odError)
-                }
-            }
-
-            // 3. Eliminar archivos de Supabase Storage
+            // 1. Eliminar archivos de Supabase Storage
             try {
                 console.log(`📦 Eliminando archivos de Storage para ${radicado}...`)
                 // Listar archivos en la carpeta del radicado
@@ -1211,7 +1101,7 @@ export const soportesFacturacionService = {
                 console.warn('⚠️ Excepción eliminando stored files:', storageEx)
             }
 
-            // 4. Eliminar registro de Base de Datos
+            // 2. Eliminar registro de Base de Datos
             console.log(`🗄️ Eliminando registro DB: ${radicado}...`)
             const { data: deletedRows, error: dbError } = await supabase
                 .from('soportes_facturacion')

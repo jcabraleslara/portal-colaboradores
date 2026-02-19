@@ -9,7 +9,6 @@ import {
     Save,
     ExternalLink,
     CheckCircle,
-    Cloud,
     Edit,
     Trash2,
     Download,
@@ -52,7 +51,6 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
     } | null>(null)
     const [nuevoNombreArchivo, setNuevoNombreArchivo] = useState('')
     const [renombrando, setRenombrando] = useState(false)
-    const [sincronizando, setSincronizando] = useState(false)
     const [descargando, setDescargando] = useState(false)
 
 
@@ -182,29 +180,6 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
         }
     }
 
-    const handleSincronizarOneDrive = async () => {
-        setSincronizando(true)
-        try {
-            const promise = soportesFacturacionService.sincronizarOneDrive(caso.radicado)
-
-            toast.promise(promise, {
-                loading: 'Sincronizando archivos con OneDrive...',
-                success: (res) => {
-                    onUpdate()
-                    if ((res as any).warning) return `Advertencia: ${(res as any).message}`
-                    return 'Sincronización exitosa con OneDrive'
-                },
-                error: 'Error al sincronizar con OneDrive'
-            })
-
-            await promise
-        } catch (error) {
-            console.error(error)
-        } finally {
-            setSincronizando(false)
-        }
-    }
-
     const handleDescargarLocal = async () => {
         setDescargando(true)
         const toastId = toast.loading('Preparando descarga de archivos...')
@@ -330,38 +305,6 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                                 <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-semibold ${ESTADO_COLORES[caso.estado]?.bg} ${ESTADO_COLORES[caso.estado]?.text}`}>
                                     {caso.estado}
                                 </span>
-
-                                {esAdmin && (
-                                    <>
-                                        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border ${caso.onedriveSyncStatus === 'synced' && caso.onedriveFolderUrl
-                                            ? 'bg-blue-50 text-blue-700 border-blue-200'
-                                            : caso.onedriveSyncStatus === 'error' || caso.onedriveSyncStatus === 'failed'
-                                                ? 'bg-red-50 text-red-700 border-red-200'
-                                                : 'bg-gray-50 text-gray-600 border-gray-200'
-                                            }`} title={caso.onedriveSyncStatus}>
-                                            <Cloud size={14} />
-                                            <span className="hidden sm:inline">
-                                                {caso.onedriveSyncStatus === 'synced' && caso.onedriveFolderUrl ? 'Sincronizado' :
-                                                    caso.onedriveSyncStatus === 'error' || caso.onedriveSyncStatus === 'failed' ? 'Error' :
-                                                        'No Sync'}
-                                            </span>
-                                        </div>
-
-                                        {(!caso.onedriveFolderUrl || caso.onedriveSyncStatus !== 'synced' || esAdmin) && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 text-xs px-2"
-                                                onClick={handleSincronizarOneDrive}
-                                                isLoading={sincronizando}
-                                                disabled={sincronizando}
-                                                title="Forzar sincronización con OneDrive"
-                                            >
-                                                Sync
-                                            </Button>
-                                        )}
-                                    </>
-                                )}
                             </div>
                         </div>
                         <button
@@ -446,28 +389,6 @@ export function RadicacionDetallePanel({ caso, onClose, onUpdate }: RadicacionDe
                                         </p>
                                         <p className="text-xs text-gray-500">{caso.radicadorEmail}</p>
                                     </div>
-                                </div>
-                            </div>
-
-                            <div className="col-span-2">
-                                <label className="text-xs text-gray-500 block mb-1">Sincronización OneDrive</label>
-                                <div className="flex items-center gap-2">
-                                    <Cloud size={16} className={caso.onedriveSyncStatus === 'synced' ? 'text-green-500' : 'text-gray-400'} />
-                                    <p className="text-sm">
-                                        {caso.onedriveSyncStatus === 'synced' && <span className="text-green-700 font-medium">Sincronizado</span>}
-                                        {caso.onedriveSyncStatus === 'pending' && <span className="text-amber-600">Pendiente</span>}
-                                        {caso.onedriveSyncStatus === 'error' && <span className="text-red-600">Error de sincronización</span>}
-                                    </p>
-                                    {caso.onedriveFolderUrl && (
-                                        <a
-                                            href={caso.onedriveFolderUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-xs text-blue-600 hover:text-blue-800 underline ml-2 flex items-center"
-                                        >
-                                            Ver Carpeta <ExternalLink size={10} className="ml-1" />
-                                        </a>
-                                    )}
                                 </div>
                             </div>
 

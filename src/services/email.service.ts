@@ -140,7 +140,6 @@ export const emailService = {
             pacienteNombre: string
             pacienteIdentificacion: string
             archivos: { categoria: string; urls: string[] }[]
-            onedriveFolderUrl?: string
             fechaRadicacion?: string
             radicadorEmail?: string
         }

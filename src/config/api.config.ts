@@ -20,8 +20,6 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
 export const EDGE_FUNCTIONS = {
     sms: `${SUPABASE_URL}/functions/v1/sms`,
     createUser: `${SUPABASE_URL}/functions/v1/create-user`,
-    deleteOnedrive: `${SUPABASE_URL}/functions/v1/delete-onedrive`,
-    uploadOnedrive: `${SUPABASE_URL}/functions/v1/upload-onedrive`,
     geminiOcr: `${SUPABASE_URL}/functions/v1/gemini-ocr`,
     generarContrarreferencia: `${SUPABASE_URL}/functions/v1/generar-contrarreferencia`,
     generateEmbedding: `${SUPABASE_URL}/functions/v1/generate-embedding`,

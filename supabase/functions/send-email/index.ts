@@ -25,7 +25,6 @@ interface BaseDatosRadicacion {
 }
 
 interface DatosRadicacionExitosa extends BaseDatosRadicacion {
-    onedriveFolderUrl?: string
     fechaRadicacion?: string
     radicadorEmail?: string
 }
@@ -156,15 +155,6 @@ function generarTemplateConfirmacion(radicado: string, datos: DatosRadicacionExi
         })
         .join('')
 
-    const oneDriveSection = datos.onedriveFolderUrl
-        ? `<div style="background-color: #f0f9ff; border-left: 4px solid #0284c7; padding: 15px; margin: 15px 0;">
-            <strong>&#128194; Carpeta OneDrive:</strong>
-            <a href="${datos.onedriveFolderUrl}" target="_blank" style="color: #0284c7; text-decoration: none;">
-                Acceder a carpeta en OneDrive
-            </a>
-        </div>`
-        : ''
-
     const fechaRadicacionHtml = datos.fechaRadicacion
         ? `<tr>
             <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Fecha Radicacion</td>
@@ -245,7 +235,6 @@ function generarTemplateConfirmacion(radicado: string, datos: DatosRadicacionExi
                 <table style="width: 100%; border-collapse: collapse; margin: 12px 0;">
                     ${archivosHtml}
                 </table>
-                ${oneDriveSection}
                 <div style="background-color: ${COLORS.warningLight}; border-left: 4px solid ${COLORS.warning}; padding: 15px; margin: 20px 0;">
                     <strong>&#9203; Proximos Pasos:</strong>
                     <p style="margin: 10px 0 0 0;">Su radicacion sera revisada por el area de facturacion. Recibira una notificacion cuando cambie el estado de su radicado.</p>

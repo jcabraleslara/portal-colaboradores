@@ -3,7 +3,7 @@
  * Portal de Colaboradores GESTAR SALUD IPS
  * 
  * Flujo de radicación de soportes para facturación con carga de archivos
- * por categoría y sincronización automática con OneDrive.
+ * por categoría.
  */
 
 import { useState, useEffect, useCallback } from 'react'
@@ -21,8 +21,6 @@ import {
     Stethoscope,
     History,
     X,
-    ExternalLink,
-    RefreshCw,
 } from 'lucide-react'
 import { Card, Button, Input, LoadingOverlay } from '@/components/common'
 import { afiliadosService } from '@/services/afiliados.service'
@@ -467,7 +465,7 @@ export function SoportesFacturacionPage() {
                                             {radicacionExitosa.radicado}
                                         </code>
                                     </p>
-                                    <div className="flex flex-wrap gap-2 mt-4">
+                                    <div className="mt-4">
                                         <Button
                                             variant="success"
                                             size="sm"
@@ -476,41 +474,6 @@ export function SoportesFacturacionPage() {
                                         >
                                             Nueva radicación
                                         </Button>
-                                        {/* Indicador de sincronización automática */}
-                                        <div className="flex items-center gap-2 text-sm">
-                                            {radicacionExitosa.onedriveSyncStatus === 'synced' ? (
-                                                <span className="flex items-center gap-1 text-green-600">
-                                                    <CheckCircle size={14} />
-                                                    Sincronizado con OneDrive
-                                                </span>
-                                            ) : radicacionExitosa.onedriveSyncStatus === 'syncing' ? (
-                                                <span className="flex items-center gap-1 text-blue-600 animate-pulse">
-                                                    <RefreshCw size={14} className="animate-spin" />
-                                                    Sincronizando...
-                                                </span>
-                                            ) : radicacionExitosa.onedriveSyncStatus === 'error' ? (
-                                                <span className="flex items-center gap-1 text-red-500">
-                                                    <AlertCircle size={14} />
-                                                    Error de sincronización
-                                                </span>
-                                            ) : (
-                                                <span className="flex items-center gap-1 text-gray-500">
-                                                    <RefreshCw size={14} />
-                                                    Pendiente sincronización
-                                                </span>
-                                            )}
-                                        </div>
-                                        {radicacionExitosa.onedriveFolderUrl && (
-                                            <a
-                                                href={radicacionExitosa.onedriveFolderUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline"
-                                            >
-                                                <ExternalLink size={14} />
-                                                Ver en OneDrive
-                                            </a>
-                                        )}
                                     </div>
                                 </div>
                             </div>
