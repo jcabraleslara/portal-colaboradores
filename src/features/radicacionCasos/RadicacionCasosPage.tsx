@@ -981,7 +981,7 @@ export function RadicacionCasosPage() {
                                             leftIcon={<Route size={20} />}
                                             onClick={handleEnrutarCaso}
                                         >
-                                            Enrutar Caso
+                                            Enrutar a EPS
                                         </Button>
                                     )}
                                     {/* Radicar Caso - Oculto si es ruta Laboratorio (solo enrutamiento directo) */}
