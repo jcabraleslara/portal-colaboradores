@@ -517,6 +517,12 @@ export function CasoDetallePanel({
                         if (configResult.success && configResult.data) {
                             const { destinatarios, copias } = configResult.data
 
+                            // Agregar email del radicador como CC si existe y no está ya incluido
+                            const emailRadicador = caso.emailRadicador
+                            const copiasConRadicador = emailRadicador && !copias.includes(emailRadicador) && !destinatarios.includes(emailRadicador)
+                                ? [...copias, emailRadicador]
+                                : copias
+
                             if (destinatarios.length > 0) {
                                 const datosCaso = {
                                     pacienteNombre: datosParaNotificacion.pacienteNombre,
@@ -534,7 +540,7 @@ export function CasoDetallePanel({
 
                                 const emailEnviado = await emailService.enviarNotificacionEnrutado(
                                     destinatarios,
-                                    copias,
+                                    copiasConRadicador,
                                     datosParaNotificacion.radicado,
                                     datosCaso,
                                     datosParaNotificacion.soportes
