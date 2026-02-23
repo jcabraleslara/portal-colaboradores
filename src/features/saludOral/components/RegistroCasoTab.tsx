@@ -5,8 +5,9 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { Save, MapPin } from 'lucide-react'
+import { Save, MapPin, Building2, ArrowRightLeft } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { supabase } from '@/config/supabase.config'
 import { useCrearSaludOral } from '../hooks/useSaludOral'
 import { contactosService } from '@/services/contactos.service'
 import { getDefaultOdRegistro } from '../schemas/saludOral.schema'
@@ -23,6 +24,7 @@ import { PymFrame } from './PymFrame'
 import { ProcedimientosFrame } from './ProcedimientosFrame'
 
 const SEDES_OPTIONS: Sede[] = ['Montería', 'Cereté', 'Ciénaga de Oro']
+const IPS_CERETE_CONTRIBUTIVO = 'GESTAR SALUD DE COLOMBIA CERETE CONTRIBUTIVO'
 
 interface RegistroCasoTabProps {
     onSuccess?: () => void
@@ -45,6 +47,8 @@ export function RegistroCasoTab({ onSuccess, initialData, onCancel }: RegistroCa
     const [pacienteEdad, setPacienteEdad] = useState<number | null>(null)
     const [pacienteSexo, setPacienteSexo] = useState<'M' | 'F' | null>(null)
     const [pacienteIpsPrimaria, setPacienteIpsPrimaria] = useState<string | null>(null)
+    const [pacienteTipoId, setPacienteTipoId] = useState<string | null>(null)
+    const [cambiandoIps, setCambiandoIps] = useState(false)
 
     // Cargar sede del usuario a partir de su identificación
     useEffect(() => {
@@ -134,10 +138,46 @@ export function RegistroCasoTab({ onSuccess, initialData, onCancel }: RegistroCa
             setPacienteEdad(paciente.edad ?? null)
             setPacienteSexo(paciente.sexo ?? null)
             setPacienteIpsPrimaria(paciente.ipsPrimaria ?? null)
+            setPacienteTipoId(paciente.tipoId ?? null)
         } else {
             setPacienteEdad(null)
             setPacienteSexo(null)
             setPacienteIpsPrimaria(null)
+            setPacienteTipoId(null)
+        }
+    }
+
+    // Determinar si mostrar botón de cambio de IPS a Cereté
+    const mostrarBotonCambioIps =
+        formData.sede === 'Cereté' &&
+        pacienteIpsPrimaria !== null &&
+        pacienteTipoId !== null &&
+        pacienteIpsPrimaria !== IPS_CERETE_CONTRIBUTIVO
+
+    // Cambiar IPS primaria del paciente a Cereté Contributivo via RPC
+    const handleCambiarIpsCerete = async () => {
+        if (!pacienteTipoId || !formData.pacienteId) return
+
+        setCambiandoIps(true)
+        try {
+            const { data, error } = await supabase.rpc('cambiar_ips_primaria_cerete', {
+                p_tipo_id: pacienteTipoId,
+                p_id: formData.pacienteId,
+            })
+
+            if (error) throw error
+
+            if (data?.success) {
+                setPacienteIpsPrimaria(IPS_CERETE_CONTRIBUTIVO)
+                toast.success('IPS primaria actualizada a Cereté Contributivo')
+            } else {
+                toast.error(data?.error || 'Error al cambiar la IPS primaria')
+            }
+        } catch (error: any) {
+            console.error('Error cambiando IPS primaria:', error)
+            toast.error('Error al cambiar la IPS primaria')
+        } finally {
+            setCambiandoIps(false)
         }
     }
 
@@ -190,6 +230,7 @@ export function RegistroCasoTab({ onSuccess, initialData, onCancel }: RegistroCa
         setPacienteEdad(null)
         setPacienteSexo(null)
         setPacienteIpsPrimaria(null)
+        setPacienteTipoId(null)
         if (isEditing && onCancel) {
             onCancel()
         }
@@ -259,6 +300,27 @@ export function RegistroCasoTab({ onSuccess, initialData, onCancel }: RegistroCa
                     onPacienteFound={handlePacienteFound}
                 />
             </div>
+
+            {/* Botón para cambiar IPS primaria a Cereté */}
+            {mostrarBotonCambioIps && hasPaciente && (
+                <div className="flex items-center gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+                    <Building2 size={18} className="text-amber-600 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm text-amber-800">
+                            La IPS primaria del paciente es <span className="font-semibold">{pacienteIpsPrimaria}</span>
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleCambiarIpsCerete}
+                        disabled={cambiandoIps}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                    >
+                        <ArrowRightLeft size={14} />
+                        {cambiandoIps ? 'Cambiando...' : 'Cambiar a Cereté'}
+                    </button>
+                </div>
+            )}
 
             {/* Mostrar formulario solo si hay paciente seleccionado */}
             {hasPaciente ? (
