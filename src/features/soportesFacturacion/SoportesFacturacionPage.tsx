@@ -328,8 +328,9 @@ export function SoportesFacturacionPage() {
         if (result.success && result.data) {
             setSubmitState('success')
             setRadicacionExitosa(result.data)
+            // Cargar historial sin bloquear (en background)
             if (afiliado?.id) {
-                await cargarHistorial(afiliado.id)
+                cargarHistorial(afiliado.id)
             }
         } else {
             setSubmitError(result.error || 'Error al radicar')
@@ -457,13 +458,16 @@ export function SoportesFacturacionPage() {
                                 </div>
                                 <div className="flex-1">
                                     <h3 className="font-semibold text-[var(--color-success)]">
-                                        ¡Radicación exitosa!
+                                        ¡Radicación registrada!
                                     </h3>
                                     <p className="text-sm text-gray-600 mt-1">
                                         Número de radicado:{' '}
                                         <code className="bg-white px-2 py-0.5 rounded font-bold text-[var(--color-primary)]">
                                             {radicacionExitosa.radicado}
                                         </code>
+                                    </p>
+                                    <p className="text-sm text-gray-500 mt-2">
+                                        Los archivos se están procesando en segundo plano. Recibirás una confirmación por correo electrónico cuando se complete el procesamiento.
                                     </p>
                                     <div className="mt-4">
                                         <Button
@@ -532,7 +536,7 @@ export function SoportesFacturacionPage() {
 
                     {/* Formulario Principal */}
                     {!radicacionExitosa && (
-                        <LoadingOverlay isLoading={submitState === 'loading'} label="Radicando soportes...">
+                        <LoadingOverlay isLoading={submitState === 'loading'} label="Registrando radicación...">
                             <div className="grid gap-6 lg:grid-cols-3">
                                 {/* Columna Izquierda: Datos del Servicio y Búsqueda */}
                                 <div className="lg:col-span-1 space-y-6">

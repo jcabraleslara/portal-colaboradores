@@ -225,9 +225,18 @@ async function executeWithRetry<T>(
 /** Limite de subidas concurrentes al bucket de Storage */
 const UPLOAD_CONCURRENCY_LIMIT = 3
 
+/** Máximo de fallos consecutivos antes de activar circuit breaker */
+const CIRCUIT_BREAKER_THRESHOLD = 3
+
+/** Pausa del circuit breaker en ms */
+const CIRCUIT_BREAKER_COOLDOWN_MS = 5000
+
 /**
- * Subir múltiples archivos concurrentemente con límite de paralelismo
- * Procesa archivos en lotes para no saturar la red
+ * Subir múltiples archivos concurrentemente con límite de paralelismo adaptativo.
+ * - Reduce concurrencia automáticamente cuando detecta fallos en un lote.
+ * - Recupera concurrencia tras lotes exitosos.
+ * - Circuit breaker: pausa larga tras N fallos consecutivos para dar respiro a la red.
+ * - Pausas dinámicas entre lotes según volumen total.
  */
 async function uploadBatchConcurrent<T, R>(
     items: T[],
@@ -236,25 +245,48 @@ async function uploadBatchConcurrent<T, R>(
 ): Promise<{ results: (R | null)[]; failedIndexes: number[] }> {
     const results: (R | null)[] = new Array(items.length).fill(null)
     const failedIndexes: number[] = []
+    let currentConcurrency = concurrencyLimit
+    let consecutiveFailures = 0
 
-    for (let i = 0; i < items.length; i += concurrencyLimit) {
-        const chunk = items.slice(i, i + concurrencyLimit)
+    for (let i = 0; i < items.length; i += currentConcurrency) {
+        const chunk = items.slice(i, i + currentConcurrency)
         const chunkResults = await Promise.allSettled(
             chunk.map((item, idx) => operation(item).then(r => ({ globalIdx: i + idx, result: r })))
         )
 
-        for (const settled of chunkResults) {
+        let chunkFailures = 0
+        for (let j = 0; j < chunkResults.length; j++) {
+            const settled = chunkResults[j]
             if (settled.status === 'fulfilled') {
                 results[settled.value.globalIdx] = settled.value.result
+                consecutiveFailures = 0
             } else {
-                const failedIdx = chunkResults.indexOf(settled) + i
-                failedIndexes.push(failedIdx)
+                failedIndexes.push(i + j)
+                chunkFailures++
+                consecutiveFailures++
             }
         }
 
-        // Pausa breve entre lotes para no saturar la conexión
-        if (i + concurrencyLimit < items.length) {
-            await new Promise(resolve => setTimeout(resolve, 300))
+        // Concurrencia adaptativa: reducir si hubo fallos en este lote
+        if (chunkFailures > 0 && currentConcurrency > 1) {
+            currentConcurrency = Math.max(1, currentConcurrency - 1)
+            console.warn(`[Storage] Concurrencia reducida a ${currentConcurrency} por ${chunkFailures} fallo(s) en lote`)
+        } else if (chunkFailures === 0 && currentConcurrency < concurrencyLimit) {
+            // Recuperar concurrencia gradualmente tras lotes exitosos
+            currentConcurrency = Math.min(concurrencyLimit, currentConcurrency + 1)
+        }
+
+        // Circuit breaker: pausa larga tras fallos consecutivos
+        if (consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
+            console.warn(`[Storage] Circuit breaker activado: ${consecutiveFailures} fallos consecutivos, pausa de ${CIRCUIT_BREAKER_COOLDOWN_MS}ms`)
+            await new Promise(resolve => setTimeout(resolve, CIRCUIT_BREAKER_COOLDOWN_MS))
+            consecutiveFailures = 0
+        }
+
+        // Pausa dinámica entre lotes según volumen total
+        if (i + currentConcurrency < items.length) {
+            const basePause = items.length > 20 ? 800 : items.length > 10 ? 500 : 300
+            await new Promise(resolve => setTimeout(resolve, basePause))
         }
     }
 
@@ -381,7 +413,12 @@ export const soportesFacturacionService = {
     },
 
     /**
-     * Crear una nueva radicación de soportes de facturación
+     * Crear una nueva radicación de soportes de facturación.
+     *
+     * Flujo optimizado para lotes grandes:
+     * 1. Crea el registro en BD (síncrono) → retorna radicado inmediatamente
+     * 2. Procesa archivos en background (upload + actualización BD + emails)
+     * 3. El radicador recibe confirmación por correo al finalizar
      */
     async crearRadicacion(data: CrearSoporteFacturacionData): Promise<ApiResponse<SoporteFacturacion>> {
         try {
@@ -414,150 +451,28 @@ export const soportesFacturacionService = {
                 }
             }
 
-            const radicado = (registro as SoporteFacturacionRaw).radicado
+            const rawRegistro = registro as SoporteFacturacionRaw
+            const radicado = rawRegistro.radicado
+            const soporteInicial = transformSoporte(rawRegistro)
 
-            // Subir archivos por categoría (concurrente dentro de cada categoría)
-            const urlsUpdate: Record<string, string[]> = {}
-            const todasIdentificaciones = new Set<string>()
-            const fallosPorCategoria: { categoria: string; nombres: string[] }[] = []
-
-            for (const grupo of data.archivos) {
-                if (grupo.files.length > 0) {
-                    try {
-                        const { urls, identificacionesExtraidas, archivosFallidos } = await this.subirArchivos(
-                            grupo.files,
-                            grupo.categoria,
-                            radicado,
-                            data.eps,
-                            data.servicioPrestado
-                        )
-
-                        // Guardar URLs exitosas (incluso si hubo fallos parciales)
-                        if (urls.length > 0) {
-                            const columnName = getCategoriaColumnName(grupo.categoria)
-                            urlsUpdate[columnName] = urls
-                        }
-
-                        for (const id of identificacionesExtraidas) {
-                            todasIdentificaciones.add(id)
-                        }
-
-                        // Registrar archivos que fallaron en esta categoría
-                        if (archivosFallidos.length > 0) {
-                            fallosPorCategoria.push({
-                                categoria: grupo.categoria,
-                                nombres: archivosFallidos
-                            })
-                        }
-                    } catch (uploadError) {
-                        console.error(`Error subiendo archivos de ${grupo.categoria}:`, uploadError)
-                        // Registrar toda la categoría como fallida
-                        fallosPorCategoria.push({
-                            categoria: grupo.categoria,
-                            nombres: grupo.files.map(f => f.name)
-                        })
-                    }
-                }
-            }
-
-            // Agregar identificaciones_archivos al update si hay identificaciones extraídas
-            if (todasIdentificaciones.size > 0) {
-                urlsUpdate['identificaciones_archivos'] = Array.from(todasIdentificaciones)
-            }
-
-            // Actualizar registro con URLs de archivos e identificaciones
-            if (Object.keys(urlsUpdate).length > 0) {
-                const { error: updateError } = await supabase
-                    .from('soportes_facturacion')
-                    .update(urlsUpdate)
-                    .eq('radicado', radicado)
-
-                if (updateError) {
-                    console.warn('Error actualizando URLs:', updateError)
-                }
-            }
-
-
-            // Obtener registro actualizado
-            const { data: registroFinal } = await supabase
-                .from('soportes_facturacion')
-                .select('*')
-                .eq('radicado', radicado)
-                .single()
-
-            const soporteCreado = transformSoporte(registroFinal as SoporteFacturacionRaw)
-
-            // Enviar correo de confirmación de radicación
-            try {
-                const { emailService } = await import('./email.service')
-
-                // Preparar datos para el correo
-                const archivos = [
-                    { categoria: 'Validación de Derechos', urls: soporteCreado.urlsValidacionDerechos },
-                    { categoria: 'Autorización', urls: soporteCreado.urlsAutorizacion },
-                    { categoria: 'Soporte Clínico', urls: soporteCreado.urlsSoporteClinico },
-                    { categoria: 'Comprobante de Recibo', urls: soporteCreado.urlsComprobanteRecibo },
-                    { categoria: 'Orden Médica', urls: soporteCreado.urlsOrdenMedica },
-                    { categoria: 'Descripción Quirúrgica', urls: soporteCreado.urlsDescripcionQuirurgica },
-                    { categoria: 'Registro de Anestesia', urls: soporteCreado.urlsRegistroAnestesia },
-                    { categoria: 'Hoja de Medicamentos', urls: soporteCreado.urlsHojaMedicamentos },
-                    { categoria: 'Notas de Enfermería', urls: soporteCreado.urlsNotasEnfermeria }
-                ]
-
-                const datosRadicacion = {
-                    eps: soporteCreado.eps,
-                    regimen: soporteCreado.regimen,
-                    servicioPrestado: soporteCreado.servicioPrestado,
-                    fechaAtencion: soporteCreado.fechaAtencion.toISOString().split('T')[0],
-                    pacienteNombre: soporteCreado.nombresCompletos || 'No especificado',
-                    pacienteIdentificacion: soporteCreado.identificacion || 'No especificado',
-                    archivos,
-                    fechaRadicacion: soporteCreado.fechaRadicacion.toISOString(),
-                    radicadorEmail: soporteCreado.radicadorEmail
-                }
-
-                const emailEnviado = await emailService.enviarNotificacionRadicacionExitosa(
-                    soporteCreado.radicadorEmail,
-                    radicado,
-                    datosRadicacion
-                )
-
-                if (emailEnviado) {
-                    console.log(`📧 Correo de confirmación enviado a ${soporteCreado.radicadorEmail}`)
-                } else {
-                    console.warn('No se pudo enviar el correo de confirmación, pero la radicación se creó exitosamente')
-                }
-            } catch (emailError) {
-                console.error('Error enviando correo de confirmación:', emailError)
-                // No fallar la operación si el correo falla
-            }
-
-            // Si hubo archivos fallidos, notificar al radicador por correo
-            if (fallosPorCategoria.length > 0) {
-                try {
-                    const { emailService } = await import('./email.service')
-                    const totalFallidos = fallosPorCategoria.reduce((acc, f) => acc + f.nombres.length, 0)
-                    const totalArchivos = data.archivos.reduce((acc, g) => acc + g.files.length, 0)
-
-                    await emailService.enviarNotificacionFalloSubida(
-                        soporteCreado.radicadorEmail,
-                        radicado,
-                        {
-                            archivosFallidos: fallosPorCategoria,
-                            archivosExitosos: totalArchivos - totalFallidos,
-                            totalArchivos,
-                            timestamp: new Date().toLocaleString('es-CO'),
-                        }
-                    )
-                    console.warn(`[Storage] Notificación de fallo de subida enviada a ${soporteCreado.radicadorEmail} (${totalFallidos} archivos fallidos)`)
-                } catch (notifyError) {
-                    console.error('Error enviando notificación de fallo de subida:', notifyError)
-                }
+            // Lanzar procesamiento de archivos en background (fire-and-forget)
+            // Los archivos se suben asincrónicamente y el radicador recibe email con el resultado
+            const totalArchivos = data.archivos.reduce((acc, g) => acc + g.files.length, 0)
+            if (totalArchivos > 0) {
+                console.info(`[Radicación] ${radicado}: Iniciando procesamiento en background de ${totalArchivos} archivo(s)`)
+                this._procesarArchivosEnBackground(radicado, data).catch(err => {
+                    console.error(`[Radicación] ${radicado}: Error fatal en procesamiento background:`, err)
+                })
+            } else {
+                // Sin archivos: enviar confirmación directa
+                this._enviarEmailConfirmacion(radicado, soporteInicial).catch(err => {
+                    console.error(`[Radicación] ${radicado}: Error enviando email de confirmación:`, err)
+                })
             }
 
             return {
                 success: true,
-                data: soporteCreado,
+                data: soporteInicial,
                 message: `Radicación ${radicado} creada exitosamente`,
             }
         } catch (error) {
@@ -566,6 +481,155 @@ export const soportesFacturacionService = {
                 success: false,
                 error: ERROR_MESSAGES.SERVER_ERROR,
             }
+        }
+    },
+
+    /**
+     * Procesamiento de archivos en background.
+     * Sube archivos por categoría, actualiza BD con URLs y envía emails de resultado.
+     * Se ejecuta de forma asíncrona después de que crearRadicacion retorna.
+     */
+    async _procesarArchivosEnBackground(radicado: string, data: CrearSoporteFacturacionData): Promise<void> {
+        const urlsUpdate: Record<string, string[]> = {}
+        const todasIdentificaciones = new Set<string>()
+        const fallosPorCategoria: { categoria: string; nombres: string[] }[] = []
+
+        // Subir archivos por categoría
+        for (const grupo of data.archivos) {
+            if (grupo.files.length > 0) {
+                try {
+                    const { urls, identificacionesExtraidas, archivosFallidos } = await this.subirArchivos(
+                        grupo.files,
+                        grupo.categoria,
+                        radicado,
+                        data.eps,
+                        data.servicioPrestado
+                    )
+
+                    if (urls.length > 0) {
+                        const columnName = getCategoriaColumnName(grupo.categoria)
+                        urlsUpdate[columnName] = urls
+                    }
+
+                    for (const id of identificacionesExtraidas) {
+                        todasIdentificaciones.add(id)
+                    }
+
+                    if (archivosFallidos.length > 0) {
+                        fallosPorCategoria.push({
+                            categoria: grupo.categoria,
+                            nombres: archivosFallidos
+                        })
+                    }
+                } catch (uploadError) {
+                    console.error(`[Background ${radicado}] Error subiendo ${grupo.categoria}:`, uploadError)
+                    fallosPorCategoria.push({
+                        categoria: grupo.categoria,
+                        nombres: grupo.files.map(f => f.name)
+                    })
+                }
+            }
+        }
+
+        // Agregar identificaciones extraídas al update
+        if (todasIdentificaciones.size > 0) {
+            urlsUpdate['identificaciones_archivos'] = Array.from(todasIdentificaciones)
+        }
+
+        // Actualizar registro con URLs de archivos
+        if (Object.keys(urlsUpdate).length > 0) {
+            const { error: updateError } = await supabase
+                .from('soportes_facturacion')
+                .update(urlsUpdate)
+                .eq('radicado', radicado)
+
+            if (updateError) {
+                console.warn(`[Background ${radicado}] Error actualizando URLs:`, updateError)
+            }
+        }
+
+        // Obtener registro actualizado para enviar email con datos completos
+        const { data: registroFinal } = await supabase
+            .from('soportes_facturacion')
+            .select('*')
+            .eq('radicado', radicado)
+            .single()
+
+        const soporteCreado = transformSoporte(registroFinal as SoporteFacturacionRaw)
+
+        // Enviar email de confirmación con archivos procesados
+        await this._enviarEmailConfirmacion(radicado, soporteCreado)
+
+        // Si hubo archivos fallidos, enviar notificación adicional de fallo
+        if (fallosPorCategoria.length > 0) {
+            try {
+                const { emailService } = await import('./email.service')
+                const totalFallidos = fallosPorCategoria.reduce((acc, f) => acc + f.nombres.length, 0)
+                const totalArchivos = data.archivos.reduce((acc, g) => acc + g.files.length, 0)
+
+                await emailService.enviarNotificacionFalloSubida(
+                    soporteCreado.radicadorEmail,
+                    radicado,
+                    {
+                        archivosFallidos: fallosPorCategoria,
+                        archivosExitosos: totalArchivos - totalFallidos,
+                        totalArchivos,
+                        timestamp: new Date().toLocaleString('es-CO'),
+                    }
+                )
+                console.warn(`[Background ${radicado}] Notificación de fallo enviada (${totalFallidos} archivos fallidos)`)
+            } catch (notifyError) {
+                console.error(`[Background ${radicado}] Error enviando notificación de fallo:`, notifyError)
+            }
+        }
+
+        console.info(`[Background ${radicado}] Procesamiento completado`)
+    },
+
+    /**
+     * Enviar correo de confirmación de radicación con los archivos procesados
+     */
+    async _enviarEmailConfirmacion(radicado: string, soporte: SoporteFacturacion): Promise<void> {
+        try {
+            const { emailService } = await import('./email.service')
+
+            const archivos = [
+                { categoria: 'Validación de Derechos', urls: soporte.urlsValidacionDerechos },
+                { categoria: 'Autorización', urls: soporte.urlsAutorizacion },
+                { categoria: 'Soporte Clínico', urls: soporte.urlsSoporteClinico },
+                { categoria: 'Comprobante de Recibo', urls: soporte.urlsComprobanteRecibo },
+                { categoria: 'Orden Médica', urls: soporte.urlsOrdenMedica },
+                { categoria: 'Descripción Quirúrgica', urls: soporte.urlsDescripcionQuirurgica },
+                { categoria: 'Registro de Anestesia', urls: soporte.urlsRegistroAnestesia },
+                { categoria: 'Hoja de Medicamentos', urls: soporte.urlsHojaMedicamentos },
+                { categoria: 'Notas de Enfermería', urls: soporte.urlsNotasEnfermeria }
+            ]
+
+            const datosRadicacion = {
+                eps: soporte.eps,
+                regimen: soporte.regimen,
+                servicioPrestado: soporte.servicioPrestado,
+                fechaAtencion: soporte.fechaAtencion.toISOString().split('T')[0],
+                pacienteNombre: soporte.nombresCompletos || 'No especificado',
+                pacienteIdentificacion: soporte.identificacion || 'No especificado',
+                archivos,
+                fechaRadicacion: soporte.fechaRadicacion.toISOString(),
+                radicadorEmail: soporte.radicadorEmail
+            }
+
+            const emailEnviado = await emailService.enviarNotificacionRadicacionExitosa(
+                soporte.radicadorEmail,
+                radicado,
+                datosRadicacion
+            )
+
+            if (emailEnviado) {
+                console.log(`[Background ${radicado}] Correo de confirmación enviado a ${soporte.radicadorEmail}`)
+            } else {
+                console.warn(`[Background ${radicado}] No se pudo enviar el correo de confirmación`)
+            }
+        } catch (emailError) {
+            console.error(`[Background ${radicado}] Error enviando correo:`, emailError)
         }
     },
 
