@@ -1,5 +1,5 @@
 /**
- * Supabase Edge Function: Envio de Correos (Radicacion, Rechazo, Devolucion, etc.)
+ * Supabase Edge Function: Envío de Correos (Radicación, Rechazo, Devolución, etc.)
  * Portal de Colaboradores - Gestar Salud IPS
  *
  * POST /functions/v1/send-email
@@ -157,7 +157,7 @@ function generarTemplateConfirmacion(radicado: string, datos: DatosRadicacionExi
 
     const fechaRadicacionHtml = datos.fechaRadicacion
         ? `<tr>
-            <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Fecha Radicacion</td>
+            <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Fecha Radicaci&oacute;n</td>
             <td style="padding: 10px 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${formatDateTime(datos.fechaRadicacion)}</td>
         </tr>`
         : ''
@@ -177,26 +177,26 @@ function generarTemplateConfirmacion(radicado: string, datos: DatosRadicacionExi
             <div style="background: linear-gradient(135deg, ${COLORS.success} 0%, ${COLORS.successDark} 100%); padding: 24px 30px; text-align: center;">
                 <img src="cid:logo-gestar" alt="Gestar Salud IPS" style="height: 50px; margin-bottom: 12px;" />
                 <h1 style="margin: 0; font-size: 22px; font-weight: 600; color: #ffffff; letter-spacing: -0.5px;">
-                    &#9989; Radicacion Exitosa
+                    &#9989; Radicaci&oacute;n Exitosa
                 </h1>
             </div>
 
             <!-- Contenido Principal -->
             <div style="padding: 30px; background-color: ${COLORS.background};">
                 <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6;">Cordial saludo,</p>
-                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">Le confirmamos que su radicacion ha sido creada exitosamente con el siguiente numero:</p>
+                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">Le confirmamos que su radicaci&oacute;n ha sido creada exitosamente con el siguiente n&uacute;mero:</p>
                 <div style="background-color: ${COLORS.successLight}; border: 2px solid ${COLORS.success}; padding: 20px; text-align: center; margin: 20px 0; border-radius: 8px;">
                     <h2 style="color: ${COLORS.success}; margin: 0; font-size: 28px;">${radicado}</h2>
-                    <p style="color: ${COLORS.successDark}; margin: 5px 0 0 0; font-size: 14px;">Numero de Radicado</p>
+                    <p style="color: ${COLORS.successDark}; margin: 5px 0 0 0; font-size: 14px;">N&uacute;mero de Radicado</p>
                 </div>
 
-                <!-- Datos de la Radicacion -->
-                <h3 style="color: ${COLORS.success}; border-bottom: 2px solid ${COLORS.successLight}; padding-bottom: 8px;">&#128203; Datos de la Radicacion</h3>
+                <!-- Datos de la Radicaci&oacute;n -->
+                <h3 style="color: ${COLORS.success}; border-bottom: 2px solid ${COLORS.successLight}; padding-bottom: 8px;">&#128203; Datos de la Radicaci&oacute;n</h3>
                 <table style="width: 100%; border-collapse: collapse; margin: 12px 0;">
                     ${fechaRadicacionHtml}
                     ${correoFacturadorHtml}
                     <tr>
-                        <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Regimen</td>
+                        <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">R&eacute;gimen</td>
                         <td style="padding: 10px 15px; border-bottom: 1px solid #E2E8F0;">
                             <span style="display: inline-block; background-color: #1E293B; color: #ffffff; padding: 4px 12px; border-radius: 4px; font-size: 13px; font-weight: 600;">${datos.regimen}</span>
                         </td>
@@ -212,20 +212,20 @@ function generarTemplateConfirmacion(radicado: string, datos: DatosRadicacionExi
                         <td style="padding: 10px 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.servicioPrestado}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Fecha de Atencion</td>
+                        <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Fecha de Atenci&oacute;n</td>
                         <td style="padding: 10px 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${formatDate(datos.fechaAtencion)}</td>
                     </tr>
                 </table>
 
-                <!-- Informacion del Paciente -->
-                <h3 style="color: ${COLORS.success}; border-bottom: 2px solid ${COLORS.successLight}; padding-bottom: 8px;">&#128100; Informacion del Paciente</h3>
+                <!-- Informaci&oacute;n del Paciente -->
+                <h3 style="color: ${COLORS.success}; border-bottom: 2px solid ${COLORS.successLight}; padding-bottom: 8px;">&#128100; Informaci&oacute;n del Paciente</h3>
                 <table style="width: 100%; border-collapse: collapse; margin: 12px 0;">
                     <tr>
                         <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Nombre</td>
                         <td style="padding: 10px 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.pacienteNombre}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Identificacion</td>
+                        <td style="padding: 10px 15px; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0; width: 180px;">Identificaci&oacute;n</td>
                         <td style="padding: 10px 15px; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.pacienteIdentificacion}</td>
                     </tr>
                 </table>
@@ -236,15 +236,15 @@ function generarTemplateConfirmacion(radicado: string, datos: DatosRadicacionExi
                     ${archivosHtml}
                 </table>
                 <div style="background-color: ${COLORS.warningLight}; border-left: 4px solid ${COLORS.warning}; padding: 15px; margin: 20px 0;">
-                    <strong>&#9203; Proximos Pasos:</strong>
-                    <p style="margin: 10px 0 0 0;">Su radicacion sera revisada por el area de facturacion. Recibira una notificacion cuando cambie el estado de su radicado.</p>
+                    <strong>&#9203; Pr&oacute;ximos Pasos:</strong>
+                    <p style="margin: 10px 0 0 0;">Su radicaci&oacute;n ser&aacute; revisada por el &aacute;rea de facturaci&oacute;n. Recibir&aacute; una notificaci&oacute;n cuando cambie el estado de su radicado.</p>
                 </div>
             </div>
 
             <!-- Footer -->
             <div style="background-color: #1E293B; padding: 20px 30px; text-align: center;">
                 <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.6;">
-                    Este es un mensaje automatico generado por el<br />
+                    Este es un mensaje autom&aacute;tico generado por el<br />
                     <strong style="color: #E2E8F0;">Portal de Colaboradores de Gestar Salud IPS</strong><br />
                     No responda a este correo.
                 </p>
@@ -283,41 +283,41 @@ function generarTemplateRechazo(radicado: string, datos: DatosRechazo): string {
             <!-- Contenido Principal -->
             <div style="padding: 30px; background-color: ${COLORS.background};">
                 <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6;">Cordial saludo,</p>
-                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">Le informamos que su radicado <strong>${radicado}</strong> ha sido rechazado por el area de facturacion.</p>
+                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">Le informamos que su radicado <strong>${radicado}</strong> ha sido rechazado por el &aacute;rea de facturaci&oacute;n.</p>
                 <div style="background-color: ${COLORS.errorLight}; border: 3px solid ${COLORS.error}; padding: 20px; margin: 20px 0; border-radius: 8px;">
-                    <h3 style="color: ${COLORS.error}; margin-top: 0; margin-bottom: 10px;">&#128172; Observaciones de Facturacion</h3>
+                    <h3 style="color: ${COLORS.error}; margin-top: 0; margin-bottom: 10px;">&#128172; Observaciones de Facturaci&oacute;n</h3>
                     <p style="margin: 0; white-space: pre-wrap; line-height: 1.6; color: #7f1d1d;">${datos.observacionesFacturacion}</p>
                 </div>
-                <h3 style="color: ${COLORS.error}; border-bottom: 2px solid ${COLORS.errorLight}; padding-bottom: 8px;">&#128203; Informacion del Paciente</h3>
+                <h3 style="color: ${COLORS.error}; border-bottom: 2px solid ${COLORS.errorLight}; padding-bottom: 8px;">&#128203; Informaci&oacute;n del Paciente</h3>
                 <ul style="line-height: 1.8;">
-                    <li><strong>Tipo de Identificacion:</strong> ${datos.pacienteTipoId}</li>
-                    <li><strong>Identificacion:</strong> ${datos.pacienteIdentificacion}</li>
+                    <li><strong>Tipo de Identificaci&oacute;n:</strong> ${datos.pacienteTipoId}</li>
+                    <li><strong>Identificaci&oacute;n:</strong> ${datos.pacienteIdentificacion}</li>
                     <li><strong>Nombre:</strong> ${datos.pacienteNombre}</li>
                 </ul>
-                <h3 style="color: ${COLORS.error}; border-bottom: 2px solid ${COLORS.errorLight}; padding-bottom: 8px;">&#127973; Informacion del Servicio</h3>
+                <h3 style="color: ${COLORS.error}; border-bottom: 2px solid ${COLORS.errorLight}; padding-bottom: 8px;">&#127973; Informaci&oacute;n del Servicio</h3>
                 <ul style="line-height: 1.8;">
                     <li><strong>EPS:</strong> ${datos.eps}</li>
-                    <li><strong>Regimen:</strong> ${datos.regimen}</li>
+                    <li><strong>R&eacute;gimen:</strong> ${datos.regimen}</li>
                     <li><strong>Servicio Prestado:</strong> ${datos.servicioPrestado}</li>
-                    <li><strong>Fecha de Atencion:</strong> ${formatDate(datos.fechaAtencion)}</li>
+                    <li><strong>Fecha de Atenci&oacute;n:</strong> ${formatDate(datos.fechaAtencion)}</li>
                 </ul>
                 <h3 style="color: ${COLORS.error}; border-bottom: 2px solid ${COLORS.errorLight}; padding-bottom: 8px;">&#128197; Fechas</h3>
                 <ul style="line-height: 1.8;">
-                    <li><strong>Fecha de Radicacion:</strong> ${formatDateTime(datos.fechaRadicacion)}</li>
+                    <li><strong>Fecha de Radicaci&oacute;n:</strong> ${formatDateTime(datos.fechaRadicacion)}</li>
                     <li><strong>Fecha de Rechazo:</strong> ${formatDateTime(new Date().toISOString())}</li>
                 </ul>
                 <h3 style="color: ${COLORS.error}; border-bottom: 2px solid ${COLORS.errorLight}; padding-bottom: 8px;">&#128206; Archivos Radicados</h3>
                 ${archivosHtml}
                 <div style="background-color: ${COLORS.warningLight}; border-left: 4px solid ${COLORS.warning}; padding: 15px; margin: 20px 0;">
-                    <strong>&#128260; Proximos Pasos:</strong>
-                    <p style="margin: 10px 0 0 0;">Por favor, subsane las observaciones mencionadas y radique nuevamente los soportes corregidos a traves del Portal de Colaboradores.</p>
+                    <strong>&#128260; Pr&oacute;ximos Pasos:</strong>
+                    <p style="margin: 10px 0 0 0;">Por favor, subsane las observaciones mencionadas y radique nuevamente los soportes corregidos a trav&eacute;s del Portal de Colaboradores.</p>
                 </div>
             </div>
 
             <!-- Footer -->
             <div style="background-color: #1E293B; padding: 20px 30px; text-align: center;">
                 <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.6;">
-                    Este es un mensaje automatico generado por el<br />
+                    Este es un mensaje autom&aacute;tico generado por el<br />
                     <strong style="color: #E2E8F0;">Portal de Colaboradores de Gestar Salud IPS</strong><br />
                     No responda a este correo.
                 </p>
@@ -356,42 +356,42 @@ function generarTemplateDevolucion(radicado: string, datos: DatosDevolucion): st
             <!-- Contenido Principal -->
             <div style="padding: 30px; background-color: ${COLORS.background};">
                 <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6;">Cordial saludo,</p>
-                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">Le informamos que su radicado <strong>${radicado}</strong> ha sido devuelto por el area de Gestion Back.</p>
+                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">Le informamos que su radicado <strong>${radicado}</strong> ha sido devuelto por el &aacute;rea de Gesti&oacute;n Back.</p>
                 <div style="background-color: ${COLORS.warningLight}; border: 3px solid ${COLORS.warning}; padding: 20px; margin: 20px 0; border-radius: 8px;">
-                    <h3 style="color: ${COLORS.warningDark}; margin-top: 0; margin-bottom: 10px;">&#128172; Observaciones de Devolucion</h3>
+                    <h3 style="color: ${COLORS.warningDark}; margin-top: 0; margin-bottom: 10px;">&#128172; Observaciones de Devoluci&oacute;n</h3>
                     <p style="margin: 0; white-space: pre-wrap; line-height: 1.6; color: #78350F;">${datos.observacionesDevolucion}</p>
                 </div>
-                <h3 style="color: ${COLORS.warning}; border-bottom: 2px solid ${COLORS.warningLight}; padding-bottom: 8px;">&#128203; Informacion del Paciente</h3>
+                <h3 style="color: ${COLORS.warning}; border-bottom: 2px solid ${COLORS.warningLight}; padding-bottom: 8px;">&#128203; Informaci&oacute;n del Paciente</h3>
                 <ul style="line-height: 1.8;">
-                    <li><strong>Tipo de Identificacion:</strong> ${datos.pacienteTipoId}</li>
-                    <li><strong>Identificacion:</strong> ${datos.pacienteIdentificacion}</li>
+                    <li><strong>Tipo de Identificaci&oacute;n:</strong> ${datos.pacienteTipoId}</li>
+                    <li><strong>Identificaci&oacute;n:</strong> ${datos.pacienteIdentificacion}</li>
                     <li><strong>Nombre:</strong> ${datos.pacienteNombre}</li>
                 </ul>
-                <h3 style="color: ${COLORS.warning}; border-bottom: 2px solid ${COLORS.warningLight}; padding-bottom: 8px;">&#127973; Informacion del Servicio</h3>
+                <h3 style="color: ${COLORS.warning}; border-bottom: 2px solid ${COLORS.warningLight}; padding-bottom: 8px;">&#127973; Informaci&oacute;n del Servicio</h3>
                 <ul style="line-height: 1.8;">
                     <li><strong>EPS:</strong> ${datos.eps}</li>
-                    <li><strong>Regimen:</strong> ${datos.regimen}</li>
+                    <li><strong>R&eacute;gimen:</strong> ${datos.regimen}</li>
                     <li><strong>Servicio Prestado:</strong> ${datos.servicioPrestado}</li>
-                    <li><strong>Fecha de Atencion:</strong> ${formatDate(datos.fechaAtencion)}</li>
+                    <li><strong>Fecha de Atenci&oacute;n:</strong> ${formatDate(datos.fechaAtencion)}</li>
                     ${datos.tipoSolicitud ? `<li><strong>Tipo Solicitud:</strong> ${datos.tipoSolicitud}</li>` : ''}
                 </ul>
                 <h3 style="color: ${COLORS.warning}; border-bottom: 2px solid ${COLORS.warningLight}; padding-bottom: 8px;">&#128197; Fechas</h3>
                 <ul style="line-height: 1.8;">
-                    <li><strong>Fecha de Radicacion:</strong> ${formatDateTime(datos.fechaRadicacion)}</li>
-                    <li><strong>Fecha de Devolucion:</strong> ${formatDateTime(new Date().toISOString())}</li>
+                    <li><strong>Fecha de Radicaci&oacute;n:</strong> ${formatDateTime(datos.fechaRadicacion)}</li>
+                    <li><strong>Fecha de Devoluci&oacute;n:</strong> ${formatDateTime(new Date().toISOString())}</li>
                 </ul>
                 <h3 style="color: ${COLORS.warning}; border-bottom: 2px solid ${COLORS.warningLight}; padding-bottom: 8px;">&#128206; Archivos Radicados</h3>
                 ${archivosHtml}
                 <div style="background-color: ${COLORS.warningLight}; border-left: 4px solid ${COLORS.warning}; padding: 15px; margin: 20px 0;">
-                    <strong>&#128260; Proximos Pasos:</strong>
-                    <p style="margin: 10px 0 0 0;">Por favor, subsane las observaciones mencionadas y gestione nuevamente el caso o contacte al area correspondiente.</p>
+                    <strong>&#128260; Pr&oacute;ximos Pasos:</strong>
+                    <p style="margin: 10px 0 0 0;">Por favor, subsane las observaciones mencionadas y gestione nuevamente el caso o contacte al &aacute;rea correspondiente.</p>
                 </div>
             </div>
 
             <!-- Footer -->
             <div style="background-color: #1E293B; padding: 20px 30px; text-align: center;">
                 <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.6;">
-                    Este es un mensaje automatico generado por el<br />
+                    Este es un mensaje autom&aacute;tico generado por el<br />
                     <strong style="color: #E2E8F0;">Portal de Colaboradores de Gestar Salud IPS</strong><br />
                     No responda a este correo.
                 </p>
@@ -417,25 +417,25 @@ function generarTemplateNoContactable(radicado: string, datos: DatosNoContactabl
             <!-- Contenido Principal -->
             <div style="padding: 30px; background-color: ${COLORS.background};">
                 <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6;">Cordial saludo,</p>
-                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">Le informamos que en la gestion del radicado <strong>${radicado}</strong>, hemos intentado contactar al paciente sin exito.</p>
+                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">Le informamos que en la gesti&oacute;n del radicado <strong>${radicado}</strong>, hemos intentado contactar al paciente sin &eacute;xito.</p>
                 <div style="background-color: ${COLORS.slate100}; border: 3px solid ${COLORS.slate600}; padding: 20px; margin: 20px 0; border-radius: 8px;">
-                    <h3 style="color: ${COLORS.slate700}; margin-top: 0; margin-bottom: 10px;">&#128205; Informacion del Intento</h3>
+                    <h3 style="color: ${COLORS.slate700}; margin-top: 0; margin-bottom: 10px;">&#128205; Informaci&oacute;n del Intento</h3>
                     <ul style="line-height: 1.8; color: ${COLORS.slate700};">
                         <li><strong>Paciente:</strong> ${datos.pacienteNombre}</li>
-                        <li><strong>Identificacion:</strong> ${datos.pacienteIdentificacion}</li>
-                        <li><strong>Fecha de Gestion:</strong> ${datos.fechaGestion}</li>
+                        <li><strong>Identificaci&oacute;n:</strong> ${datos.pacienteIdentificacion}</li>
+                        <li><strong>Fecha de Gesti&oacute;n:</strong> ${datos.fechaGestion}</li>
                     </ul>
                 </div>
                 <div style="background-color: ${COLORS.warningLight}; border-left: 4px solid ${COLORS.warning}; padding: 15px; margin: 20px 0;">
-                    <strong>&#128260; Accion Requerida:</strong>
-                    <p style="margin: 10px 0 0 0;">Le sugerimos <strong>validar los datos de contacto del paciente</strong> (telefonos, direccion) y realizar un nuevo radicado con la informacion actualizada para poder gestionar su solicitud.</p>
+                    <strong>&#128260; Acci&oacute;n Requerida:</strong>
+                    <p style="margin: 10px 0 0 0;">Le sugerimos <strong>validar los datos de contacto del paciente</strong> (tel&eacute;fonos, direcci&oacute;n) y realizar un nuevo radicado con la informaci&oacute;n actualizada para poder gestionar su solicitud.</p>
                 </div>
             </div>
 
             <!-- Footer -->
             <div style="background-color: #1E293B; padding: 20px 30px; text-align: center;">
                 <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.6;">
-                    Este es un mensaje automatico generado por el<br />
+                    Este es un mensaje autom&aacute;tico generado por el<br />
                     <strong style="color: #E2E8F0;">Portal de Colaboradores de Gestar Salud IPS</strong><br />
                     No responda a este correo.
                 </p>
@@ -473,22 +473,22 @@ function generarTemplateDevolucionRecobro(consecutivo: string, datos: DatosDevol
             <!-- Contenido Principal -->
             <div style="padding: 30px; background-color: ${COLORS.background};">
                 <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6;">Cordial saludo,</p>
-                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">Le informamos que su solicitud de recobro <strong>${consecutivo}</strong> ha sido devuelta por el area de Auditoria.</p>
+                <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">Le informamos que su solicitud de recobro <strong>${consecutivo}</strong> ha sido devuelta por el &aacute;rea de Auditor&iacute;a.</p>
                 <div style="background-color: ${COLORS.errorLight}; border: 3px solid ${COLORS.error}; padding: 20px; margin: 20px 0; border-radius: 8px;">
-                    <h3 style="color: ${COLORS.error}; margin-top: 0; margin-bottom: 10px;">&#128221; Motivo de Devolucion</h3>
+                    <h3 style="color: ${COLORS.error}; margin-top: 0; margin-bottom: 10px;">&#128221; Motivo de Devoluci&oacute;n</h3>
                     <p style="margin: 0; white-space: pre-wrap; line-height: 1.6; color: #7f1d1d;">${datos.respuestaAuditor}</p>
                 </div>
-                <h3 style="color: ${COLORS.error}; border-bottom: 2px solid ${COLORS.errorLight}; padding-bottom: 8px;">&#128203; Informacion del Paciente</h3>
+                <h3 style="color: ${COLORS.error}; border-bottom: 2px solid ${COLORS.errorLight}; padding-bottom: 8px;">&#128203; Informaci&oacute;n del Paciente</h3>
                 <ul style="line-height: 1.8;">
                     <li><strong>Nombre:</strong> ${datos.pacienteNombre}</li>
-                    <li><strong>Identificacion:</strong> ${datos.pacienteIdentificacion}</li>
+                    <li><strong>Identificaci&oacute;n:</strong> ${datos.pacienteIdentificacion}</li>
                 </ul>
                 <h3 style="color: ${COLORS.error}; border-bottom: 2px solid ${COLORS.errorLight}; padding-bottom: 8px;">&#127973; Procedimientos Solicitados</h3>
                 <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
                     <thead>
                         <tr style="background-color: ${COLORS.errorLight};">
-                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid ${COLORS.error};">Codigo</th>
-                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid ${COLORS.error};">Descripcion</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid ${COLORS.error};">C&oacute;digo</th>
+                            <th style="padding: 8px; text-align: left; border-bottom: 2px solid ${COLORS.error};">Descripci&oacute;n</th>
                             <th style="padding: 8px; text-align: center; border-bottom: 2px solid ${COLORS.error};">Cant.</th>
                         </tr>
                     </thead>
@@ -496,15 +496,15 @@ function generarTemplateDevolucionRecobro(consecutivo: string, datos: DatosDevol
                 </table>
                 <p style="font-size: 12px; color: ${COLORS.textSecondary};">&#11088; = Procedimiento principal</p>
                 <div style="background-color: ${COLORS.warningLight}; border-left: 4px solid ${COLORS.warning}; padding: 15px; margin: 20px 0;">
-                    <strong>&#128260; Proximos Pasos:</strong>
-                    <p style="margin: 10px 0 0 0;">Por favor, revise las observaciones indicadas y realice los ajustes necesarios. Puede radicar nuevamente la solicitud de recobro con la informacion corregida.</p>
+                    <strong>&#128260; Pr&oacute;ximos Pasos:</strong>
+                    <p style="margin: 10px 0 0 0;">Por favor, revise las observaciones indicadas y realice los ajustes necesarios. Puede radicar nuevamente la solicitud de recobro con la informaci&oacute;n corregida.</p>
                 </div>
             </div>
 
             <!-- Footer -->
             <div style="background-color: #1E293B; padding: 20px 30px; text-align: center;">
                 <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.6;">
-                    Este es un mensaje automatico generado por el<br />
+                    Este es un mensaje autom&aacute;tico generado por el<br />
                     <strong style="color: #E2E8F0;">Portal de Colaboradores de Gestar Salud IPS</strong><br />
                     No responda a este correo.
                 </p>
@@ -532,9 +532,9 @@ function generarTemplateAprobacionRecobro(consecutivo: string, datos: DatosAprob
     // Nota: El PDF ahora se adjunta directamente al correo
     const pdfNote = datos.pdfUrl
         ? `<div style="background-color: ${COLORS.primaryLight}; border-left: 4px solid ${COLORS.primary}; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-            <strong style="color: ${COLORS.primaryDark};">&#128206; Carta de Autorizacion Adjunta</strong>
+            <strong style="color: ${COLORS.primaryDark};">&#128206; Carta de Autorizaci&oacute;n Adjunta</strong>
             <p style="margin: 8px 0 0 0; font-size: 14px; color: ${COLORS.text};">
-                La carta de autorizacion se encuentra adjunta a este correo en formato PDF.
+                La carta de autorizaci&oacute;n se encuentra adjunta a este correo en formato PDF.
             </p>
         </div>`
         : ''
@@ -554,7 +554,7 @@ function generarTemplateAprobacionRecobro(consecutivo: string, datos: DatosAprob
                 <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6;">Cordial saludo,</p>
                 <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">
                     Nos complace informarle que su solicitud de recobro <strong>${consecutivo}</strong> ha sido
-                    <strong style="color: ${COLORS.success};">APROBADA</strong> por el area de Auditoria.
+                    <strong style="color: ${COLORS.success};">APROBADA</strong> por el &aacute;rea de Auditor&iacute;a.
                 </p>
 
                 <!-- Card Estado -->
@@ -567,7 +567,7 @@ function generarTemplateAprobacionRecobro(consecutivo: string, datos: DatosAprob
 
                 <!-- Datos del Paciente -->
                 <h3 style="color: ${COLORS.primary}; border-bottom: 2px solid ${COLORS.primaryLight}; padding-bottom: 8px; margin-top: 24px; font-size: 16px; font-weight: 600;">
-                    &#128203; Informacion del Paciente
+                    &#128203; Informaci&oacute;n del Paciente
                 </h3>
                 <table style="width: 100%; border-collapse: collapse; margin-top: 12px;">
                     <tr>
@@ -575,7 +575,7 @@ function generarTemplateAprobacionRecobro(consecutivo: string, datos: DatosAprob
                         <td style="padding: 10px 0; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.pacienteNombre}</td>
                     </tr>
                     <tr>
-                        <td style="padding: 10px 0; color: ${COLORS.textSecondary}; font-size: 14px;">Identificacion:</td>
+                        <td style="padding: 10px 0; color: ${COLORS.textSecondary}; font-size: 14px;">Identificaci&oacute;n:</td>
                         <td style="padding: 10px 0; font-weight: 600; font-size: 14px;">${datos.pacienteIdentificacion}</td>
                     </tr>
                 </table>
@@ -587,8 +587,8 @@ function generarTemplateAprobacionRecobro(consecutivo: string, datos: DatosAprob
                 <table style="width: 100%; border-collapse: collapse; margin: 12px 0;">
                     <thead>
                         <tr style="background-color: ${COLORS.primaryLight};">
-                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid ${COLORS.primary}; font-size: 13px; color: ${COLORS.primaryDark};">Codigo</th>
-                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid ${COLORS.primary}; font-size: 13px; color: ${COLORS.primaryDark};">Descripcion</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid ${COLORS.primary}; font-size: 13px; color: ${COLORS.primaryDark};">C&oacute;digo</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid ${COLORS.primary}; font-size: 13px; color: ${COLORS.primaryDark};">Descripci&oacute;n</th>
                             <th style="padding: 10px; text-align: center; border-bottom: 2px solid ${COLORS.primary}; font-size: 13px; color: ${COLORS.primaryDark};">Cant.</th>
                         </tr>
                     </thead>
@@ -598,11 +598,11 @@ function generarTemplateAprobacionRecobro(consecutivo: string, datos: DatosAprob
 
                 ${pdfNote}
 
-                <!-- Informacion Importante -->
+                <!-- Informaci&oacute;n Importante -->
                 <div style="background-color: #FEF3C7; border-left: 4px solid ${COLORS.warning}; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-                    <strong style="color: #92400E; font-size: 14px;">&#128205; Informacion Importante:</strong>
+                    <strong style="color: #92400E; font-size: 14px;">&#128205; Informaci&oacute;n Importante:</strong>
                     <p style="margin: 8px 0 0 0; font-size: 14px; color: #78350F; line-height: 1.5;">
-                        La carta de autorizacion ha sido generada y almacenada. Tambien puede acceder directamente desde el Portal de Colaboradores en la seccion de Gestion de Recobros.
+                        La carta de autorizaci&oacute;n ha sido generada y almacenada. Tambi&eacute;n puede acceder directamente desde el Portal de Colaboradores en la secci&oacute;n de Gesti&oacute;n de Recobros.
                     </p>
                 </div>
             </div>
@@ -610,7 +610,7 @@ function generarTemplateAprobacionRecobro(consecutivo: string, datos: DatosAprob
             <!-- Footer -->
             <div style="background-color: #1E293B; padding: 20px 30px; text-align: center;">
                 <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.6;">
-                    Este es un mensaje automatico generado por el<br />
+                    Este es un mensaje autom&aacute;tico generado por el<br />
                     <strong style="color: #E2E8F0;">Portal de Colaboradores de Gestar Salud IPS</strong><br />
                     No responda a este correo.
                 </p>
@@ -642,7 +642,7 @@ function generarTemplateEnrutado(radicado: string, datos: DatosEnrutado): string
             <div style="background-color: ${COLORS.primary}; background: linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%); padding: 24px 30px; text-align: center;">
                 <img src="cid:logo-gestar" alt="Gestar Salud IPS" style="height: 50px; margin-bottom: 12px;" />
                 <h1 style="margin: 0; font-size: 22px; font-weight: 600; color: #ffffff; letter-spacing: -0.5px;">
-                    Activacion de Ruta: ${datos.ruta}
+                    Activaci&oacute;n de Ruta: ${datos.ruta}
                 </h1>
             </div>
 
@@ -686,7 +686,7 @@ function generarTemplateEnrutado(radicado: string, datos: DatosEnrutado): string
                     </tr>
                     ${datos.telefono ? `
                     <tr>
-                        <td style="padding: 10px 0; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0;">Telefono:</td>
+                        <td style="padding: 10px 0; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0;">Tel&eacute;fono:</td>
                         <td style="padding: 10px 0; font-weight: 600; font-size: 14px; border-bottom: 1px solid #E2E8F0;">
                             <a href="tel:${datos.telefono}" style="color: ${COLORS.primary}; text-decoration: none;">${datos.telefono}</a>
                         </td>
@@ -694,7 +694,7 @@ function generarTemplateEnrutado(radicado: string, datos: DatosEnrutado): string
                     ` : ''}
                     ${datos.direccion ? `
                     <tr>
-                        <td style="padding: 10px 0; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0;">Direccion:</td>
+                        <td style="padding: 10px 0; color: ${COLORS.textSecondary}; font-size: 14px; border-bottom: 1px solid #E2E8F0;">Direcci&oacute;n:</td>
                         <td style="padding: 10px 0; font-size: 14px; border-bottom: 1px solid #E2E8F0;">${datos.direccion}</td>
                     </tr>
                     ` : ''}
@@ -705,7 +705,7 @@ function generarTemplateEnrutado(radicado: string, datos: DatosEnrutado): string
                     </tr>
                     ` : ''}
                     <tr>
-                        <td style="padding: 10px 0; color: ${COLORS.textSecondary}; font-size: 14px;">Fecha Radicacion:</td>
+                        <td style="padding: 10px 0; color: ${COLORS.textSecondary}; font-size: 14px;">Fecha Radicaci&oacute;n:</td>
                         <td style="padding: 10px 0; font-size: 14px;">${formatDateTime(datos.fechaRadicacion)}</td>
                     </tr>
                 </table>
@@ -723,9 +723,9 @@ function generarTemplateEnrutado(radicado: string, datos: DatosEnrutado): string
 
                 <!-- Call to Action -->
                 <div style="background-color: #FEF3C7; border-left: 4px solid ${COLORS.warning}; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
-                    <strong style="color: #92400E; font-size: 14px;">&#9889; Accion Requerida:</strong>
+                    <strong style="color: #92400E; font-size: 14px;">&#9889; Acci&oacute;n Requerida:</strong>
                     <p style="margin: 8px 0 0 0; font-size: 14px; color: #78350F; line-height: 1.5;">
-                        Por favor contacte al paciente y realice la gestion correspondiente segun el protocolo de la <strong>Ruta ${datos.ruta}</strong>.
+                        Por favor contacte al paciente y realice la gesti&oacute;n correspondiente seg&uacute;n el protocolo de la <strong>Ruta ${datos.ruta}</strong>.
                     </p>
                 </div>
             </div>
@@ -733,7 +733,7 @@ function generarTemplateEnrutado(radicado: string, datos: DatosEnrutado): string
             <!-- Footer -->
             <div style="background-color: #1E293B; padding: 20px 30px; text-align: center;">
                 <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.6;">
-                    Este es un mensaje automatico generado por el<br />
+                    Este es un mensaje autom&aacute;tico generado por el<br />
                     <strong style="color: #E2E8F0;">Portal de Colaboradores de Gestar Salud IPS</strong><br />
                     No responda a este correo.
                 </p>
@@ -747,15 +747,15 @@ function generarTemplateEnrutado(radicado: string, datos: DatosEnrutado): string
 
 function generarTemplateFalloSubida(radicado: string, datos: DatosFalloSubida): string {
     const categoriasMap: Record<string, string> = {
-        'validacion_derechos': 'Validacion de Derechos',
-        'autorizacion': 'Autorizacion',
-        'soporte_clinico': 'Soporte Clinico',
+        'validacion_derechos': 'Validaci&oacute;n de Derechos',
+        'autorizacion': 'Autorizaci&oacute;n',
+        'soporte_clinico': 'Soporte Cl&iacute;nico',
         'comprobante_recibo': 'Comprobante de Recibo',
-        'orden_medica': 'Orden Medica',
-        'descripcion_quirurgica': 'Descripcion Quirurgica',
+        'orden_medica': 'Orden M&eacute;dica',
+        'descripcion_quirurgica': 'Descripci&oacute;n Quir&uacute;rgica',
         'registro_anestesia': 'Registro de Anestesia',
         'hoja_medicamentos': 'Hoja de Medicamentos',
-        'notas_enfermeria': 'Notas de Enfermeria',
+        'notas_enfermeria': 'Notas de Enfermer&iacute;a',
     }
 
     const totalFallidos = datos.archivosFallidos.reduce((acc, f) => acc + f.nombres.length, 0)
@@ -789,13 +789,13 @@ function generarTemplateFalloSubida(radicado: string, datos: DatosFalloSubida): 
             <div style="padding: 30px; background-color: ${COLORS.background};">
                 <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6;">Cordial saludo,</p>
                 <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">
-                    Le informamos que durante la radicacion del siguiente caso, <strong>${totalFallidos} archivo(s)</strong> no pudieron ser subidos al sistema debido a problemas de conexion.
+                    Le informamos que durante la radicaci&oacute;n del siguiente caso, <strong>${totalFallidos} archivo(s)</strong> no pudieron ser subidos al sistema debido a problemas de conexi&oacute;n.
                 </p>
 
                 <!-- Radicado -->
                 <div style="background-color: ${COLORS.warningLight}; border: 2px solid ${COLORS.warning}; padding: 16px; text-align: center; margin: 20px 0; border-radius: 8px;">
                     <h2 style="color: ${COLORS.warningDark}; margin: 0; font-size: 24px;">${radicado}</h2>
-                    <p style="color: ${COLORS.slate600}; margin: 5px 0 0 0; font-size: 13px;">Numero de Radicado</p>
+                    <p style="color: ${COLORS.slate600}; margin: 5px 0 0 0; font-size: 13px;">N&uacute;mero de Radicado</p>
                 </div>
 
                 <!-- Resumen -->
@@ -822,10 +822,10 @@ function generarTemplateFalloSubida(radicado: string, datos: DatosFalloSubida): 
 
                 <!-- Accion Requerida -->
                 <div style="background-color: ${COLORS.warningLight}; border-left: 4px solid ${COLORS.warning}; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
-                    <strong style="color: ${COLORS.warningDark};">&#9889; Accion Requerida:</strong>
+                    <strong style="color: ${COLORS.warningDark};">&#9889; Acci&oacute;n Requerida:</strong>
                     <p style="margin: 10px 0 0 0; font-size: 14px; line-height: 1.6; color: ${COLORS.slate700};">
                         Por favor, ingrese al <strong>Portal de Colaboradores</strong>, busque el radicado <strong>${radicado}</strong>
-                        y vuelva a subir los archivos indicados. Le recomendamos verificar su conexion a internet antes de intentar nuevamente.
+                        y vuelva a subir los archivos indicados. Le recomendamos verificar su conexi&oacute;n a internet antes de intentar nuevamente.
                     </p>
                 </div>
 
@@ -833,8 +833,8 @@ function generarTemplateFalloSubida(radicado: string, datos: DatosFalloSubida): 
                 <div style="background-color: ${COLORS.infoLight}; border-left: 4px solid ${COLORS.info}; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0;">
                     <strong style="color: ${COLORS.primary};">&#128161; Recomendaciones:</strong>
                     <ul style="margin: 10px 0 0 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: ${COLORS.slate700};">
-                        <li>Verifique que su conexion a internet sea estable</li>
-                        <li>Si el problema persiste, intente con una red diferente (ej: datos moviles)</li>
+                        <li>Verifique que su conexi&oacute;n a internet sea estable</li>
+                        <li>Si el problema persiste, intente con una red diferente (ej: datos m&oacute;viles)</li>
                         <li>Los archivos que se subieron exitosamente ya quedaron guardados</li>
                     </ul>
                 </div>
@@ -847,7 +847,7 @@ function generarTemplateFalloSubida(radicado: string, datos: DatosFalloSubida): 
             <!-- Footer -->
             <div style="background-color: #1E293B; padding: 20px 30px; text-align: center;">
                 <p style="font-size: 12px; color: #94A3B8; margin: 0; line-height: 1.6;">
-                    Este es un mensaje automatico generado por el<br />
+                    Este es un mensaje autom&aacute;tico generado por el<br />
                     <strong style="color: #E2E8F0;">Portal de Colaboradores de Gestar Salud IPS</strong><br />
                     No responda a este correo.
                 </p>
@@ -873,7 +873,7 @@ Deno.serve(async (req: Request) => {
     // Solo permitir POST
     if (req.method !== 'POST') {
         return new Response(
-            JSON.stringify({ success: false, error: 'Metodo no permitido' }),
+            JSON.stringify({ success: false, error: 'Método no permitido' }),
             { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
     }
@@ -907,7 +907,7 @@ Deno.serve(async (req: Request) => {
 
         if (body.type === 'radicacion') {
             const datos = body.datos as DatosRadicacionExitosa
-            subject = `Confirmacion de Radicacion - ${body.radicado} - ${buildPacienteSuffix(datos)}`
+            subject = `Confirmación de Radicación - ${body.radicado} - ${buildPacienteSuffix(datos)}`
             htmlBody = generarTemplateConfirmacion(body.radicado, datos)
         } else if (body.type === 'rechazo') {
             const datos = body.datos as DatosRechazo
@@ -915,7 +915,7 @@ Deno.serve(async (req: Request) => {
             htmlBody = generarTemplateRechazo(body.radicado, datos)
         } else if (body.type === 'devolucion') {
             const datos = body.datos as DatosDevolucion
-            subject = `Devolucion de Caso - ${body.radicado} - ${buildPacienteSuffix(datos)}`
+            subject = `Devolución de Caso - ${body.radicado} - ${buildPacienteSuffix(datos)}`
             htmlBody = generarTemplateDevolucion(body.radicado, datos)
         } else if (body.type === 'no_contactable') {
             const datos = body.datos as DatosNoContactable
@@ -940,7 +940,7 @@ Deno.serve(async (req: Request) => {
             htmlBody = generarTemplateFalloSubida(body.radicado, datosFallo)
         } else {
             return new Response(
-                JSON.stringify({ success: false, error: 'Tipo de correo no valido' }),
+                JSON.stringify({ success: false, error: 'Tipo de correo no válido' }),
                 { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             )
         }
