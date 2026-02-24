@@ -400,6 +400,7 @@ export const emailService = {
             archivosExitosos: number
             totalArchivos: number
             timestamp: string
+            erroresDetalle?: { nombre: string; razon: string }[]
         }
     ): Promise<boolean> {
         try {

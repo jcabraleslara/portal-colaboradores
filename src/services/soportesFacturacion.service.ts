@@ -359,9 +359,10 @@ export const soportesFacturacionService = {
         radicado: string,
         eps: EpsFacturacion,
         servicio?: ServicioPrestado
-    ): Promise<{ urls: string[]; identificacionesExtraidas: string[]; archivosFallidos: string[] }> {
+    ): Promise<{ urls: string[]; identificacionesExtraidas: string[]; archivosFallidos: string[]; erroresDetalle: { nombre: string; razon: string }[] }> {
         const identificacionesSet = new Set<string>()
         const archivosFallidos: string[] = []
+        const erroresDetalle: { nombre: string; razon: string }[] = []
         // NIT fijo para renombrado
         const NIT = '900842629'
         const prefijo = getPrefijoArchivo(eps, servicio || 'Consulta Ambulatoria', categoria)
@@ -373,6 +374,7 @@ export const soportesFacturacionService = {
             if (errorValidacion) {
                 console.error(`[Storage] Archivo rechazado pre-upload: ${errorValidacion}`)
                 archivosFallidos.push(archivo.name)
+                erroresDetalle.push({ nombre: archivo.name, razon: errorValidacion })
             } else {
                 archivosValidos.push(archivo)
             }
@@ -386,7 +388,7 @@ export const soportesFacturacionService = {
                 'soportes-facturacion',
                 new Error(`${archivosFallidos.length} archivo(s) rechazados en validación: ${archivosFallidos.join(', ')}`)
             )
-            return { urls: [], identificacionesExtraidas: [], archivosFallidos }
+            return { urls: [], identificacionesExtraidas: [], archivosFallidos, erroresDetalle }
         }
 
         // Preparar metadata de cada archivo válido antes de subir
@@ -468,6 +470,7 @@ export const soportesFacturacionService = {
         for (const idx of failedIndexes) {
             const meta = archivosMeta[idx]
             archivosFallidos.push(meta.archivo.name)
+            erroresDetalle.push({ nombre: meta.archivo.name, razon: 'Error de conexión al subir el archivo al servidor' })
             console.error(`[Storage] Archivo falló después de todos los reintentos: ${meta.nombreFinal}`)
         }
 
@@ -484,7 +487,8 @@ export const soportesFacturacionService = {
         return {
             urls,
             identificacionesExtraidas: Array.from(identificacionesSet),
-            archivosFallidos
+            archivosFallidos,
+            erroresDetalle
         }
     },
 
@@ -568,13 +572,13 @@ export const soportesFacturacionService = {
     async _procesarArchivosEnBackground(radicado: string, data: CrearSoporteFacturacionData): Promise<void> {
         const urlsUpdate: Record<string, string[]> = {}
         const todasIdentificaciones = new Set<string>()
-        const fallosPorCategoria: { categoria: string; nombres: string[] }[] = []
+        const fallosPorCategoria: { categoria: string; nombres: string[]; errores: { nombre: string; razon: string }[] }[] = []
 
         // Subir archivos por categoría
         for (const grupo of data.archivos) {
             if (grupo.files.length > 0) {
                 try {
-                    const { urls, identificacionesExtraidas, archivosFallidos } = await this.subirArchivos(
+                    const { urls, identificacionesExtraidas, archivosFallidos, erroresDetalle } = await this.subirArchivos(
                         grupo.files,
                         grupo.categoria,
                         radicado,
@@ -594,14 +598,16 @@ export const soportesFacturacionService = {
                     if (archivosFallidos.length > 0) {
                         fallosPorCategoria.push({
                             categoria: grupo.categoria,
-                            nombres: archivosFallidos
+                            nombres: archivosFallidos,
+                            errores: erroresDetalle
                         })
                     }
                 } catch (uploadError) {
                     console.error(`[Background ${radicado}] Error subiendo ${grupo.categoria}:`, uploadError)
                     fallosPorCategoria.push({
                         categoria: grupo.categoria,
-                        nombres: grupo.files.map(f => f.name)
+                        nombres: grupo.files.map(f => f.name),
+                        errores: grupo.files.map(f => ({ nombre: f.name, razon: 'Error inesperado al procesar el archivo' }))
                     })
                 }
             }
@@ -643,6 +649,9 @@ export const soportesFacturacionService = {
                 const totalFallidos = fallosPorCategoria.reduce((acc, f) => acc + f.nombres.length, 0)
                 const totalArchivos = data.archivos.reduce((acc, g) => acc + g.files.length, 0)
 
+                // Consolidar todos los errores detallados
+                const todosErrores = fallosPorCategoria.flatMap(f => f.errores)
+
                 await emailService.enviarNotificacionFalloSubida(
                     soporteCreado.radicadorEmail,
                     radicado,
@@ -651,6 +660,7 @@ export const soportesFacturacionService = {
                         archivosExitosos: totalArchivos - totalFallidos,
                         totalArchivos,
                         timestamp: new Date().toLocaleString('es-CO'),
+                        erroresDetalle: todosErrores,
                     }
                 )
                 console.warn(`[Background ${radicado}] Notificación de fallo enviada (${totalFallidos} archivos fallidos)`)

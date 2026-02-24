@@ -73,6 +73,7 @@ interface DatosFalloSubida {
     archivosExitosos: number
     totalArchivos: number
     timestamp: string
+    erroresDetalle?: { nombre: string; razon: string }[]
 }
 
 interface DatosEnrutado {
@@ -760,19 +761,91 @@ function generarTemplateFalloSubida(radicado: string, datos: DatosFalloSubida): 
 
     const totalFallidos = datos.archivosFallidos.reduce((acc, f) => acc + f.nombres.length, 0)
 
+    // Crear mapa de razones por nombre de archivo para lookup rápido
+    const razonesMap = new Map<string, string>()
+    if (datos.erroresDetalle) {
+        for (const e of datos.erroresDetalle) {
+            razonesMap.set(e.nombre, e.razon)
+        }
+    }
+
+    // Clasificar errores para generar recomendaciones específicas
+    const tieneErrorVacio = datos.erroresDetalle?.some(e => e.razon.includes('vac&iacute;o') || e.razon.includes('vacío') || e.razon.includes('0 bytes')) ?? false
+    const tieneErrorTamanio = datos.erroresDetalle?.some(e => e.razon.includes('excede') || e.razon.includes('l&iacute;mite') || e.razon.includes('límite') || e.razon.includes('MB')) ?? false
+    const tieneErrorCorrupto = datos.erroresDetalle?.some(e => e.razon.includes('corrupto') || e.razon.includes('v&aacute;lido') || e.razon.includes('válido')) ?? false
+    const tieneErrorRed = datos.erroresDetalle?.some(e => e.razon.includes('conexi&oacute;n') || e.razon.includes('conexión') || e.razon.includes('servidor')) ?? false
+    const tieneErrorLectura = datos.erroresDetalle?.some(e => e.razon.includes('leer') || e.razon.includes('contenido')) ?? false
+
+    // Determinar causa principal para el mensaje introductorio
+    let causaPrincipal = 'problemas durante el procesamiento'
+    if (tieneErrorCorrupto && !tieneErrorRed) causaPrincipal = 'problemas con el contenido de los archivos'
+    else if (tieneErrorVacio && !tieneErrorRed) causaPrincipal = 'archivos que se encuentran vac&iacute;os o sin contenido'
+    else if (tieneErrorTamanio && !tieneErrorRed) causaPrincipal = 'archivos que exceden el tama&ntilde;o m&aacute;ximo permitido'
+    else if (tieneErrorRed && !tieneErrorCorrupto && !tieneErrorVacio) causaPrincipal = 'problemas de conexi&oacute;n con el servidor'
+
     const fallidosHtml = datos.archivosFallidos
         .map(grupo => {
             const categoriaNombre = categoriasMap[grupo.categoria] || grupo.categoria
             const archivosLista = grupo.nombres
-                .map(nombre => `<li style="margin: 4px 0; font-size: 14px; color: ${COLORS.slate700};">${nombre}</li>`)
+                .map(nombre => {
+                    const razon = razonesMap.get(nombre)
+                    const razonHtml = razon
+                        ? `<br/><span style="font-size: 12px; color: ${COLORS.error}; font-style: italic;">Motivo: ${razon}</span>`
+                        : ''
+                    return `<li style="margin: 6px 0; font-size: 14px; color: ${COLORS.slate700};">
+                        <strong>${nombre}</strong>${razonHtml}
+                    </li>`
+                })
                 .join('')
             return `
-                <div style="margin-bottom: 12px;">
-                    <h4 style="color: ${COLORS.warningDark}; margin: 0 0 6px 0; font-size: 14px;">&#128194; ${categoriaNombre}</h4>
+                <div style="margin-bottom: 16px; background-color: #ffffff; border: 1px solid ${COLORS.errorLight}; border-radius: 8px; padding: 14px;">
+                    <h4 style="color: ${COLORS.warningDark}; margin: 0 0 8px 0; font-size: 14px;">&#128194; ${categoriaNombre}</h4>
                     <ul style="margin: 0; padding-left: 20px; list-style-type: disc;">${archivosLista}</ul>
                 </div>
             `
         })
+        .join('')
+
+    // Generar recomendaciones específicas según los tipos de error detectados
+    const recomendaciones: string[] = []
+
+    if (tieneErrorVacio) {
+        recomendaciones.push(
+            'Uno o m&aacute;s archivos est&aacute;n vac&iacute;os (0 bytes). Esto suele ocurrir cuando el archivo no se descarg&oacute; completamente o se guard&oacute; de forma incorrecta. <strong>Vuelva a descargar o generar el documento original</strong> y verifique que se pueda abrir correctamente antes de cargarlo.'
+        )
+    }
+
+    if (tieneErrorTamanio) {
+        recomendaciones.push(
+            'Uno o m&aacute;s archivos exceden el tama&ntilde;o m&aacute;ximo de <strong>10 MB</strong>. Puede reducir el tama&ntilde;o del PDF usando herramientas en l&iacute;nea como <em>ilovepdf.com</em> (comprimir PDF), o escaneando el documento con una resoluci&oacute;n m&aacute;s baja.'
+        )
+    }
+
+    if (tieneErrorCorrupto) {
+        recomendaciones.push(
+            'Uno o m&aacute;s archivos parecen estar da&ntilde;ados o corruptos. <strong>Abra el archivo en su computador</strong> para verificar que se visualice correctamente. Si el archivo no se abre o muestra errores, vuelva a descargarlo desde la fuente original (correo, sistema, esc&aacute;ner).'
+        )
+    }
+
+    if (tieneErrorLectura) {
+        recomendaciones.push(
+            'No se pudo leer el contenido de uno o m&aacute;s archivos. Aseg&uacute;rese de que el archivo no est&eacute; abierto en otro programa y que no est&eacute; protegido con contrase&ntilde;a. Cierre cualquier programa que pueda estar us&aacute;ndolo y vuelva a intentar.'
+        )
+    }
+
+    if (tieneErrorRed) {
+        recomendaciones.push(
+            'Hubo problemas de conexi&oacute;n al subir archivos al servidor. <strong>Verifique que su conexi&oacute;n a internet sea estable</strong>. Si est&aacute; usando Wi-Fi, intente acercarse al router o usar datos m&oacute;viles como alternativa.'
+        )
+    }
+
+    // Recomendación siempre presente
+    recomendaciones.push(
+        'Los archivos que se subieron exitosamente <strong>ya quedaron guardados</strong> en el sistema. Solo necesita volver a cargar los archivos que fallaron.'
+    )
+
+    const recomendacionesHtml = recomendaciones
+        .map(r => `<li style="margin: 8px 0; font-size: 13px; line-height: 1.7; color: ${COLORS.slate700};">${r}</li>`)
         .join('')
 
     return `
@@ -789,7 +862,7 @@ function generarTemplateFalloSubida(radicado: string, datos: DatosFalloSubida): 
             <div style="padding: 30px; background-color: ${COLORS.background};">
                 <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6;">Cordial saludo,</p>
                 <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6;">
-                    Le informamos que durante la radicaci&oacute;n del siguiente caso, <strong>${totalFallidos} archivo(s)</strong> no pudieron ser subidos al sistema debido a problemas de conexi&oacute;n.
+                    Le informamos que durante la radicaci&oacute;n del siguiente caso, <strong>${totalFallidos} archivo(s)</strong> no pudieron ser procesados debido a <strong>${causaPrincipal}</strong>.
                 </p>
 
                 <!-- Radicado -->
@@ -814,9 +887,9 @@ function generarTemplateFalloSubida(radicado: string, datos: DatosFalloSubida): 
                     </div>
                 </div>
 
-                <!-- Archivos Fallidos -->
+                <!-- Archivos Fallidos con motivo -->
                 <h3 style="color: ${COLORS.error}; border-bottom: 2px solid ${COLORS.errorLight}; padding-bottom: 8px; margin-top: 24px;">
-                    &#128196; Archivos que no se pudieron subir
+                    &#128196; Archivos que requieren atenci&oacute;n
                 </h3>
                 ${fallidosHtml}
 
@@ -824,18 +897,16 @@ function generarTemplateFalloSubida(radicado: string, datos: DatosFalloSubida): 
                 <div style="background-color: ${COLORS.warningLight}; border-left: 4px solid ${COLORS.warning}; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
                     <strong style="color: ${COLORS.warningDark};">&#9889; Acci&oacute;n Requerida:</strong>
                     <p style="margin: 10px 0 0 0; font-size: 14px; line-height: 1.6; color: ${COLORS.slate700};">
-                        Por favor, ingrese al <strong>Portal de Colaboradores</strong>, busque el radicado <strong>${radicado}</strong>
-                        y vuelva a subir los archivos indicados. Le recomendamos verificar su conexi&oacute;n a internet antes de intentar nuevamente.
+                        Ingrese al <strong>Portal de Colaboradores</strong>, busque el radicado <strong>${radicado}</strong>
+                        en la pesta&ntilde;a <em>Gesti&oacute;n de Radicados</em> y vuelva a cargar &uacute;nicamente los archivos que fallaron.
                     </p>
                 </div>
 
-                <!-- Tips -->
+                <!-- Recomendaciones específicas -->
                 <div style="background-color: ${COLORS.infoLight}; border-left: 4px solid ${COLORS.info}; padding: 16px; margin: 20px 0; border-radius: 0 8px 8px 0;">
-                    <strong style="color: ${COLORS.primary};">&#128161; Recomendaciones:</strong>
-                    <ul style="margin: 10px 0 0 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: ${COLORS.slate700};">
-                        <li>Verifique que su conexi&oacute;n a internet sea estable</li>
-                        <li>Si el problema persiste, intente con una red diferente (ej: datos m&oacute;viles)</li>
-                        <li>Los archivos que se subieron exitosamente ya quedaron guardados</li>
+                    <strong style="color: ${COLORS.primary};">&#128161; Recomendaciones seg&uacute;n el tipo de error:</strong>
+                    <ul style="margin: 10px 0 0 0; padding-left: 18px; list-style-type: none;">
+                        ${recomendacionesHtml}
                     </ul>
                 </div>
 
