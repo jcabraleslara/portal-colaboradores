@@ -284,6 +284,18 @@ const CIRCUIT_BREAKER_THRESHOLD = 3
 /** Pausa del circuit breaker en ms */
 const CIRCUIT_BREAKER_COOLDOWN_MS = 5000
 
+/** Umbral de tasa de fallo para abortar lote tempranamente */
+const EARLY_ABORT_FAILURE_RATE = 0.6
+const EARLY_ABORT_MIN_FAILURES = 5
+
+/**
+ * Cola global para serializar el procesamiento de archivos entre radicados.
+ * Evita que múltiples radicados compitan por conexiones del navegador simultáneamente,
+ * lo cual causa saturación y fallos masivos en uploads a Supabase Storage.
+ * (Chrome limita ~6 conexiones HTTP/1.1 concurrentes por origen)
+ */
+let _colaProcesamientoArchivos: Promise<void> = Promise.resolve()
+
 /**
  * Subir múltiples archivos concurrentemente con límite de paralelismo adaptativo.
  * - Reduce concurrencia automáticamente cuando detecta fallos en un lote.
@@ -334,6 +346,17 @@ async function uploadBatchConcurrent<T, R>(
             console.warn(`[Storage] Circuit breaker activado: ${consecutiveFailures} fallos consecutivos, pausa de ${CIRCUIT_BREAKER_COOLDOWN_MS}ms`)
             await new Promise(resolve => setTimeout(resolve, CIRCUIT_BREAKER_COOLDOWN_MS))
             consecutiveFailures = 0
+        }
+
+        // Early abort: si la tasa de fallo es demasiado alta, abortar los restantes
+        const totalProcessed = i + chunk.length
+        const failureRate = failedIndexes.length / totalProcessed
+        if (failedIndexes.length >= EARLY_ABORT_MIN_FAILURES && failureRate > EARLY_ABORT_FAILURE_RATE) {
+            console.error(`[Storage] Abortando subida: ${failedIndexes.length}/${totalProcessed} archivos fallidos (${Math.round(failureRate * 100)}%). Conexiones probablemente saturadas.`)
+            for (let remaining = i + currentConcurrency; remaining < items.length; remaining++) {
+                failedIndexes.push(remaining)
+            }
+            break
         }
 
         // Pausa dinámica entre lotes según volumen total
@@ -470,7 +493,7 @@ export const soportesFacturacionService = {
         for (const idx of failedIndexes) {
             const meta = archivosMeta[idx]
             archivosFallidos.push(meta.archivo.name)
-            erroresDetalle.push({ nombre: meta.archivo.name, razon: 'Error de conexión al subir el archivo al servidor' })
+            erroresDetalle.push({ nombre: meta.archivo.name, razon: 'Error de conexión al subir el archivo al servidor. Puede deberse a congestión de red o envío simultáneo de muchos archivos.' })
             console.error(`[Storage] Archivo falló después de todos los reintentos: ${meta.nombreFinal}`)
         }
 
@@ -535,13 +558,20 @@ export const soportesFacturacionService = {
             const radicado = rawRegistro.radicado
             const soporteInicial = transformSoporte(rawRegistro)
 
-            // Lanzar procesamiento de archivos en background (fire-and-forget)
+            // Lanzar procesamiento de archivos en background (encolado)
             // Los archivos se suben asincrónicamente y el radicador recibe email con el resultado
+            // Se usa cola global para serializar: si se crean 2+ radicados simultáneamente,
+            // sus uploads no compiten por conexiones del navegador
             const totalArchivos = data.archivos.reduce((acc, g) => acc + g.files.length, 0)
             if (totalArchivos > 0) {
-                console.info(`[Radicación] ${radicado}: Iniciando procesamiento en background de ${totalArchivos} archivo(s)`)
-                this._procesarArchivosEnBackground(radicado, data).catch(err => {
-                    console.error(`[Radicación] ${radicado}: Error fatal en procesamiento background:`, err)
+                console.info(`[Radicación] ${radicado}: Encolando procesamiento de ${totalArchivos} archivo(s)`)
+                _colaProcesamientoArchivos = _colaProcesamientoArchivos.then(async () => {
+                    try {
+                        console.info(`[Radicación] ${radicado}: Iniciando procesamiento de archivos`)
+                        await this._procesarArchivosEnBackground(radicado, data)
+                    } catch (err) {
+                        console.error(`[Radicación] ${radicado}: Error fatal en procesamiento background:`, err)
+                    }
                 })
             } else {
                 // Sin archivos: enviar confirmación directa
