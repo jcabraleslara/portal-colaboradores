@@ -227,18 +227,12 @@ async function executeWithRetry<T>(
  */
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
-/**
- * Magic bytes de formatos válidos para validación de contenido
- */
-const MAGIC_BYTES: Record<string, number[]> = {
-    pdf: [0x25, 0x50, 0x44, 0x46], // %PDF
-    png: [0x89, 0x50, 0x4E, 0x47], // .PNG
-    jpg: [0xFF, 0xD8, 0xFF],       // JFIF/EXIF
-}
 
 /**
  * Validar un archivo antes de intentar subirlo a Storage.
- * Detecta archivos vacíos, demasiado grandes o con contenido corrupto.
+ * Detecta archivos vacíos o demasiado grandes.
+ * La validación de magic bytes se hace de forma tolerante (busca en los primeros 1024 bytes)
+ * porque muchos PDFs legítimos tienen BOM, whitespace o headers antes del marcador %PDF.
  * @returns null si el archivo es válido, o un string con la razón del rechazo
  */
 async function validarArchivo(archivo: File): Promise<string | null> {
@@ -253,23 +247,17 @@ async function validarArchivo(archivo: File): Promise<string | null> {
         return `El archivo "${archivo.name}" excede el límite de 10 MB (${sizeMB} MB)`
     }
 
-    // 3. Validar magic bytes (contenido real del archivo)
-    const extension = archivo.name.split('.').pop()?.toLowerCase() || ''
-    const expectedMagic = extension === 'jpeg' ? MAGIC_BYTES.jpg : MAGIC_BYTES[extension]
-
-    if (expectedMagic) {
-        try {
-            const headerSlice = archivo.slice(0, 8)
-            const buffer = await headerSlice.arrayBuffer()
-            const bytes = new Uint8Array(buffer)
-
-            const matchesMagic = expectedMagic.every((byte, i) => bytes[i] === byte)
-            if (!matchesMagic) {
-                return `El archivo "${archivo.name}" parece estar corrupto o no es un ${extension.toUpperCase()} válido`
-            }
-        } catch {
+    // 3. Validar contenido del archivo (tolerante)
+    // Solo validar que el archivo sea legible; no rechazar por magic bytes
+    // ya que muchos PDFs legítimos no empiezan exactamente en %PDF (BOM, whitespace, etc.)
+    try {
+        const headerSlice = archivo.slice(0, 4)
+        const buffer = await headerSlice.arrayBuffer()
+        if (buffer.byteLength === 0) {
             return `No se pudo leer el contenido del archivo "${archivo.name}"`
         }
+    } catch {
+        return `No se pudo leer el contenido del archivo "${archivo.name}"`
     }
 
     return null
@@ -403,31 +391,38 @@ export const soportesFacturacionService = {
             }
         }
 
-        // Si todos los archivos fueron rechazados en validación, notificar y retornar
+        // Si todos los archivos fueron rechazados en pre-validación, retornar sin notificar error crítico
+        // (archivos vacíos o muy grandes no son errores de infraestructura)
         if (archivosValidos.length === 0 && archivosFallidos.length > 0) {
-            await criticalErrorService.reportStorageFailure(
-                'upload',
-                'Soportes de Facturación',
-                'soportes-facturacion',
-                new Error(`${archivosFallidos.length} archivo(s) rechazados en validación: ${archivosFallidos.join(', ')}`)
-            )
+            console.warn(`[Storage] ${archivosFallidos.length} archivo(s) no pasaron pre-validación: ${archivosFallidos.join(', ')}`)
             return { urls: [], identificacionesExtraidas: [], archivosFallidos, erroresDetalle }
         }
 
         // Preparar metadata de cada archivo válido antes de subir
+        // Contadores por nombre base para evitar colisiones cuando hay múltiples archivos
+        // del mismo paciente en la misma categoría
+        const contadorNombres = new Map<string, number>()
+
         const archivosMeta = archivosValidos.map((archivo) => {
             const extension = archivo.name.split('.').pop()?.toLowerCase() || 'pdf'
             const identificacionPaciente = extraerIdentificacionArchivo(archivo.name)
 
-            let nombreFinal = ''
+            let nombreBase = ''
             if (identificacionPaciente) {
-                nombreFinal = `${prefijo}_${NIT}_${identificacionPaciente}.${extension}`
+                nombreBase = `${prefijo}_${NIT}_${identificacionPaciente}`
                 identificacionesSet.add(identificacionPaciente)
                 const soloNumero = identificacionPaciente.replace(/^(CC|TI|CE|CN|SC|PE|PT|RC|ME|AS)/i, '')
                 if (soloNumero) identificacionesSet.add(soloNumero)
             } else {
-                nombreFinal = `${prefijo}_${radicado}_${categoria}.${extension}`
+                nombreBase = `${prefijo}_${radicado}_${categoria}`
             }
+
+            // Agregar sufijo consecutivo si ya existe un archivo con el mismo nombre base
+            const count = contadorNombres.get(nombreBase) || 0
+            contadorNombres.set(nombreBase, count + 1)
+            const nombreFinal = count === 0
+                ? `${nombreBase}.${extension}`
+                : `${nombreBase}_${count + 1}.${extension}`
 
             return { archivo, nombreFinal, ruta: `${radicado}/${nombreFinal}` }
         })
