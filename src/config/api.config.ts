@@ -25,6 +25,7 @@ export const EDGE_FUNCTIONS = {
     generateEmbedding: `${SUPABASE_URL}/functions/v1/generate-embedding`,
     notifyCriticalError: `${SUPABASE_URL}/functions/v1/notify-critical-error`,
     sendEmail: `${SUPABASE_URL}/functions/v1/send-email`,
+    resetPassword: `${SUPABASE_URL}/functions/v1/reset-password`,
 } as const
 
 /**

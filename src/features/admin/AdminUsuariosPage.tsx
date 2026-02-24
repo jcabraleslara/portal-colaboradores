@@ -8,12 +8,13 @@ import { useState, useEffect, useCallback } from 'react'
 import {
     Users, UserPlus, Search, Shield, ShieldCheck, ShieldX,
     ToggleLeft, ToggleRight, Trash2, RefreshCw, AlertCircle,
-    ChevronLeft, ChevronRight, FileUp, FileDown
+    ChevronLeft, ChevronRight, FileUp, FileDown, KeyRound
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { toast } from 'sonner'
 import { useAuth } from '@/context/AuthContext'
 import { usuariosPortalService, UsuarioPortal } from '@/services/usuariosPortal.service'
+import { EDGE_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
 import CreateUserModal from './components/CreateUserModal'
 import ImportUserModal from './components/ImportUserModal'
 
@@ -154,6 +155,30 @@ export default function AdminUsuariosPage() {
             loadRoleStats() // Recargar estadísticas
         } else {
             toast.error(`Error: ${err}`)
+        }
+        setActionLoading(null)
+    }
+
+    // Resetear contraseña
+    const handleResetPassword = async (usuario: UsuarioPortal) => {
+        if (!confirm(`¿Estás seguro de resetear la contraseña de ${usuario.nombre_completo}?\n\nLa nueva contraseña será su número de identificación: ${usuario.identificacion}`)) {
+            return
+        }
+        setActionLoading(usuario.id)
+        try {
+            const response = await fetch(EDGE_FUNCTIONS.resetPassword, {
+                method: 'POST',
+                headers: await getEdgeFunctionHeaders(),
+                body: JSON.stringify({ usuario_portal_id: usuario.id })
+            })
+            const data = await response.json()
+            if (response.ok && data.success) {
+                toast.success(`Contraseña reseteada para ${usuario.nombre_completo}. Nueva contraseña: su número de identificación.`)
+            } else {
+                toast.error(data.error || 'Error al resetear la contraseña')
+            }
+        } catch {
+            toast.error('Error de conexión al resetear la contraseña')
         }
         setActionLoading(null)
     }
@@ -441,6 +466,14 @@ export default function AdminUsuariosPage() {
                                             </td>
                                             <td className="px-4 py-3 text-center">
                                                 <div className="flex items-center justify-center gap-2">
+                                                    <button
+                                                        onClick={() => handleResetPassword(usuario)}
+                                                        disabled={actionLoading === usuario.id || isCurrentUser}
+                                                        className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        title="Resetear contraseña (será su número de identificación)"
+                                                    >
+                                                        <KeyRound className="w-4 h-4" />
+                                                    </button>
                                                     <button
                                                         onClick={() => handleDelete(usuario)}
                                                         disabled={actionLoading === usuario.id || isCurrentUser}
