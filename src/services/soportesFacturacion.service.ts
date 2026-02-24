@@ -222,6 +222,59 @@ async function executeWithRetry<T>(
     throw lastError
 }
 
+/**
+ * Tamaño máximo permitido por archivo (en bytes): 10 MB
+ */
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+
+/**
+ * Magic bytes de formatos válidos para validación de contenido
+ */
+const MAGIC_BYTES: Record<string, number[]> = {
+    pdf: [0x25, 0x50, 0x44, 0x46], // %PDF
+    png: [0x89, 0x50, 0x4E, 0x47], // .PNG
+    jpg: [0xFF, 0xD8, 0xFF],       // JFIF/EXIF
+}
+
+/**
+ * Validar un archivo antes de intentar subirlo a Storage.
+ * Detecta archivos vacíos, demasiado grandes o con contenido corrupto.
+ * @returns null si el archivo es válido, o un string con la razón del rechazo
+ */
+async function validarArchivo(archivo: File): Promise<string | null> {
+    // 1. Archivo vacío
+    if (archivo.size === 0) {
+        return `El archivo "${archivo.name}" está vacío (0 bytes)`
+    }
+
+    // 2. Tamaño máximo
+    if (archivo.size > MAX_FILE_SIZE_BYTES) {
+        const sizeMB = (archivo.size / (1024 * 1024)).toFixed(1)
+        return `El archivo "${archivo.name}" excede el límite de 10 MB (${sizeMB} MB)`
+    }
+
+    // 3. Validar magic bytes (contenido real del archivo)
+    const extension = archivo.name.split('.').pop()?.toLowerCase() || ''
+    const expectedMagic = extension === 'jpeg' ? MAGIC_BYTES.jpg : MAGIC_BYTES[extension]
+
+    if (expectedMagic) {
+        try {
+            const headerSlice = archivo.slice(0, 8)
+            const buffer = await headerSlice.arrayBuffer()
+            const bytes = new Uint8Array(buffer)
+
+            const matchesMagic = expectedMagic.every((byte, i) => bytes[i] === byte)
+            if (!matchesMagic) {
+                return `El archivo "${archivo.name}" parece estar corrupto o no es un ${extension.toUpperCase()} válido`
+            }
+        } catch {
+            return `No se pudo leer el contenido del archivo "${archivo.name}"`
+        }
+    }
+
+    return null
+}
+
 /** Limite de subidas concurrentes al bucket de Storage */
 const UPLOAD_CONCURRENCY_LIMIT = 3
 
@@ -313,8 +366,31 @@ export const soportesFacturacionService = {
         const NIT = '900842629'
         const prefijo = getPrefijoArchivo(eps, servicio || 'Consulta Ambulatoria', categoria)
 
-        // Preparar metadata de cada archivo antes de subir
-        const archivosMeta = archivos.map((archivo) => {
+        // Pre-validar archivos antes de intentar subir (evita reintentos inútiles en archivos corruptos/vacíos)
+        const archivosValidos: File[] = []
+        for (const archivo of archivos) {
+            const errorValidacion = await validarArchivo(archivo)
+            if (errorValidacion) {
+                console.error(`[Storage] Archivo rechazado pre-upload: ${errorValidacion}`)
+                archivosFallidos.push(archivo.name)
+            } else {
+                archivosValidos.push(archivo)
+            }
+        }
+
+        // Si todos los archivos fueron rechazados en validación, notificar y retornar
+        if (archivosValidos.length === 0 && archivosFallidos.length > 0) {
+            await criticalErrorService.reportStorageFailure(
+                'upload',
+                'Soportes de Facturación',
+                'soportes-facturacion',
+                new Error(`${archivosFallidos.length} archivo(s) rechazados en validación: ${archivosFallidos.join(', ')}`)
+            )
+            return { urls: [], identificacionesExtraidas: [], archivosFallidos }
+        }
+
+        // Preparar metadata de cada archivo válido antes de subir
+        const archivosMeta = archivosValidos.map((archivo) => {
             const extension = archivo.name.split('.').pop()?.toLowerCase() || 'pdf'
             const identificacionPaciente = extraerIdentificacionArchivo(archivo.name)
 
