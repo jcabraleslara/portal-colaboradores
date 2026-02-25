@@ -33,7 +33,7 @@ export function ConsultarCupsPage() {
             </div>
 
             {/* Pestañas */}
-            <div className="border-b border-gray-200">
+            <div className="border-b border-gray-200 dark:border-white/10">
                 <nav className="flex gap-1 -mb-px" aria-label="Pestañas">
                     {TABS.map(({ id, label, icon: Icon }) => {
                         const isActive = activeTab === id
@@ -44,7 +44,7 @@ export function ConsultarCupsPage() {
                                 className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                                     isActive
                                         ? 'border-primary-500 text-primary-600'
-                                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                        : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-slate-300 hover:border-gray-300 dark:hover:border-white/20'
                                 }`}
                                 aria-selected={isActive}
                                 role="tab"

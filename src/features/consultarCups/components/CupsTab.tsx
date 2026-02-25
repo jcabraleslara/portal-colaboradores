@@ -215,8 +215,8 @@ export function CupsTab() {
                                                 navigator.clipboard.writeText(text);
                                                 toast.success('Copiado: ' + text);
                                             }}
-                                            className={`w-full text-left p-4 border-b border-gray-100 hover:bg-gray-50 transition-colors group ${cupsSeleccionado?.cups === cups.cups
-                                                ? 'bg-primary-50 border-l-4 border-l-primary-500'
+                                            className={`w-full text-left p-4 border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors group ${cupsSeleccionado?.cups === cups.cups
+                                                ? 'bg-primary-50 dark:bg-primary-900/30 border-l-4 border-l-primary-500'
                                                 : ''
                                                 }`}
                                             title="Doble clic para copiar Código + Descripción"
