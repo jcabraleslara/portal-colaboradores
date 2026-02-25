@@ -170,9 +170,9 @@ export function Autocomplete({
                     placeholder={placeholder}
                     disabled={disabled}
                     className={`
-                        w-full pl-10 pr-16 py-2.5 rounded-lg border bg-white text-sm
-                        focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-[var(--color-primary)]
-                        ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'border-gray-300'}
+                        w-full pl-10 pr-16 py-2.5 rounded-lg border bg-white dark:bg-black dark:text-slate-100 text-sm
+                        focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] dark:focus:ring-primary-900/50 focus:border-[var(--color-primary)]
+                        ${disabled ? 'bg-gray-100 dark:bg-white/5 cursor-not-allowed' : 'border-gray-300 dark:border-white/15'}
                     `}
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -195,7 +195,7 @@ export function Autocomplete({
             {isOpen && filteredOptions.length > 0 && (
                 <ul
                     ref={listRef}
-                    className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-white border border-gray-200 rounded-lg shadow-lg"
+                    className="absolute z-50 w-full mt-1 max-h-48 overflow-auto bg-white dark:bg-black border border-gray-200 dark:border-white/10 rounded-lg shadow-lg"
                 >
                     {filteredOptions.map((option, index) => (
                         <li
@@ -204,8 +204,8 @@ export function Autocomplete({
                             className={`
                                 px-4 py-2 cursor-pointer text-sm transition-colors
                                 ${index === highlightedIndex
-                                    ? 'bg-[var(--color-primary-50)] text-[var(--color-primary)]'
-                                    : 'hover:bg-gray-50'
+                                    ? 'bg-[var(--color-primary-50)] dark:bg-primary-900/30 text-[var(--color-primary)]'
+                                    : 'hover:bg-gray-50 dark:hover:bg-white/5 dark:text-slate-200'
                                 }
                             `}
                         >
@@ -216,7 +216,7 @@ export function Autocomplete({
             )}
 
             {isOpen && inputValue.length >= 1 && filteredOptions.length === 0 && (
-                <div className="absolute z-50 w-full mt-1 p-3 bg-white border border-gray-200 rounded-lg shadow-lg">
+                <div className="absolute z-50 w-full mt-1 p-3 bg-white dark:bg-black border border-gray-200 dark:border-white/10 rounded-lg shadow-lg">
                     <p className="text-sm text-gray-500 text-center">
                         No se encontraron coincidencias
                         {allowFreeText && <><br /><span className="text-xs">Presiona Enter para usar el texto ingresado</span></>}

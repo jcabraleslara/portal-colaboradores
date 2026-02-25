@@ -78,7 +78,7 @@ export function LoadingSpinner({
 
     if (fullScreen) {
         return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 dark:bg-black/80 backdrop-blur-sm">
                 {spinner}
             </div>
         )
@@ -103,7 +103,7 @@ export function LoadingOverlay({
         <div className="relative">
             {children}
             {isLoading && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-[2px] rounded-lg">
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 dark:bg-black/70 backdrop-blur-[2px] rounded-lg">
                     <LoadingSpinner size="lg" label={label} />
                 </div>
             )}

@@ -7,6 +7,9 @@
 
 @import "tailwindcss";
 
+/* Dark mode basado en clase (no media query) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ========================================
    FUENTES - Plus Jakarta Sans (Premium y Moderna)
    ======================================== */
@@ -98,6 +101,11 @@ body {
   min-height: 100vh;
 }
 
+html.dark body {
+  background: #000000;
+  color: #F1F5F9;
+}
+
 /* ========================================
    CLASES UTILITARIAS PREMIUM
    ======================================== */
@@ -110,11 +118,12 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
-.glass-dark {
-  background: rgba(15, 23, 42, 0.8);
+.glass-dark,
+.dark .glass {
+  background: rgba(0, 0, 0, 0.95);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Gradientes premium */
@@ -420,6 +429,24 @@ body {
   border-color: #CBD5E1;
 }
 
+.dark .input-premium {
+  background: #000000;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #F1F5F9;
+}
+
+.dark .input-premium::placeholder {
+  color: #64748B;
+}
+
+.dark .input-premium:focus {
+  box-shadow: 0 0 0 4px rgba(0, 149, 235, 0.25);
+}
+
+.dark .input-premium:hover:not(:focus) {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
 /* Card premium */
 .card-premium {
   background: #FFFFFF;
@@ -430,6 +457,12 @@ body {
     0 10px 15px -3px rgba(0, 0, 0, 0.1),
     0 20px 25px -5px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.dark .card-premium {
+  background: #000000;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 /* ========================================
@@ -455,12 +488,25 @@ body {
   background: linear-gradient(135deg, #0077BC, #00598D);
 }
 
+.dark ::-webkit-scrollbar-track {
+  background: #000000;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  border-color: #000000;
+}
+
 /* ========================================
    SELECTION
    ======================================== */
 ::selection {
   background-color: rgba(0, 149, 235, 0.2);
   color: #1E293B;
+}
+
+.dark ::selection {
+  background-color: rgba(0, 149, 235, 0.4);
+  color: #F1F5F9;
 }
 
 /* ========================================
@@ -484,6 +530,13 @@ body {
 .bg-dots {
   background-image: radial-gradient(rgba(0, 149, 235, 0.15) 1px, transparent 1px);
   background-size: 20px 20px;
+}
+
+.dark .bg-pattern {
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(0, 149, 235, 0.04) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(243, 88, 93, 0.02) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(133, 197, 76, 0.02) 0%, transparent 40%);
 }
 
 /* ========================================
@@ -651,4 +704,121 @@ body {
 
 .ProseMirror:focus {
   outline: none;
+}
+
+/* ========================================
+   DARK MODE - TIPTAP / MARKDOWN
+   ======================================== */
+.dark .ProseMirror strong,
+.dark .markdown-content strong {
+  color: #F1F5F9;
+}
+
+.dark .ProseMirror h1,
+.dark .markdown-content h1 {
+  color: #F8FAFC;
+}
+
+.dark .ProseMirror h2,
+.dark .markdown-content h2 {
+  color: #F1F5F9;
+}
+
+.dark .ProseMirror h3,
+.dark .markdown-content h3 {
+  color: #E2E8F0;
+}
+
+.dark .ProseMirror p.is-editor-empty:first-child::before {
+  color: #64748B;
+}
+
+/* ========================================
+   DARK MODE - OVERRIDES GLOBALES
+   Cubren patrones comunes en features pages
+   ======================================== */
+html.dark {
+  color-scheme: dark;
+}
+
+/* Tablas */
+.dark table {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark th {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #E2E8F0;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark td {
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #CBD5E1;
+}
+
+.dark tr:hover td {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Selects nativos */
+.dark select {
+  background-color: #000000;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #F1F5F9;
+}
+
+/* Textareas */
+.dark textarea {
+  background-color: #000000;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #F1F5F9;
+}
+
+/* Inputs nativos no cubiertos por el componente */
+.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+  color-scheme: dark;
+}
+
+/* Tooltips y popovers genéricos */
+.dark [role="tooltip"],
+.dark [role="dialog"] {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Badges y tags comunes */
+.dark .bg-gray-50 {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark .bg-gray-100 {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark .border-gray-200 {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .border-gray-300 {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.dark .text-gray-500 {
+  color: #94A3B8;
+}
+
+.dark .text-gray-600 {
+  color: #CBD5E1;
+}
+
+.dark .text-gray-700 {
+  color: #E2E8F0;
+}
+
+.dark .text-gray-800 {
+  color: #F1F5F9;
+}
+
+.dark .text-gray-900 {
+  color: #F8FAFC;
 }

@@ -5,27 +5,41 @@
 
 import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from '@/context/AuthContext'
+import { ThemeProvider, useTheme } from '@/context/ThemeContext'
 import { AppRoutes } from '@/routes/AppRoutes'
 import { PWAUpdatePrompt } from '@/components/common/PWAUpdatePrompt'
 import { Toaster } from 'sonner'
 import './index.css'
 
+function AppContent() {
+  const { isDark } = useTheme()
+
+  return (
+    <>
+      <AppRoutes />
+      <PWAUpdatePrompt />
+      <Toaster
+        theme={isDark ? 'dark' : 'light'}
+        richColors
+        position="top-right"
+        expand={true}
+        closeButton
+        style={{
+          fontFamily: 'inherit'
+        }}
+      />
+    </>
+  )
+}
+
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-        <PWAUpdatePrompt />
-        <Toaster
-          richColors
-          position="top-right"
-          expand={true}
-          closeButton
-          style={{
-            fontFamily: 'inherit'
-          }}
-        />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   )
 }

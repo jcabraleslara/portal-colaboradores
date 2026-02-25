@@ -17,9 +17,9 @@ export function MainLayout() {
     const toggleCollapse = () => setIsCollapsed(!isCollapsed)
 
     return (
-        <div className="min-h-screen" style={{ background: '#F8FAFC' }}>
+        <div className="min-h-screen bg-[#F8FAFC] dark:bg-black transition-colors duration-300">
             {/* Patrón de fondo sutil */}
-            <div className="fixed inset-0 bg-pattern pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(0,149,235,0.03) 0%, rgba(243,88,93,0.02) 50%, rgba(133,197,76,0.02) 100%)' }} />
+            <div className="fixed inset-0 bg-pattern pointer-events-none dark:opacity-30" style={{ background: 'linear-gradient(135deg, rgba(0,149,235,0.03) 0%, rgba(243,88,93,0.02) 50%, rgba(133,197,76,0.02) 100%)' }} />
 
             {/* Header fijo */}
             <Header onMenuClick={toggleSidebar} isSidebarOpen={isSidebarOpen} />

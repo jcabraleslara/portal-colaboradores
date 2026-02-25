@@ -112,7 +112,7 @@ export function MultiSelector({
                 left: coords.left,
                 width: coords.width,
             }}
-            className="absolute z-[9999] bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-200"
+            className="absolute z-[9999] bg-white dark:bg-black border border-gray-200 dark:border-white/10 rounded-lg shadow-xl max-h-60 overflow-y-auto animate-in fade-in-0 zoom-in-95 duration-200"
         >
             {filteredOptions.length === 0 ? (
                 <p className="p-3 text-sm text-gray-500 text-center">No se encontraron resultados</p>
@@ -122,7 +122,7 @@ export function MultiSelector({
                         <li
                             key={option}
                             onClick={() => handleSelect(option)}
-                            className="px-4 py-2 hover:bg-[var(--color-primary-50)] hover:text-[var(--color-primary)] cursor-pointer flex items-center justify-between transition-colors text-sm text-gray-700"
+                            className="px-4 py-2 hover:bg-[var(--color-primary-50)] dark:hover:bg-primary-900/30 hover:text-[var(--color-primary)] cursor-pointer flex items-center justify-between transition-colors text-sm text-gray-700 dark:text-slate-200"
                         >
                             {option}
                         </li>
@@ -136,16 +136,16 @@ export function MultiSelector({
         <div ref={containerRef} className="relative w-full text-sm">
             <div
                 className={`
-                    w-full min-h-[38px] px-2 py-1.5 rounded border bg-white flex flex-wrap items-center gap-1.5 cursor-text transition-colors
-                    ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'hover:border-gray-400 focus-within:ring-2 focus-within:ring-[var(--color-primary-100)] focus-within:border-[var(--color-primary)]'}
-                    ${open ? 'ring-2 ring-[var(--color-primary-100)] border-[var(--color-primary)]' : 'border-gray-300'}
+                    w-full min-h-[38px] px-2 py-1.5 rounded border bg-white dark:bg-black dark:text-slate-100 flex flex-wrap items-center gap-1.5 cursor-text transition-colors
+                    ${disabled ? 'bg-gray-100 dark:bg-white/5 cursor-not-allowed' : 'hover:border-gray-400 dark:hover:border-white/25 focus-within:ring-2 focus-within:ring-[var(--color-primary-100)] dark:focus-within:ring-primary-900/50 focus-within:border-[var(--color-primary)]'}
+                    ${open ? 'ring-2 ring-[var(--color-primary-100)] dark:ring-primary-900/50 border-[var(--color-primary)]' : 'border-gray-300 dark:border-white/15'}
                 `}
                 onClick={() => !disabled && setOpen(true)}
             >
                 {value.map((item) => (
                     <span
                         key={item}
-                        className="bg-blue-50 text-blue-700 border border-blue-100 px-1.5 py-0.5 rounded text-[11px] font-medium flex items-center gap-1"
+                        className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-100 dark:border-blue-800/50 px-1.5 py-0.5 rounded text-[11px] font-medium flex items-center gap-1"
                     >
                         {item}
                         <button

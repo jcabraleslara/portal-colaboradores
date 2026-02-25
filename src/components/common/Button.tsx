@@ -43,11 +43,11 @@ const variantStyles: Record<ButtonVariant, string> = {
     active:bg-[var(--color-primary-700)]
   `,
     secondary: `
-    bg-white text-[var(--color-text-primary)]
-    border border-gray-300
-    hover:bg-gray-50
-    focus:ring-gray-300
-    active:bg-gray-100
+    bg-white dark:bg-black text-[var(--color-text-primary)] dark:text-slate-200
+    border border-gray-300 dark:border-white/15
+    hover:bg-gray-50 dark:hover:bg-white/5
+    focus:ring-gray-300 dark:focus:ring-white/20
+    active:bg-gray-100 dark:active:bg-white/10
   `,
     success: `
     bg-[var(--color-success)] text-white
@@ -71,9 +71,9 @@ const variantStyles: Record<ButtonVariant, string> = {
   `,
     ghost: `
     bg-transparent text-[var(--color-primary)]
-    hover:bg-[var(--color-primary-50)]
+    hover:bg-[var(--color-primary-50)] dark:hover:bg-primary-900/30
     focus:ring-[var(--color-primary-500)]
-    active:bg-[var(--color-primary-100)]
+    active:bg-[var(--color-primary-100)] dark:active:bg-primary-900/50
   `,
 }
 

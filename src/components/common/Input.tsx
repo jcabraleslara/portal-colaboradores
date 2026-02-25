@@ -30,8 +30,8 @@ const baseInputStyles = `
   w-full rounded-lg border
   transition-all duration-200
   focus:outline-none focus:ring-2 focus:ring-offset-0
-  disabled:bg-gray-100 disabled:cursor-not-allowed
-  placeholder:text-gray-400
+  disabled:bg-gray-100 dark:disabled:bg-white/5 disabled:cursor-not-allowed
+  placeholder:text-gray-400 dark:placeholder:text-slate-500
 `
 
 const sizeStyles = {
@@ -42,12 +42,12 @@ const sizeStyles = {
 
 const stateStyles = {
     default: `
-    border-gray-300 bg-white
-    focus:border-[var(--color-primary)] focus:ring-[var(--color-primary-100)]
+    border-gray-300 dark:border-white/15 bg-white dark:bg-black dark:text-slate-100
+    focus:border-[var(--color-primary)] focus:ring-[var(--color-primary-100)] dark:focus:ring-primary-900/50
   `,
     error: `
-    border-[var(--color-error)] bg-red-50
-    focus:border-[var(--color-error)] focus:ring-red-100
+    border-[var(--color-error)] bg-red-50 dark:bg-red-900/20
+    focus:border-[var(--color-error)] focus:ring-red-100 dark:focus:ring-red-900/30
   `,
 }
 
@@ -93,7 +93,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 {label && (
                     <label
                         htmlFor={inputId}
-                        className="text-sm font-medium text-[var(--color-text-primary)]"
+                        className="text-sm font-medium text-[var(--color-text-primary)] dark:text-slate-200"
                     >
                         {label}
                         {props.required && <span className="text-[var(--color-error)] ml-1">*</span>}
