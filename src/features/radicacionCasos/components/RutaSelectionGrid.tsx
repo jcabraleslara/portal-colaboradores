@@ -89,7 +89,7 @@ export function RutaSelectionGrid({ esExterno, rutaSeleccionada, onSeleccionarRu
                         className={`p-5 rounded-3xl border ${style.bg} ${style.border} transition-all duration-300 hover:shadow-sm`}
                     >
                         <div className="flex items-center gap-2.5 mb-4 px-1">
-                            <div className={`p-1.5 rounded-lg bg-white/60 ${style.title}`}>
+                            <div className={`p-1.5 rounded-lg bg-white/60 dark:bg-white/10 ${style.title}`}>
                                 <CatIcon size={18} />
                             </div>
                             <h3 className={`text-sm font-bold uppercase tracking-wide ${style.title}`}>
@@ -113,23 +113,23 @@ export function RutaSelectionGrid({ esExterno, rutaSeleccionada, onSeleccionarRu
                                             relative group p-3 rounded-xl border transition-all duration-200
                                             flex flex-row items-center text-left gap-3 w-full
                                             ${activo
-                                                ? `bg-white border-2 ${colores.border} shadow-sm ring-2 ring-offset-0 ring-offset-transparent ring-${colores.text.split('-')[1]}-100`
-                                                : 'bg-white/80 border-transparent hover:border-[var(--color-primary-200)] hover:bg-white hover:shadow-sm'
+                                                ? `bg-white dark:bg-white/10 border-2 ${colores.border} shadow-sm ring-2 ring-offset-0 ring-offset-transparent ring-${colores.text.split('-')[1]}-100`
+                                                : 'bg-white/80 dark:bg-white/5 border-transparent hover:border-[var(--color-primary-200)] hover:bg-white dark:hover:bg-white/10 hover:shadow-sm'
                                             }
                                         `}
                                     >
                                         <div className={`
                                             w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105
-                                            ${activo ? colores.bg : 'bg-gray-100 group-hover:bg-[var(--color-primary-50)]'}
+                                            ${activo ? colores.bg : 'bg-gray-100 dark:bg-white/10 group-hover:bg-[var(--color-primary-50)] dark:group-hover:bg-primary-900/30'}
                                         `}>
                                             <IconComponent
                                                 size={18}
-                                                className={activo ? colores.text : 'text-gray-500 group-hover:text-[var(--color-primary)]'}
+                                                className={activo ? colores.text : 'text-gray-500 dark:text-slate-400 group-hover:text-[var(--color-primary)]'}
                                             />
                                         </div>
 
                                         <div className="flex-1 min-w-0">
-                                            <p className={`text-xs font-bold leading-tight ${activo ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-800'}`}>
+                                            <p className={`text-xs font-bold leading-tight ${activo ? 'text-gray-900 dark:text-slate-100' : 'text-gray-600 dark:text-slate-300 group-hover:text-gray-800 dark:group-hover:text-white'}`}>
                                                 {label}
                                             </p>
                                         </div>
