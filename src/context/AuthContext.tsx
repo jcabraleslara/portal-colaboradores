@@ -139,17 +139,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     // LIMPIEZA DE SESIÓN CORRUPTA
     // ========================================
 
-    const forceCleanSession = useCallback(async (reason: string = 'desconocido') => {
-        log.warn(`FORZANDO LIMPIEZA DE SESIÓN - Razón: ${reason}`)
-        log.warn('Stack trace:', new Error().stack)
-        intentionalLogout.current = true
+    const forceCleanSession = useCallback((reason: string = 'desconocido') => {
+        log.warn(`Limpieza de sesión - Razón: ${reason}`)
         clearProfileCache()
         try { localStorage.removeItem(SESSION_BACKUP_KEY) } catch { /* silenciar */ }
-        try {
-            await supabase.auth.signOut({ scope: 'local' })
-        } catch {
-            // Ignorar errores de signOut
-        }
+        // NO llamar supabase.auth.signOut() aquí: si llegamos desde un SIGNED_OUT,
+        // volver a llamar signOut dispara otro SIGNED_OUT → loop infinito.
+        // Solo limpiamos estado local; Supabase ya sabe que la sesión terminó.
         setUser(null)
         setIsLoading(false)
         processingAuth.current = false
@@ -466,7 +462,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
             } catch (error) {
                 const errorMsg = error instanceof Error ? error.message : String(error)
                 log.error('Error en handleAuthSession:', errorMsg)
-                await forceCleanSession(`ERROR en handleAuthSession: ${errorMsg}`)
+                forceCleanSession(`ERROR en handleAuthSession: ${errorMsg}`)
             } finally {
                 processingAuth.current = false
             }
@@ -521,42 +517,29 @@ export function AuthProvider({ children }: AuthProviderProps) {
                         break
 
                     case 'SIGNED_OUT': {
-                        // ===================================================================
-                        // ESTRATEGIA v6.0: "NO TOCAR, NO RECARGAR"
-                        // ===================================================================
-                        // Causa raíz: setSession() con tokens rotados dispara MÁS SIGNED_OUT,
-                        // creando un ciclo fatal: SIGNED_OUT → restore → SIGNED_OUT → cooldown
-                        // → forceCleanSession → usuario sacado.
-                        //
-                        // Solución: NO llamar setSession/getSession/refreshSession/reload.
-                        // Solo verificar localmente si el backup tiene JWT válido:
-                        //   - Si sí: IGNORAR completamente. El fetch interceptor pasivo
-                        //     ya usa el token del backup para requests HTTP → datos fluyen.
-                        //     El estado React (user, perfil) queda INTACTO.
-                        //   - Si no: forceCleanSession (sesión genuinamente muerta).
-
+                        // Si el logout fue intencional (desde logout()), ignorar
                         if (intentionalLogout.current) {
                             intentionalLogout.current = false
                             log.debug('SIGNED_OUT intencional - estado limpio')
                             break
                         }
 
-                        // Guard: ignorar si ya procesando
+                        // Guard: ignorar SIGNED_OUT duplicados/en cascada.
+                        // NO resetear a false: una vez procesado, cualquier SIGNED_OUT
+                        // posterior del mismo ciclo se ignora.
                         if (signedOutProcessing.current) break
-
                         signedOutProcessing.current = true
 
                         if (isBackupJwtValid()) {
-                            // Backup tiene JWT válido → el fetch interceptor lo usará
-                            // para requests HTTP. Estado React intacto. NO hacer nada.
-                            log.warn('SIGNED_OUT ignorado - backup JWT válido (fetch interceptor activo)')
+                            log.debug('SIGNED_OUT ignorado - backup JWT válido')
                         } else {
-                            // JWT del backup expirado o inexistente → sesión realmente muerta
-                            log.warn('SIGNED_OUT con backup inválido - sesión expirada')
-                            await forceCleanSession('SIGNED_OUT con backup JWT inválido/expirado')
+                            log.debug('SIGNED_OUT - sesión expirada, limpiando estado local')
+                            forceCleanSession('sesión expirada')
                         }
 
-                        signedOutProcessing.current = false
+                        // Resetear guard después de un delay para ignorar
+                        // SIGNED_OUT en cascada que lleguen via BroadcastChannel
+                        setTimeout(() => { signedOutProcessing.current = false }, 2000)
                         break
                     }
 
