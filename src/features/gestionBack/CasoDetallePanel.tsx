@@ -787,16 +787,16 @@ export function CasoDetallePanel({
             />
 
             {/* Panel lateral */}
-            <div className="fixed right-0 top-0 z-50 h-full w-full max-w-5xl bg-white shadow-2xl animate-slide-in-right overflow-hidden flex flex-col">
+            <div className="fixed right-0 top-0 z-50 h-full w-full max-w-5xl bg-white dark:bg-black shadow-2xl animate-slide-in-right overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
+                <div className="px-6 py-4 border-b border-gray-100 dark:border-white/10 bg-gradient-to-r from-blue-50 to-white dark:from-primary-900/20 dark:to-black">
                     <div className="flex items-start justify-between">
                         <div className="w-full">
-                            <h2 className="text-2xl font-bold text-gray-800 break-words leading-tight">
+                            <h2 className="text-2xl font-bold text-gray-800 dark:text-slate-100 break-words leading-tight">
                                 {getNombreCompleto()}
                             </h2>
                             <div className="flex items-center gap-3 mt-2">
-                                <span className="text-sm font-mono bg-white px-2 py-1 rounded border border-gray-200">
+                                <span className="text-sm font-mono bg-white dark:bg-white/5 px-2 py-1 rounded border border-gray-200 dark:border-white/15 dark:text-slate-300">
                                     Radicado: <strong>{caso.radicado}</strong>
                                 </span>
                                 <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-semibold ${estadoColor.bg} ${estadoColor.text}`}>
@@ -806,7 +806,7 @@ export function CasoDetallePanel({
                         </div>
                         <div className="flex items-center gap-2">
                             {/* Navegación entre casos */}
-                            <div className="flex items-center bg-white/60 rounded-lg p-1 border border-indigo-100/50 shadow-sm mr-2">
+                            <div className="flex items-center bg-white/60 dark:bg-white/5 rounded-lg p-1 border border-indigo-100/50 dark:border-white/10 shadow-sm mr-2">
                                 <button
                                     onClick={onAnterior}
                                     disabled={!hayAnterior}
@@ -1086,7 +1086,7 @@ export function CasoDetallePanel({
                     {/* Observaciones originales */}
                     <div>
                         <h3 className="text-sm font-semibold text-gray-600 mb-2">Observaciones del Radicador</h3>
-                        <div className="p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm text-gray-700">
+                        <div className="p-3 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-100 dark:border-white/10 text-sm text-gray-700 dark:text-slate-300">
                             {(!caso.observaciones || caso.observaciones === 'NaN')
                                 ? 'Ninguna'
                                 : caso.observaciones}
@@ -1308,7 +1308,7 @@ export function CasoDetallePanel({
                                     <Route size={16} className="inline mr-1.5 text-cyan-600" />
                                     Seleccionar Ruta para Enrutamiento <span className="text-red-500">*</span>
                                 </label>
-                                <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 rounded-lg border border-gray-200">
+                                <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-200 dark:border-white/10">
                                     {RUTAS_CONFIG.filter(r => r.visibleInterno).sort((a, b) => a.ruta.localeCompare(b.ruta)).map(config => {
                                         const colores = RUTA_COLORES[config.ruta] || { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' }
                                         const activo = rutaSeleccionada === config.ruta
@@ -1366,7 +1366,7 @@ export function CasoDetallePanel({
                 </div>
 
                 {/* Footer fijo - FUERA del scroll */}
-                <div className="px-6 py-3 border-t border-gray-200 bg-gray-50/90 backdrop-blur-sm flex items-center justify-between flex-shrink-0">
+                <div className="px-6 py-3 border-t border-gray-200 dark:border-white/10 bg-gray-50/90 dark:bg-black/90 backdrop-blur-sm flex items-center justify-between flex-shrink-0">
                     <div className="flex gap-2">
                         <Button
                             variant="ghost"
@@ -1397,7 +1397,7 @@ export function CasoDetallePanel({
                         {haySiguiente && (
                             <Button
                                 variant="secondary"
-                                className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300"
+                                className="border-red-200 bg-red-50 text-red-700 hover:bg-red-100 hover:border-red-300 dark:bg-red-900/30 dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-900/50"
                                 onClick={() => {
                                     abrirPdfAlSiguiente.current = true
                                     handleGuardar(false)
@@ -1428,7 +1428,7 @@ export function CasoDetallePanel({
             {
                 mostandoConfirmacionEliminar && (
                     <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4 animate-fade-in">
-                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 animate-scale-in">
+                        <div className="bg-white dark:bg-black rounded-xl shadow-2xl dark:border dark:border-white/10 w-full max-w-md p-6 animate-scale-in">
                             <div className="flex items-center gap-3 text-red-600 mb-4">
                                 <div className="p-3 bg-red-50 rounded-full">
                                     <AlertTriangle size={24} />

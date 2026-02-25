@@ -786,6 +786,11 @@ html.dark {
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+/* Override global: bg-white → negro puro en dark mode */
+html.dark .bg-white {
+  background-color: #000000;
+}
+
 /* Badges y tags comunes */
 .dark .bg-gray-50 {
   background-color: rgba(255, 255, 255, 0.05);

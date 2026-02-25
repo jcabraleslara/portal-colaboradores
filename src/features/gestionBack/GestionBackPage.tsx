@@ -431,7 +431,7 @@ export function GestionBackPage() {
                                             hover:shadow-lg hover:-translate-y-0.5 flex flex-col items-center text-center
                                             ${activo
                                                 ? `${colores.bg} ${colores.border} shadow-md ring-2 ring-offset-2 ring-${colores.border.replace('border-', '')}`
-                                                : 'bg-white border-gray-100 hover:border-gray-200'
+                                                : 'bg-white dark:bg-black border-gray-100 dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20'
                                             }
                                         `}
                                     >
@@ -469,7 +469,7 @@ export function GestionBackPage() {
                                         hover:shadow-lg hover:-translate-y-0.5 flex flex-col items-center text-center
                                         ${activo
                                             ? `${colores.bg} ${colores.border} shadow-md ring-2 ring-offset-2 ring-${colores.border.replace('border-', '')}`
-                                            : 'bg-white border-gray-100 hover:border-gray-200'
+                                            : 'bg-white dark:bg-black border-gray-100 dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20'
                                         }
                                     `}
                                 >
@@ -526,7 +526,7 @@ export function GestionBackPage() {
                                         hover:shadow-md hover:-translate-y-0.5 flex flex-col items-center text-center
                                         ${activo
                                             ? `${colores.bg} ${colores.border} shadow-md`
-                                            : 'bg-white border-gray-100 hover:border-gray-200'
+                                            : 'bg-white dark:bg-black border-gray-100 dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20'
                                         }
                                     `}
                                 >
@@ -558,7 +558,7 @@ export function GestionBackPage() {
             {/* ============================================ */}
             {/* BARRA DE BÚSQUEDA Y FILTROS */}
             {/* ============================================ */}
-            <Card className="bg-[var(--color-primary-50)] border-[var(--color-primary-200)] shadow-md">
+            <Card className="bg-[var(--color-primary-50)] dark:!bg-primary-900/20 border-[var(--color-primary-200)] dark:border-primary-800/30 shadow-md">
                 <Card.Body className="space-y-4">
                     {/* Barra principal */}
                     <div className="flex flex-col sm:flex-row gap-3">
@@ -626,7 +626,7 @@ export function GestionBackPage() {
                                 <select
                                     value={filtros.estadoRadicado || 'Todos'}
                                     onChange={(e) => handleFiltroEstado(e.target.value as EstadoRadicado | 'Todos')}
-                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)]"
+                                    className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-white dark:bg-black dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] dark:focus:ring-primary-900/50"
                                 >
                                     {ESTADOS_RADICADO_LISTA.map(estado => (
                                         <option key={estado} value={estado}>{estado}</option>
@@ -642,7 +642,7 @@ export function GestionBackPage() {
                                         type="date"
                                         value={filtros.fechaInicio || ''}
                                         onChange={(e) => setFiltros(prev => ({ ...prev, fechaInicio: e.target.value || undefined }))}
-                                        className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)]"
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-white dark:bg-black dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] dark:focus:ring-primary-900/50"
                                     />
                                     <Calendar size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                                 </div>
@@ -656,7 +656,7 @@ export function GestionBackPage() {
                                         type="date"
                                         value={filtros.fechaFin || ''}
                                         onChange={(e) => setFiltros(prev => ({ ...prev, fechaFin: e.target.value || undefined }))}
-                                        className="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)]"
+                                        className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-white/15 bg-white dark:bg-black dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] dark:focus:ring-primary-900/50"
                                     />
                                     <Calendar size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                                 </div>
@@ -734,7 +734,7 @@ export function GestionBackPage() {
                         ) : (
                             <>
                                 {/* Header de resultados */}
-                                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                                <div className="px-4 py-3 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/10 flex items-center justify-between">
                                     <p className="text-sm text-gray-600">
                                         Mostrando <span className="font-semibold">{casos.length}</span> de <span className="font-semibold">{total}</span> casos
                                     </p>
@@ -767,9 +767,9 @@ export function GestionBackPage() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full">
                                         <thead>
-                                            <tr className="border-b border-gray-100">
+                                            <tr className="border-b border-gray-100 dark:border-white/10">
                                                 <th
-                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                                                     onClick={() => handleSort('radicado')}
                                                 >
                                                     <div className="flex items-center gap-1">
@@ -782,7 +782,7 @@ export function GestionBackPage() {
                                                     </div>
                                                 </th>
                                                 <th
-                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                                                     onClick={() => handleSort('id')}
                                                 >
                                                     <div className="flex items-center gap-1">
@@ -795,7 +795,7 @@ export function GestionBackPage() {
                                                     </div>
                                                 </th>
                                                 <th
-                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                                                     onClick={() => handleSort('tipo_solicitud')}
                                                 >
                                                     <div className="flex items-center gap-1">
@@ -808,7 +808,7 @@ export function GestionBackPage() {
                                                     </div>
                                                 </th>
                                                 <th
-                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                                                     onClick={() => handleSort('especialidad')}
                                                 >
                                                     <div className="flex items-center gap-1">
@@ -821,7 +821,7 @@ export function GestionBackPage() {
                                                     </div>
                                                 </th>
                                                 <th
-                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                                                     onClick={() => handleSort('estado_radicado')}
                                                 >
                                                     <div className="flex items-center gap-1">
@@ -834,7 +834,7 @@ export function GestionBackPage() {
                                                     </div>
                                                 </th>
                                                 <th
-                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors"
+                                                    className="text-left px-4 py-3 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                                                     onClick={() => handleSort('created_at')}
                                                 >
                                                     <div className="flex items-center gap-1">
@@ -848,7 +848,7 @@ export function GestionBackPage() {
                                                 </th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-50">
+                                        <tbody className="divide-y divide-gray-50 dark:divide-white/5">
                                             {casos.map((caso, index) => {
                                                 const estadoColor = ESTADO_COLORES[caso.estadoRadicado] || ESTADO_COLORES['Pendiente']
                                                 const tipoColor = TIPO_SOLICITUD_COLORES[caso.tipoSolicitud]
@@ -856,7 +856,7 @@ export function GestionBackPage() {
                                                 return (
                                                     <tr
                                                         key={caso.radicado}
-                                                        className="hover:bg-gray-50/50 transition-colors cursor-pointer"
+                                                        className="hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors cursor-pointer"
                                                         onClick={() => handleSeleccionarCaso(caso, index)}
                                                     >
                                                         <td className="px-4 py-3">
@@ -896,7 +896,7 @@ export function GestionBackPage() {
                                 </div>
 
                                 {/* Footer de paginación */}
-                                <div className="px-4 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-center gap-4">
+                                <div className="px-4 py-3 bg-gray-50 dark:bg-white/5 border-t border-gray-100 dark:border-white/10 flex items-center justify-center gap-4">
                                     <Button
                                         variant="ghost"
                                         size="sm"

@@ -124,9 +124,9 @@ export function RichTextEditor({ value, onChange, placeholder, disabled, classNa
     }
 
     return (
-        <div className={`border border-gray-200 rounded-lg bg-white flex flex-col ${className || ''}`}>
+        <div className={`border border-gray-200 dark:border-white/10 rounded-lg bg-white dark:bg-black flex flex-col ${className || ''}`}>
             {/* Toolbar */}
-            <div className="border-b border-gray-200 p-2 flex gap-1 flex-wrap bg-gray-50">
+            <div className="border-b border-gray-200 dark:border-white/10 p-2 flex gap-1 flex-wrap bg-gray-50 dark:bg-white/5">
                 <button
                     type="button"
                     onClick={() => editor.chain().focus().toggleBold().run()}
