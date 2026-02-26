@@ -9,7 +9,6 @@ import { User, Lock, ArrowRight, AlertCircle, Heart, Activity } from 'lucide-rea
 import { useAuth } from '@/context/AuthContext'
 import { authService } from '@/services/auth.service'
 import { ROUTES, ERROR_MESSAGES } from '@/config/constants'
-import { ChangePasswordModal } from './ChangePasswordModal'
 
 export function LoginForm() {
     const navigate = useNavigate()
@@ -22,13 +21,6 @@ export function LoginForm() {
     const [error, setError] = useState('')
     const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null)
     const [lockedUntil, setLockedUntil] = useState<Date | null>(null)
-
-    // Estado del modal de cambio de contraseña
-    const [showPasswordModal, setShowPasswordModal] = useState(false)
-    const [tempUserData, setTempUserData] = useState<{
-        identificacion: string
-        user: Parameters<typeof login>[0]
-    } | null>(null)
 
     const handleIdentificacionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value.replace(/\D/g, '')
@@ -71,13 +63,7 @@ export function LoginForm() {
                 return
             }
 
-            if (result.requiresPasswordChange && result.user) {
-                setTempUserData({
-                    identificacion: identificacion.trim(),
-                    user: result.user,
-                })
-                setShowPasswordModal(true)
-            } else if (result.user) {
+            if (result.user) {
                 login(result.user)
                 navigate(ROUTES.DASHBOARD)
             }
@@ -87,16 +73,6 @@ export function LoginForm() {
         } finally {
             setIsLoading(false)
         }
-    }
-
-    const handlePasswordChanged = () => {
-        if (tempUserData?.user) {
-            const updatedUser = { ...tempUserData.user, primerLogin: false }
-            login(updatedUser)
-            navigate(ROUTES.DASHBOARD)
-        }
-        setShowPasswordModal(false)
-        setTempUserData(null)
     }
 
     const getLockedTimeRemaining = () => {
@@ -466,15 +442,6 @@ export function LoginForm() {
         `}</style>
             </div>
 
-            {/* Modal de cambio de contraseña */}
-            {showPasswordModal && tempUserData && (
-                <ChangePasswordModal
-                    identificacion={tempUserData.identificacion}
-                    isFirstLogin
-                    onSuccess={handlePasswordChanged}
-                    onClose={() => { }}
-                />
-            )}
         </>
     )
 }
