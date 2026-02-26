@@ -93,14 +93,14 @@ export function getPrefijoArchivo(eps: EpsFacturacion, servicio: ServicioPrestad
     // Validación Derechos / Adres
     if (categoria === 'validacion_derechos') {
         if (eps === 'NUEVA EPS') return 'PDE2'
-        if (eps === 'FAMILIAR') return 'OPF' // Ojo: Familiar usa OPF para Adres
+        if (eps === 'FAMILIAR DE COLOMBIA') return 'OPF' // Ojo: Familiar usa OPF para Adres
         // Salud Total no suele pedir este documento según tabla, pero si lo pide, default OPF
         return 'OPF'
     }
 
     // Orden Médica
     if (categoria === 'orden_medica') {
-        if (eps === 'FAMILIAR') return 'PDE2'
+        if (eps === 'FAMILIAR DE COLOMBIA') return 'PDE2'
         return 'PDX' // Default cauto
     }
 
@@ -128,7 +128,7 @@ export function getPrefijoArchivo(eps: EpsFacturacion, servicio: ServicioPrestad
         }
 
         // FAMILIAR
-        if (eps === 'FAMILIAR') {
+        if (eps === 'FAMILIAR DE COLOMBIA') {
             // Imágenes -> Resultado = PDX
             if (servicio === 'Imágenes Diagnósticas') return 'PDX'
             return 'HEV'

@@ -91,7 +91,7 @@ export function SoportesFacturacionPage() {
     const mostrarComprobanteRecibo = eps !== 'SALUD TOTAL' || servicioPrestado === 'Terapias'
 
     // Orden Médica: Siempre visible para FAMILIAR, o para NUEVA EPS en Procedimientos Menores
-    const mostrarOrdenMedica = eps === 'FAMILIAR' || (eps === 'NUEVA EPS' && servicioPrestado === 'Procedimientos Menores')
+    const mostrarOrdenMedica = eps === 'FAMILIAR DE COLOMBIA' || (eps === 'NUEVA EPS' && servicioPrestado === 'Procedimientos Menores')
 
     // Campos quirúrgicos solo para Cirugía ambulatoria de SALUD TOTAL
     const mostrarCamposQuirurgicos = eps === 'SALUD TOTAL' && servicioPrestado === 'Cirugía ambulatoria'

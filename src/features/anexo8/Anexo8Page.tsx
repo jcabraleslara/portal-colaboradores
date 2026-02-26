@@ -807,12 +807,15 @@ export default function Anexo8Page() {
                                                         <option value="Subsidiado">Subsidiado</option>
                                                         <option value="Vinculado">Vinculado</option>
                                                     </select>
-                                                    <input
+                                                    <select
                                                         id="nuevo-eps"
-                                                        type="text"
-                                                        placeholder="EPS *"
                                                         className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
-                                                    />
+                                                    >
+                                                        <option value="">EPS *</option>
+                                                        <option value="NUEVA EPS">NUEVA EPS</option>
+                                                        <option value="SALUD TOTAL">SALUD TOTAL</option>
+                                                        <option value="FAMILIAR DE COLOMBIA">FAMILIAR DE COLOMBIA</option>
+                                                    </select>
                                                 </div>
 
                                                 {/* Botón crear */}
@@ -827,7 +830,7 @@ export default function Anexo8Page() {
                                                         const direccion = (document.getElementById('nuevo-direccion') as HTMLInputElement)?.value?.trim()
                                                         const municipio = (document.getElementById('nuevo-municipio') as HTMLInputElement)?.value?.trim()
                                                         const regimen = (document.getElementById('nuevo-regimen') as HTMLSelectElement)?.value
-                                                        const eps = (document.getElementById('nuevo-eps') as HTMLInputElement)?.value?.trim()
+                                                        const eps = (document.getElementById('nuevo-eps') as HTMLSelectElement)?.value
 
                                                         // Validar campos requeridos
                                                         if (!nombres || !apellido1 || !sexo || !telefono || !direccion || !municipio || !regimen || !eps) {

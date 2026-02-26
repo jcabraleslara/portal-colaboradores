@@ -3,11 +3,11 @@
  * Portal de Colaboradores GESTAR SALUD IPS
  */
 
-// EPS disponibles para facturación
+// EPS disponibles para facturación (según constraint check_portal_eps)
 export type EpsFacturacion =
     | 'NUEVA EPS'
     | 'SALUD TOTAL'
-    | 'FAMILIAR'
+    | 'FAMILIAR DE COLOMBIA'
 
 // Régimen del afiliado
 export type RegimenFacturacion =
@@ -171,7 +171,7 @@ export interface CategoriaArchivoConfig {
 export const EPS_FACTURACION_LISTA: EpsFacturacion[] = [
     'NUEVA EPS',
     'SALUD TOTAL',
-    'FAMILIAR',
+    'FAMILIAR DE COLOMBIA',
 ]
 
 // Lista de Regímenes

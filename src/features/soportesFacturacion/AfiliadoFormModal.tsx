@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { X, User, Mail, Phone, Building2, FileText } from 'lucide-react'
 import { Card, Button, Input } from '@/components/common'
 import { pacientesService } from '@/services/pacientes.service'
+import { EPS_LISTA } from '@/types/back.types'
 
 interface AfiliadoFormModalProps {
     identificacion: string
@@ -37,15 +38,6 @@ const TIPOS_ID = [
     { value: 'CN', label: 'Certificado de Nacido Vivo' },
 ]
 
-const EPS_LISTA = [
-    'NUEVA EPS',
-    'SALUD TOTAL',
-    'FAMILIAR',
-    'SANITAS',
-    'COMPENSAR',
-    'SURA',
-    'Otra',
-]
 
 export function AfiliadoFormModal({ identificacion, onClose, onSuccess }: AfiliadoFormModalProps) {
     const [guardando, setGuardando] = useState(false)

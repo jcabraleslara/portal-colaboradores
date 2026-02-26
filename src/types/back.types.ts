@@ -364,10 +364,11 @@ export const IPS_PRIMARIA_LISTA = [
     'VS UAB SINU CENTRO',
 ] as const
 
-// Lista de EPS
+// Lista de EPS (según constraint check_portal_eps en tabla bd)
 export const EPS_LISTA = [
     'NUEVA EPS',
     'SALUD TOTAL',
+    'FAMILIAR DE COLOMBIA',
 ] as const
 
 // ========================================
