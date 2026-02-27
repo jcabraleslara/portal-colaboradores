@@ -272,9 +272,8 @@ const CIRCUIT_BREAKER_THRESHOLD = 3
 /** Pausa del circuit breaker en ms */
 const CIRCUIT_BREAKER_COOLDOWN_MS = 5000
 
-/** Umbral de tasa de fallo para abortar lote tempranamente */
-const EARLY_ABORT_FAILURE_RATE = 0.6
-const EARLY_ABORT_MIN_FAILURES = 5
+/** Reintentos a nivel de lote: archivos fallidos se reintentan en pasadas adicionales con concurrencia 1 */
+const MAX_BATCH_RETRIES = 3
 
 /**
  * Cola global para serializar el procesamiento de archivos entre radicados.
@@ -334,17 +333,6 @@ async function uploadBatchConcurrent<T, R>(
             console.warn(`[Storage] Circuit breaker activado: ${consecutiveFailures} fallos consecutivos, pausa de ${CIRCUIT_BREAKER_COOLDOWN_MS}ms`)
             await new Promise(resolve => setTimeout(resolve, CIRCUIT_BREAKER_COOLDOWN_MS))
             consecutiveFailures = 0
-        }
-
-        // Early abort: si la tasa de fallo es demasiado alta, abortar los restantes
-        const totalProcessed = i + chunk.length
-        const failureRate = failedIndexes.length / totalProcessed
-        if (failedIndexes.length >= EARLY_ABORT_MIN_FAILURES && failureRate > EARLY_ABORT_FAILURE_RATE) {
-            console.error(`[Storage] Abortando subida: ${failedIndexes.length}/${totalProcessed} archivos fallidos (${Math.round(failureRate * 100)}%). Conexiones probablemente saturadas.`)
-            for (let remaining = i + currentConcurrency; remaining < items.length; remaining++) {
-                failedIndexes.push(remaining)
-            }
-            break
         }
 
         // Pausa dinámica entre lotes según volumen total
@@ -470,11 +458,48 @@ export const soportesFacturacionService = {
         }
 
         // Subida concurrente con límite de paralelismo
-        const { results, failedIndexes } = await uploadBatchConcurrent(
+        const { results, failedIndexes: initialFailedIndexes } = await uploadBatchConcurrent(
             archivosMeta,
             uploadOneFile,
             UPLOAD_CONCURRENCY_LIMIT
         )
+
+        // Reintentos a nivel de lote: archivos fallidos se reintentan con concurrencia 1
+        // Cada pasada espera progresivamente más para dar respiro a la red/servidor
+        let pendingRetryIndexes = [...initialFailedIndexes]
+
+        for (let retryPass = 1; retryPass <= MAX_BATCH_RETRIES && pendingRetryIndexes.length > 0; retryPass++) {
+            const passDelay = retryPass * 5000 // 5s, 10s, 15s
+            console.warn(`[Storage] Reintento de lote ${retryPass}/${MAX_BATCH_RETRIES}: ${pendingRetryIndexes.length} archivo(s) pendientes, pausa de ${passDelay}ms...`)
+            await new Promise(resolve => setTimeout(resolve, passDelay))
+
+            const retryItems = pendingRetryIndexes.map(idx => archivosMeta[idx])
+            const { results: retryResults, failedIndexes: retryFailed } = await uploadBatchConcurrent(
+                retryItems,
+                uploadOneFile,
+                1 // Concurrencia mínima para reintentos
+            )
+
+            // Mapear resultados exitosos de vuelta a los índices originales
+            const stillFailed: number[] = []
+            for (let i = 0; i < retryItems.length; i++) {
+                const originalIdx = pendingRetryIndexes[i]
+                if (retryResults[i]) {
+                    results[originalIdx] = retryResults[i]
+                }
+                if (retryFailed.includes(i)) {
+                    stillFailed.push(originalIdx)
+                }
+            }
+
+            pendingRetryIndexes = stillFailed
+
+            if (pendingRetryIndexes.length === 0) {
+                console.info(`[Storage] Reintento de lote ${retryPass}: todos los archivos recuperados exitosamente`)
+            }
+        }
+
+        const finalFailedIndexes = pendingRetryIndexes
 
         // Recolectar URLs exitosas y registrar fallos
         const urls: string[] = []
@@ -484,15 +509,15 @@ export const soportesFacturacionService = {
             }
         }
 
-        // Reportar archivos fallidos individualmente
-        for (const idx of failedIndexes) {
+        // Reportar archivos que fallaron después de TODOS los reintentos
+        for (const idx of finalFailedIndexes) {
             const meta = archivosMeta[idx]
             archivosFallidos.push(meta.archivo.name)
-            erroresDetalle.push({ nombre: meta.archivo.name, razon: 'Error de conexión al subir el archivo al servidor. Puede deberse a congestión de red o envío simultáneo de muchos archivos.' })
-            console.error(`[Storage] Archivo falló después de todos los reintentos: ${meta.nombreFinal}`)
+            erroresDetalle.push({ nombre: meta.archivo.name, razon: 'Error de conexión al subir el archivo al servidor tras múltiples reintentos. Verifique la conexión de red e intente nuevamente.' })
+            console.error(`[Storage] Archivo falló después de todos los reintentos (incluidos ${MAX_BATCH_RETRIES} pasadas de lote): ${meta.nombreFinal}`)
         }
 
-        // Si hubo fallos, notificar error crítico al equipo técnico (una sola vez)
+        // Si hubo fallos tras todos los reintentos, notificar error crítico
         if (archivosFallidos.length > 0) {
             await criticalErrorService.reportStorageFailure(
                 'upload',
