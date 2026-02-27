@@ -19,27 +19,27 @@ interface RutaSelectionGridProps {
 // Mapeo de estilos por categoría
 const CATEGORY_STYLES: Record<string, { bg: string, border: string, title: string, icon: any }> = {
     'Maternidad': {
-        bg: 'bg-rose-50/80',
-        border: 'border-rose-100',
-        title: 'text-rose-700',
+        bg: 'bg-rose-50/80 dark:bg-rose-950/40',
+        border: 'border-rose-100 dark:border-rose-800/50',
+        title: 'text-rose-700 dark:text-rose-400',
         icon: Icons.Baby
     },
     'Crónicas': {
-        bg: 'bg-orange-50/80',
-        border: 'border-orange-100',
-        title: 'text-orange-700',
+        bg: 'bg-orange-50/80 dark:bg-orange-950/40',
+        border: 'border-orange-100 dark:border-orange-800/50',
+        title: 'text-orange-700 dark:text-orange-400',
         icon: Icons.HeartPulse
     },
     'Oncología': {
-        bg: 'bg-fuchsia-50/80',
-        border: 'border-fuchsia-100',
-        title: 'text-fuchsia-700',
+        bg: 'bg-fuchsia-50/80 dark:bg-fuchsia-950/40',
+        border: 'border-fuchsia-100 dark:border-fuchsia-800/50',
+        title: 'text-fuchsia-700 dark:text-fuchsia-400',
         icon: Icons.Activity
     },
     'Otros': {
-        bg: 'bg-slate-50/80',
-        border: 'border-slate-100',
-        title: 'text-slate-600',
+        bg: 'bg-slate-50/80 dark:bg-slate-900/60',
+        border: 'border-slate-100 dark:border-slate-700/50',
+        title: 'text-slate-600 dark:text-slate-400',
         icon: Icons.LayoutGrid
     }
 }
@@ -76,9 +76,9 @@ export function RutaSelectionGrid({ esExterno, rutaSeleccionada, onSeleccionarRu
             {sortedCategories.map((categoria) => {
                 const configs = rutasPorCategoria[categoria]
                 const style = CATEGORY_STYLES[categoria] || {
-                    bg: 'bg-gray-50',
-                    border: 'border-gray-100',
-                    title: 'text-gray-600',
+                    bg: 'bg-gray-50 dark:bg-gray-900/60',
+                    border: 'border-gray-100 dark:border-gray-700/50',
+                    title: 'text-gray-600 dark:text-gray-400',
                     icon: Icons.Circle
                 }
                 const CatIcon = style.icon

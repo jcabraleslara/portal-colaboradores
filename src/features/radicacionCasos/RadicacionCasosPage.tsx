@@ -600,7 +600,7 @@ export function RadicacionCasosPage() {
             {/* MENSAJE DE ÉXITO */}
             {/* ============================================ */}
             {radicacionExitosa && (
-                <Card className="border-[var(--color-success)] bg-green-50">
+                <Card className="border-[var(--color-success)] bg-green-50 dark:bg-green-950/40">
                     <div className="flex items-start gap-4">
                         <div className="p-2 bg-[var(--color-success)] rounded-full">
                             <CheckCircle className="text-white" size={24} />
@@ -611,7 +611,7 @@ export function RadicacionCasosPage() {
                             </h3>
                             <p className="text-sm text-gray-600 mt-1">
                                 Número de radicado:{' '}
-                                <code className="bg-white px-2 py-0.5 rounded font-bold text-[var(--color-primary)]">
+                                <code className="bg-white dark:bg-white/10 px-2 py-0.5 rounded font-bold text-[var(--color-primary)]">
                                     {radicacionExitosa.radicado}
                                 </code>
                             </p>
@@ -679,7 +679,7 @@ export function RadicacionCasosPage() {
 
                         {/* Error de búsqueda */}
                         {searchError && !mostrarFormularioNuevo && (
-                            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                            <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2">
                                 <AlertCircle size={18} className="text-[var(--color-error)]" />
                                 <p className="text-sm text-[var(--color-error)]">{searchError}</p>
                             </div>
@@ -808,8 +808,8 @@ export function RadicacionCasosPage() {
                                                     className={`
                                                     relative group flex flex-row items-center p-4 rounded-xl border-2 transition-all duration-300 text-left gap-4
                                                     ${tipoSolicitud === opcion.id
-                                                            ? `border-red-500 bg-red-50 shadow-md translate-y-[-2px]`
-                                                            : 'border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm hover:translate-y-[-1px]'
+                                                            ? `border-red-500 bg-red-50 dark:bg-red-950/40 shadow-md translate-y-[-2px]`
+                                                            : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-200 dark:hover:border-gray-600 hover:shadow-sm hover:translate-y-[-1px]'
                                                         }
                                                 `}
                                                 >
@@ -817,16 +817,16 @@ export function RadicacionCasosPage() {
                                                     w-10 h-10 rounded-lg flex items-center justify-center transition-colors flex-shrink-0
                                                     ${tipoSolicitud === opcion.id
                                                             ? 'bg-red-500 text-white'
-                                                            : 'bg-gray-50 text-gray-500 group-hover:bg-gray-100'
+                                                            : 'bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-400 group-hover:bg-gray-100 dark:group-hover:bg-gray-600'
                                                         }
                                                 `}>
                                                         <opcion.icon size={20} />
                                                     </div>
                                                     <div className="flex-1">
-                                                        <h3 className={`font-bold text-sm mb-0.5 ${tipoSolicitud === opcion.id ? 'text-red-600' : 'text-gray-700'}`}>
+                                                        <h3 className={`font-bold text-sm mb-0.5 ${tipoSolicitud === opcion.id ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-200'}`}>
                                                             {opcion.id}
                                                         </h3>
-                                                        <p className="text-xs text-gray-500 leading-tight">
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">
                                                             {opcion.desc}
                                                         </p>
                                                     </div>
@@ -851,7 +851,7 @@ export function RadicacionCasosPage() {
                                             <select
                                                 value={especialidad}
                                                 onChange={(e) => setEspecialidad(e.target.value as EspecialidadAuditoria)}
-                                                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-[var(--color-primary)]"
+                                                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-[var(--color-primary)]"
                                             >
                                                 {ESPECIALIDADES_LISTA.map((esp: EspecialidadAuditoria) => (
                                                     <option key={esp} value={esp}>
@@ -897,13 +897,13 @@ export function RadicacionCasosPage() {
                                         {/* Campos Específicos Maternidad Segura */}
                                         {ruta === 'Maternidad Segura' && (
                                             <div className="mt-4 p-4 bg-pink-50 rounded-xl border border-pink-200 animate-in fade-in zoom-in-95 duration-300">
-                                                <div className="flex items-center gap-2 mb-3 text-pink-700 font-bold border-b border-pink-200 pb-2">
+                                                <div className="flex items-center gap-2 mb-3 text-pink-700 dark:text-pink-400 font-bold border-b border-pink-200 dark:border-pink-800 pb-2">
                                                     <Stethoscope size={18} />
                                                     Datos Clínicos Maternos
                                                 </div>
                                                 <div className="grid md:grid-cols-2 gap-4">
                                                     <div>
-                                                        <label className="block text-sm font-medium text-pink-800 mb-1">
+                                                        <label className="block text-sm font-medium text-pink-800 dark:text-pink-300 mb-1">
                                                             Fecha de Última Menstruación (FUM) <span className="text-red-500">*</span>
                                                         </label>
                                                         <input
@@ -911,14 +911,14 @@ export function RadicacionCasosPage() {
                                                             value={fum}
                                                             max={new Date().toISOString().split('T')[0]}
                                                             onChange={(e) => setFum(e.target.value)}
-                                                            className="w-full px-4 py-2 rounded-lg border border-pink-300 bg-white focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 text-gray-700"
+                                                            className="w-full px-4 py-2 rounded-lg border border-pink-300 dark:border-pink-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-pink-400 text-gray-700 dark:text-gray-200"
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-sm font-medium text-pink-800 mb-1">
+                                                        <label className="block text-sm font-medium text-pink-800 dark:text-pink-300 mb-1">
                                                             Edad Gestacional (Calculada)
                                                         </label>
-                                                        <div className="w-full px-4 py-2 rounded-lg border border-pink-200 bg-pink-100/50 text-pink-900 font-semibold flex items-center gap-2">
+                                                        <div className="w-full px-4 py-2 rounded-lg border border-pink-200 dark:border-pink-800 bg-pink-100/50 dark:bg-pink-950/30 text-pink-900 dark:text-pink-200 font-semibold flex items-center gap-2">
                                                             {edadGestacional ? (
                                                                 <>
                                                                     <Clock size={16} className="text-pink-600" />
@@ -948,7 +948,7 @@ export function RadicacionCasosPage() {
                                             onChange={(e) => setObservaciones(e.target.value)}
                                             placeholder="Notas adicionales sobre la solicitud..."
                                             rows={5}
-                                            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-[var(--color-primary)] resize-none flex-1"
+                                            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary-100)] focus:border-[var(--color-primary)] resize-none flex-1"
                                         />
                                     </div>
 
@@ -969,7 +969,7 @@ export function RadicacionCasosPage() {
 
                                 {/* Error de envío */}
                                 {submitError && (
-                                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                                    <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-2">
                                         <AlertCircle size={18} className="text-[var(--color-error)]" />
                                         <p className="text-sm text-[var(--color-error)]">{submitError}</p>
                                     </div>
@@ -1039,7 +1039,7 @@ export function RadicacionCasosPage() {
                         <LoadingOverlay isLoading={cargandoHistorial} label="Cargando respuestas...">
                             {historial.length === 0 ? (
                                 <div className="text-center py-12">
-                                    <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                                         <History size={36} className="text-gray-400" />
                                     </div>
                                     <h3 className="text-lg font-semibold text-gray-600 mb-2">
@@ -1060,14 +1060,14 @@ export function RadicacionCasosPage() {
                                 <div className="space-y-4">
                                     {/* Filtros dinámicos por estado */}
                                     {historial.length > 3 && (
-                                        <div className="flex flex-wrap gap-2 mb-4 p-1.5 bg-gray-50 rounded-lg border border-gray-100">
+                                        <div className="flex flex-wrap gap-2 mb-4 p-1.5 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-100 dark:border-gray-700">
                                             <button
                                                 onClick={() => setFiltroEstado('Todos')}
                                                 className={`
                                                     px-3 py-1.5 rounded-md text-xs font-semibold transition-all
                                                     ${filtroEstado === 'Todos'
-                                                        ? 'bg-white text-[var(--color-primary)] shadow-sm ring-1 ring-gray-200'
-                                                        : 'text-gray-500 hover:bg-gray-200/50 hover:text-gray-700'
+                                                        ? 'bg-white dark:bg-gray-700 text-[var(--color-primary)] shadow-sm ring-1 ring-gray-200 dark:ring-gray-600'
+                                                        : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 hover:text-gray-700 dark:hover:text-gray-200'
                                                     }
                                                 `}
                                             >
@@ -1085,15 +1085,15 @@ export function RadicacionCasosPage() {
                                                         className={`
                                                             px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5
                                                             ${isActive
-                                                                ? 'bg-white shadow-sm ring-1 ring-gray-200 text-gray-800'
-                                                                : 'text-gray-500 hover:bg-gray-200/50 hover:text-gray-700'
+                                                                ? 'bg-white dark:bg-gray-700 shadow-sm ring-1 ring-gray-200 dark:ring-gray-600 text-gray-800 dark:text-gray-100'
+                                                                : 'text-gray-500 dark:text-gray-400 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 hover:text-gray-700 dark:hover:text-gray-200'
                                                             }
                                                         `}
                                                     >
                                                         {estado}
                                                         <span className={`
                                                             px-1.5 py-0.5 rounded-full text-[10px] 
-                                                            ${isActive ? 'bg-gray-100 text-gray-700' : 'bg-gray-200 text-gray-500'}
+                                                            ${isActive ? 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-200' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}
                                                         `}>
                                                             {count}
                                                         </span>
@@ -1108,9 +1108,9 @@ export function RadicacionCasosPage() {
                                         : historial.filter(h => h.estadoRadicado === filtroEstado)
                                     ).map((radicacion) => {
                                         const colores = ESTADO_COLORES[radicacion.estadoRadicado] || {
-                                            bg: 'bg-gray-100',
-                                            text: 'text-gray-700',
-                                            border: 'border-gray-300'
+                                            bg: 'bg-gray-100 dark:bg-gray-800',
+                                            text: 'text-gray-700 dark:text-gray-300',
+                                            border: 'border-gray-300 dark:border-gray-600'
                                         }
                                         const mostrarDireccionamiento = radicacion.tipoSolicitud === 'Auditoría Médica'
                                         // Detectar si el fondo es oscuro para ajustar colores de texto
@@ -1175,10 +1175,10 @@ export function RadicacionCasosPage() {
 
                                                     {/* Direccionamiento (destacado) */}
                                                     {mostrarDireccionamiento && radicacion.direccionamiento && (
-                                                        <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                                        <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/40 rounded-lg border border-blue-200 dark:border-blue-800">
                                                             <div className="flex items-center gap-2">
-                                                                <Route size={16} className="text-blue-600" />
-                                                                <span className="text-blue-600 font-semibold">
+                                                                <Route size={16} className="text-blue-600 dark:text-blue-400" />
+                                                                <span className="text-blue-600 dark:text-blue-400 font-semibold">
                                                                     Direccionamiento: {!radicacion.direccionamiento || radicacion.direccionamiento === (null as unknown as string) || String(radicacion.direccionamiento) === 'NaN'
                                                                         ? (radicacion.estadoRadicado === 'Pendiente' ? 'Pendiente por gestión' : '-')
                                                                         : radicacion.direccionamiento}
@@ -1189,12 +1189,12 @@ export function RadicacionCasosPage() {
 
                                                     {/* Respuesta del Back (destacada y prominente) */}
                                                     {radicacion.respuestaBack && (
-                                                        <div className="mt-3 p-4 bg-gradient-to-br from-white to-emerald-50 rounded-xl border-2 border-emerald-200 shadow-sm">
+                                                        <div className="mt-3 p-4 bg-gradient-to-br from-white to-emerald-50 dark:from-gray-800 dark:to-emerald-950/30 rounded-xl border-2 border-emerald-200 dark:border-emerald-800 shadow-sm">
                                                             <div className="flex items-center gap-2 mb-2">
-                                                                <MessageCircle size={16} className="text-emerald-600" />
-                                                                <span className="text-sm font-bold text-emerald-700">Respuesta del Back:</span>
+                                                                <MessageCircle size={16} className="text-emerald-600 dark:text-emerald-400" />
+                                                                <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Respuesta del Back:</span>
                                                             </div>
-                                                            <div className="text-gray-800 leading-relaxed">
+                                                            <div className="text-gray-800 dark:text-gray-200 leading-relaxed">
                                                                 <MarkdownRenderer
                                                                     markdown={radicacion.respuestaBack === 'NaN' ? '-' : radicacion.respuestaBack}
                                                                 />
@@ -1209,9 +1209,9 @@ export function RadicacionCasosPage() {
 
                                                     {/* Estado sin respuesta */}
                                                     {!radicacion.respuestaBack && radicacion.estadoRadicado === 'Pendiente' && (
-                                                        <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200 flex items-center gap-2">
-                                                            <Clock size={16} className="text-amber-600" />
-                                                            <span className="text-amber-700 text-sm">
+                                                        <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/40 rounded-lg border border-amber-200 dark:border-amber-800 flex items-center gap-2">
+                                                            <Clock size={16} className="text-amber-600 dark:text-amber-400" />
+                                                            <span className="text-amber-700 dark:text-amber-300 text-sm">
                                                                 Caso pendiente de respuesta
                                                             </span>
                                                         </div>
@@ -1279,7 +1279,7 @@ export function RadicacionCasosPage() {
                                                                     transition-all duration-300 ease-out
                                                                     ${copiandoRespuesta === radicacion.radicado
                                                                             ? 'bg-emerald-500 text-white scale-105 shadow-lg shadow-emerald-500/30'
-                                                                            : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm'
+                                                                            : 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600 hover:border-gray-300 hover:shadow-sm'
                                                                         }
                                                                 `}
                                                                 >
