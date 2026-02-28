@@ -92,8 +92,8 @@ export function Cie10Search({ value, onChange, placeholder = 'Buscar CIE-10...',
 
     return (
         <div ref={containerRef} className="relative">
-            <div className="flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-amber-400">
-                <FaSearch className="text-slate-400 ml-3" />
+            <div className="flex items-center border border-slate-300 dark:border-white/15 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-amber-400">
+                <FaSearch className="text-slate-400 dark:text-slate-500 ml-3" />
                 <input
                     type="text"
                     placeholder={placeholder}
@@ -101,7 +101,7 @@ export function Cie10Search({ value, onChange, placeholder = 'Buscar CIE-10...',
                     onChange={(e) => handleInputChange(e.target.value)}
                     onFocus={() => !seleccionado && resultados.length > 0 && setMostrarResultados(true)}
                     disabled={disabled}
-                    className="w-full px-3 py-2.5 focus:outline-none disabled:bg-slate-100"
+                    className="w-full px-3 py-2.5 focus:outline-none disabled:bg-slate-100 dark:disabled:bg-white/5 bg-transparent dark:text-slate-100 dark:placeholder:text-slate-500"
                 />
                 {buscando && (
                     <div className="mr-3 w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
@@ -110,7 +110,7 @@ export function Cie10Search({ value, onChange, placeholder = 'Buscar CIE-10...',
                     <button
                         type="button"
                         onClick={limpiar}
-                        className="mr-3 text-slate-400 hover:text-red-500 transition-colors"
+                        className="mr-3 text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
                     >
                         <FaTimes />
                     </button>
@@ -119,16 +119,16 @@ export function Cie10Search({ value, onChange, placeholder = 'Buscar CIE-10...',
 
             {/* Resultados de búsqueda */}
             {mostrarResultados && resultados.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-lg shadow-xl max-h-60 overflow-y-auto">
                     {resultados.map((cie) => (
                         <button
                             key={cie.cie10}
                             type="button"
                             onClick={() => seleccionar(cie)}
-                            className="w-full text-left px-4 py-3 hover:bg-amber-50 border-b last:border-b-0 transition-colors"
+                            className="w-full text-left px-4 py-3 hover:bg-amber-50 dark:hover:bg-amber-900/20 border-b dark:border-white/10 last:border-b-0 transition-colors"
                         >
-                            <p className="font-medium text-slate-800">
-                                <span className="text-amber-600 font-bold">{cie.cie10}</span>
+                            <p className="font-medium text-slate-800 dark:text-slate-100">
+                                <span className="text-amber-600 dark:text-amber-400 font-bold">{cie.cie10}</span>
                                 {' - '}{cie.cie10_descripcion}
                             </p>
                         </button>
@@ -138,8 +138,8 @@ export function Cie10Search({ value, onChange, placeholder = 'Buscar CIE-10...',
 
             {/* No resultados */}
             {mostrarResultados && busqueda.length >= 2 && resultados.length === 0 && !buscando && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl p-4 text-center">
-                    <p className="text-slate-500 text-sm">No se encontraron diagnósticos</p>
+                <div className="absolute z-10 w-full mt-1 bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-lg shadow-xl p-4 text-center">
+                    <p className="text-slate-500 dark:text-slate-400 text-sm">No se encontraron diagnósticos</p>
                 </div>
             )}
         </div>

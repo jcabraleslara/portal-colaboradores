@@ -239,7 +239,7 @@ export function Anexo8HistoryTab() {
     return (
         <div className="space-y-6">
             {error && (
-                <div className="p-4 bg-red-50 text-red-700 rounded-md border border-red-200">
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-md border border-red-200 dark:border-red-800">
                     {error}
                 </div>
             )}
@@ -344,37 +344,37 @@ export function Anexo8HistoryTab() {
             {/* Tabla */}
             <Card>
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-white/10">
+                        <thead className="bg-gray-50 dark:bg-white/5">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     Fecha
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     Recetario
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     Paciente
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     Medicamento
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     Cantidad
                                 </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     Médico
                                 </th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                                     Acciones
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-white dark:bg-transparent divide-y divide-gray-200 dark:divide-white/10">
                             {cargando ? (
                                 <tr>
                                     <td colSpan={7} className="px-6 py-12 text-center">
-                                        <div className="flex flex-col items-center justify-center text-gray-500">
+                                        <div className="flex flex-col items-center justify-center text-gray-500 dark:text-slate-400">
                                             <Loader2 className="animate-spin mb-2" size={32} />
                                             <p>Cargando historial...</p>
                                         </div>
@@ -382,7 +382,7 @@ export function Anexo8HistoryTab() {
                                 </tr>
                             ) : registros.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500 dark:text-slate-400">
                                         No se encontraron registros de Anexo 8
                                     </td>
                                 </tr>
@@ -390,46 +390,46 @@ export function Anexo8HistoryTab() {
                                 registros.map(registro => (
                                     <tr
                                         key={registro.id}
-                                        className="hover:bg-blue-50 transition-colors cursor-pointer"
+                                        className="hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors cursor-pointer"
                                         onClick={() => setRegistroSeleccionado(registro)}
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900 flex items-center gap-2">
-                                                <Calendar size={14} className="text-gray-400" />
+                                            <div className="text-sm text-gray-900 dark:text-slate-100 dark:text-slate-100 flex items-center gap-2">
+                                                <Calendar size={14} className="text-gray-400 dark:text-slate-500" />
                                                 {new Date(registro.fecha_prescripcion).toLocaleDateString('es-CO')}
                                             </div>
-                                            <div className="text-xs text-gray-500 ml-6">
+                                            <div className="text-xs text-gray-500 dark:text-slate-400 dark:text-slate-400 ml-6">
                                                 Gen: {new Date(registro.created_at).toLocaleDateString('es-CO')}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-bold text-gray-700">
+                                            <div className="text-sm font-bold text-gray-700 dark:text-slate-200">
                                                 {registro.numero_recetario || 'Pendiente'}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm font-medium text-gray-900">
+                                            <div className="text-sm font-medium text-gray-900 dark:text-slate-100">
                                                 {registro.paciente_nombres} {registro.paciente_apellido1}
                                             </div>
-                                            <div className="text-xs text-gray-500">
+                                            <div className="text-xs text-gray-500 dark:text-slate-400">
                                                 {registro.paciente_tipo_id} {registro.paciente_documento}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-900">
+                                            <div className="text-sm text-gray-900 dark:text-slate-100">
                                                 {registro.medicamento_nombre}
                                             </div>
-                                            <div className="text-xs text-gray-500">
+                                            <div className="text-xs text-gray-500 dark:text-slate-400">
                                                 {registro.medicamento_forma_farmaceutica}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300">
                                                 {registro.cantidad_numero} Unid.
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-gray-700">
+                                            <div className="text-sm text-gray-700 dark:text-slate-300">
                                                 {registro.medico_nombres}
                                             </div>
                                         </td>
@@ -478,8 +478,8 @@ export function Anexo8HistoryTab() {
 
                 {/* Paginación */}
                 {!cargando && total > 0 && (
-                    <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                        <div className="text-sm text-gray-500">
+                    <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10 flex items-center justify-between">
+                        <div className="text-sm text-gray-500 dark:text-slate-400">
                             Mostrando {Math.min(paginaActual * ITEMS_POR_PAGINA + 1, total)} a {Math.min((paginaActual + 1) * ITEMS_POR_PAGINA, total)} de {total} resultados
                         </div>
                         <div className="flex gap-2">

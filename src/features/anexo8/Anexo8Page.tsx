@@ -564,10 +564,10 @@ export default function Anexo8Page() {
     // Si no tiene acceso, mostrar mensaje
     if (!tieneAcceso) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-transparent">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-700">Acceso Denegado</h2>
-                    <p className="text-gray-500 mt-2">No tiene permisos para acceder a este módulo.</p>
+                    <h2 className="text-2xl font-bold text-gray-700 dark:text-slate-100">Acceso Denegado</h2>
+                    <p className="text-gray-500 dark:text-slate-400 mt-2">No tiene permisos para acceder a este módulo.</p>
                 </div>
             </div>
         )
@@ -575,16 +575,16 @@ export default function Anexo8Page() {
 
     return (
         <>
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-transparent dark:to-transparent p-6">
                 {/* Header */}
                 <div className="max-w-6xl mx-auto mb-6">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold text-slate-800 flex items-center gap-3">
+                            <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
                                 <FaFilePdf className="text-red-500" />
                                 Generar Anexo 8
                             </h1>
-                            <p className="text-slate-500 mt-1">
+                            <p className="text-slate-500 dark:text-slate-400 mt-1">
                                 Recetario Oficial para Medicamentos de Control Especial (FNE)
                             </p>
                         </div>
@@ -605,14 +605,14 @@ export default function Anexo8Page() {
 
                 {/* Tabs de Navegación */}
                 <div className="max-w-6xl mx-auto mb-6">
-                    <div className="flex space-x-1 rounded-xl bg-slate-200 p-1 w-fit">
+                    <div className="flex space-x-1 rounded-xl bg-slate-200 dark:bg-white/10 p-1 w-fit">
                         <button
                             onClick={() => setActiveTab('generar')}
                             className={`
                                 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all
                                 ${activeTab === 'generar'
-                                    ? 'bg-white text-slate-800 shadow'
-                                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                                    ? 'bg-white dark:bg-white/15 text-slate-800 dark:text-slate-100 shadow'
+                                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-white/10'
                                 }
                             `}
                         >
@@ -624,8 +624,8 @@ export default function Anexo8Page() {
                             className={`
                                 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all
                                 ${activeTab === 'historial'
-                                    ? 'bg-white text-blue-700 shadow'
-                                    : 'text-slate-600 hover:text-slate-800 hover:bg-white/50'
+                                    ? 'bg-white dark:bg-white/15 text-blue-700 dark:text-blue-400 shadow'
+                                    : 'text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-white/10'
                                 }
                             `}
                         >
@@ -648,8 +648,8 @@ export default function Anexo8Page() {
                     {/* COLUMNA IZQUIERDA: Paciente + Profesional + Configuración (1 columna del grid) */}
                     <div className="lg:col-span-1 space-y-4">
                         {/* Búsqueda de Paciente */}
-                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
-                            <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
+                        <div className="bg-white dark:bg-black rounded-xl shadow-lg p-5 border border-slate-200 dark:border-white/10">
+                            <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-100 flex items-center gap-2 mb-4">
                                 <FaUser className="text-blue-500" />
                                 1. Paciente
                             </h2>
@@ -658,22 +658,22 @@ export default function Anexo8Page() {
                                 <>
                                     <div className="relative">
                                         <div className="flex items-center gap-2">
-                                            <div className="flex-1 flex items-center border border-slate-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-400">
-                                                <FaSearch className="text-slate-400 ml-3" />
+                                            <div className="flex-1 flex items-center border border-slate-300 dark:border-white/15 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-blue-400">
+                                                <FaSearch className="text-slate-400 dark:text-slate-500 ml-3" />
                                                 <input
                                                     type="text"
                                                     placeholder="Buscar por documento o nombre..."
                                                     value={busqueda}
                                                     onChange={(e) => setBusqueda(e.target.value)}
                                                     onKeyDown={handleKeyDownBusqueda}
-                                                    className="w-full px-3 py-2.5 focus:outline-none"
+                                                    className="w-full px-3 py-2.5 focus:outline-none bg-transparent dark:text-slate-100 dark:placeholder:text-slate-500"
                                                 />
                                                 {buscando && <LoadingSpinner size="sm" />}
                                             </div>
                                             <button
                                                 onClick={ejecutarBusqueda}
                                                 disabled={buscando || busqueda.length < 3}
-                                                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                                                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                                                 title="Buscar (o presione Enter)"
                                             >
                                                 <FaSearch />
@@ -683,17 +683,17 @@ export default function Anexo8Page() {
 
                                         {/* Resultados de búsqueda */}
                                         {mostrarResultados && resultadosBusqueda.length > 0 && (
-                                            <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                                            <div className="absolute z-10 w-full mt-1 bg-white dark:bg-black border border-slate-200 dark:border-white/10 rounded-lg shadow-xl max-h-60 overflow-y-auto">
                                                 {resultadosBusqueda.map((afiliado) => (
                                                     <button
                                                         key={afiliado.id}
                                                         onClick={() => seleccionarPaciente(afiliado)}
-                                                        className="w-full text-left px-4 py-3 hover:bg-blue-50 border-b last:border-b-0 transition-colors"
+                                                        className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-b dark:border-white/10 last:border-b-0 transition-colors"
                                                     >
-                                                        <p className="font-medium text-slate-800">
+                                                        <p className="font-medium text-slate-800 dark:text-slate-100">
                                                             {afiliado.nombres} {afiliado.apellido1} {afiliado.apellido2}
                                                         </p>
-                                                        <p className="text-sm text-slate-500">
+                                                        <p className="text-sm text-slate-500 dark:text-slate-400">
                                                             {afiliado.tipoId} {afiliado.id} • {afiliado.eps}
                                                         </p>
                                                     </button>
@@ -704,8 +704,8 @@ export default function Anexo8Page() {
 
                                     {/* Formulario crear paciente nuevo - COMPLETO */}
                                     {mostrarFormularioNuevo && (
-                                        <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                                            <p className="text-sm font-semibold text-amber-800 mb-3">
+                                        <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                                            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-3">
                                                 ⚠️ Paciente no encontrado. Complete los datos para crear:
                                             </p>
                                             <div className="space-y-3">
@@ -713,7 +713,7 @@ export default function Anexo8Page() {
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <select
                                                         id="nuevo-tipo-id"
-                                                        className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm"
+                                                        className="px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm bg-white dark:bg-black dark:text-slate-100"
                                                     >
                                                         <option value="CC">CC</option>
                                                         <option value="TI">TI</option>
@@ -725,7 +725,7 @@ export default function Anexo8Page() {
                                                         type="text"
                                                         readOnly
                                                         value={busqueda}
-                                                        className="px-3 py-2 rounded-lg border border-slate-300 bg-slate-100 text-sm"
+                                                        className="px-3 py-2 rounded-lg border border-slate-300 dark:border-white/15 bg-slate-100 dark:bg-white/5 text-sm dark:text-slate-100"
                                                     />
                                                 </div>
 
@@ -734,20 +734,20 @@ export default function Anexo8Page() {
                                                     id="nuevo-nombres"
                                                     type="text"
                                                     placeholder="Nombres *"
-                                                    className="w-full px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                    className="w-full px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                                 />
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <input
                                                         id="nuevo-apellido1"
                                                         type="text"
                                                         placeholder="1er Apellido *"
-                                                        className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                        className="px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                                     />
                                                     <input
                                                         id="nuevo-apellido2"
                                                         type="text"
                                                         placeholder="2do Apellido"
-                                                        className="px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                                        className="px-3 py-2 rounded-lg border border-slate-300 dark:border-white/15 focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white dark:bg-black dark:text-slate-100"
                                                     />
                                                 </div>
 
@@ -755,7 +755,7 @@ export default function Anexo8Page() {
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <select
                                                         id="nuevo-sexo"
-                                                        className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                        className="px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                                     >
                                                         <option value="">Sexo *</option>
                                                         <option value="M">Masculino</option>
@@ -767,7 +767,7 @@ export default function Anexo8Page() {
                                                         min="0"
                                                         max="120"
                                                         placeholder="Edad *"
-                                                        className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                        className="px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                                     />
                                                 </div>
 
@@ -776,7 +776,7 @@ export default function Anexo8Page() {
                                                     id="nuevo-telefono"
                                                     type="tel"
                                                     placeholder="Teléfono *"
-                                                    className="w-full px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                    className="w-full px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                                 />
 
                                                 {/* Dirección */}
@@ -784,7 +784,7 @@ export default function Anexo8Page() {
                                                     id="nuevo-direccion"
                                                     type="text"
                                                     placeholder="Dirección de Residencia *"
-                                                    className="w-full px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                    className="w-full px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                                 />
 
                                                 {/* Municipio */}
@@ -793,14 +793,14 @@ export default function Anexo8Page() {
                                                     type="text"
                                                     placeholder="Municipio *"
                                                     defaultValue="MONTERÍA"
-                                                    className="w-full px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                    className="w-full px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                                 />
 
                                                 {/* Régimen y EPS */}
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <select
                                                         id="nuevo-regimen"
-                                                        className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                        className="px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                                     >
                                                         <option value="">Régimen *</option>
                                                         <option value="Contributivo">Contributivo</option>
@@ -809,7 +809,7 @@ export default function Anexo8Page() {
                                                     </select>
                                                     <select
                                                         id="nuevo-eps"
-                                                        className="px-3 py-2 rounded-lg border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                                        className="px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                                     >
                                                         <option value="">EPS *</option>
                                                         <option value="NUEVA EPS">NUEVA EPS</option>
@@ -852,7 +852,7 @@ export default function Anexo8Page() {
                                                         })
                                                     }}
                                                     disabled={creandoPaciente}
-                                                    className="w-full px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors disabled:bg-slate-400"
+                                                    className="w-full px-4 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors disabled:bg-slate-400 dark:disabled:bg-slate-700"
                                                 >
                                                     {creandoPaciente ? 'Creando...' : 'Crear Paciente y Continuar'}
                                                 </button>
@@ -863,7 +863,7 @@ export default function Anexo8Page() {
                                                         setPaciente(null)
                                                         setBusqueda('')
                                                     }}
-                                                    className="w-full px-4 py-2 text-slate-600 hover:text-slate-800 text-sm"
+                                                    className="w-full px-4 py-2 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 text-sm"
                                                 >
                                                     Cancelar
                                                 </button>
@@ -872,26 +872,26 @@ export default function Anexo8Page() {
                                     )}
                                 </>
                             ) : (
-                                <div className="bg-blue-50 rounded-lg p-4 relative">
+                                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 relative">
                                     <button
                                         onClick={limpiarPaciente}
-                                        className="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors"
+                                        className="absolute top-2 right-2 text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
                                     >
                                         <FaTimes />
                                     </button>
-                                    <p className="font-semibold text-slate-800">
+                                    <p className="font-semibold text-slate-800 dark:text-slate-100">
                                         {paciente.nombres} {paciente.apellido1} {paciente.apellido2}
                                     </p>
-                                    <p className="text-sm text-slate-600">
+                                    <p className="text-sm text-slate-600 dark:text-slate-300">
                                         {paciente.tipoId} {paciente.id}
                                     </p>
-                                    <p className="text-sm text-slate-500 mt-1">
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                                         {paciente.edad} años • {paciente.sexo === 'F' ? 'Femenino' : 'Masculino'}
                                     </p>
-                                    <p className="text-sm text-slate-500">
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">
                                         {paciente.municipio}, {paciente.departamento}
                                     </p>
-                                    <p className="text-sm text-blue-600 font-medium mt-1">
+                                    <p className="text-sm text-blue-600 dark:text-blue-400 font-medium mt-1">
                                         {paciente.eps} • {paciente.regimen}
                                     </p>
                                 </div>
@@ -899,8 +899,8 @@ export default function Anexo8Page() {
                         </div>
 
                         {/* 2. Profesional */}
-                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
-                            <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
+                        <div className="bg-white dark:bg-black rounded-xl shadow-lg p-5 border border-slate-200 dark:border-white/10">
+                            <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-100 flex items-center gap-2 mb-4">
                                 <FaUserMd className="text-green-500" />
                                 2. Profesional
                             </h2>
@@ -908,17 +908,17 @@ export default function Anexo8Page() {
                             {esAsistencial ? (
                                 // Médico fijo para asistencial
                                 medicoSeleccionado ? (
-                                    <div className="bg-green-50 rounded-lg p-4">
-                                        <p className="font-semibold text-slate-800">{medicoSeleccionado.nombreCompleto}</p>
-                                        <p className="text-sm text-slate-600">CC {medicoSeleccionado.documento}</p>
+                                    <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                                        <p className="font-semibold text-slate-800 dark:text-slate-100">{medicoSeleccionado.nombreCompleto}</p>
+                                        <p className="text-sm text-slate-600 dark:text-slate-300">CC {medicoSeleccionado.documento}</p>
                                         {medicoSeleccionado.especialidad && (
-                                            <p className="text-sm text-green-600 font-medium mt-1">
+                                            <p className="text-sm text-green-600 dark:text-green-400 font-medium mt-1">
                                                 {medicoSeleccionado.especialidad}
                                             </p>
                                         )}
                                     </div>
                                 ) : (
-                                    <p className="text-slate-500 text-sm">Cargando datos del médico...</p>
+                                    <p className="text-slate-500 dark:text-slate-400 text-sm">Cargando datos del médico...</p>
                                 )
                             ) : (
                                 // Autocomplete para admin/superadmin
@@ -937,12 +937,12 @@ export default function Anexo8Page() {
                                         allowFreeText={false}
                                     />
                                     {medicoSeleccionado && (
-                                        <div className="mt-3 bg-green-50 rounded-lg p-3 text-sm">
-                                            <p className="text-slate-600">
+                                        <div className="mt-3 bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-sm">
+                                            <p className="text-slate-600 dark:text-slate-300">
                                                 <strong>Ciudad:</strong> {medicoSeleccionado.ciudad || 'No especificada'}
                                             </p>
                                             {medicoSeleccionado.especialidad && (
-                                                <p className="text-slate-600">
+                                                <p className="text-slate-600 dark:text-slate-300">
                                                     <strong>Especialidad:</strong> {medicoSeleccionado.especialidad}
                                                 </p>
                                             )}
@@ -952,11 +952,11 @@ export default function Anexo8Page() {
                             )}
                             {/* Panel de Firma si no tiene cargada */}
                             {medicoSeleccionado && !medicoSeleccionado.firmaUrl && (
-                                <div className="mt-4 border-t border-slate-100 pt-3">
-                                    <p className="text-sm font-medium text-amber-600 mb-2">
+                                <div className="mt-4 border-t border-slate-100 dark:border-white/10 pt-3">
+                                    <p className="text-sm font-medium text-amber-600 dark:text-amber-400 mb-2">
                                         ⚠️ Este profesional no tiene firma cargada.
                                         <br />
-                                        <span className="text-slate-500 font-normal">Por favor firme a continuación:</span>
+                                        <span className="text-slate-500 dark:text-slate-400 font-normal">Por favor firme a continuación:</span>
                                     </p>
                                     <SignaturePad
                                         onChange={setFirmaCapturada}
@@ -965,15 +965,15 @@ export default function Anexo8Page() {
                             )}
 
                             {medicoSeleccionado && medicoSeleccionado.firmaUrl && (
-                                <div className="mt-3 flex items-center gap-2 text-xs text-green-600 bg-green-50 px-2 py-1 rounded w-fit">
+                                <div className="mt-3 flex items-center gap-2 text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded w-fit">
                                     <FaCheck /> Firma digital disponible
                                 </div>
                             )}
                         </div>
 
                         {/* 3. Configuración */}
-                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200">
-                            <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
+                        <div className="bg-white dark:bg-black rounded-xl shadow-lg p-5 border border-slate-200 dark:border-white/10">
+                            <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-100 flex items-center gap-2 mb-4">
                                 <FaCalendarAlt className="text-indigo-500" />
                                 3. Configuración
                             </h2>
@@ -981,20 +981,20 @@ export default function Anexo8Page() {
                             <div className="space-y-4">
                                 {/* Fecha de prescripción */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                                         Fecha de Prescripción
                                     </label>
                                     <input
                                         type="date"
                                         value={formData.fechaPrescripcion}
                                         onChange={(e) => setFormData(prev => ({ ...prev, fechaPrescripcion: e.target.value }))}
-                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        className="w-full border border-slate-300 dark:border-white/15 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-black dark:text-slate-100"
                                     />
                                 </div>
 
                                 {/* Meses de fórmula */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                                         Meses de Fórmula (Posfechado)
                                     </label>
                                     <select
@@ -1003,7 +1003,7 @@ export default function Anexo8Page() {
                                             ...prev,
                                             mesesFormula: Math.max(1, parseInt(e.target.value) || 1)
                                         }))}
-                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                        className="w-full border border-slate-300 dark:border-white/15 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-black dark:text-slate-100"
                                     >
                                         {[1, 2, 3, 4, 5, 6].map((mes) => (
                                             <option key={mes} value={mes}>
@@ -1012,7 +1012,7 @@ export default function Anexo8Page() {
                                         ))}
                                     </select>
                                     {formData.mesesFormula > 1 && (
-                                        <p className="text-xs text-indigo-600 mt-1">
+                                        <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-1">
                                             Se generarán {formData.mesesFormula} PDFs con fechas consecutivas
                                         </p>
                                     )}
@@ -1023,8 +1023,8 @@ export default function Anexo8Page() {
 
                     {/* COLUMNA DERECHA: Medicamento (2 columnas del grid - ocupa el resto del ancho) */}
                     <div className="lg:col-span-2">
-                        <div className="bg-white rounded-xl shadow-lg p-5 border border-slate-200 h-full">
-                            <h2 className="text-lg font-semibold text-slate-700 flex items-center gap-2 mb-4">
+                        <div className="bg-white dark:bg-black rounded-xl shadow-lg p-5 border border-slate-200 dark:border-white/10 h-full">
+                            <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-100 flex items-center gap-2 mb-4">
                                 <FaPills className="text-amber-500" />
                                 4. Medicamento
                             </h2>
@@ -1032,7 +1032,7 @@ export default function Anexo8Page() {
                             <div className="space-y-4">
                                 {/* Nombre del medicamento */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                                         Nombre Genérico *
                                     </label>
                                     <select
@@ -1041,7 +1041,7 @@ export default function Anexo8Page() {
                                             ...prev,
                                             medicamentoNombre: e.target.value as MedicamentoControlado | ''
                                         }))}
-                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                        className="w-full border border-slate-300 dark:border-white/15 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                     >
                                         <option value="">Seleccionar medicamento...</option>
                                         {MEDICAMENTOS_CONTROLADOS.map((med) => (
@@ -1052,7 +1052,7 @@ export default function Anexo8Page() {
 
                                 {/* Concentración */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                                         Concentración
                                     </label>
                                     <input
@@ -1060,13 +1060,13 @@ export default function Anexo8Page() {
                                         placeholder="Ej: 100MG, 5MG/ML"
                                         value={formData.concentracion}
                                         onChange={(e) => setFormData(prev => ({ ...prev, concentracion: e.target.value }))}
-                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                        className="w-full border border-slate-300 dark:border-white/15 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                     />
                                 </div>
 
                                 {/* Forma farmacéutica */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                                         Forma Farmacéutica *
                                     </label>
                                     <select
@@ -1075,7 +1075,7 @@ export default function Anexo8Page() {
                                             ...prev,
                                             formaFarmaceutica: e.target.value as FormaFarmaceutica | ''
                                         }))}
-                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                        className="w-full border border-slate-300 dark:border-white/15 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                     >
                                         <option value="">Seleccionar forma...</option>
                                         {FORMAS_FARMACEUTICAS.map((forma) => (
@@ -1086,7 +1086,7 @@ export default function Anexo8Page() {
 
                                 {/* Dosis / Vía */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                                         Dosis / Vía de Administración
                                     </label>
                                     <textarea
@@ -1094,13 +1094,13 @@ export default function Anexo8Page() {
                                         value={formData.dosisVia}
                                         onChange={(e) => setFormData(prev => ({ ...prev, dosisVia: e.target.value }))}
                                         rows={2}
-                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                                        className="w-full border border-slate-300 dark:border-white/15 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100 resize-none"
                                     />
                                 </div>
 
                                 {/* Cantidad */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                                         Cantidad *
                                     </label>
                                     <input
@@ -1110,13 +1110,13 @@ export default function Anexo8Page() {
                                         placeholder="Ej: 30"
                                         value={formData.cantidadNumero}
                                         onChange={(e) => actualizarCantidad(e.target.value)}
-                                        className="w-full border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                        className="w-full border border-slate-300 dark:border-white/15 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white dark:bg-black dark:text-slate-100"
                                     />
                                 </div>
 
                                 {/* Diagnóstico */}
-                                <div className="border-t border-slate-200 pt-4">
-                                    <label className="block text-sm font-medium text-slate-600 mb-1">
+                                <div className="border-t border-slate-200 dark:border-white/10 pt-4">
+                                    <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1">
                                         Diagnóstico CIE-10
                                     </label>
                                     <Cie10Search
@@ -1140,7 +1140,7 @@ export default function Anexo8Page() {
                                 {generadoExito && (
                                     <button
                                         onClick={resetearFormularioCompleto}
-                                        className="px-4 py-2.5 bg-slate-500 hover:bg-slate-600 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                                        className="px-4 py-2.5 bg-slate-500 hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                                     >
                                         <FaPlus />
                                         Nuevo Anexo 8
@@ -1166,7 +1166,7 @@ export default function Anexo8Page() {
                                     px-6 py-2 rounded-lg font-semibold text-white
                                     flex items-center gap-2 transition-all duration-300 shadow-lg
                                     ${generando || !formularioCompleto
-                                            ? 'bg-slate-400 cursor-not-allowed'
+                                            ? 'bg-slate-400 dark:bg-slate-700 cursor-not-allowed'
                                             : generadoExito
                                                 ? 'bg-green-600 hover:bg-green-700'
                                                 : 'bg-red-600 hover:bg-red-700'
