@@ -26,6 +26,8 @@ export const EDGE_FUNCTIONS = {
     notifyCriticalError: `${SUPABASE_URL}/functions/v1/notify-critical-error`,
     sendEmail: `${SUPABASE_URL}/functions/v1/send-email`,
     resetPassword: `${SUPABASE_URL}/functions/v1/reset-password`,
+    initRadicacion: `${SUPABASE_URL}/functions/v1/init-radicacion`,
+    finalizarRadicacion: `${SUPABASE_URL}/functions/v1/finalizar-radicacion`,
 } as const
 
 /**

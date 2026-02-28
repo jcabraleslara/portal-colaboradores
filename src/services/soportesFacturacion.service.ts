@@ -8,6 +8,7 @@
 
 import { supabase } from '@/config/supabase.config'
 import { ERROR_MESSAGES } from '@/config/constants'
+import { EDGE_FUNCTIONS, fetchEdgeFunction } from '@/config/api.config'
 import { ApiResponse } from '@/types'
 import {
     SoporteFacturacion,
@@ -20,7 +21,6 @@ import {
     ESTADOS_SOPORTE_LISTA,
     RadicadorUnico
 } from '@/types/soportesFacturacion.types'
-import { criticalErrorService } from './criticalError.service'
 
 /**
  * Transformar respuesta de DB (snake_case) a camelCase
@@ -209,11 +209,9 @@ async function executeWithRetry<T>(
 
             if (attempt === maxRetries) break
 
-            // Backoff exponencial con jitter para evitar thundering herd
-            // 1.5s, 3s, 6s, 12s, 24s + jitter aleatorio (0-30%)
             const exponentialDelay = baseDelayMs * Math.pow(2, attempt)
             const jitter = exponentialDelay * Math.random() * 0.3
-            const delay = Math.min(exponentialDelay + jitter, 30000) // Cap 30s
+            const delay = Math.min(exponentialDelay + jitter, 30000)
             console.warn(`[Storage] Intento ${attempt + 1}/${maxRetries} falló, reintentando en ${Math.round(delay)}ms...`, lastError.message)
             await new Promise(resolve => setTimeout(resolve, delay))
         }
@@ -221,6 +219,28 @@ async function executeWithRetry<T>(
 
     throw lastError
 }
+
+/**
+ * Tipos para el flujo de upload con signed URLs
+ */
+export interface UploadToken {
+    signedUrl: string
+    token: string
+    path: string
+    category: string
+    originalName: string
+}
+
+export interface UploadFileStatus {
+    originalName: string
+    category: string
+    path: string
+    status: 'pending' | 'uploading' | 'done' | 'error'
+    progress: number
+    error?: string
+}
+
+export type UploadProgressCallback = (statuses: UploadFileStatus[]) => void
 
 /**
  * Tamaño máximo permitido por archivo (en bytes): 10 MB
@@ -263,347 +283,269 @@ async function validarArchivo(archivo: File): Promise<string | null> {
     return null
 }
 
-/** Limite de subidas concurrentes al bucket de Storage */
+/** Limite de subidas concurrentes */
 const UPLOAD_CONCURRENCY_LIMIT = 3
 
-/** Máximo de fallos consecutivos antes de activar circuit breaker */
-const CIRCUIT_BREAKER_THRESHOLD = 3
-
-/** Pausa del circuit breaker en ms */
-const CIRCUIT_BREAKER_COOLDOWN_MS = 5000
-
-/** Reintentos a nivel de lote: archivos fallidos se reintentan en pasadas adicionales con concurrencia 1 */
+/** Reintentos a nivel de lote */
 const MAX_BATCH_RETRIES = 3
 
 /**
- * Cola global para serializar el procesamiento de archivos entre radicados.
- * Evita que múltiples radicados compitan por conexiones del navegador simultáneamente,
- * lo cual causa saturación y fallos masivos en uploads a Supabase Storage.
- * (Chrome limita ~6 conexiones HTTP/1.1 concurrentes por origen)
+ * Subir un archivo a Storage usando signed URL con reintentos
  */
-let _colaProcesamientoArchivos: Promise<void> = Promise.resolve()
-
-/**
- * Subir múltiples archivos concurrentemente con límite de paralelismo adaptativo.
- * - Reduce concurrencia automáticamente cuando detecta fallos en un lote.
- * - Recupera concurrencia tras lotes exitosos.
- * - Circuit breaker: pausa larga tras N fallos consecutivos para dar respiro a la red.
- * - Pausas dinámicas entre lotes según volumen total.
- */
-async function uploadBatchConcurrent<T, R>(
-    items: T[],
-    operation: (item: T) => Promise<R>,
-    concurrencyLimit = UPLOAD_CONCURRENCY_LIMIT
-): Promise<{ results: (R | null)[]; failedIndexes: number[] }> {
-    const results: (R | null)[] = new Array(items.length).fill(null)
-    const failedIndexes: number[] = []
-    let currentConcurrency = concurrencyLimit
-    let consecutiveFailures = 0
-
-    for (let i = 0; i < items.length; i += currentConcurrency) {
-        const chunk = items.slice(i, i + currentConcurrency)
-        const chunkResults = await Promise.allSettled(
-            chunk.map((item, idx) => operation(item).then(r => ({ globalIdx: i + idx, result: r })))
-        )
-
-        let chunkFailures = 0
-        for (let j = 0; j < chunkResults.length; j++) {
-            const settled = chunkResults[j]
-            if (settled.status === 'fulfilled') {
-                results[settled.value.globalIdx] = settled.value.result
-                consecutiveFailures = 0
-            } else {
-                failedIndexes.push(i + j)
-                chunkFailures++
-                consecutiveFailures++
-            }
-        }
-
-        // Concurrencia adaptativa: reducir si hubo fallos en este lote
-        if (chunkFailures > 0 && currentConcurrency > 1) {
-            currentConcurrency = Math.max(1, currentConcurrency - 1)
-            console.warn(`[Storage] Concurrencia reducida a ${currentConcurrency} por ${chunkFailures} fallo(s) en lote`)
-        } else if (chunkFailures === 0 && currentConcurrency < concurrencyLimit) {
-            // Recuperar concurrencia gradualmente tras lotes exitosos
-            currentConcurrency = Math.min(concurrencyLimit, currentConcurrency + 1)
-        }
-
-        // Circuit breaker: pausa larga tras fallos consecutivos
-        if (consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD) {
-            console.warn(`[Storage] Circuit breaker activado: ${consecutiveFailures} fallos consecutivos, pausa de ${CIRCUIT_BREAKER_COOLDOWN_MS}ms`)
-            await new Promise(resolve => setTimeout(resolve, CIRCUIT_BREAKER_COOLDOWN_MS))
-            consecutiveFailures = 0
-        }
-
-        // Pausa dinámica entre lotes según volumen total
-        if (i + currentConcurrency < items.length) {
-            const basePause = items.length > 20 ? 800 : items.length > 10 ? 500 : 300
-            await new Promise(resolve => setTimeout(resolve, basePause))
-        }
-    }
-
-    return { results, failedIndexes }
+async function uploadFileToSignedUrl(
+    token: UploadToken,
+    file: File
+): Promise<void> {
+    await executeWithRetry(async () => {
+        const { error } = await supabase.storage
+            .from('soportes-facturacion')
+            .uploadToSignedUrl(token.path, token.token, file, {
+                upsert: true,
+            })
+        if (error) throw error
+    }, 5, 1500)
 }
 
 export const soportesFacturacionService = {
     /**
-     * Subir archivos al bucket de soportes-facturacion
-     * Renombrado dinámico: [PREFIJO]_900842629_[ID_PACIENTE]_[CONSECUTIVO].pdf
-     * Incluye reintentos automáticos para manejar errores transitorios (502, timeout)
-     * @returns Objeto con URLs firmadas y las identificaciones extraídas de los archivos
-     */
-    async subirArchivos(
-        archivos: File[],
-        categoria: CategoriaArchivo,
-        radicado: string,
-        eps: EpsFacturacion,
-        servicio?: ServicioPrestado
-    ): Promise<{ urls: string[]; identificacionesExtraidas: string[]; archivosFallidos: string[]; erroresDetalle: { nombre: string; razon: string }[] }> {
-        const identificacionesSet = new Set<string>()
-        const archivosFallidos: string[] = []
-        const erroresDetalle: { nombre: string; razon: string }[] = []
-        // NIT fijo para renombrado
-        const NIT = '900842629'
-        const prefijo = getPrefijoArchivo(eps, servicio || 'Consulta Ambulatoria', categoria)
-
-        // Pre-validar archivos antes de intentar subir (evita reintentos inútiles en archivos corruptos/vacíos)
-        const archivosValidos: File[] = []
-        for (const archivo of archivos) {
-            const errorValidacion = await validarArchivo(archivo)
-            if (errorValidacion) {
-                console.error(`[Storage] Archivo rechazado pre-upload: ${errorValidacion}`)
-                archivosFallidos.push(archivo.name)
-                erroresDetalle.push({ nombre: archivo.name, razon: errorValidacion })
-            } else {
-                archivosValidos.push(archivo)
-            }
-        }
-
-        // Si todos los archivos fueron rechazados en pre-validación, retornar sin notificar error crítico
-        // (archivos vacíos o muy grandes no son errores de infraestructura)
-        if (archivosValidos.length === 0 && archivosFallidos.length > 0) {
-            console.warn(`[Storage] ${archivosFallidos.length} archivo(s) no pasaron pre-validación: ${archivosFallidos.join(', ')}`)
-            return { urls: [], identificacionesExtraidas: [], archivosFallidos, erroresDetalle }
-        }
-
-        // Preparar metadata de cada archivo válido antes de subir
-        // Contadores por nombre base para evitar colisiones cuando hay múltiples archivos
-        // del mismo paciente en la misma categoría
-        const contadorNombres = new Map<string, number>()
-
-        const archivosMeta = archivosValidos.map((archivo) => {
-            const extension = archivo.name.split('.').pop()?.toLowerCase() || 'pdf'
-            const identificacionPaciente = extraerIdentificacionArchivo(archivo.name)
-
-            let nombreBase = ''
-            if (identificacionPaciente) {
-                nombreBase = `${prefijo}_${NIT}_${identificacionPaciente}`
-                identificacionesSet.add(identificacionPaciente)
-                const soloNumero = identificacionPaciente.replace(/^(CC|TI|CE|CN|SC|PE|PT|RC|ME|AS)/i, '')
-                if (soloNumero) identificacionesSet.add(soloNumero)
-            } else {
-                nombreBase = `${prefijo}_${radicado}_${categoria}`
-            }
-
-            // Agregar sufijo consecutivo si ya existe un archivo con el mismo nombre base
-            const count = contadorNombres.get(nombreBase) || 0
-            contadorNombres.set(nombreBase, count + 1)
-            const nombreFinal = count === 0
-                ? `${nombreBase}.${extension}`
-                : `${nombreBase}_${count + 1}.${extension}`
-
-            return { archivo, nombreFinal, ruta: `${radicado}/${nombreFinal}` }
-        })
-
-        // Subir archivos concurrentemente en lotes
-        const uploadOneFile = async (meta: typeof archivosMeta[0]): Promise<string | null> => {
-            try {
-                // Upload con reintentos (5 intentos, base 1.5s, backoff + jitter)
-                await executeWithRetry(async () => {
-                    const { error } = await supabase.storage
-                        .from('soportes-facturacion')
-                        .upload(meta.ruta, meta.archivo, {
-                            cacheControl: '3600',
-                            upsert: true,
-                        })
-                    if (error) throw error
-                }, 5, 1500)
-            } catch (uploadError) {
-                // Upload falló tras todos los reintentos.
-                // Verificar si el archivo llegó al Storage (falso negativo por timeout de red:
-                // el servidor recibe y procesa el upload, pero el cliente no recibe la respuesta)
-                console.warn(`[Storage] Upload falló para ${meta.nombreFinal}, verificando existencia en Storage...`)
-                const { data: urlData } = await supabase.storage
-                    .from('soportes-facturacion')
-                    .createSignedUrl(meta.ruta, 31536000)
-
-                if (urlData?.signedUrl) {
-                    console.info(`[Storage] Archivo ${meta.nombreFinal} encontrado en Storage (recuperado de falso negativo de red)`)
-                    return urlData.signedUrl
-                }
-
-                // El archivo realmente no existe en Storage
-                throw uploadError
-            }
-
-            // Generar URL firmada (válida por 1 año) con reintentos
-            return await executeWithRetry(async () => {
-                const { data: urlData, error: signError } = await supabase.storage
-                    .from('soportes-facturacion')
-                    .createSignedUrl(meta.ruta, 31536000)
-                if (signError) throw signError
-                if (!urlData?.signedUrl) throw new Error('No se generó URL firmada')
-                return urlData.signedUrl
-            }, 3, 1000)
-        }
-
-        // Subida concurrente con límite de paralelismo
-        const { results, failedIndexes: initialFailedIndexes } = await uploadBatchConcurrent(
-            archivosMeta,
-            uploadOneFile,
-            UPLOAD_CONCURRENCY_LIMIT
-        )
-
-        // Reintentos a nivel de lote: archivos fallidos se reintentan con concurrencia 1
-        // Cada pasada espera progresivamente más para dar respiro a la red/servidor
-        let pendingRetryIndexes = [...initialFailedIndexes]
-
-        for (let retryPass = 1; retryPass <= MAX_BATCH_RETRIES && pendingRetryIndexes.length > 0; retryPass++) {
-            const passDelay = retryPass * 5000 // 5s, 10s, 15s
-            console.warn(`[Storage] Reintento de lote ${retryPass}/${MAX_BATCH_RETRIES}: ${pendingRetryIndexes.length} archivo(s) pendientes, pausa de ${passDelay}ms...`)
-            await new Promise(resolve => setTimeout(resolve, passDelay))
-
-            const retryItems = pendingRetryIndexes.map(idx => archivosMeta[idx])
-            const { results: retryResults, failedIndexes: retryFailed } = await uploadBatchConcurrent(
-                retryItems,
-                uploadOneFile,
-                1 // Concurrencia mínima para reintentos
-            )
-
-            // Mapear resultados exitosos de vuelta a los índices originales
-            const stillFailed: number[] = []
-            for (let i = 0; i < retryItems.length; i++) {
-                const originalIdx = pendingRetryIndexes[i]
-                if (retryResults[i]) {
-                    results[originalIdx] = retryResults[i]
-                }
-                if (retryFailed.includes(i)) {
-                    stillFailed.push(originalIdx)
-                }
-            }
-
-            pendingRetryIndexes = stillFailed
-
-            if (pendingRetryIndexes.length === 0) {
-                console.info(`[Storage] Reintento de lote ${retryPass}: todos los archivos recuperados exitosamente`)
-            }
-        }
-
-        const finalFailedIndexes = pendingRetryIndexes
-
-        // Recolectar URLs exitosas y registrar fallos
-        const urls: string[] = []
-        for (let i = 0; i < results.length; i++) {
-            if (results[i]) {
-                urls.push(results[i] as string)
-            }
-        }
-
-        // Reportar archivos que fallaron después de TODOS los reintentos
-        for (const idx of finalFailedIndexes) {
-            const meta = archivosMeta[idx]
-            archivosFallidos.push(meta.archivo.name)
-            erroresDetalle.push({ nombre: meta.archivo.name, razon: 'Error de conexión al subir el archivo al servidor tras múltiples reintentos. Verifique la conexión de red e intente nuevamente.' })
-            console.error(`[Storage] Archivo falló después de todos los reintentos (incluidos ${MAX_BATCH_RETRIES} pasadas de lote): ${meta.nombreFinal}`)
-        }
-
-        // Si hubo fallos tras todos los reintentos, notificar error crítico
-        if (archivosFallidos.length > 0) {
-            await criticalErrorService.reportStorageFailure(
-                'upload',
-                'Soportes de Facturación',
-                'soportes-facturacion',
-                new Error(`${archivosFallidos.length} archivo(s) fallaron: ${archivosFallidos.join(', ')}`)
-            )
-        }
-
-        return {
-            urls,
-            identificacionesExtraidas: Array.from(identificacionesSet),
-            archivosFallidos,
-            erroresDetalle
-        }
-    },
-
-    /**
      * Crear una nueva radicación de soportes de facturación.
      *
-     * Flujo optimizado para lotes grandes:
-     * 1. Crea el registro en BD (síncrono) → retorna radicado inmediatamente
-     * 2. Procesa archivos en background (upload + actualización BD + emails)
-     * 3. El radicador recibe confirmación por correo al finalizar
+     * Flujo server-side con signed URLs:
+     * 1. Llama a init-radicacion Edge Function → crea registro + genera signed upload URLs
+     * 2. Sube archivos directamente a Storage via signed URLs (con progreso visible)
+     * 3. Llama a finalizar-radicacion Edge Function → verifica archivos + actualiza BD + envía email
+     *
+     * @param onProgress Callback para reportar progreso de upload al UI
      */
-    async crearRadicacion(data: CrearSoporteFacturacionData): Promise<ApiResponse<SoporteFacturacion>> {
+    async crearRadicacion(
+        data: CrearSoporteFacturacionData,
+        onProgress?: UploadProgressCallback
+    ): Promise<ApiResponse<SoporteFacturacion & { uploadStatus?: string }>> {
         try {
-            // Preparar datos para inserción
-            const insertData: Record<string, unknown> = {
-                radicador_email: data.radicadorEmail,
-                radicador_nombre: data.radicadorNombre || null,
-                eps: data.eps,
-                regimen: data.regimen,
-                servicio_prestado: data.servicioPrestado,
-                fecha_atencion: data.fechaAtencion,
-                tipo_id: data.tipoId || null,
-                identificacion: data.identificacion || null,
-                nombres_completos: data.nombresCompletos || null,
-                observaciones_facturacion: data.observaciones || null,
-            }
+            // ============================================
+            // FASE 1: Iniciar radicación en servidor
+            // ============================================
+            const archivosManifest = data.archivos.map(g => ({
+                categoria: g.categoria,
+                files: g.files.map(f => ({ name: f.name, size: f.size })),
+            }))
 
-            // Insertar registro (el trigger genera el radicado)
-            const { data: registro, error: insertError } = await supabase
-                .from('soportes_facturacion')
-                .insert(insertData)
-                .select()
-                .single()
-
-            if (insertError) {
-                console.error('Error insertando radicación:', insertError)
-                return {
-                    success: false,
-                    error: 'Error al crear la radicación: ' + insertError.message,
+            // Pre-validar archivos localmente antes de enviar al servidor
+            const archivosRechazados: { nombre: string; razon: string }[] = []
+            for (const grupo of data.archivos) {
+                for (const archivo of grupo.files) {
+                    const errorValidacion = await validarArchivo(archivo)
+                    if (errorValidacion) {
+                        archivosRechazados.push({ nombre: archivo.name, razon: errorValidacion })
+                    }
                 }
             }
 
-            const rawRegistro = registro as SoporteFacturacionRaw
-            const radicado = rawRegistro.radicado
-            const soporteInicial = transformSoporte(rawRegistro)
+            if (archivosRechazados.length > 0) {
+                const totalArchivos = data.archivos.reduce((acc, g) => acc + g.files.length, 0)
+                if (archivosRechazados.length === totalArchivos) {
+                    return {
+                        success: false,
+                        error: `Ningún archivo pasó la validación: ${archivosRechazados.map(a => a.razon).join('; ')}`,
+                    }
+                }
+            }
 
-            // Lanzar procesamiento de archivos en background (encolado)
-            // Los archivos se suben asincrónicamente y el radicador recibe email con el resultado
-            // Se usa cola global para serializar: si se crean 2+ radicados simultáneamente,
-            // sus uploads no compiten por conexiones del navegador
-            const totalArchivos = data.archivos.reduce((acc, g) => acc + g.files.length, 0)
-            if (totalArchivos > 0) {
-                console.info(`[Radicación] ${radicado}: Encolando procesamiento de ${totalArchivos} archivo(s)`)
-                _colaProcesamientoArchivos = _colaProcesamientoArchivos.then(async () => {
+            const initResponse = await fetchEdgeFunction<{
+                success: boolean
+                radicado: string
+                soporteId: string
+                uploadTokens: UploadToken[]
+            }>(EDGE_FUNCTIONS.initRadicacion, {
+                body: {
+                    radicadorEmail: data.radicadorEmail,
+                    radicadorNombre: data.radicadorNombre,
+                    eps: data.eps,
+                    regimen: data.regimen,
+                    servicioPrestado: data.servicioPrestado,
+                    fechaAtencion: data.fechaAtencion,
+                    tipoId: data.tipoId,
+                    identificacion: data.identificacion,
+                    nombresCompletos: data.nombresCompletos,
+                    observaciones: data.observaciones,
+                    archivos: archivosManifest,
+                },
+            })
+
+            if (initResponse.error || !initResponse.data) {
+                console.error('Error en init-radicacion:', initResponse.error)
+                return {
+                    success: false,
+                    error: initResponse.error || 'Error al iniciar la radicación',
+                }
+            }
+
+            const { radicado, uploadTokens } = initResponse.data
+
+            // ============================================
+            // FASE 2: Subir archivos con signed URLs
+            // ============================================
+            // Crear mapa de archivos File por nombre original para asociar con tokens
+            const archivosPorNombre = new Map<string, { file: File; usedCount: number }>()
+            for (const grupo of data.archivos) {
+                for (const file of grupo.files) {
+                    const key = `${grupo.categoria}:${file.name}`
+                    const existing = archivosPorNombre.get(key)
+                    if (existing) {
+                        existing.usedCount++ // Manejar duplicados
+                        archivosPorNombre.set(`${key}:${existing.usedCount}`, { file, usedCount: 0 })
+                    } else {
+                        archivosPorNombre.set(key, { file, usedCount: 0 })
+                    }
+                }
+            }
+
+            // Inicializar estado de progreso
+            const fileStatuses: UploadFileStatus[] = uploadTokens.map(t => ({
+                originalName: t.originalName,
+                category: t.category,
+                path: t.path,
+                status: 'pending' as const,
+                progress: 0,
+            }))
+
+            onProgress?.(fileStatuses)
+
+            // Subir archivos concurrentemente con límite
+            const uploadResults: { index: number; success: boolean }[] = []
+
+            // Procesar en lotes de UPLOAD_CONCURRENCY_LIMIT
+            for (let i = 0; i < uploadTokens.length; i += UPLOAD_CONCURRENCY_LIMIT) {
+                const batch = uploadTokens.slice(i, i + UPLOAD_CONCURRENCY_LIMIT)
+                const batchPromises = batch.map(async (token, batchIdx) => {
+                    const globalIdx = i + batchIdx
+                    const key = `${token.category}:${token.originalName}`
+                    const fileEntry = archivosPorNombre.get(key)
+
+                    if (!fileEntry) {
+                        console.error(`[Upload] No se encontró archivo para token: ${key}`)
+                        fileStatuses[globalIdx].status = 'error'
+                        fileStatuses[globalIdx].error = 'Archivo no encontrado en el formulario'
+                        onProgress?.(fileStatuses)
+                        return { index: globalIdx, success: false }
+                    }
+
+                    fileStatuses[globalIdx].status = 'uploading'
+                    onProgress?.(fileStatuses)
+
                     try {
-                        console.info(`[Radicación] ${radicado}: Iniciando procesamiento de archivos`)
-                        await this._procesarArchivosEnBackground(radicado, data)
-                    } catch (err) {
-                        console.error(`[Radicación] ${radicado}: Error fatal en procesamiento background:`, err)
+                        await uploadFileToSignedUrl(token, fileEntry.file)
+                        fileStatuses[globalIdx].status = 'done'
+                        fileStatuses[globalIdx].progress = 100
+                        onProgress?.(fileStatuses)
+                        return { index: globalIdx, success: true }
+                    } catch (error) {
+                        console.error(`[Upload] Error subiendo ${token.originalName}:`, error)
+                        fileStatuses[globalIdx].status = 'error'
+                        fileStatuses[globalIdx].error = error instanceof Error ? error.message : 'Error de conexión'
+                        onProgress?.(fileStatuses)
+                        return { index: globalIdx, success: false }
                     }
                 })
-            } else {
-                // Sin archivos: enviar confirmación directa
-                this._enviarEmailConfirmacion(radicado, soporteInicial).catch(err => {
-                    console.error(`[Radicación] ${radicado}: Error enviando email de confirmación:`, err)
-                })
+
+                const batchResults = await Promise.allSettled(batchPromises)
+                for (const result of batchResults) {
+                    if (result.status === 'fulfilled') {
+                        uploadResults.push(result.value)
+                    }
+                }
+
+                // Pausa entre lotes
+                if (i + UPLOAD_CONCURRENCY_LIMIT < uploadTokens.length) {
+                    await new Promise(resolve => setTimeout(resolve, 300))
+                }
             }
+
+            // Reintentos para archivos fallidos
+            let failedIndexes = uploadResults.filter(r => !r.success).map(r => r.index)
+
+            for (let retryPass = 1; retryPass <= MAX_BATCH_RETRIES && failedIndexes.length > 0; retryPass++) {
+                const passDelay = retryPass * 5000
+                console.warn(`[Upload] Reintento ${retryPass}/${MAX_BATCH_RETRIES}: ${failedIndexes.length} archivo(s), pausa ${passDelay}ms`)
+                await new Promise(resolve => setTimeout(resolve, passDelay))
+
+                const stillFailed: number[] = []
+                for (const idx of failedIndexes) {
+                    const token = uploadTokens[idx]
+                    const key = `${token.category}:${token.originalName}`
+                    const fileEntry = archivosPorNombre.get(key)
+
+                    if (!fileEntry) {
+                        stillFailed.push(idx)
+                        continue
+                    }
+
+                    fileStatuses[idx].status = 'uploading'
+                    fileStatuses[idx].error = undefined
+                    onProgress?.(fileStatuses)
+
+                    try {
+                        await uploadFileToSignedUrl(token, fileEntry.file)
+                        fileStatuses[idx].status = 'done'
+                        fileStatuses[idx].progress = 100
+                        onProgress?.(fileStatuses)
+                    } catch {
+                        fileStatuses[idx].status = 'error'
+                        fileStatuses[idx].error = 'Error tras múltiples reintentos'
+                        onProgress?.(fileStatuses)
+                        stillFailed.push(idx)
+                    }
+                }
+
+                failedIndexes = stillFailed
+
+                if (failedIndexes.length === 0) {
+                    console.info(`[Upload] Reintento ${retryPass}: todos recuperados`)
+                }
+            }
+
+            // ============================================
+            // FASE 3: Finalizar radicación en servidor
+            // ============================================
+            const finResponse = await fetchEdgeFunction<{
+                success: boolean
+                radicado: string
+                uploadStatus: string
+                archivosExitosos: number
+                archivosFaltantes: number
+                totalEsperados: number
+            }>(EDGE_FUNCTIONS.finalizarRadicacion, {
+                body: { radicado },
+            })
+
+            if (finResponse.error) {
+                console.error('Error en finalizar-radicacion:', finResponse.error)
+            }
+
+            // Obtener registro final
+            const { data: registroFinal } = await supabase
+                .from('soportes_facturacion')
+                .select('*')
+                .eq('radicado', radicado)
+                .single()
+
+            const soporteFinal = registroFinal
+                ? transformSoporte(registroFinal as SoporteFacturacionRaw)
+                : null
+
+            const uploadStatus = finResponse.data?.uploadStatus || 'unknown'
+            const archivosExitosos = fileStatuses.filter(f => f.status === 'done').length
+            const archivosFallidos = fileStatuses.filter(f => f.status === 'error').length
 
             return {
                 success: true,
-                data: soporteInicial,
-                message: `Radicación ${radicado} creada exitosamente`,
+                data: {
+                    ...(soporteFinal || {} as SoporteFacturacion),
+                    uploadStatus,
+                },
+                message: archivosFallidos > 0
+                    ? `Radicación ${radicado} creada. ${archivosExitosos} archivos subidos, ${archivosFallidos} fallaron.`
+                    : `Radicación ${radicado} creada exitosamente con ${archivosExitosos} archivos.`,
             }
         } catch (error) {
             console.error('Error en crearRadicacion:', error)
@@ -611,161 +553,6 @@ export const soportesFacturacionService = {
                 success: false,
                 error: ERROR_MESSAGES.SERVER_ERROR,
             }
-        }
-    },
-
-    /**
-     * Procesamiento de archivos en background.
-     * Sube archivos por categoría, actualiza BD con URLs y envía emails de resultado.
-     * Se ejecuta de forma asíncrona después de que crearRadicacion retorna.
-     */
-    async _procesarArchivosEnBackground(radicado: string, data: CrearSoporteFacturacionData): Promise<void> {
-        const urlsUpdate: Record<string, string[]> = {}
-        const todasIdentificaciones = new Set<string>()
-        const fallosPorCategoria: { categoria: string; nombres: string[]; errores: { nombre: string; razon: string }[] }[] = []
-
-        // Subir archivos por categoría
-        for (const grupo of data.archivos) {
-            if (grupo.files.length > 0) {
-                try {
-                    const { urls, identificacionesExtraidas, archivosFallidos, erroresDetalle } = await this.subirArchivos(
-                        grupo.files,
-                        grupo.categoria,
-                        radicado,
-                        data.eps,
-                        data.servicioPrestado
-                    )
-
-                    if (urls.length > 0) {
-                        const columnName = getCategoriaColumnName(grupo.categoria)
-                        urlsUpdate[columnName] = urls
-                    }
-
-                    for (const id of identificacionesExtraidas) {
-                        todasIdentificaciones.add(id)
-                    }
-
-                    if (archivosFallidos.length > 0) {
-                        fallosPorCategoria.push({
-                            categoria: grupo.categoria,
-                            nombres: archivosFallidos,
-                            errores: erroresDetalle
-                        })
-                    }
-                } catch (uploadError) {
-                    console.error(`[Background ${radicado}] Error subiendo ${grupo.categoria}:`, uploadError)
-                    fallosPorCategoria.push({
-                        categoria: grupo.categoria,
-                        nombres: grupo.files.map(f => f.name),
-                        errores: grupo.files.map(f => ({ nombre: f.name, razon: 'Error inesperado al procesar el archivo' }))
-                    })
-                }
-            }
-        }
-
-        // Agregar identificaciones extraídas al update
-        if (todasIdentificaciones.size > 0) {
-            urlsUpdate['identificaciones_archivos'] = Array.from(todasIdentificaciones)
-        }
-
-        // Actualizar registro con URLs de archivos
-        if (Object.keys(urlsUpdate).length > 0) {
-            const { error: updateError } = await supabase
-                .from('soportes_facturacion')
-                .update(urlsUpdate)
-                .eq('radicado', radicado)
-
-            if (updateError) {
-                console.warn(`[Background ${radicado}] Error actualizando URLs:`, updateError)
-            }
-        }
-
-        // Obtener registro actualizado para enviar email con datos completos
-        const { data: registroFinal } = await supabase
-            .from('soportes_facturacion')
-            .select('*')
-            .eq('radicado', radicado)
-            .single()
-
-        const soporteCreado = transformSoporte(registroFinal as SoporteFacturacionRaw)
-
-        // Enviar email de confirmación con archivos procesados
-        await this._enviarEmailConfirmacion(radicado, soporteCreado)
-
-        // Si hubo archivos fallidos, enviar notificación adicional de fallo
-        if (fallosPorCategoria.length > 0) {
-            try {
-                const { emailService } = await import('./email.service')
-                const totalFallidos = fallosPorCategoria.reduce((acc, f) => acc + f.nombres.length, 0)
-                const totalArchivos = data.archivos.reduce((acc, g) => acc + g.files.length, 0)
-
-                // Consolidar todos los errores detallados
-                const todosErrores = fallosPorCategoria.flatMap(f => f.errores)
-
-                await emailService.enviarNotificacionFalloSubida(
-                    soporteCreado.radicadorEmail,
-                    radicado,
-                    {
-                        archivosFallidos: fallosPorCategoria,
-                        archivosExitosos: totalArchivos - totalFallidos,
-                        totalArchivos,
-                        timestamp: new Date().toLocaleString('es-CO'),
-                        erroresDetalle: todosErrores,
-                    }
-                )
-                console.warn(`[Background ${radicado}] Notificación de fallo enviada (${totalFallidos} archivos fallidos)`)
-            } catch (notifyError) {
-                console.error(`[Background ${radicado}] Error enviando notificación de fallo:`, notifyError)
-            }
-        }
-
-        console.info(`[Background ${radicado}] Procesamiento completado`)
-    },
-
-    /**
-     * Enviar correo de confirmación de radicación con los archivos procesados
-     */
-    async _enviarEmailConfirmacion(radicado: string, soporte: SoporteFacturacion): Promise<void> {
-        try {
-            const { emailService } = await import('./email.service')
-
-            const archivos = [
-                { categoria: 'Validación de Derechos', urls: soporte.urlsValidacionDerechos },
-                { categoria: 'Autorización', urls: soporte.urlsAutorizacion },
-                { categoria: 'Soporte Clínico', urls: soporte.urlsSoporteClinico },
-                { categoria: 'Comprobante de Recibo', urls: soporte.urlsComprobanteRecibo },
-                { categoria: 'Orden Médica', urls: soporte.urlsOrdenMedica },
-                { categoria: 'Descripción Quirúrgica', urls: soporte.urlsDescripcionQuirurgica },
-                { categoria: 'Registro de Anestesia', urls: soporte.urlsRegistroAnestesia },
-                { categoria: 'Hoja de Medicamentos', urls: soporte.urlsHojaMedicamentos },
-                { categoria: 'Notas de Enfermería', urls: soporte.urlsNotasEnfermeria }
-            ]
-
-            const datosRadicacion = {
-                eps: soporte.eps,
-                regimen: soporte.regimen,
-                servicioPrestado: soporte.servicioPrestado,
-                fechaAtencion: soporte.fechaAtencion.toISOString().split('T')[0],
-                pacienteNombre: soporte.nombresCompletos || 'No especificado',
-                pacienteIdentificacion: soporte.identificacion || 'No especificado',
-                archivos,
-                fechaRadicacion: soporte.fechaRadicacion.toISOString(),
-                radicadorEmail: soporte.radicadorEmail
-            }
-
-            const emailEnviado = await emailService.enviarNotificacionRadicacionExitosa(
-                soporte.radicadorEmail,
-                radicado,
-                datosRadicacion
-            )
-
-            if (emailEnviado) {
-                console.log(`[Background ${radicado}] Correo de confirmación enviado a ${soporte.radicadorEmail}`)
-            } else {
-                console.warn(`[Background ${radicado}] No se pudo enviar el correo de confirmación`)
-            }
-        } catch (emailError) {
-            console.error(`[Background ${radicado}] Error enviando correo:`, emailError)
         }
     },
 

@@ -24,7 +24,7 @@ import {
 } from 'lucide-react'
 import { Card, Button, Input, LoadingOverlay } from '@/components/common'
 import { afiliadosService } from '@/services/afiliados.service'
-import { soportesFacturacionService } from '@/services/soportesFacturacion.service'
+import { soportesFacturacionService, type UploadFileStatus } from '@/services/soportesFacturacion.service'
 import { useAuth } from '@/context/AuthContext'
 import { Afiliado, LoadingState } from '@/types'
 import { AfiliadoFormModal } from './AfiliadoFormModal'
@@ -124,6 +124,7 @@ export function SoportesFacturacionPage() {
     const [submitState, setSubmitState] = useState<LoadingState>('idle')
     const [submitError, setSubmitError] = useState('')
     const [radicacionExitosa, setRadicacionExitosa] = useState<SoporteFacturacion | null>(null)
+    const [uploadProgress, setUploadProgress] = useState<UploadFileStatus[] | null>(null)
 
     // ============================================
     // ESTADO - Historial
@@ -153,6 +154,17 @@ export function SoportesFacturacionPage() {
             setServicioPrestado('')
         }
     }, [eps, serviciosDisponibles, servicioPrestado])
+
+    // Proteger contra cierre de pestaña durante upload
+    useEffect(() => {
+        if (submitState === 'loading' && uploadProgress && uploadProgress.some(f => f.status === 'uploading')) {
+            const handler = (e: BeforeUnloadEvent) => {
+                e.preventDefault()
+            }
+            window.addEventListener('beforeunload', handler)
+            return () => window.removeEventListener('beforeunload', handler)
+        }
+    }, [submitState, uploadProgress])
 
     // ============================================
     // HANDLERS - Búsqueda
@@ -266,6 +278,7 @@ export function SoportesFacturacionPage() {
         setSubmitState('idle')
         setSubmitError('')
         setRadicacionExitosa(null)
+        setUploadProgress(null)
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -308,33 +321,38 @@ export function SoportesFacturacionPage() {
 
         setSubmitState('loading')
         setSubmitError('')
+        setUploadProgress(null)
 
-        const result = await soportesFacturacionService.crearRadicacion({
-            radicadorEmail: user?.email || '',
-            radicadorNombre: user?.nombreCompleto,
-            eps: eps as EpsFacturacion,
-            regimen: regimen as RegimenFacturacion,
-            servicioPrestado: servicioPrestado as ServicioPrestado,
-            fechaAtencion,
-            tipoId: afiliado?.tipoId || undefined,
-            identificacion: afiliado?.id || undefined,
-            nombresCompletos: afiliado ? getNombreCompleto(afiliado) : undefined,
-            observaciones: observaciones || undefined,
-            archivos: archivosPorCategoria.filter(a =>
-                a.files.length > 0 && categoriasVisibles.some(v => v.id === a.categoria)
-            ),
-        })
+        const result = await soportesFacturacionService.crearRadicacion(
+            {
+                radicadorEmail: user?.email || '',
+                radicadorNombre: user?.nombreCompleto,
+                eps: eps as EpsFacturacion,
+                regimen: regimen as RegimenFacturacion,
+                servicioPrestado: servicioPrestado as ServicioPrestado,
+                fechaAtencion,
+                tipoId: afiliado?.tipoId || undefined,
+                identificacion: afiliado?.id || undefined,
+                nombresCompletos: afiliado ? getNombreCompleto(afiliado) : undefined,
+                observaciones: observaciones || undefined,
+                archivos: archivosPorCategoria.filter(a =>
+                    a.files.length > 0 && categoriasVisibles.some(v => v.id === a.categoria)
+                ),
+            },
+            (statuses) => setUploadProgress([...statuses])
+        )
 
         if (result.success && result.data) {
             setSubmitState('success')
             setRadicacionExitosa(result.data)
-            // Cargar historial sin bloquear (en background)
+            setUploadProgress(null)
             if (afiliado?.id) {
                 cargarHistorial(afiliado.id)
             }
         } else {
             setSubmitError(result.error || 'Error al radicar')
             setSubmitState('error')
+            setUploadProgress(null)
         }
     }
 
@@ -449,6 +467,48 @@ export function SoportesFacturacionPage() {
             {/* ============================================ */}
             {vistaActual === 'radicacion' && (
                 <>
+                    {/* Panel de Progreso de Upload */}
+                    {submitState === 'loading' && uploadProgress && uploadProgress.length > 0 && (
+                        <Card className="border-blue-300 bg-blue-50">
+                            <div className="p-4">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <Upload className="text-blue-600 animate-pulse" size={20} />
+                                    <h3 className="font-semibold text-blue-700">
+                                        Subiendo archivos... No cierres esta pestaña
+                                    </h3>
+                                </div>
+                                {/* Barra de progreso general */}
+                                <div className="mb-4">
+                                    <div className="flex justify-between text-sm text-blue-600 mb-1">
+                                        <span>{uploadProgress.filter(f => f.status === 'done').length} de {uploadProgress.length} archivos</span>
+                                        <span>{Math.round((uploadProgress.filter(f => f.status === 'done').length / uploadProgress.length) * 100)}%</span>
+                                    </div>
+                                    <div className="w-full bg-blue-200 rounded-full h-2.5">
+                                        <div
+                                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                                            style={{ width: `${(uploadProgress.filter(f => f.status === 'done').length / uploadProgress.length) * 100}%` }}
+                                        />
+                                    </div>
+                                </div>
+                                {/* Estado por archivo */}
+                                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                                    {uploadProgress.map((file, idx) => (
+                                        <div key={idx} className="flex items-center gap-2 text-sm">
+                                            {file.status === 'done' && <CheckCircle className="text-green-500 shrink-0" size={14} />}
+                                            {file.status === 'uploading' && <Upload className="text-blue-500 animate-pulse shrink-0" size={14} />}
+                                            {file.status === 'pending' && <FileText className="text-gray-400 shrink-0" size={14} />}
+                                            {file.status === 'error' && <AlertCircle className="text-red-500 shrink-0" size={14} />}
+                                            <span className={`truncate ${file.status === 'done' ? 'text-green-700' : file.status === 'error' ? 'text-red-600' : 'text-gray-600'}`}>
+                                                {file.originalName}
+                                            </span>
+                                            {file.error && <span className="text-red-500 text-xs ml-auto shrink-0">({file.error})</span>}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </Card>
+                    )}
+
                     {/* Mensaje de Éxito */}
                     {radicacionExitosa && (
                         <Card className="border-[var(--color-success)] bg-green-50">
@@ -458,7 +518,7 @@ export function SoportesFacturacionPage() {
                                 </div>
                                 <div className="flex-1">
                                     <h3 className="font-semibold text-[var(--color-success)]">
-                                        ¡Radicación registrada!
+                                        ¡Radicación registrada y archivos subidos!
                                     </h3>
                                     <p className="text-sm text-gray-600 mt-1">
                                         Número de radicado:{' '}
@@ -467,7 +527,7 @@ export function SoportesFacturacionPage() {
                                         </code>
                                     </p>
                                     <p className="text-sm text-gray-500 mt-2">
-                                        Los archivos se están procesando en segundo plano. Recibirás una confirmación por correo electrónico cuando se complete el procesamiento.
+                                        Todos los archivos fueron verificados en el servidor. Recibirás una confirmación por correo electrónico.
                                     </p>
                                     <div className="mt-4">
                                         <Button
@@ -536,7 +596,7 @@ export function SoportesFacturacionPage() {
 
                     {/* Formulario Principal */}
                     {!radicacionExitosa && (
-                        <LoadingOverlay isLoading={submitState === 'loading'} label="Registrando radicación...">
+                        <LoadingOverlay isLoading={submitState === 'loading' && !uploadProgress} label="Iniciando radicación...">
                             <div className="grid gap-6 lg:grid-cols-3">
                                 {/* Columna Izquierda: Datos del Servicio y Búsqueda */}
                                 <div className="lg:col-span-1 space-y-6">
