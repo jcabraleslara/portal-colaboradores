@@ -67,7 +67,11 @@ export function Header({ onMenuClick }: HeaderProps) {
                             <Menu size={22} className="text-slate-600 dark:text-slate-300" />
                         </button>
 
-                        <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => navigate('/dashboard')}
+                            className="flex items-center gap-3 cursor-pointer"
+                            aria-label="Ir al inicio"
+                        >
                             <div className="relative">
                                 <div className="absolute inset-0 bg-primary-500/20 blur-lg rounded-full" />
                                 <img
@@ -76,13 +80,13 @@ export function Header({ onMenuClick }: HeaderProps) {
                                     className="relative h-10 w-auto"
                                 />
                             </div>
-                            <div className="hidden sm:block">
+                            <div className="hidden sm:block text-left">
                                 <h1 className="text-lg font-bold bg-gradient-to-r from-primary-600 to-primary-500 bg-clip-text text-transparent">
                                     Portal Colaboradores
                                 </h1>
                                 <p className="text-xs text-slate-400 dark:text-slate-500 -mt-0.5">GESTAR SALUD IPS</p>
                             </div>
-                        </div>
+                        </button>
                     </div>
 
                     {/* Lado derecho: Tema, Notificaciones y Usuario */}
