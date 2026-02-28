@@ -5,12 +5,15 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { X, User, Mail, Key, Shield, Loader2, AlertCircle, CheckCircle, Search, Contact as ContactIcon } from 'lucide-react'
-import { UsuarioPortal, CreateUserData } from '@/services/usuariosPortal.service'
+import { UsuarioPortal } from '@/services/usuariosPortal.service'
 import { contactosService } from '@/services/contactos.service'
 import { Contacto } from '@/types/contactos.types'
 import { supabase } from '@/config/supabase.config'
 import { EDGE_FUNCTIONS, getEdgeFunctionHeaders } from '@/config/api.config'
+import { createUserSchema, type CreateUserFormData } from '../schemas/createUser.schema'
 
 interface CreateUserModalProps {
     onClose: () => void
@@ -18,16 +21,25 @@ interface CreateUserModalProps {
 }
 
 export default function CreateUserModal({ onClose, onCreated }: CreateUserModalProps) {
-    const [formData, setFormData] = useState<CreateUserData>({
-        identificacion: '',
-        nombre_completo: '',
-        email_institucional: '',
-        rol: 'operativo',
-        password: '',
-        contacto_id: null
+    const {
+        register,
+        handleSubmit,
+        setValue,
+        formState: { errors, isSubmitting },
+        setError,
+        clearErrors,
+    } = useForm<CreateUserFormData>({
+        resolver: zodResolver(createUserSchema),
+        defaultValues: {
+            identificacion: '',
+            nombre_completo: '',
+            email_institucional: '',
+            rol: 'operativo',
+            password: '',
+            contacto_id: null,
+        },
     })
-    const [isSubmitting, setIsSubmitting] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+
     const [success, setSuccess] = useState(false)
 
     // Estados para búsqueda de contactos
@@ -63,7 +75,7 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
         try {
             const { data, error: _error } = await contactosService.obtenerContactosFiltrados({
                 busqueda: term
-            }, 0, 5) // Limitar a 5 resultados
+            }, 0, 5)
 
             if (data?.contactos) {
                 setSearchResults(data.contactos)
@@ -83,59 +95,25 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
             contacto.apellidos
         ].filter(Boolean).join(' ')
 
-        setFormData(prev => {
-            // Lógica: Si no hay email institucional, intentar usar el personal
-            const emailToUse = contacto.email_institucional || contacto.email_personal || prev.email_institucional
+        const emailToUse = contacto.email_institucional || contacto.email_personal || ''
 
-            return {
-                ...prev,
-                identificacion: contacto.identificacion || prev.identificacion,
-                nombre_completo: nombreCompleto,
-                email_institucional: emailToUse,
-                password: contacto.identificacion || prev.password, // Contraseña temporal = identificación
-                contacto_id: contacto.id
-            }
-        })
+        setValue('identificacion', contacto.identificacion || '', { shouldValidate: true })
+        setValue('nombre_completo', nombreCompleto, { shouldValidate: true })
+        setValue('email_institucional', emailToUse, { shouldValidate: true })
+        setValue('password', contacto.identificacion || '', { shouldValidate: true })
+        setValue('contacto_id', contacto.id)
 
         setSearchTerm('')
         setShowResults(false)
-        setError(null) // Limpiar errores previos
+        clearErrors()
     }
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        const { name, value } = e.target
-        setFormData(prev => ({ ...prev, [name]: value }))
-        setError(null)
-    }
-
-    const validateForm = (): string | null => {
-        if (!formData.identificacion.trim()) return 'La identificación es requerida'
-        if (!formData.nombre_completo.trim()) return 'El nombre completo es requerido'
-        if (!formData.email_institucional.trim()) return 'El email institucional es requerido'
-        if (!formData.email_institucional.includes('@')) return 'El email no es válido'
-        if (!formData.password.trim()) return 'La contraseña es requerida'
-        if (formData.password.length < 6) return 'La contraseña debe tener al menos 6 caracteres'
-        return null
-    }
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-
-        const validationError = validateForm()
-        if (validationError) {
-            setError(validationError)
-            return
-        }
-
-        setIsSubmitting(true)
-        setError(null)
-
+    const onSubmit = async (data: CreateUserFormData) => {
         try {
             // Obtener el token de sesión actual
             const { data: { session } } = await supabase.auth.getSession()
             if (!session?.access_token) {
-                setError('No hay sesión activa. Por favor, inicia sesión nuevamente.')
-                setIsSubmitting(false)
+                setError('root', { message: 'No hay sesión activa. Por favor, inicia sesión nuevamente.' })
                 return
             }
 
@@ -143,7 +121,7 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
             const response = await fetch(EDGE_FUNCTIONS.createUser, {
                 method: 'POST',
                 headers: await getEdgeFunctionHeaders(session.access_token),
-                body: JSON.stringify(formData)
+                body: JSON.stringify(data)
             })
 
             let result: any;
@@ -161,8 +139,7 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                 if (result.details) errorMsg += `: ${result.details}`
                 if (result.hint) errorMsg += ` (${result.hint})`
 
-                setError(errorMsg)
-                setIsSubmitting(false)
+                setError('root', { message: errorMsg })
                 return
             }
 
@@ -173,10 +150,17 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                 }, 1500)
             }
         } catch (err: any) {
-            setError(err.message || 'Error de conexión')
+            setError('root', { message: err.message || 'Error de conexión' })
         }
+    }
 
-        setIsSubmitting(false)
+    // Helper para mostrar error inline por campo
+    const fieldError = (field: keyof CreateUserFormData) => {
+        const err = errors[field]
+        if (!err) return null
+        return (
+            <p className="text-xs text-red-500 mt-1">{err.message}</p>
+        )
     }
 
     return (
@@ -204,9 +188,9 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
 
-                    {/* Buscador de Contactos - Feature nueva */}
+                    {/* Buscador de Contactos */}
                     <div className="relative z-20" ref={searchRef}>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Buscar en Directorio (Opcional)
@@ -277,14 +261,13 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                             <input
                                 type="text"
-                                name="identificacion"
-                                value={formData.identificacion}
-                                onChange={handleChange}
+                                {...register('identificacion')}
                                 placeholder="Número de documento"
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${errors.identificacion ? 'border-red-300' : 'border-gray-200'}`}
                                 disabled={isSubmitting || success}
                             />
                         </div>
+                        {fieldError('identificacion')}
                     </div>
 
                     {/* Nombre completo */}
@@ -294,13 +277,12 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                         </label>
                         <input
                             type="text"
-                            name="nombre_completo"
-                            value={formData.nombre_completo}
-                            onChange={handleChange}
+                            {...register('nombre_completo')}
                             placeholder="Nombres y apellidos"
-                            className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                            className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${errors.nombre_completo ? 'border-red-300' : 'border-gray-200'}`}
                             disabled={isSubmitting || success}
                         />
+                        {fieldError('nombre_completo')}
                     </div>
 
                     {/* Email institucional */}
@@ -312,14 +294,13 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                             <input
                                 type="email"
-                                name="email_institucional"
-                                value={formData.email_institucional}
-                                onChange={handleChange}
+                                {...register('email_institucional')}
                                 placeholder="correo@gestarsaludips.com"
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${errors.email_institucional ? 'border-red-300' : 'border-gray-200'}`}
                                 disabled={isSubmitting || success}
                             />
                         </div>
+                        {fieldError('email_institucional')}
                     </div>
 
                     {/* Rol */}
@@ -330,9 +311,7 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                         <div className="relative">
                             <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                             <select
-                                name="rol"
-                                value={formData.rol}
-                                onChange={handleChange}
+                                {...register('rol')}
                                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none"
                                 disabled={isSubmitting || success}
                             >
@@ -355,14 +334,13 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                             <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                             <input
                                 type="text"
-                                name="password"
-                                value={formData.password}
-                                onChange={handleChange}
+                                {...register('password')}
                                 placeholder="Contraseña inicial"
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${errors.password ? 'border-red-300' : 'border-gray-200'}`}
                                 disabled={isSubmitting || success}
                             />
                         </div>
+                        {fieldError('password')}
                         <p className="text-xs text-gray-500 mt-1">
                             El usuario deberá cambiar esta contraseña en su primer ingreso.
                         </p>
@@ -374,11 +352,11 @@ export default function CreateUserModal({ onClose, onCreated }: CreateUserModalP
                         al portal. Podrá iniciar sesión inmediatamente con la contraseña temporal.
                     </div>
 
-                    {/* Error */}
-                    {error && (
+                    {/* Error del servidor */}
+                    {errors.root && (
                         <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-center gap-2 text-red-700">
                             <AlertCircle className="w-5 h-5 flex-shrink-0" />
-                            <span className="text-sm">{error}</span>
+                            <span className="text-sm">{errors.root.message}</span>
                         </div>
                     )}
 

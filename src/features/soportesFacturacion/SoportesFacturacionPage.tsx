@@ -23,9 +23,9 @@ import {
     X,
 } from 'lucide-react'
 import { Card, Button, Input, LoadingOverlay } from '@/components/common'
-import { afiliadosService } from '@/services/afiliados.service'
 import { soportesFacturacionService, type UploadFileStatus } from '@/services/soportesFacturacion.service'
 import { useAuth } from '@/context/AuthContext'
+import { useAfiliadoSearch } from '@/hooks'
 import { Afiliado, LoadingState } from '@/types'
 import { AfiliadoFormModal } from './AfiliadoFormModal'
 import { GestionRadicadosView } from './GestionRadicadosView'
@@ -54,11 +54,17 @@ export function SoportesFacturacionPage() {
     // ============================================
     // ESTADO - Búsqueda de Afiliado
     // ============================================
-    const [documento, setDocumento] = useState('')
-    const [afiliado, setAfiliado] = useState<Afiliado | null>(null)
-    const [searchState, setSearchState] = useState<LoadingState>('idle')
-    const [searchError, setSearchError] = useState('')
     const [mostrarModalCrearAfiliado, setMostrarModalCrearAfiliado] = useState(false)
+    const {
+        documento, setDocumento,
+        afiliado, setAfiliado,
+        searchState, setSearchState,
+        searchError,
+        handleSearch, handleClear,
+    } = useAfiliadoSearch({
+        digitOnly: true,
+        onNotFound: () => setMostrarModalCrearAfiliado(true),
+    })
 
     // ============================================
     // ESTADO - Datos del Formulario
@@ -167,35 +173,9 @@ export function SoportesFacturacionPage() {
     }, [submitState, uploadProgress])
 
     // ============================================
-    // HANDLERS - Búsqueda
+    // HANDLERS - Crear Afiliado desde Modal
     // ============================================
-    const handleSearch = async () => {
-        if (!documento.trim()) {
-            setSearchError('Ingresa un número de documento')
-            return
-        }
-
-        setSearchState('loading')
-        setSearchError('')
-        setAfiliado(null)
-        setMostrarModalCrearAfiliado(false)
-
-        const result = await afiliadosService.buscarPorDocumento(documento.trim())
-
-        if (result.success && result.data) {
-            setAfiliado(result.data)
-            setSearchState('success')
-            // NO pre-llenar EPS ni régimen - respetar la selección manual del usuario
-        } else {
-            // Afiliado no encontrado - mostrar modal para crear
-            setSearchError('')
-            setSearchState('error')
-            setMostrarModalCrearAfiliado(true)
-        }
-    }
-
     const handleCrearAfiliadoSuccess = (nuevoAfiliado: { tipoId: string; id: string; nombres: string; apellido1: string; apellido2: string; eps: string; regimen: string }) => {
-        // Mapear datos del nuevo afiliado a formato Afiliado
         const afiliadoCompleto: Afiliado = {
             tipoId: nuevoAfiliado.tipoId,
             id: nuevoAfiliado.id,
@@ -204,28 +184,15 @@ export function SoportesFacturacionPage() {
             apellido2: nuevoAfiliado.apellido2,
             eps: nuevoAfiliado.eps,
             regimen: nuevoAfiliado.regimen,
-            sexo: null,
-            direccion: null,
-            telefono: null,
-            fechaNacimiento: null,
-            estado: null,
-            municipio: null,
-            observaciones: null,
-            ipsPrimaria: null,
-            tipoCotizante: null,
-            departamento: null,
-            rango: null,
-            email: null,
-            edad: null,
-            fuente: 'PORTAL_COLABORADORES',
-            updatedAt: new Date(),
+            sexo: null, direccion: null, telefono: null, fechaNacimiento: null,
+            estado: null, municipio: null, observaciones: null, ipsPrimaria: null,
+            tipoCotizante: null, departamento: null, rango: null, email: null,
+            edad: null, fuente: 'PORTAL_COLABORADORES', updatedAt: new Date(),
             busquedaTexto: null,
         }
-
         setAfiliado(afiliadoCompleto)
         setSearchState('success')
         setMostrarModalCrearAfiliado(false)
-        // NO pre-llenar EPS ni régimen - respetar la selección manual del usuario
     }
 
     // ============================================
@@ -271,9 +238,7 @@ export function SoportesFacturacionPage() {
         setServicioPrestado('')
         setFechaAtencion('')
         setObservaciones('')
-        setAfiliado(null)
-        setDocumento('')
-        setSearchState('idle')
+        handleClear()
         setArchivosPorCategoria(CATEGORIAS_ARCHIVOS.map(cat => ({ categoria: cat.id, files: [] })))
         setSubmitState('idle')
         setSubmitError('')
@@ -369,10 +334,7 @@ export function SoportesFacturacionPage() {
     }
 
     const handleNuevaRadicacion = () => {
-        setDocumento('')
-        setAfiliado(null)
-        setSearchState('idle')
-        setSearchError('')
+        handleClear()
         setHistorial([])
         resetFormulario()
         setMostrarHistorial(false)
@@ -752,10 +714,7 @@ export function SoportesFacturacionPage() {
                                                         <Input
                                                             placeholder="Número de documento"
                                                             value={documento}
-                                                            onChange={(e) => {
-                                                                setDocumento(e.target.value.replace(/\D/g, ''))
-                                                                setSearchError('')
-                                                            }}
+                                                            onChange={(e) => setDocumento(e.target.value)}
                                                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                                             leftIcon={<User size={18} />}
                                                             disabled={searchState === 'loading' || !!afiliado}
@@ -770,11 +729,7 @@ export function SoportesFacturacionPage() {
                                                         ) : (
                                                             <Button
                                                                 variant="ghost"
-                                                                onClick={() => {
-                                                                    setAfiliado(null)
-                                                                    setDocumento('')
-                                                                    setSearchState('idle')
-                                                                }}
+                                                                onClick={handleClear}
                                                                 className="border"
                                                             >
                                                                 <X size={18} />

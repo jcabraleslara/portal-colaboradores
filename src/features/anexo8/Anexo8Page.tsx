@@ -5,10 +5,11 @@
  * Recetario Oficial para Medicamentos de Control Especial (FNE)
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { afiliadosService } from '@/services/afiliados.service'
 import { backService } from '@/services/back.service'
+import { useAfiliadoSearch } from '@/hooks'
 import { anexo8Service, ROLES_PERMITIDOS_ANEXO8 } from '@/services/anexo8.service'
 import { generarAnexo8Pdf, descargarPdf } from './pdfGenerator'
 import { PdfExtractDialog } from './components/PdfExtractDialog'
@@ -55,13 +56,23 @@ export default function Anexo8Page() {
     const [activeTab, setActiveTab] = useState<'generar' | 'historial'>('generar')
 
     // Búsqueda de paciente
-    const [busqueda, setBusqueda] = useState('')
-    const [buscando, setBuscando] = useState(false)
-    const [paciente, setPaciente] = useState<Afiliado | null>(null)
-    const [resultadosBusqueda, setResultadosBusqueda] = useState<Afiliado[]>([])
-    const [mostrarResultados, setMostrarResultados] = useState(false)
     const [mostrarFormularioNuevo, setMostrarFormularioNuevo] = useState(false)
     const [creandoPaciente, setCreandoPaciente] = useState(false)
+    const {
+        documento: busqueda, setDocumento: setBusqueda,
+        afiliado: paciente, setAfiliado: setPaciente,
+        searchState: _searchState,
+        suggestions: resultadosBusqueda,
+        showSuggestions: mostrarResultados,
+        handleSearch: ejecutarBusqueda,
+        handleSelectSuggestion: seleccionarPacienteFromHook,
+        handleClear: limpiarBusqueda,
+    } = useAfiliadoSearch({
+        enableTextSearch: true,
+        debounceMs: 700,
+        onNotFound: () => setMostrarFormularioNuevo(true),
+    })
+    const buscando = _searchState === 'loading'
 
     // Médicos
     const [medicos, setMedicos] = useState<MedicoData[]>([])
@@ -115,71 +126,14 @@ export default function Anexo8Page() {
         }
     }
 
-    // Buscar pacientes
-    const buscarPacientes = useCallback(async (texto: string) => {
-        if (texto.length < 3) {
-            setResultadosBusqueda([])
-            setMostrarFormularioNuevo(false)
-            return
-        }
-
-        setBuscando(true)
-        setMostrarFormularioNuevo(false)
-
-        try {
-            //  Primero iniciar por documento exacto
-            const resultDoc = await afiliadosService.buscarPorDocumento(texto)
-            if (resultDoc.success && resultDoc.data) {
-                setResultadosBusqueda([resultDoc.data])
-                setMostrarResultados(true)
-                setBuscando(false)
-                return
-            }
-
-            // Si no, buscar por texto
-            const resultTexto = await afiliadosService.buscarPorTexto(texto, 10)
-            if (resultTexto.success && resultTexto.data && resultTexto.data.length > 0) {
-                setResultadosBusqueda(resultTexto.data)
-                setMostrarResultados(true)
-            } else {
-                // No se encontró ningún paciente, mostrar formulario de creación
-                setResultadosBusqueda([])
-                setMostrarResultados(false)
-                setMostrarFormularioNuevo(true)
-                // Simular paciente con documento ingresado para crearPacienteNuevo
-                setPaciente({ id: texto } as Afiliado)
-            }
-        } catch {
-            setError('Error buscando pacientes')
-        }
-        setBuscando(false)
-    }, [])
-
-    // Función para ejecutar búsqueda manualmente
-    const ejecutarBusqueda = () => {
-        if (busqueda) {
-            buscarPacientes(busqueda)
-        }
-    }
-
-    // Handler para tecla Enter en el input
-    const handleKeyDownBusqueda = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === 'Enter') {
-            e.preventDefault()
-            ejecutarBusqueda()
-        }
-    }
-
-    // Seleccionar paciente
+    // Seleccionar paciente (wrapper para actualizar formData)
     const seleccionarPaciente = (afiliado: Afiliado) => {
-        setPaciente(afiliado)
+        seleccionarPacienteFromHook(afiliado)
         setFormData(prev => ({
             ...prev,
             pacienteDocumento: afiliado.id || ''
         }))
-        setMostrarResultados(false)
         setMostrarFormularioNuevo(false)
-        setBusqueda('')
     }
 
     // Crear paciente nuevo
@@ -256,7 +210,7 @@ export default function Anexo8Page() {
 
     // Limpiar paciente
     const limpiarPaciente = () => {
-        setPaciente(null)
+        limpiarBusqueda()
         setFormData(prev => ({
             ...prev,
             pacienteDocumento: ''
@@ -441,11 +395,8 @@ export default function Anexo8Page() {
 
     // Resetear todo el formulario (botón Nuevo Anexo 8)
     const resetearFormularioCompleto = () => {
-        setPaciente(null)
-        setBusqueda('')
+        limpiarBusqueda()
         setMostrarFormularioNuevo(false)
-        setMostrarResultados(false)
-        setResultadosBusqueda([])
 
         // Si no es asistencial, también limpiar médico
         if (!esAsistencial) {
@@ -665,7 +616,7 @@ export default function Anexo8Page() {
                                                     placeholder="Buscar por documento o nombre..."
                                                     value={busqueda}
                                                     onChange={(e) => setBusqueda(e.target.value)}
-                                                    onKeyDown={handleKeyDownBusqueda}
+                                                    onKeyDown={(e) => e.key === 'Enter' && ejecutarBusqueda()}
                                                     className="w-full px-3 py-2.5 focus:outline-none bg-transparent dark:text-slate-100 dark:placeholder:text-slate-500"
                                                 />
                                                 {buscando && <LoadingSpinner size="sm" />}
@@ -860,8 +811,7 @@ export default function Anexo8Page() {
                                                 <button
                                                     onClick={() => {
                                                         setMostrarFormularioNuevo(false)
-                                                        setPaciente(null)
-                                                        setBusqueda('')
+                                                        limpiarBusqueda()
                                                     }}
                                                     className="w-full px-4 py-2 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 text-sm"
                                                 >

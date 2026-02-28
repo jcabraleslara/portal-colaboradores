@@ -4,3 +4,5 @@
  */
 
 export { useInactivityTimeout } from './useInactivityTimeout'
+export { useAfiliadoSearch } from './useAfiliadoSearch'
+export type { UseAfiliadoSearchOptions, UseAfiliadoSearchReturn } from './useAfiliadoSearch'

@@ -7,6 +7,7 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Header } from './Header'
 import { Sidebar } from './Sidebar'
+import { ErrorBoundary } from '@/components/common'
 
 export function MainLayout() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -40,7 +41,9 @@ export function MainLayout() {
                 `}
             >
                 <div className="p-4 md:p-6 lg:p-8">
-                    <Outlet />
+                    <ErrorBoundary variant="section">
+                        <Outlet />
+                    </ErrorBoundary>
                 </div>
             </main>
         </div>

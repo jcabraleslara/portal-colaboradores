@@ -26,9 +26,9 @@ import {
 import { toast } from 'sonner'
 import { Card, Button, Input, LoadingOverlay } from '@/components/common'
 import { RichTextEditor } from '@/components/common/RichTextEditor'
-import { afiliadosService } from '@/services/afiliados.service'
 import { recobrosService } from '@/services/recobros.service'
 import { useAuth } from '@/context/AuthContext'
+import { useAfiliadoSearch } from '@/hooks'
 import { Afiliado, LoadingState } from '@/types'
 import { AfiliadoFormModal } from '@/features/soportesFacturacion/AfiliadoFormModal'
 import { CupsSelector } from './CupsSelector'
@@ -49,11 +49,17 @@ export function RadicacionRecobrosView() {
     // ============================================
     // ESTADO - Búsqueda de Paciente
     // ============================================
-    const [documento, setDocumento] = useState('')
-    const [paciente, setPaciente] = useState<Afiliado | null>(null)
-    const [searchState, setSearchState] = useState<LoadingState>('idle')
-    const [searchError, setSearchError] = useState('')
     const [mostrarModalCrearAfiliado, setMostrarModalCrearAfiliado] = useState(false)
+    const {
+        documento, setDocumento,
+        afiliado: paciente, setAfiliado: setPaciente,
+        searchState, setSearchState,
+        searchError,
+        handleSearch, handleClear,
+    } = useAfiliadoSearch({
+        digitOnly: true,
+        onNotFound: () => setMostrarModalCrearAfiliado(true),
+    })
 
     // ============================================
     // ESTADO - Datos del Formulario
@@ -90,66 +96,23 @@ export function RadicacionRecobrosView() {
     }, [paciente?.id])
 
     // ============================================
-    // HANDLERS - Búsqueda de Paciente
+    // HANDLERS - Crear Afiliado desde Modal
     // ============================================
-    const handleSearch = async () => {
-        if (!documento.trim()) {
-            setSearchError('Ingresa un número de documento')
-            return
-        }
-
-        setSearchState('loading')
-        setSearchError('')
-        setPaciente(null)
-        setMostrarModalCrearAfiliado(false)
-
-        const result = await afiliadosService.buscarPorDocumento(documento.trim())
-
-        if (result.success && result.data) {
-            setPaciente(result.data)
-            setSearchState('success')
-        } else {
-            setSearchError('')
-            setSearchState('error')
-            setMostrarModalCrearAfiliado(true)
-        }
-    }
-
     const handleCrearAfiliadoSuccess = (nuevoAfiliado: {
-        tipoId: string
-        id: string
-        nombres: string
-        apellido1: string
-        apellido2: string
-        eps: string
-        regimen: string
+        tipoId: string; id: string; nombres: string; apellido1: string;
+        apellido2: string; eps: string; regimen: string
     }) => {
         const afiliadoCompleto: Afiliado = {
-            tipoId: nuevoAfiliado.tipoId,
-            id: nuevoAfiliado.id,
-            nombres: nuevoAfiliado.nombres,
-            apellido1: nuevoAfiliado.apellido1,
-            apellido2: nuevoAfiliado.apellido2,
-            eps: nuevoAfiliado.eps,
+            tipoId: nuevoAfiliado.tipoId, id: nuevoAfiliado.id,
+            nombres: nuevoAfiliado.nombres, apellido1: nuevoAfiliado.apellido1,
+            apellido2: nuevoAfiliado.apellido2, eps: nuevoAfiliado.eps,
             regimen: nuevoAfiliado.regimen,
-            sexo: null,
-            direccion: null,
-            telefono: null,
-            fechaNacimiento: null,
-            estado: null,
-            municipio: null,
-            observaciones: null,
-            ipsPrimaria: null,
-            tipoCotizante: null,
-            departamento: null,
-            rango: null,
-            email: null,
-            edad: null,
-            fuente: 'PORTAL_COLABORADORES',
-            updatedAt: new Date(),
+            sexo: null, direccion: null, telefono: null, fechaNacimiento: null,
+            estado: null, municipio: null, observaciones: null, ipsPrimaria: null,
+            tipoCotizante: null, departamento: null, rango: null, email: null,
+            edad: null, fuente: 'PORTAL_COLABORADORES', updatedAt: new Date(),
             busquedaTexto: null,
         }
-
         setPaciente(afiliadoCompleto)
         setSearchState('success')
         setMostrarModalCrearAfiliado(false)
@@ -219,9 +182,7 @@ export function RadicacionRecobrosView() {
         setCupsSeleccionados([])
         setJustificacion('')
         setArchivos([])
-        setPaciente(null)
-        setDocumento('')
-        setSearchState('idle')
+        handleClear()
         setSubmitState('idle')
         setSubmitError('')
         setRadicacionExitosa(null)
@@ -349,10 +310,7 @@ export function RadicacionRecobrosView() {
                                     <Input
                                         placeholder="Número de documento"
                                         value={documento}
-                                        onChange={(e) => {
-                                            setDocumento(e.target.value.replace(/\D/g, ''))
-                                            setSearchError('')
-                                        }}
+                                        onChange={(e) => setDocumento(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                         leftIcon={<User size={18} />}
                                         disabled={searchState === 'loading' || !!paciente}
@@ -368,9 +326,7 @@ export function RadicacionRecobrosView() {
                                         <Button
                                             variant="ghost"
                                             onClick={() => {
-                                                setPaciente(null)
-                                                setDocumento('')
-                                                setSearchState('idle')
+                                                handleClear()
                                                 setHistorial([])
                                             }}
                                             className="border"

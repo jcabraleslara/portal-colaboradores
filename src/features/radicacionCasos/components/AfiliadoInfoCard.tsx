@@ -1,11 +1,10 @@
-import React from 'react'
 import { UserCheck } from 'lucide-react'
 import { Button, EditablePhone } from '@/components/common'
 import { Afiliado } from '@/types'
 
 interface AfiliadoInfoCardProps {
     afiliado: Afiliado
-    setAfiliado: React.Dispatch<React.SetStateAction<Afiliado | null>>
+    setAfiliado: (value: Afiliado | null) => void
     onPhoneUpdate?: (newPhone: string) => void
 }
 

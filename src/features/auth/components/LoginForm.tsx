@@ -5,55 +5,46 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { User, Lock, ArrowRight, AlertCircle, Heart, Activity } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { authService } from '@/services/auth.service'
 import { ROUTES, ERROR_MESSAGES } from '@/config/constants'
+import { loginSchema, type LoginFormData } from '../schemas/login.schema'
 
 export function LoginForm() {
     const navigate = useNavigate()
     const { login } = useAuth()
 
-    // Estado del formulario
-    const [identificacion, setIdentificacion] = useState('')
-    const [password, setPassword] = useState('')
-    const [isLoading, setIsLoading] = useState(false)
-    const [error, setError] = useState('')
+    const {
+        register,
+        handleSubmit,
+        formState: { errors, isSubmitting },
+        setError,
+        clearErrors,
+    } = useForm<LoginFormData>({
+        resolver: zodResolver(loginSchema),
+        defaultValues: { identificacion: '', password: '' },
+    })
+
+    // Estado de rate limiting (viene del servidor)
     const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null)
     const [lockedUntil, setLockedUntil] = useState<Date | null>(null)
 
-    const handleIdentificacionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value.replace(/\D/g, '')
-        setIdentificacion(value)
-        setError('')
-    }
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setError('')
+    const onSubmit = async (data: LoginFormData) => {
+        clearErrors('root')
         setRemainingAttempts(null)
         setLockedUntil(null)
 
-        if (!identificacion.trim()) {
-            setError(ERROR_MESSAGES.REQUIRED_FIELD)
-            return
-        }
-
-        if (!password.trim()) {
-            setError(ERROR_MESSAGES.REQUIRED_FIELD)
-            return
-        }
-
-        setIsLoading(true)
-
         try {
             const result = await authService.login({
-                identificacion: identificacion.trim(),
-                password: password.trim(),
+                identificacion: data.identificacion.trim(),
+                password: data.password.trim(),
             })
 
             if (!result.success) {
-                setError(result.error || ERROR_MESSAGES.INVALID_CREDENTIALS)
+                setError('root', { message: result.error || ERROR_MESSAGES.INVALID_CREDENTIALS })
                 if (result.remainingAttempts !== undefined) {
                     setRemainingAttempts(result.remainingAttempts)
                 }
@@ -69,9 +60,7 @@ export function LoginForm() {
             }
         } catch (err) {
             console.error('Error en login', err)
-            setError(ERROR_MESSAGES.SERVER_ERROR)
-        } finally {
-            setIsLoading(false)
+            setError('root', { message: ERROR_MESSAGES.SERVER_ERROR })
         }
     }
 
@@ -83,6 +72,9 @@ export function LoginForm() {
         const minutes = Math.ceil(diff / 60000)
         return `${minutes} minuto${minutes > 1 ? 's' : ''}`
     }
+
+    // Error combinado: validación de campo o error del servidor
+    const displayError = errors.identificacion?.message || errors.password?.message || errors.root?.message
 
     return (
         <>
@@ -183,7 +175,7 @@ export function LoginForm() {
                         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 60px -15px rgba(0, 149, 235, 0.2)',
                         border: '1px solid rgba(255, 255, 255, 0.1)',
                     }}>
-                        <form onSubmit={handleSubmit}>
+                        <form onSubmit={handleSubmit(onSubmit)}>
                             {/* Campo Identificación */}
                             <div style={{ marginBottom: '1.25rem' }}>
                                 <label style={{
@@ -207,10 +199,14 @@ export function LoginForm() {
                                     </div>
                                     <input
                                         type="text"
-                                        value={identificacion}
-                                        onChange={handleIdentificacionChange}
+                                        {...register('identificacion', {
+                                            onChange: (e) => {
+                                                e.target.value = e.target.value.replace(/\D/g, '')
+                                                clearErrors()
+                                            },
+                                        })}
                                         placeholder="Ingresa tu documento"
-                                        disabled={isLoading || !!lockedUntil}
+                                        disabled={isSubmitting || !!lockedUntil}
                                         autoComplete="username"
                                         required
                                         style={{
@@ -259,13 +255,11 @@ export function LoginForm() {
                                     </div>
                                     <input
                                         type="password"
-                                        value={password}
-                                        onChange={(e) => {
-                                            setPassword(e.target.value)
-                                            setError('')
-                                        }}
+                                        {...register('password', {
+                                            onChange: () => clearErrors(),
+                                        })}
                                         placeholder="Ingresa tu contraseña"
-                                        disabled={isLoading || !!lockedUntil}
+                                        disabled={isSubmitting || !!lockedUntil}
                                         autoComplete="current-password"
                                         required
                                         style={{
@@ -292,7 +286,7 @@ export function LoginForm() {
                             </div>
 
                             {/* Mensaje de error */}
-                            {error && (
+                            {displayError && (
                                 <div style={{
                                     display: 'flex',
                                     alignItems: 'flex-start',
@@ -306,7 +300,7 @@ export function LoginForm() {
                                     <AlertCircle size={20} style={{ color: '#DC2626', flexShrink: 0, marginTop: '2px' }} />
                                     <div>
                                         <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#B91C1C', margin: 0 }}>
-                                            {error}
+                                            {displayError}
                                         </p>
                                         {remainingAttempts !== null && remainingAttempts > 0 && (
                                             <p style={{ fontSize: '0.75rem', color: '#DC2626', marginTop: '0.25rem', margin: 0 }}>
@@ -346,7 +340,7 @@ export function LoginForm() {
                             {/* Botón de login */}
                             <button
                                 type="submit"
-                                disabled={isLoading || !!lockedUntil}
+                                disabled={isSubmitting || !!lockedUntil}
                                 style={{
                                     width: '100%',
                                     padding: '1rem 2rem',
@@ -354,19 +348,19 @@ export function LoginForm() {
                                     fontSize: '1rem',
                                     borderRadius: '0.75rem',
                                     border: 'none',
-                                    cursor: isLoading || lockedUntil ? 'not-allowed' : 'pointer',
+                                    cursor: isSubmitting || lockedUntil ? 'not-allowed' : 'pointer',
                                     background: 'linear-gradient(135deg, #0095EB 0%, #0077BC 100%)',
                                     color: '#FFFFFF',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     gap: '0.75rem',
-                                    opacity: isLoading || lockedUntil ? 0.6 : 1,
+                                    opacity: isSubmitting || lockedUntil ? 0.6 : 1,
                                     transition: 'all 0.2s',
                                     boxShadow: '0 4px 14px -3px rgba(0, 149, 235, 0.4)',
                                 }}
                                 onMouseEnter={(e) => {
-                                    if (!isLoading && !lockedUntil) {
+                                    if (!isSubmitting && !lockedUntil) {
                                         e.currentTarget.style.transform = 'translateY(-2px)'
                                         e.currentTarget.style.boxShadow = '0 8px 25px -5px rgba(0, 149, 235, 0.5)'
                                     }
@@ -376,7 +370,7 @@ export function LoginForm() {
                                     e.currentTarget.style.boxShadow = '0 4px 14px -3px rgba(0, 149, 235, 0.4)'
                                 }}
                             >
-                                {isLoading ? (
+                                {isSubmitting ? (
                                     <>
                                         <svg
                                             style={{ animation: 'spin 1s linear infinite', height: '20px', width: '20px' }}

@@ -8,6 +8,7 @@ import { AuthProvider } from '@/context/AuthContext'
 import { ThemeProvider, useTheme } from '@/context/ThemeContext'
 import { AppRoutes } from '@/routes/AppRoutes'
 import { PWAUpdatePrompt } from '@/components/common/PWAUpdatePrompt'
+import { ErrorBoundary } from '@/components/common'
 import { Toaster } from 'sonner'
 import './index.css'
 
@@ -37,7 +38,9 @@ function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <AppContent />
+          <ErrorBoundary variant="full" featureName="App">
+            <AppContent />
+          </ErrorBoundary>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

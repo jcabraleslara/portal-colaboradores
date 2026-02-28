@@ -17,4 +17,5 @@ export { EditablePhone } from './EditablePhone'
 export { EditableField } from './EditableField'
 export { SignaturePad } from './SignaturePad'
 export { MultiSelector } from './MultiSelector'
+export { ErrorBoundary } from './ErrorBoundary'
 

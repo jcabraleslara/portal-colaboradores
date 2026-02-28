@@ -36,11 +36,11 @@ import { Card, Button, Input, LoadingOverlay, FileUpload, OrdenadorAutocomplete,
 import { toast } from 'sonner'
 import { copyRichText } from '@/utils/clipboard'
 import { parseDateLocal } from '@/utils/date.utils'
-import { afiliadosService } from '@/services/afiliados.service'
 import { backService } from '@/services/back.service'
 import { emailService } from '@/services/email.service'
 import { rutasService } from '@/features/rutas/services/rutas.service'
 import { useAuth } from '@/context/AuthContext'
+import { useAfiliadoSearch } from '@/hooks'
 import { Afiliado, LoadingState } from '@/types'
 import {
     TipoSolicitudBack,
@@ -65,11 +65,21 @@ export function RadicacionCasosPage() {
     // ============================================
     // ESTADO - PASO 1: Búsqueda de Afiliado
     // ============================================
-    const [documento, setDocumento] = useState('')
-    const [afiliado, setAfiliado] = useState<Afiliado | null>(null)
-    const [searchState, setSearchState] = useState<LoadingState>('idle')
-    const [searchError, setSearchError] = useState('')
     const [mostrarFormularioNuevo, setMostrarFormularioNuevo] = useState(false)
+    const {
+        documento, setDocumento,
+        afiliado, setAfiliado,
+        searchState, setSearchState,
+        searchError, setSearchError,
+        handleSearch, handleClear,
+    } = useAfiliadoSearch({
+        digitOnly: true,
+        onNotFound: (doc) => {
+            setSearchError('Afiliado no encontrado en el sistema')
+            setMostrarFormularioNuevo(true)
+            setNuevoAfiliado(prev => ({ ...prev, id: doc }))
+        },
+    })
     const [nuevoAfiliado, setNuevoAfiliado] = useState<NuevoAfiliadoForm>({
         tipoId: 'CC',
         id: '',
@@ -200,30 +210,10 @@ export function RadicacionCasosPage() {
     // HANDLERS - PASO 1
     // ============================================
 
-    const handleSearch = async () => {
-        if (!documento.trim()) {
-            setSearchError('Ingresa un número de documento')
-            return
-        }
-
-        setSearchState('loading')
-        setSearchError('')
-        setAfiliado(null)
+    const handleSearchWithReset = async () => {
         setMostrarFormularioNuevo(false)
         resetFormulario()
-
-        const result = await afiliadosService.buscarPorDocumento(documento.trim())
-
-        if (result.success && result.data) {
-            setAfiliado(result.data)
-            setSearchState('success')
-        } else {
-            // No encontrado: mostrar formulario de creación
-            setSearchError('Afiliado no encontrado en el sistema')
-            setMostrarFormularioNuevo(true)
-            setNuevoAfiliado(prev => ({ ...prev, id: documento.trim() }))
-            setSearchState('error')
-        }
+        await handleSearch()
     }
 
     const handleCrearAfiliado = async () => {
@@ -560,10 +550,7 @@ export function RadicacionCasosPage() {
     }
 
     const handleNuevaRadicacion = () => {
-        setDocumento('')
-        setAfiliado(null)
-        setSearchState('idle')
-        setSearchError('')
+        handleClear()
         setMostrarFormularioNuevo(false)
         setHistorial([])
         resetFormulario()
@@ -648,18 +635,17 @@ export function RadicacionCasosPage() {
                                     placeholder="Número de documento del afiliado"
                                     value={documento}
                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                                        setDocumento(e.target.value.replace(/\D/g, ''))
-                                        setSearchError('')
+                                        setDocumento(e.target.value)
                                         setMostrarFormularioNuevo(false)
                                     }}
-                                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSearch()}
+                                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSearchWithReset()}
                                     leftIcon={<User size={20} />}
                                     disabled={searchState === 'loading' || !!afiliado}
                                 />
                             </div>
                             {!afiliado ? (
                                 <Button
-                                    onClick={handleSearch}
+                                    onClick={handleSearchWithReset}
                                     isLoading={searchState === 'loading'}
                                     leftIcon={<Search size={20} />}
                                 >
