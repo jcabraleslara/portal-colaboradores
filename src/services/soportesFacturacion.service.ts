@@ -514,12 +514,23 @@ export const soportesFacturacionService = {
                 archivosExitosos: number
                 archivosFaltantes: number
                 totalEsperados: number
+                eliminado?: boolean
+                mensaje?: string
             }>(EDGE_FUNCTIONS.finalizarRadicacion, {
                 body: { radicado },
             })
 
             if (finResponse.error) {
                 console.error('Error en finalizar-radicacion:', finResponse.error)
+            }
+
+            // Fallo total: el servidor eliminó el radicado porque ningún archivo llegó
+            if (finResponse.data?.eliminado) {
+                console.error(`[crearRadicacion] Fallo total: radicado ${radicado} eliminado por el servidor`)
+                return {
+                    success: false,
+                    error: finResponse.data.mensaje || 'Ningún archivo fue recibido por el servidor. El radicado fue eliminado. Debe realizar una nueva radicación.',
+                }
             }
 
             // Obtener registro final
