@@ -16,7 +16,8 @@ import {
     FileText,
     Phone,
     AlertCircle,
-    Loader2
+    Loader2,
+    ReceiptText
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { ROUTES } from '@/config/constants'
@@ -91,11 +92,18 @@ export function DashboardPage() {
             showAlert: metrics.soportesPorRevisar > 20
         },
         {
-            label: 'Llamadas hoy',
-            value: metrics.llamadasHoy,
+            label: 'Llamadas del mes',
+            value: metrics.llamadasMes,
             icon: Phone,
             color: 'success',
             showAlert: false
+        },
+        {
+            label: 'Recobros pendientes',
+            value: metrics.recobrosPendientes,
+            icon: ReceiptText,
+            color: 'warning',
+            showAlert: metrics.recobrosPendientes > 10
         },
     ]
 
@@ -142,7 +150,7 @@ export function DashboardPage() {
                 </div>
 
                 {/* Stats dinámicos (métricas de pendientes) */}
-                <div className="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
+                <div className="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
                     {statsConfig.map((stat, i) => {
                         const Icon = stat.icon
                         return (

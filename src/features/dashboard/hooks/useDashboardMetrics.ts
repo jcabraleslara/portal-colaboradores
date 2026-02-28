@@ -9,7 +9,8 @@ import { supabase } from '@/config/supabase.config'
 interface DashboardMetrics {
     casosPendientes: number
     soportesPorRevisar: number
-    llamadasHoy: number
+    llamadasMes: number
+    recobrosPendientes: number
 }
 
 interface UseDashboardMetricsReturn {
@@ -25,7 +26,8 @@ const CACHE_DURATION_MS = 5 * 60 * 1000 // 5 minutos
 const DEFAULT_METRICS: DashboardMetrics = {
     casosPendientes: 0,
     soportesPorRevisar: 0,
-    llamadasHoy: 0
+    llamadasMes: 0,
+    recobrosPendientes: 0
 }
 
 /**
@@ -79,7 +81,8 @@ export function useDashboardMetrics(): UseDashboardMetricsReturn {
             const metricsData: DashboardMetrics = {
                 casosPendientes: data?.casos_pendientes ?? 0,
                 soportesPorRevisar: data?.soportes_por_revisar ?? 0,
-                llamadasHoy: data?.llamadas_hoy ?? 0
+                llamadasMes: data?.llamadas_mes ?? 0,
+                recobrosPendientes: data?.recobros_pendientes ?? 0
             }
 
             setMetrics(metricsData)
