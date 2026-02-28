@@ -116,9 +116,79 @@ Deno.serve(async (req: Request) => {
             }
 
             const todosSubidos = archivosFaltantes.length === 0
-            const uploadStatus = todosSubidos ? 'completed' : (archivosExitosos.length > 0 ? 'partial' : 'failed')
+            const falloTotal = archivosExitosos.length === 0 && archivosFaltantes.length > 0
+            const uploadStatus = todosSubidos ? 'completed' : (falloTotal ? 'failed' : 'partial')
 
-            // Actualizar BD
+            // FALLO TOTAL: email de notificación + eliminar registro
+            if (falloTotal) {
+                console.warn(`[verificar-uploads] ${radicado}: FALLO TOTAL - 0/${expectedFiles.length} archivos tras ${STALE_THRESHOLD_MINUTES} min`)
+
+                // Agrupar archivos faltantes por categoría para el email
+                const fallosPorCategoria = expectedFiles.reduce((acc, f) => {
+                    const existing = acc.find(g => g.categoria === f.category)
+                    if (existing) {
+                        existing.nombres.push(f.originalName)
+                    } else {
+                        acc.push({ categoria: f.category, nombres: [f.originalName] })
+                    }
+                    return acc
+                }, [] as { categoria: string; nombres: string[] }[])
+
+                // Email de fallo total al radicador
+                try {
+                    await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${anonKey}`,
+                        },
+                        body: JSON.stringify({
+                            type: 'fallo_subida',
+                            destinatario: registro.radicador_email,
+                            radicado,
+                            datos: {
+                                archivosFallidos: fallosPorCategoria,
+                                archivosExitosos: 0,
+                                totalArchivos: expectedFiles.length,
+                                timestamp: new Date().toLocaleString('es-CO'),
+                                falloTotal: true,
+                                radicadoEliminado: true,
+                                erroresDetalle: expectedFiles.map(f => ({
+                                    nombre: f.originalName,
+                                    razon: `Archivo no recibido tras ${STALE_THRESHOLD_MINUTES} minutos. La conexión se interrumpió o el navegador fue cerrado.`,
+                                })),
+                            },
+                        }),
+                    })
+                } catch (emailError) {
+                    console.error(`[verificar-uploads] ${radicado}: Error enviando email de fallo total:`, emailError)
+                }
+
+                // Limpiar archivos huérfanos del Storage
+                for (const file of expectedFiles) {
+                    await supabaseAdmin.storage.from('soportes-facturacion').remove([file.path])
+                }
+
+                // Eliminar registro de BD
+                await supabaseAdmin
+                    .from('soportes_facturacion')
+                    .delete()
+                    .eq('id', registro.id)
+
+                // Notificar error crítico
+                await notifyCriticalError({
+                    category: 'STORAGE_FAILURE',
+                    errorMessage: `[Recovery] Radicado ${radicado}: FALLO TOTAL - 0/${expectedFiles.length} archivos tras ${STALE_THRESHOLD_MINUTES} min. Registro eliminado.`,
+                    feature: 'Soportes de Facturación',
+                    severity: 'CRITICAL',
+                    metadata: { radicado, archivosFaltantes, radicadorEmail: registro.radicador_email, eliminado: true },
+                })
+
+                results.push({ radicado, status: 'failed_deleted', exitosos: 0, faltantes: archivosFaltantes.length })
+                continue
+            }
+
+            // COMPLETADO o PARCIAL: actualizar BD normalmente
             const updateData: Record<string, unknown> = {
                 ...urlsPorCategoria,
                 upload_status: uploadStatus,
@@ -138,8 +208,8 @@ Deno.serve(async (req: Request) => {
                 .update(updateData)
                 .eq('id', registro.id)
 
-            // Enviar email de confirmación si se completó
             if (todosSubidos) {
+                // Email de confirmación exitosa (recovery completó el radicado)
                 const categoriasParaEmail = [
                     { categoria: 'Validación de Derechos', urls: urlsPorCategoria['urls_validacion_derechos'] || [] },
                     { categoria: 'Autorización', urls: urlsPorCategoria['urls_autorizacion'] || [] },
@@ -152,34 +222,76 @@ Deno.serve(async (req: Request) => {
                     { categoria: 'Notas de Enfermería', urls: urlsPorCategoria['urls_notas_enfermeria'] || [] },
                 ]
 
-                await fetch(`${supabaseUrl}/functions/v1/send-email`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${anonKey}`,
-                    },
-                    body: JSON.stringify({
-                        type: 'radicacion',
-                        destinatario: registro.radicador_email,
-                        radicado,
-                        datos: {
-                            eps: registro.eps,
-                            regimen: registro.regimen,
-                            servicioPrestado: registro.servicio_prestado,
-                            fechaAtencion: registro.fecha_atencion,
-                            pacienteNombre: registro.nombres_completos || 'No especificado',
-                            pacienteIdentificacion: registro.identificacion || 'No especificado',
-                            pacienteTipoId: registro.tipo_id || 'CC',
-                            archivos: categoriasParaEmail,
-                            fechaRadicacion: registro.fecha_radicacion || registro.created_at,
-                            radicadorEmail: registro.radicador_email,
+                try {
+                    await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${anonKey}`,
                         },
-                    }),
-                })
-            }
+                        body: JSON.stringify({
+                            type: 'radicacion',
+                            destinatario: registro.radicador_email,
+                            radicado,
+                            datos: {
+                                eps: registro.eps,
+                                regimen: registro.regimen,
+                                servicioPrestado: registro.servicio_prestado,
+                                fechaAtencion: registro.fecha_atencion,
+                                pacienteNombre: registro.nombres_completos || 'No especificado',
+                                pacienteIdentificacion: registro.identificacion || 'No especificado',
+                                pacienteTipoId: registro.tipo_id || 'CC',
+                                archivos: categoriasParaEmail,
+                                fechaRadicacion: registro.fecha_radicacion || registro.created_at,
+                                radicadorEmail: registro.radicador_email,
+                            },
+                        }),
+                    })
+                } catch (emailError) {
+                    console.error(`[verificar-uploads] ${radicado}: Error enviando email de confirmación:`, emailError)
+                }
+            } else {
+                // Email de fallo parcial (algunos archivos llegaron, otros no)
+                const fallosPorCategoria = archivosFaltantes.reduce((acc, nombre) => {
+                    const file = expectedFiles.find(f => f.originalName === nombre)
+                    const cat = file?.category || 'desconocido'
+                    const existing = acc.find(g => g.categoria === cat)
+                    if (existing) {
+                        existing.nombres.push(nombre)
+                    } else {
+                        acc.push({ categoria: cat, nombres: [nombre] })
+                    }
+                    return acc
+                }, [] as { categoria: string; nombres: string[] }[])
 
-            // Notificar si hay archivos faltantes
-            if (archivosFaltantes.length > 0) {
+                try {
+                    await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${anonKey}`,
+                        },
+                        body: JSON.stringify({
+                            type: 'fallo_subida',
+                            destinatario: registro.radicador_email,
+                            radicado,
+                            datos: {
+                                archivosFallidos: fallosPorCategoria,
+                                archivosExitosos: archivosExitosos.length,
+                                totalArchivos: expectedFiles.length,
+                                timestamp: new Date().toLocaleString('es-CO'),
+                                falloTotal: false,
+                                erroresDetalle: archivosFaltantes.map(nombre => ({
+                                    nombre,
+                                    razon: `Archivo no recibido tras ${STALE_THRESHOLD_MINUTES} minutos. La conexión se interrumpió o el navegador fue cerrado.`,
+                                })),
+                            },
+                        }),
+                    })
+                } catch (emailError) {
+                    console.error(`[verificar-uploads] ${radicado}: Error enviando email de fallo parcial:`, emailError)
+                }
+
                 await notifyCriticalError({
                     category: 'STORAGE_FAILURE',
                     errorMessage: `[Recovery] Radicado ${radicado}: ${archivosFaltantes.length}/${expectedFiles.length} archivos no llegaron tras ${STALE_THRESHOLD_MINUTES} min`,

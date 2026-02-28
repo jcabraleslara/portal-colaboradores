@@ -74,6 +74,8 @@ interface DatosFalloSubida {
     totalArchivos: number
     timestamp: string
     erroresDetalle?: { nombre: string; razon: string }[]
+    falloTotal?: boolean
+    radicadoEliminado?: boolean
 }
 
 interface DatosEnrutado {
@@ -840,9 +842,15 @@ function generarTemplateFalloSubida(radicado: string, datos: DatosFalloSubida): 
     }
 
     // Recomendación siempre presente
-    recomendaciones.push(
-        'Los archivos que se subieron exitosamente <strong>ya quedaron guardados</strong> en el sistema. Solo necesita volver a cargar los archivos que fallaron.'
-    )
+    if (datos.falloTotal) {
+        recomendaciones.push(
+            'Ninguno de los archivos fue recibido por el servidor. <strong>Debe realizar una nueva radicaci&oacute;n</strong> con todos los soportes desde el Portal de Colaboradores.'
+        )
+    } else {
+        recomendaciones.push(
+            'Los archivos que se subieron exitosamente <strong>ya quedaron guardados</strong> en el sistema. Solo necesita volver a cargar los archivos que fallaron.'
+        )
+    }
 
     const recomendacionesHtml = recomendaciones
         .map(r => `<li style="margin: 8px 0; font-size: 13px; line-height: 1.7; color: ${COLORS.slate700};">${r}</li>`)
@@ -894,12 +902,18 @@ function generarTemplateFalloSubida(radicado: string, datos: DatosFalloSubida): 
                 ${fallidosHtml}
 
                 <!-- Accion Requerida -->
-                <div style="background-color: ${COLORS.warningLight}; border-left: 4px solid ${COLORS.warning}; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
-                    <strong style="color: ${COLORS.warningDark};">&#9889; Acci&oacute;n Requerida:</strong>
-                    <p style="margin: 10px 0 0 0; font-size: 14px; line-height: 1.6; color: ${COLORS.slate700};">
-                        Ingrese al <strong>Portal de Colaboradores</strong>, busque el radicado <strong>${radicado}</strong>
-                        en la pesta&ntilde;a <em>Gesti&oacute;n de Radicados</em> y vuelva a cargar &uacute;nicamente los archivos que fallaron.
-                    </p>
+                <div style="background-color: ${datos.falloTotal ? COLORS.errorLight : COLORS.warningLight}; border-left: 4px solid ${datos.falloTotal ? COLORS.error : COLORS.warning}; padding: 16px; margin: 24px 0; border-radius: 0 8px 8px 0;">
+                    <strong style="color: ${datos.falloTotal ? COLORS.error : COLORS.warningDark};">&#9889; Acci&oacute;n Requerida:</strong>
+                    ${datos.falloTotal
+                        ? `<p style="margin: 10px 0 0 0; font-size: 14px; line-height: 1.6; color: ${COLORS.slate700};">
+                            Ninguno de los archivos pudo ser subido al servidor${datos.radicadoEliminado ? ` y el radicado <strong>${radicado}</strong> fue eliminado autom&aacute;ticamente` : ''}.
+                            Por favor, ingrese al <strong>Portal de Colaboradores</strong> y <strong>realice una nueva radicaci&oacute;n</strong> desde el m&oacute;dulo de Soportes de Facturaci&oacute;n.
+                        </p>`
+                        : `<p style="margin: 10px 0 0 0; font-size: 14px; line-height: 1.6; color: ${COLORS.slate700};">
+                            Ingrese al <strong>Portal de Colaboradores</strong>, busque el radicado <strong>${radicado}</strong>
+                            en la pesta&ntilde;a <em>Gesti&oacute;n de Radicados</em> y vuelva a cargar &uacute;nicamente los archivos que fallaron.
+                        </p>`
+                    }
                 </div>
 
                 <!-- Recomendaciones específicas -->
@@ -1007,7 +1021,9 @@ Deno.serve(async (req: Request) => {
         } else if (body.type === 'fallo_subida') {
             const datosFallo = body.datos as DatosFalloSubida
             const totalFallidos = datosFallo.archivosFallidos.reduce((acc, f) => acc + f.nombres.length, 0)
-            subject = `Archivos Pendientes de Subida - ${body.radicado} (${totalFallidos} archivo${totalFallidos > 1 ? 's' : ''})`
+            subject = datosFallo.falloTotal
+                ? `⛔ Radicación Fallida - ${body.radicado} - Requiere Nueva Radicación`
+                : `Archivos Pendientes de Subida - ${body.radicado} (${totalFallidos} archivo${totalFallidos > 1 ? 's' : ''})`
             htmlBody = generarTemplateFalloSubida(body.radicado, datosFallo)
         } else {
             return new Response(

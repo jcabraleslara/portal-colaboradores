@@ -118,9 +118,98 @@ Deno.serve(async (req: Request) => {
 
         // 3. Determinar estado final
         const todosSubidos = archivosFaltantes.length === 0
-        const uploadStatus = todosSubidos ? 'completed' : 'partial'
+        const falloTotal = archivosExitosos.length === 0 && archivosFaltantes.length > 0
+        const uploadStatus = todosSubidos ? 'completed' : (falloTotal ? 'failed' : 'partial')
 
-        // 4. Actualizar BD con URLs y estado
+        // 4. Si fallo total: notificar por email, eliminar registro y retornar
+        if (falloTotal) {
+            console.warn(`[finalizar-radicacion] ${radicado}: FALLO TOTAL - 0/${expectedFiles.length} archivos recibidos`)
+
+            try {
+                const fallosPorCategoria = archivosFaltantes.reduce((acc, f) => {
+                    const existing = acc.find(g => g.categoria === f.category)
+                    if (existing) {
+                        existing.nombres.push(f.originalName)
+                    } else {
+                        acc.push({ categoria: f.category, nombres: [f.originalName] })
+                    }
+                    return acc
+                }, [] as { categoria: string; nombres: string[] }[])
+
+                // Email de fallo total al radicador
+                await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${anonKey}`,
+                    },
+                    body: JSON.stringify({
+                        type: 'fallo_subida',
+                        destinatario: registro.radicador_email,
+                        radicado,
+                        datos: {
+                            archivosFallidos: fallosPorCategoria,
+                            archivosExitosos: 0,
+                            totalArchivos: expectedFiles.length,
+                            timestamp: new Date().toLocaleString('es-CO'),
+                            falloTotal: true,
+                            radicadoEliminado: true,
+                            erroresDetalle: archivosFaltantes.map(f => ({
+                                nombre: f.originalName,
+                                razon: 'Archivo no recibido en el servidor. Posible interrupción de la conexión.',
+                            })),
+                        },
+                    }),
+                })
+            } catch (emailError) {
+                console.error(`[finalizar-radicacion] ${radicado}: Error enviando email de fallo total:`, emailError)
+            }
+
+            // Eliminar archivos huérfanos del Storage (por si alguno llegó parcialmente)
+            for (const file of expectedFiles) {
+                await supabaseAdmin.storage.from('soportes-facturacion').remove([file.path])
+            }
+
+            // Eliminar registro de BD
+            const { error: deleteError } = await supabaseAdmin
+                .from('soportes_facturacion')
+                .delete()
+                .eq('radicado', radicado)
+
+            if (deleteError) {
+                console.error(`[finalizar-radicacion] Error eliminando registro ${radicado}:`, deleteError)
+            }
+
+            // Notificar error crítico
+            await notifyCriticalError({
+                category: 'STORAGE_FAILURE',
+                errorMessage: `Radicado ${radicado}: FALLO TOTAL - 0/${expectedFiles.length} archivos. Registro eliminado.`,
+                feature: 'Soportes de Facturación',
+                severity: 'CRITICAL',
+                metadata: {
+                    radicado,
+                    archivosFaltantes: archivosFaltantes.map(f => f.originalName),
+                    radicadorEmail: registro.radicador_email,
+                    eliminado: true,
+                },
+            })
+
+            return new Response(
+                JSON.stringify({
+                    success: false,
+                    radicado,
+                    uploadStatus: 'failed',
+                    archivosExitosos: 0,
+                    archivosFaltantes: archivosFaltantes.length,
+                    totalEsperados: expectedFiles.length,
+                    eliminado: true,
+                    mensaje: 'Ningún archivo fue recibido. El radicado fue eliminado. Debe realizar una nueva radicación.',
+                }),
+                { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            )
+        }
+
+        // 5. Actualizar BD con URLs y estado (completed o partial)
         const updateData: Record<string, unknown> = {
             ...urlsPorCategoria,
             upload_status: uploadStatus,
@@ -147,9 +236,8 @@ Deno.serve(async (req: Request) => {
             console.error(`[finalizar-radicacion] Error actualizando ${radicado}:`, updateError)
         }
 
-        // 5. Enviar email de confirmación vía send-email Edge Function
+        // 6. Enviar email de confirmación vía send-email Edge Function
         try {
-            // Preparar datos de archivos para el email (mismo formato que el frontend usa)
             const categoriasParaEmail = [
                 { categoria: 'Validación de Derechos', urls: urlsPorCategoria['urls_validacion_derechos'] || [] },
                 { categoria: 'Autorización', urls: urlsPorCategoria['urls_autorizacion'] || [] },
@@ -190,7 +278,7 @@ Deno.serve(async (req: Request) => {
                 })
                 console.info(`[finalizar-radicacion] ${radicado}: Email de confirmación enviado`)
             } else {
-                // Email de fallo parcial
+                // Email de fallo parcial (algunos archivos llegaron, otros no)
                 const fallosPorCategoria = archivosFaltantes.reduce((acc, f) => {
                     const existing = acc.find(g => g.categoria === f.category)
                     if (existing) {
@@ -216,13 +304,11 @@ Deno.serve(async (req: Request) => {
                             archivosExitosos: archivosExitosos.length,
                             totalArchivos: expectedFiles.length,
                             timestamp: new Date().toLocaleString('es-CO'),
+                            falloTotal: false,
                             erroresDetalle: archivosFaltantes.map(f => ({
                                 nombre: f.originalName,
                                 razon: 'Archivo no recibido en el servidor. Posible interrupción de la conexión.',
                             })),
-                            pacienteNombre: registro.nombres_completos || 'No especificado',
-                            pacienteIdentificacion: registro.identificacion || 'No especificado',
-                            pacienteTipoId: registro.tipo_id || 'CC',
                         },
                     }),
                 })
