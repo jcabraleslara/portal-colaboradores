@@ -1,3 +1,8 @@
+---
+description: "Deuda técnica y mejoras pendientes: archivos grandes por refactorizar, state management, cache, testing, accesibilidad, notificaciones in-app, reportes, audit trail y roadmap"
+user-invocable: false
+---
+
 # Skill: Portal Pending Improvements & Technical Debt
 
 Referencia de deuda técnica, oportunidades de optimización y mejoras pendientes del Portal de Colaboradores. Usa esta guía para priorizar trabajo futuro y entender áreas que necesitan refactoring.

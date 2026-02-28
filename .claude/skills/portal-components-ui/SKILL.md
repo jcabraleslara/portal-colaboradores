@@ -1,3 +1,8 @@
+---
+description: "18 componentes UI reutilizables: Button, Input, Card, FileUpload, Autocomplete, RichTextEditor, SignaturePad, layout (Header, Sidebar, MainLayout) y design patterns"
+user-invocable: false
+---
+
 # Skill: Portal UI Components Reference
 
 Referencia de los 18 componentes reutilizables y componentes de layout del Portal de Colaboradores. Usa esta guía para entender los componentes disponibles, sus props, y cómo crear nuevos.

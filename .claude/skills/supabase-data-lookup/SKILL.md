@@ -1,3 +1,8 @@
+---
+description: "Schema completo de base de datos Supabase: 31 tablas, volumetría, estructuras, índices, RPCs, JOINs frecuentes, patrones de búsqueda optimizada y ejecución via MCP"
+user-invocable: false
+---
+
 # Skill: Supabase Data Lookup
 
 Referencia completa del esquema de base de datos Supabase para buscar datos de forma optimizada usando MCP Cloud (`execute_sql`). Usa esta guia cuando el usuario pida consultar, buscar o analizar datos del Portal Colaboradores.

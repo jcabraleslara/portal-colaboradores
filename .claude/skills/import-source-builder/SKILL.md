@@ -1,3 +1,8 @@
+---
+description: "Guía para construir procesadores de importación: arquitectura del módulo importarFuentes, template de servicio, template RPC PostgreSQL, formato archivos fuente, convenciones y checklist"
+user-invocable: false
+---
+
 # Skill: Import Source Builder
 
 Guía completa para construir procesadores de importación en el módulo `importarFuentes`.

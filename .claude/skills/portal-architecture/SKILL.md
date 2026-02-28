@@ -1,3 +1,8 @@
+---
+description: "Arquitectura del portal: stack, estructura de carpetas, build system, code splitting, PWA, integraciones externas, design system y patrones clave"
+user-invocable: false
+---
+
 # Skill: Portal Architecture Reference
 
 Referencia completa de la arquitectura del Portal de Colaboradores de Gestar Salud IPS. Usa esta guía para entender el stack, estructura, build system, patrones de diseño y dependencias del proyecto.

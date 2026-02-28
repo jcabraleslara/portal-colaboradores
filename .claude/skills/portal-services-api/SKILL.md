@@ -1,3 +1,8 @@
+---
+description: "22 servicios API del portal: auth, afiliados, back, anexo8, recobros, email, SMS, Teams, AI/Gemini, storage buckets, tipos TypeScript y utilidades"
+user-invocable: false
+---
+
 # Skill: Portal Services & API Layer Reference
 
 Referencia de los 22 servicios, tipos TypeScript, utilidades y patrones de API del Portal de Colaboradores. Usa esta guía para entender la capa de servicios y cómo conectan frontend con backend.

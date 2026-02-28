@@ -1,3 +1,8 @@
+---
+description: "Identidad corporativa para correos electrónicos: paleta de colores, tipografía, emojis HTML entities, estructura base de templates, logo inline CID y checklist para nuevos templates"
+user-invocable: false
+---
+
 # Identidad Corporativa para Correos - Gestar Salud IPS
 
 ## Paleta de Colores Corporativa

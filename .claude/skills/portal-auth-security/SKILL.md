@@ -1,3 +1,8 @@
+---
+description: "Sistema de autenticación: sesión JWT, fetch interceptor, AuthContext, guards de ruta, rate limiting, timeout inactividad, password policy, RLS y edge cases"
+user-invocable: false
+---
+
 # Skill: Portal Auth & Security Reference
 
 Referencia del sistema de autenticación, manejo de sesión, seguridad y guards del Portal de Colaboradores. Usa esta guía para entender o modificar el flujo de auth, sesiones, permisos y protección de rutas.

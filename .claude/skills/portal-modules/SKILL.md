@@ -1,3 +1,8 @@
+---
+description: "18 módulos funcionales del portal: dashboard, validación derechos, radicación, gestión back, anexo 8, recobros, salud oral, soportes facturación, demanda inducida, importar fuentes, directorio, CUPS/CIE-10, rutas, admin usuarios y sus dependencias"
+user-invocable: false
+---
+
 # Skill: Portal Feature Modules Reference
 
 Referencia de los 18 módulos funcionales del Portal de Colaboradores. Usa esta guía para entender la lógica de negocio, componentes, y dependencias de cada módulo.
