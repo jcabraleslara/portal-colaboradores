@@ -142,6 +142,15 @@ export const authService = {
                     : null,
             }
 
+            // 5. Actualizar last_sign_in_at en usuarios_portal (fire-and-forget)
+            supabase
+                .from('usuarios_portal')
+                .update({ last_sign_in_at: new Date().toISOString() })
+                .eq('identificacion', identificacion)
+                .then(({ error }) => {
+                    if (error) console.warn('No se pudo actualizar last_sign_in_at:', error.message)
+                })
+
             console.info('Login exitoso via Supabase Auth', { identificacion, rol })
 
             return {
